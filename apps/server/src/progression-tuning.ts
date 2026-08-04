@@ -13,6 +13,7 @@ export function tuneProgression<T extends MazeGame>(game: T): T {
   const internals = game as unknown as ProgressionInternals;
   const originalAwardXp = internals.awardXp.bind(internals);
   internals.awardXp = (player: RuntimePlayer, amount: number): void => {
+    if (player.dead) return;
     const scoreBefore = player.score;
     const baseReward = Math.max(0, Math.round(amount));
     originalAwardXp(player, baseReward * XP_MULTIPLIER);
