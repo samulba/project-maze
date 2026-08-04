@@ -20,12 +20,14 @@ describe('arena systems', () => {
     const internals = game as unknown as Internals;
     const now = Date.now();
     game.step(1 / 40, now + 19_000);
-    const snapshot = game.snapshot(playerId, now + 19_000) as any;
-    expect(snapshot.eliteShapeIds.length).toBeGreaterThan(0);
 
-    const eliteId = snapshot.eliteShapeIds[0] as string;
-    const elite = internals.shapes.get(eliteId);
+    const elite = [...internals.shapes.values()].find((shape) => ![16, 40, 100].includes(shape.maxHealth));
+    expect(elite).toBeTruthy();
     const player = internals.players.get(playerId);
+    player.position = { ...elite.position };
+    const snapshot = game.snapshot(playerId, now + 19_000) as any;
+    expect(snapshot.eliteShapeIds).toContain(elite.id);
+
     const before = player.score;
     internals.damageShape(elite, elite.health + 1, playerId, now + 19_100);
     expect(player.score - before).toBeGreaterThanOrEqual(260);
