@@ -11,7 +11,14 @@ import {
   type ClientMessage,
   type ServerMessage
 } from '@project-maze/shared';
+import { tuneClassMechanics } from './class-mechanics.js';
 import { tuneCombatScaling } from './combat-tuning.js';
+import {
+  applyDebugBuild,
+  clearDebugProjectiles,
+  healDebugPlayer,
+  type DebugPreset
+} from './debug-lab.js';
 import { tuneDifficulty } from './difficulty-tuning.js';
 import { tuneDrones } from './drone-tuning.js';
 import { MazeGame } from './game.js';
@@ -27,6 +34,7 @@ function integerEnvironment(name: string, fallback: number, minimum: number, max
 const PORT = integerEnvironment('PORT', 2567, 1, 65535);
 const BOT_COUNT = integerEnvironment('BOT_COUNT', 8, 0, 18);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN?.trim() || '*';
+const ENABLE_DEV_TOOLS = process.env.ENABLE_DEV_TOOLS === 'true' || (PORT === 2567 && ALLOWED_ORIGIN === '*');
 const allowedOrigins = ALLOWED_ORIGIN === '*'
   ? null
   : new Set(ALLOWED_ORIGIN.split(',').map((value) => value.trim()).filter(Boolean));
@@ -43,9 +51,11 @@ const server = createServer(app);
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
 const game = tuneProgression(
   tuneDifficulty(
-    tuneDrones(
-      tuneCombatScaling(
-        hardenSimulation(new MazeGame(BOT_COUNT))
+    tuneClassMechanics(
+      tuneDrones(
+        tuneCombatScaling(
+          hardenSimulation(new MazeGame(BOT_COUNT))
+        )
       )
     )
   )
@@ -72,6 +82,18 @@ const upgradeSchema = z.object({ type: z.literal('upgrade'), upgrade: z.enum(UPG
 const classSchema = z.object({ type: z.literal('chooseClass'), playerClass: z.enum(PLAYER_CLASS_IDS) }).strict();
 const respawnSchema = z.object({ type: z.literal('respawn') }).strict();
 const pingSchema = z.object({ type: z.literal('ping'), sentAt: z.number().finite() }).strict();
+const debugSchema = z.discriminatedUnion('action', [
+  z.object({
+    type: z.literal('debug'),
+    action: z.literal('setBuild'),
+    playerClass: z.enum(PLAYER_CLASS_IDS),
+    level: z.number().int().min(1).max(GAME.maxLevel),
+    preset: z.enum(['blank', 'balanced', 'offense', 'defense', 'mobility'])
+  }).strict(),
+  z.object({ type: z.literal('debug'), action: z.literal('heal') }).strict(),
+  z.object({ type: z.literal('debug'), action: z.literal('clearProjectiles') }).strict()
+]);
+type DebugMessage = z.infer<typeof debugSchema>;
 
 function send(socket: WebSocket, message: ServerMessage, allowDrop = false): void {
   if (socket.readyState !== WebSocket.OPEN) return;
@@ -108,7 +130,7 @@ wss.on('connection', (socket, request) => {
 
     try {
       const rawText = Array.isArray(raw) ? Buffer.concat(raw).toString() : raw.toString();
-      const message = JSON.parse(rawText) as ClientMessage;
+      const message = JSON.parse(rawText) as ClientMessage | DebugMessage;
       if (message.type === 'join') {
         const parsed = joinSchema.safeParse(message);
         if (!parsed.success || playerId || game.humanCount >= GAME.maxPlayers) {
@@ -118,6 +140,23 @@ wss.on('connection', (socket, request) => {
         playerId = game.addPlayer(parsed.data.name);
         socketPlayerIds.set(socket, playerId);
         send(socket, { type: 'welcome', selfId: playerId });
+        return;
+      }
+      if (message.type === 'debug' && playerId) {
+        if (!ENABLE_DEV_TOOLS) return;
+        const parsed = debugSchema.safeParse(message);
+        if (!parsed.success) return;
+        if (parsed.data.action === 'setBuild') {
+          applyDebugBuild(game, playerId, {
+            playerClass: parsed.data.playerClass,
+            level: parsed.data.level,
+            preset: parsed.data.preset as DebugPreset
+          }, now);
+        } else if (parsed.data.action === 'heal') {
+          healDebugPlayer(game, playerId);
+        } else {
+          clearDebugProjectiles(game);
+        }
         return;
       }
       if (message.type === 'input' && playerId) {
@@ -184,7 +223,8 @@ app.get('/health', (_request: Request, response: Response) => response.json({
   humans: game.humanCount,
   ...game.entityCounts,
   mode: 'maze-alpha',
-  version: '0.7.0',
-  snapshotRate: GAME.snapshotRate
+  version: '0.8.0',
+  snapshotRate: GAME.snapshotRate,
+  debugTools: ENABLE_DEV_TOOLS
 }));
 server.listen(PORT, () => console.log(`Project Maze server listening on http://localhost:${PORT}`));
