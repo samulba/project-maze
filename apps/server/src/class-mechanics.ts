@@ -19,6 +19,7 @@ interface RuntimeStats {
   damage: number;
   projectileSpeed: number;
   penetration: number;
+  barrelSpread: number;
 }
 interface MechanicsInternals {
   players: Map<string, RuntimePlayer>;
@@ -53,6 +54,13 @@ const FIRE_RECOIL: Partial<Record<PlayerClass, number>> = {
   juggernaut: 2,
   fortress: 5
 };
+
+interface GatlingState {
+  heat: number;
+  lastShotAt: number;
+}
+
+const gatlingStates = new Map<string, GatlingState>();
 
 const frontalArmor = (playerClass: PlayerClass): number => {
   if (playerClass === 'fortress') return 0.38;
@@ -99,7 +107,24 @@ export function tuneClassMechanics<T extends MazeGame>(game: T): T {
   const originalFire = internals.fire.bind(internals);
   internals.fire = (player: RuntimePlayer, stats: RuntimeStats): void => {
     const existing = new Set(internals.projectiles.keys());
-    originalFire(player, stats);
+    let firingStats = stats;
+
+    if (player.playerClass === 'gatling') {
+      const now = Date.now();
+      const previous = gatlingStates.get(player.id);
+      const heat = previous && now - previous.lastShotAt <= 720
+        ? Math.min(1, previous.heat + 0.2)
+        : 0.2;
+      gatlingStates.set(player.id, { heat, lastShotAt: now });
+      firingStats = {
+        ...stats,
+        barrelSpread: stats.barrelSpread * (1 - heat * 0.55)
+      };
+    } else {
+      gatlingStates.delete(player.id);
+    }
+
+    originalFire(player, firingStats);
 
     const aimLength = Math.hypot(player.aim.x, player.aim.y);
     const direction = aimLength < 0.001
@@ -117,11 +142,23 @@ export function tuneClassMechanics<T extends MazeGame>(game: T): T {
         projectile.integrity *= 1.08;
         projectile.maxIntegrity *= 1.08;
       }
-      if (player.playerClass === 'hunter') projectile.velocity.x += player.velocity.x * 0.14;
-      if (player.playerClass === 'hunter') projectile.velocity.y += player.velocity.y * 0.14;
+      if (player.playerClass === 'hunter') {
+        projectile.velocity.x += player.velocity.x * 0.14;
+        projectile.velocity.y += player.velocity.y * 0.14;
+      }
       if (player.playerClass === 'lancer') projectile.life *= 1.08;
+      if (player.playerClass === 'storm') {
+        projectile.integrity *= 1.18;
+        projectile.maxIntegrity *= 1.18;
+      }
     }
   };
+
+  const originalRemovePlayer = game.removePlayer.bind(game);
+  game.removePlayer = ((id: string): void => {
+    gatlingStates.delete(id);
+    originalRemovePlayer(id);
+  }) as T['removePlayer'];
 
   return game;
 }
