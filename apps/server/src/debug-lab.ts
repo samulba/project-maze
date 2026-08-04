@@ -8,7 +8,8 @@ import {
   xpThresholdForLevel,
   type PlayerClass,
   type PlayerSnapshot,
-  type UpgradeId
+  type UpgradeId,
+  type Vector2
 } from '@project-maze/shared';
 import { tunedStatsFor } from './combat-tuning.js';
 import { MazeGame } from './game.js';
@@ -21,11 +22,14 @@ export interface DebugBuildRequest {
 }
 
 interface RuntimePlayer extends PlayerSnapshot {
+  move: Vector2;
+  aim: Vector2;
   cooldown: number;
   primary: boolean;
   secondary: boolean;
   invulnerableUntil: number;
   lastDamageAt: number;
+  bot: unknown | null;
 }
 interface DebugInternals {
   players: Map<string, RuntimePlayer>;
@@ -73,6 +77,8 @@ export function applyDebugBuild(game: MazeGame, playerId: string, request: Debug
   player.secondary = false;
   player.cooldown = 0;
   player.velocity = { x: 0, y: 0 };
+  player.move = { x: 0, y: 0 };
+  player.aim = { x: GAME.maxAimDistance, y: 0 };
   player.canRespawnAt = 0;
   player.autoRespawnAt = 0;
   player.killerName = '';
