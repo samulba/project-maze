@@ -1,5 +1,5 @@
 .start-card .eyebrow { font-size:0; }
-.start-card .eyebrow::after { content:'PLAYABLE ALPHA 0.8'; font-size:10px; }
+.start-card .eyebrow::after { content:'PLAYABLE ALPHA 0.9'; font-size:10px; }
 .start-card .eyebrow > span { font-size:10px; }
 .balance-lab-toggle {
   position: fixed;
@@ -53,7 +53,7 @@
 .balance-lab-current h3 { margin:14px 0 8px; font-size:34px; }
 .balance-lab-current p { margin:0; color:#aeb5c8; line-height:1.55; }
 .balance-lab-current strong { display:block; margin-top:13px; color:#e2e5ef; font-size:13px; font-weight:650; }
-.balance-lab-fields { display:grid; grid-template-columns:1.35fr .65fr 1fr; gap:10px; margin:24px 0; }
+.balance-lab-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:24px 0; }
 .balance-lab-fields label { display:grid; gap:7px; color:#8f97aa; font-size:9px; font-weight:800; letter-spacing:.1em; }
 .balance-lab-fields select { min-width:0; border:1px solid rgba(255,255,255,.12); border-radius:10px; background:#111522; color:#fff; padding:11px 12px; font:600 12px Inter,system-ui,sans-serif; }
 .balance-lab-metrics { display:grid; gap:9px; }
