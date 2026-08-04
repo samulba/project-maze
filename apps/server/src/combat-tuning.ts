@@ -13,6 +13,10 @@ import {
   type UpgradeId,
   type Vector2
 } from '@project-maze/shared';
+import {
+  PASSIVE_MODIFIER_DEFINITIONS,
+  type PassiveModifierId
+} from '@project-maze/shared/gameplay';
 import { MazeGame } from './game.js';
 import { moveVectorToward } from './physics.js';
 import { moveCircle } from './world.js';
@@ -45,6 +49,7 @@ interface RuntimePlayer extends PlayerSnapshot {
   lastDamageAt: number;
   invulnerableUntil: number;
   bot: unknown | null;
+  passiveModifier?: PassiveModifierId;
 }
 
 interface CombatInternals {
@@ -65,13 +70,14 @@ interface CombatInternals {
 
 export function tunedStatsFor(player: RuntimePlayer): TunedStats {
   const base = CLASS_DEFINITIONS[player.playerClass];
+  const modifier = PASSIVE_MODIFIER_DEFINITIONS[player.passiveModifier ?? 'standard'];
   return {
-    maxHealth: Math.round(base.maxHealth * (1 + player.upgrades.maxHealth * 0.09)),
+    maxHealth: Math.round(base.maxHealth * (1 + player.upgrades.maxHealth * 0.09) * modifier.healthMultiplier),
     regen: base.regen + player.upgrades.regen * 0.5,
-    acceleration: base.acceleration * (1 + player.upgrades.moveSpeed * 0.018),
-    moveSpeed: base.moveSpeed * (1 + player.upgrades.moveSpeed * 0.03),
-    reload: Math.max(0.09, base.reload * Math.pow(0.95, player.upgrades.reload)),
-    projectileSpeed: base.projectileSpeed * (1 + player.upgrades.projectileSpeed * 0.04),
+    acceleration: base.acceleration * (1 + player.upgrades.moveSpeed * 0.018) * modifier.moveMultiplier,
+    moveSpeed: base.moveSpeed * (1 + player.upgrades.moveSpeed * 0.03) * modifier.moveMultiplier,
+    reload: Math.max(0.09, base.reload * modifier.reloadMultiplier * Math.pow(0.95, player.upgrades.reload)),
+    projectileSpeed: base.projectileSpeed * (1 + player.upgrades.projectileSpeed * 0.04) * modifier.projectileSpeedMultiplier,
     projectileLife: base.projectileLife,
     damage: base.damage * (1 + player.upgrades.damage * 0.07),
     projectileRadius: base.projectileRadius,
@@ -119,7 +125,12 @@ export function tuneCombatScaling<T extends MazeGame>(game: T): T {
     if (player.dead) return;
     if (player.bot) internals.updateBot(player, now);
     const stats = tunedStatsFor(player);
-    player.maxHealth = stats.maxHealth;
+    const previousMaximum = Math.max(1, player.maxHealth);
+    if (stats.maxHealth !== player.maxHealth) {
+      const healthRatio = player.health / previousMaximum;
+      player.maxHealth = stats.maxHealth;
+      player.health = Math.max(1, Math.min(player.maxHealth, player.maxHealth * healthRatio));
+    }
     player.invulnerable = now < player.invulnerableUntil;
     const desired = { x: player.move.x * stats.moveSpeed, y: player.move.y * stats.moveSpeed };
     player.velocity = moveVectorToward(player.velocity, desired, stats.acceleration * dt);
