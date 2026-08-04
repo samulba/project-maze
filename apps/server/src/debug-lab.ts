@@ -13,6 +13,7 @@ import {
 } from '@project-maze/shared';
 import { tunedStatsFor } from './combat-tuning.js';
 import { MazeGame } from './game.js';
+import { isFree } from './world.js';
 
 export type DebugPreset = 'blank' | 'balanced' | 'offense' | 'defense' | 'mobility';
 export interface DebugBuildRequest {
@@ -38,7 +39,23 @@ interface DebugInternals {
   spawnInitialDrones(owner: RuntimePlayer, now: number): void;
   applyUpgrade(playerId: string, upgrade: UpgradeId): boolean;
   chooseClass(playerId: string, target: PlayerClass): boolean;
+  damagePlayer(target: RuntimePlayer, damage: number, attackerId: string | null, now: number): void;
+  updateBot(player: RuntimePlayer, now: number): void;
 }
+interface DebugState {
+  godPlayers: Set<string>;
+  dummyIds: Set<string>;
+  botsPaused: boolean;
+}
+
+const states = new WeakMap<MazeGame, DebugState>();
+const stateFor = (game: MazeGame): DebugState => {
+  const existing = states.get(game);
+  if (existing) return existing;
+  const created: DebugState = { godPlayers: new Set(), dummyIds: new Set(), botsPaused: false };
+  states.set(game, created);
+  return created;
+};
 
 const PRESET_ORDER: Record<Exclude<DebugPreset, 'blank'>, UpgradeId[]> = {
   balanced: ['damage', 'reload', 'moveSpeed', 'maxHealth', 'penetration', 'regen', 'projectileSpeed', 'bodyDamage'],
@@ -55,6 +72,28 @@ function lineage(target: PlayerClass): PlayerClass[] {
     current = CLASS_DEFINITIONS[current].parent;
   }
   return result;
+}
+
+/** Adds local-only testing rules without changing production balance. */
+export function tuneDebugRules<T extends MazeGame>(game: T): T {
+  const internals = game as unknown as DebugInternals;
+  const state = stateFor(game);
+  const originalDamagePlayer = internals.damagePlayer.bind(internals);
+  internals.damagePlayer = (target: RuntimePlayer, damage: number, attackerId: string | null, now: number): void => {
+    if (state.godPlayers.has(target.id)) return;
+    originalDamagePlayer(target, damage, attackerId, now);
+  };
+  const originalUpdateBot = internals.updateBot.bind(internals);
+  internals.updateBot = (player: RuntimePlayer, now: number): void => {
+    if (state.botsPaused) {
+      player.move = { x: 0, y: 0 };
+      player.primary = false;
+      player.secondary = false;
+      return;
+    }
+    originalUpdateBot(player, now);
+  };
+  return game;
 }
 
 export function applyDebugBuild(game: MazeGame, playerId: string, request: DebugBuildRequest, now = Date.now()): boolean {
@@ -120,4 +159,62 @@ export function healDebugPlayer(game: MazeGame, playerId: string): boolean {
 export function clearDebugProjectiles(game: MazeGame): void {
   const internals = game as unknown as DebugInternals;
   internals.projectiles.clear();
+}
+
+export function setDebugGodMode(game: MazeGame, playerId: string, enabled: boolean): boolean {
+  const player = (game as unknown as DebugInternals).players.get(playerId);
+  if (!player) return false;
+  const state = stateFor(game);
+  if (enabled) state.godPlayers.add(playerId);
+  else state.godPlayers.delete(playerId);
+  if (enabled) player.health = player.maxHealth;
+  return true;
+}
+
+export function setDebugBotsPaused(game: MazeGame, paused: boolean): void {
+  stateFor(game).botsPaused = paused;
+}
+
+function dummyPosition(owner: RuntimePlayer, index: number): Vector2 {
+  const distances = [280, 360, 440];
+  for (const distance of distances) {
+    for (let offset = 0; offset < 8; offset += 1) {
+      const angle = owner.angle + (offset + index) * Math.PI / 4;
+      const candidate = {
+        x: Math.max(50, Math.min(GAME.worldWidth - 50, owner.position.x + Math.cos(angle) * distance)),
+        y: Math.max(50, Math.min(GAME.worldHeight - 50, owner.position.y + Math.sin(angle) * distance))
+      };
+      if (isFree(candidate, GAME.playerRadius)) return candidate;
+    }
+  }
+  return { ...owner.position };
+}
+
+export function spawnDebugDummy(game: MazeGame, ownerId: string, playerClass: PlayerClass, now = Date.now()): string | null {
+  const internals = game as unknown as DebugInternals;
+  const owner = internals.players.get(ownerId);
+  if (!owner) return null;
+  const state = stateFor(game);
+  const dummyId = game.addPlayer(`TARGET · ${CLASS_DEFINITIONS[playerClass].label}`);
+  const dummy = internals.players.get(dummyId);
+  if (!dummy) return null;
+  dummy.isBot = true;
+  dummy.bot = null;
+  applyDebugBuild(game, dummyId, { playerClass, level: GAME.maxLevel, preset: 'balanced' }, now);
+  dummy.position = dummyPosition(owner, state.dummyIds.size);
+  dummy.angle = Math.atan2(owner.position.y - dummy.position.y, owner.position.x - dummy.position.x);
+  dummy.aim = { x: 0, y: 0 };
+  dummy.move = { x: 0, y: 0 };
+  dummy.primary = false;
+  dummy.secondary = false;
+  dummy.invulnerable = false;
+  dummy.invulnerableUntil = 0;
+  state.dummyIds.add(dummyId);
+  return dummyId;
+}
+
+export function clearDebugDummies(game: MazeGame): void {
+  const state = stateFor(game);
+  for (const id of state.dummyIds) game.removePlayer(id);
+  state.dummyIds.clear();
 }
