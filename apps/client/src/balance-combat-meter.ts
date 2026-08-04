@@ -1,4 +1,5 @@
 import type { WorldSnapshot } from '@project-maze/shared';
+import './balance-combat-meter.css';
 
 interface DamageEvent {
   at: number;
