@@ -25,6 +25,7 @@ interface ArenaInternals {
 
 interface ArenaState {
   eliteShapeIds: Set<string>;
+  eventBonusShapeIds: Set<string>;
   nextEliteAt: number;
   event: ArenaEventSnapshot | null;
   nextEventAt: number;
@@ -43,6 +44,7 @@ const stateFor = (game: MazeGame): ArenaState => {
   const now = Date.now();
   const created: ArenaState = {
     eliteShapeIds: new Set(),
+    eventBonusShapeIds: new Set(),
     nextEliteAt: now + 18_000,
     event: null,
     nextEventAt: now + 65_000,
@@ -74,8 +76,10 @@ function shapePositionInZone(center: Vector2, radius: number): Vector2 | null {
 
 function promoteElite(state: ArenaState, shape: ShapeSnapshot): void {
   if (state.eliteShapeIds.has(shape.id)) return;
+  const eliteRadius = shape.radius * 1.55;
+  if (!isFree(shape.position, eliteRadius + 4)) return;
   state.eliteShapeIds.add(shape.id);
-  shape.radius *= 1.55;
+  shape.radius = eliteRadius;
   shape.maxHealth = Math.round(shape.maxHealth * 4);
   shape.health = shape.maxHealth;
   shape.velocity.x *= 0.55;
@@ -85,7 +89,7 @@ function promoteElite(state: ArenaState, shape: ShapeSnapshot): void {
 function pickEliteCandidate(internals: ArenaInternals, state: ArenaState, preferCenter: boolean): ShapeSnapshot | null {
   const center = eventCenter();
   const candidates = [...internals.shapes.values()].filter((shape) => {
-    if (state.eliteShapeIds.has(shape.id)) return false;
+    if (state.eliteShapeIds.has(shape.id) || !isFree(shape.position, shape.radius * 1.55 + 4)) return false;
     if (!preferCenter) return true;
     return distanceSquared(shape.position, center) <= 720 * 720;
   });
@@ -93,18 +97,19 @@ function pickEliteCandidate(internals: ArenaInternals, state: ArenaState, prefer
   return candidates[Math.floor(Math.random() * candidates.length)] ?? null;
 }
 
-function spawnEventShape(internals: ArenaInternals): void {
+function spawnEventShape(internals: ArenaInternals): string | null {
   const center = eventCenter();
   const position = shapePositionInZone(center, 560);
-  if (!position) return;
+  if (!position) return null;
   const shape = createShape(crypto.randomUUID());
   shape.position = position;
   shape.velocity.x *= 0.7;
   shape.velocity.y *= 0.7;
   internals.shapes.set(shape.id, shape);
+  return shape.id;
 }
 
-function updateEvent(game: MazeGame, internals: ArenaInternals, state: ArenaState, now: number): void {
+function updateEvent(internals: ArenaInternals, state: ArenaState, now: number): void {
   if (!state.event && now >= state.nextEventAt) {
     const startsAt = now + 10_000;
     state.event = {
@@ -123,6 +128,8 @@ function updateEvent(game: MazeGame, internals: ArenaInternals, state: ArenaStat
   if (!state.event) return;
   if (state.event.phase === 'warning' && now >= state.event.startsAt) state.event.phase = 'active';
   if (now >= state.event.endsAt) {
+    for (const id of state.eventBonusShapeIds) internals.shapes.delete(id);
+    state.eventBonusShapeIds.clear();
     state.event = null;
     state.nextEventAt = now + 120_000;
     state.eventSpawnAt = 0;
@@ -131,7 +138,12 @@ function updateEvent(game: MazeGame, internals: ArenaInternals, state: ArenaStat
   if (state.event.phase !== 'active' || now < state.eventSpawnAt) return;
 
   state.eventSpawnAt = now + 2_400;
-  for (let index = 0; index < 3; index += 1) spawnEventShape(internals);
+  if (state.eventBonusShapeIds.size < 42) {
+    for (let index = 0; index < 3; index += 1) {
+      const id = spawnEventShape(internals);
+      if (id) state.eventBonusShapeIds.add(id);
+    }
+  }
   if (state.eliteShapeIds.size < 4 && Math.random() < 0.45) {
     const candidate = pickEliteCandidate(internals, state, true);
     if (candidate) promoteElite(state, candidate);
@@ -173,6 +185,7 @@ export function tuneArenaSystems<T extends MazeGame>(game: T): T {
     originalDamageShape(shape, damage, ownerId, now);
     if (!elite || !destroyed) return;
     state.eliteShapeIds.delete(shape.id);
+    state.eventBonusShapeIds.delete(shape.id);
     const owner = internals.players.get(ownerId);
     if (owner && !owner.dead) internals.awardXp(owner, 260);
   };
@@ -196,6 +209,7 @@ export function tuneArenaSystems<T extends MazeGame>(game: T): T {
   game.step = ((dt: number, now = Date.now()): void => {
     originalStep(dt, now);
     for (const id of state.eliteShapeIds) if (!internals.shapes.has(id)) state.eliteShapeIds.delete(id);
+    for (const id of state.eventBonusShapeIds) if (!internals.shapes.has(id)) state.eventBonusShapeIds.delete(id);
 
     const eliteLimit = state.event?.phase === 'active' ? 4 : 3;
     if (now >= state.nextEliteAt && state.eliteShapeIds.size < eliteLimit) {
@@ -204,7 +218,7 @@ export function tuneArenaSystems<T extends MazeGame>(game: T): T {
       state.nextEliteAt = now + (state.event?.phase === 'active' ? 8_000 : 22_000);
     }
 
-    updateEvent(game, internals, state, now);
+    updateEvent(internals, state, now);
     updateBounty(internals, state, now);
   }) as T['step'];
 
@@ -215,9 +229,8 @@ export function tuneArenaSystems<T extends MazeGame>(game: T): T {
     snapshot.arenaEvent = state.event ? { ...state.event, center: { ...state.event.center } } : null;
     snapshot.bountyTargetId = state.bountyTargetId;
     snapshot.bountyValue = state.bountyValue;
-    if (snapshot.gameplay && state.bountyTargetId && snapshot.gameplay[state.bountyTargetId]) {
-      snapshot.gameplay[state.bountyTargetId].bountyValue = state.bountyValue;
-    }
+    const targetGameplay = state.bountyTargetId && snapshot.gameplay ? snapshot.gameplay[state.bountyTargetId] : undefined;
+    if (targetGameplay) targetGameplay.bountyValue = state.bountyValue;
     return snapshot;
   }) as T['snapshot'];
 
