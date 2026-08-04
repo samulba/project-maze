@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { CLASS_DEFINITIONS, GAME } from '@project-maze/shared';
 import { tuneCombatScaling } from './combat-tuning';
-import { applyDebugBuild, clearDebugProjectiles, healDebugPlayer } from './debug-lab';
+import {
+  applyDebugBuild,
+  clearDebugDummies,
+  clearDebugProjectiles,
+  healDebugPlayer,
+  setDebugBotsPaused,
+  setDebugGodMode,
+  spawnDebugDummy,
+  tuneDebugRules
+} from './debug-lab';
 import { tuneDrones } from './drone-tuning';
 import { MazeGame } from './game';
 
@@ -9,9 +18,11 @@ interface Internals {
   players: Map<string, any>;
   projectiles: Map<string, any>;
   drones: Map<string, any>;
+  damagePlayer(target: any, damage: number, attackerId: string | null, now: number): void;
+  updateBot(player: any, now: number): void;
 }
 
-const createGame = (): MazeGame => tuneDrones(tuneCombatScaling(new MazeGame(0)));
+const createGame = (bots = 0): MazeGame => tuneDebugRules(tuneDrones(tuneCombatScaling(new MazeGame(bots))));
 
 describe('local balance lab', () => {
   it('loads a legal final-class build and spends preset points', () => {
@@ -57,5 +68,61 @@ describe('local balance lab', () => {
     clearDebugProjectiles(game);
     expect(internals.projectiles.size).toBe(0);
     expect(player.id).toBe(playerId);
+  });
+
+  it('blocks incoming damage while local god mode is active', () => {
+    const game = createGame();
+    const attackerId = game.addPlayer('Attacker');
+    const targetId = game.addPlayer('Target');
+    const internals = game as unknown as Internals;
+    const target = internals.players.get(targetId);
+    target.invulnerable = false;
+    target.invulnerableUntil = 0;
+    const initial = target.health;
+
+    setDebugGodMode(game, targetId, true);
+    internals.damagePlayer(target, 40, attackerId, Date.now());
+    expect(target.health).toBe(initial);
+    setDebugGodMode(game, targetId, false);
+    internals.damagePlayer(target, 40, attackerId, Date.now() + 1);
+    expect(target.health).toBe(initial - 40);
+  });
+
+  it('pauses bot decisions without deleting bot identities', () => {
+    const game = createGame(1);
+    const internals = game as unknown as Internals;
+    const bot = [...internals.players.values()].find((player) => player.bot);
+    expect(bot).toBeTruthy();
+    bot.move = { x: 1, y: 1 };
+    bot.primary = true;
+    bot.secondary = true;
+
+    setDebugBotsPaused(game, true);
+    internals.updateBot(bot, Date.now());
+    expect(bot.move).toEqual({ x: 0, y: 0 });
+    expect(bot.primary).toBe(false);
+    expect(bot.secondary).toBe(false);
+    expect(bot.isBot).toBe(true);
+  });
+
+  it('spawns and clears a server-authoritative target tank', () => {
+    const game = createGame();
+    const ownerId = game.addPlayer('Tester');
+    const internals = game as unknown as Internals;
+    const owner = internals.players.get(ownerId);
+    owner.position = { x: 3000, y: 2000 };
+    owner.angle = 0;
+
+    const dummyId = spawnDebugDummy(game, ownerId, 'fortress');
+    expect(dummyId).not.toBeNull();
+    const dummy = internals.players.get(dummyId as string);
+    expect(dummy.playerClass).toBe('fortress');
+    expect(dummy.level).toBe(GAME.maxLevel);
+    expect(dummy.isBot).toBe(true);
+    expect(dummy.bot).toBeNull();
+    expect(Math.hypot(dummy.position.x - owner.position.x, dummy.position.y - owner.position.y)).toBeGreaterThan(200);
+
+    clearDebugDummies(game);
+    expect(internals.players.has(dummyId as string)).toBe(false);
   });
 });
