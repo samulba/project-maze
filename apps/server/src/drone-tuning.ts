@@ -8,6 +8,10 @@ import {
   type ShapeSnapshot,
   type Vector2
 } from '@project-maze/shared';
+import {
+  PASSIVE_MODIFIER_DEFINITIONS,
+  type PassiveModifierId
+} from '@project-maze/shared/gameplay';
 import { MazeGame } from './game.js';
 import { clampMagnitude, distanceSquared, moveVectorToward, normalize } from './physics.js';
 import { SHAPE_CONFIG, moveCircle } from './world.js';
@@ -32,6 +36,7 @@ interface RuntimePlayer extends PlayerSnapshot {
   aim: Vector2;
   primary: boolean;
   secondary: boolean;
+  passiveModifier?: PassiveModifierId;
 }
 interface RuntimeDrone extends DroneSnapshot {
   slot: number;
@@ -50,8 +55,12 @@ interface DroneInternals {
 }
 
 const archetypeFor = (playerClass: PlayerClass): DroneArchetype => DRONE_ARCHETYPES[playerClass] ?? DRONE_ARCHETYPES.drone!;
+const modifierFor = (player: RuntimePlayer) => PASSIVE_MODIFIER_DEFINITIONS[player.passiveModifier ?? 'standard'];
 const damageFor = (player: RuntimePlayer): number => CLASS_DEFINITIONS[player.playerClass].damage * (1 + player.upgrades.damage * 0.07);
-const reloadFor = (player: RuntimePlayer): number => Math.max(0.09, CLASS_DEFINITIONS[player.playerClass].reload * Math.pow(0.95, player.upgrades.reload));
+const reloadFor = (player: RuntimePlayer): number => Math.max(
+  0.09,
+  CLASS_DEFINITIONS[player.playerClass].reload * modifierFor(player).reloadMultiplier * Math.pow(0.95, player.upgrades.reload)
+);
 const bodyDamageFor = (player: RuntimePlayer): number => CLASS_DEFINITIONS[player.playerClass].bodyDamage * (1 + player.upgrades.bodyDamage * 0.1);
 
 /** Gives each control-class branch its own physical drone identity. */
@@ -61,7 +70,7 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
   internals.spawnDrone = (owner: RuntimePlayer, slot: number): void => {
     const id = crypto.randomUUID();
     const archetype = archetypeFor(owner.playerClass);
-    const maximum = archetype.health * (1 + owner.upgrades.maxHealth * 0.08);
+    const maximum = archetype.health * (1 + owner.upgrades.maxHealth * 0.08) * modifierFor(owner).healthMultiplier;
     internals.drones.set(id, {
       id,
       ownerId: owner.id,
@@ -86,6 +95,7 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
 
       const definition = CLASS_DEFINITIONS[owner.playerClass];
       const archetype = archetypeFor(owner.playerClass);
+      const modifier = modifierFor(owner);
       const radius = drone.gameplayRadius ?? archetype.radius;
       const reload = reloadFor(owner);
       const damage = damageFor(owner);
@@ -102,10 +112,11 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
       else if (owner.primary) target = { x: owner.position.x + aim.x, y: owner.position.y + aim.y };
 
       const direction = normalize({ x: target.x - drone.position.x, y: target.y - drone.position.y });
+      const speed = archetype.speed * modifier.moveMultiplier;
       drone.velocity = moveVectorToward(
         drone.velocity,
-        { x: direction.x * archetype.speed, y: direction.y * archetype.speed },
-        archetype.acceleration * dt
+        { x: direction.x * speed, y: direction.y * speed },
+        archetype.acceleration * modifier.moveMultiplier * dt
       );
       const moved = moveCircle(drone.position, drone.velocity, dt, radius);
       drone.position = moved.position;
