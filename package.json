@@ -1,7 +1,7 @@
 {
   "name": "project-maze",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.7.0",
   "type": "module",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
@@ -11,6 +11,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "pretest": "npm run build -w @project-maze/shared",
     "test": "vitest run",
+    "prebalance": "npm run build -w @project-maze/shared",
+    "balance": "node scripts/balance-report.mjs",
     "build": "npm run build -w @project-maze/shared && npm run build -w @project-maze/server && npm run build -w @project-maze/client",
     "check": "npm run typecheck && npm run test && npm run build"
   },
