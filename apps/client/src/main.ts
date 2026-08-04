@@ -12,6 +12,7 @@ import {
   type UpgradeMessage,
   type WorldSnapshot
 } from '@project-maze/shared';
+import type { GameplayWorldExtension } from '@project-maze/shared/gameplay';
 import { GameAudio } from './audio';
 import { BalanceCombatMeter } from './balance-combat-meter';
 import { BalanceLab } from './balance-lab';
@@ -37,6 +38,7 @@ let currentSelfDead = true;
 let input: InputController | null = null;
 let previousSelf: PlayerSnapshot | null = null;
 let previousProjectileIds = new Set<string>();
+let previousModuleActiveUntil = 0;
 let lastClientErrorToastAt = 0;
 
 const audio = new GameAudio();
@@ -143,6 +145,7 @@ function connect(): void {
     currentSelfDead = true;
     previousSelf = null;
     previousProjectileIds.clear();
+    previousModuleActiveUntil = 0;
     gameplayUI.onDisconnect();
     if (input?.resetAll()) ui.setAutoFire(false);
     input?.setEnabled(false);
@@ -169,6 +172,7 @@ function handleServerMessage(message: ServerMessage): void {
     currentSelfDead = false;
     previousSelf = null;
     previousProjectileIds.clear();
+    previousModuleActiveUntil = 0;
     ui.setJoinPending(false);
     ui.enterGame();
     gameplayUI.onWelcome();
@@ -198,7 +202,19 @@ function updateWorld(snapshot: WorldSnapshot): void {
   gameplayUI.update(snapshot);
   gameplayEffects.update(snapshot);
   const self = snapshot.players.find((player) => player.id === snapshot.selfId) ?? null;
-  if (self) playSnapshotAudio(snapshot, self);
+  if (self) {
+    playSnapshotAudio(snapshot, self);
+    const extended = snapshot as WorldSnapshot & Partial<GameplayWorldExtension>;
+    const gameplay = extended.gameplay?.[self.id];
+    if (
+      gameplay &&
+      gameplay.moduleActiveUntil > snapshot.serverTime &&
+      gameplay.moduleActiveUntil > previousModuleActiveUntil
+    ) {
+      audio.module(gameplay.activeModule);
+    }
+    previousModuleActiveUntil = gameplay?.moduleActiveUntil ?? 0;
+  }
   renderer.setSnapshot(snapshot);
   const updatedSelf = ui.update(snapshot);
   if (!updatedSelf) return;
