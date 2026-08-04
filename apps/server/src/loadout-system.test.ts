@@ -7,6 +7,7 @@ import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-syste
 
 interface Internals {
   players: Map<string, any>;
+  projectiles: Map<string, any>;
   damagePlayer(target: any, damage: number, attackerId: string | null, now: number): void;
 }
 
@@ -29,6 +30,26 @@ describe('core modules and passive frames', () => {
     const after = player.position.x;
     expect(activateModule(game, playerId, 2001)).toBe(false);
     expect(player.position.x).toBe(after);
+  });
+
+  it('reduces body damage caused during Dash instead of creating a Rammer one-shot', () => {
+    const game = createGame();
+    const attackerId = game.addPlayer('Rammer');
+    const targetId = game.addPlayer('Target');
+    const internals = game as unknown as Internals;
+    const attacker = internals.players.get(attackerId);
+    const target = internals.players.get(targetId);
+    attacker.position = { x: 3000, y: 2000 };
+    target.position = { x: 3060, y: 2000 };
+    target.invulnerable = false;
+    target.invulnerableUntil = 0;
+    equipLoadout(game, attackerId, 'dash', 'standard', 1000);
+    game.applyInput(attackerId, { type: 'input', sequence: 1, move: { x: 1, y: 0 }, aim: { x: 500, y: 0 }, primary: false, secondary: false });
+    activateModule(game, attackerId, 2000);
+
+    const before = target.health;
+    internals.damagePlayer(target, 40, attackerId, 2050);
+    expect(before - target.health).toBeCloseTo(10, 4);
   });
 
   it('absorbs frontal Barrier damage but not attacks from behind', () => {
@@ -55,6 +76,51 @@ describe('core modules and passive frames', () => {
     attacker.position = { x: 2900, y: 2000 };
     internals.damagePlayer(target, 40, attackerId, 2100);
     expect(target.health).toBe(initial - 40);
+  });
+
+  it('keeps Barrier at fixed shield points for heavy reinforced tanks', () => {
+    const game = createGame();
+    const targetId = game.addPlayer('Fortress');
+    const internals = game as unknown as Internals;
+    const target = internals.players.get(targetId);
+    target.level = 45;
+    target.playerClass = 'fortress';
+    equipLoadout(game, targetId, 'barrier', 'reinforced', 1000);
+    target.invulnerable = false;
+    target.invulnerableUntil = 0;
+    activateModule(game, targetId, 2000);
+
+    const snapshot = game.snapshot(targetId, 2000) as any;
+    expect(target.maxHealth).toBeGreaterThan(250);
+    expect(snapshot.gameplay[targetId].barrierMaxHealth).toBe(70);
+  });
+
+  it('repels projectiles without dealing direct player damage', () => {
+    const game = createGame();
+    const playerId = game.addPlayer('Pulse');
+    const targetId = game.addPlayer('Target');
+    const internals = game as unknown as Internals;
+    const player = internals.players.get(playerId);
+    const target = internals.players.get(targetId);
+    player.position = { x: 3000, y: 2000 };
+    target.position = { x: 3100, y: 2000 };
+    target.invulnerable = false;
+    target.invulnerableUntil = 0;
+    internals.projectiles.set('enemy-shot', {
+      id: 'enemy-shot',
+      ownerId: targetId,
+      position: { x: 3050, y: 2000 },
+      velocity: { x: -700, y: 0 },
+      integrity: 25
+    });
+    equipLoadout(game, playerId, 'repulse', 'standard', 1000);
+    const initialHealth = target.health;
+
+    expect(activateModule(game, playerId, 2000)).toBe(true);
+    expect(target.health).toBe(initialHealth);
+    expect(target.velocity.x).toBeGreaterThan(0);
+    expect(internals.projectiles.get('enemy-shot').velocity.x).toBeGreaterThan(0);
+    expect(internals.projectiles.get('enemy-shot').integrity).toBe(16);
   });
 
   it('heals through Repair Cycle and cancels it when damage arrives', () => {
