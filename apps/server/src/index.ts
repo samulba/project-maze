@@ -11,6 +11,12 @@ import {
   type ClientMessage,
   type ServerMessage
 } from '@project-maze/shared';
+import {
+  ACTIVE_MODULE_IDS,
+  PASSIVE_MODIFIER_IDS,
+  type GameplayClientMessage
+} from '@project-maze/shared/gameplay';
+import { tuneArenaSystems } from './arena-systems.js';
 import { tuneClassMechanics } from './class-mechanics.js';
 import { tuneCombatScaling } from './combat-tuning.js';
 import {
@@ -27,6 +33,7 @@ import {
 import { tuneDifficulty } from './difficulty-tuning.js';
 import { tuneDrones } from './drone-tuning.js';
 import { MazeGame } from './game.js';
+import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system.js';
 import { tuneProgression } from './progression-tuning.js';
 import { hardenSimulation } from './simulation-hardening.js';
 
@@ -54,18 +61,23 @@ app.disable('x-powered-by');
 app.use(cors({ origin: allowedOrigins ? [...allowedOrigins] : true }));
 const server = createServer(app);
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
-const baseGame = tuneProgression(
-  tuneDifficulty(
-    tuneClassMechanics(
-      tuneDrones(
-        tuneCombatScaling(
-          hardenSimulation(new MazeGame(BOT_COUNT))
+const game = tuneDebugRules(
+  tuneArenaSystems(
+    tuneLoadoutSystem(
+      tuneProgression(
+        tuneDifficulty(
+          tuneClassMechanics(
+            tuneDrones(
+              tuneCombatScaling(
+                hardenSimulation(new MazeGame(BOT_COUNT))
+              )
+            )
+          )
         )
       )
     )
   )
 );
-const game = ENABLE_DEV_TOOLS ? tuneDebugRules(baseGame) : baseGame;
 const socketPlayerIds = new WeakMap<WebSocket, string>();
 const socketAlive = new WeakMap<WebSocket, boolean>();
 
@@ -88,6 +100,12 @@ const upgradeSchema = z.object({ type: z.literal('upgrade'), upgrade: z.enum(UPG
 const classSchema = z.object({ type: z.literal('chooseClass'), playerClass: z.enum(PLAYER_CLASS_IDS) }).strict();
 const respawnSchema = z.object({ type: z.literal('respawn') }).strict();
 const pingSchema = z.object({ type: z.literal('ping'), sentAt: z.number().finite() }).strict();
+const equipLoadoutSchema = z.object({
+  type: z.literal('equipLoadout'),
+  activeModule: z.enum(ACTIVE_MODULE_IDS),
+  passiveModifier: z.enum(PASSIVE_MODIFIER_IDS)
+}).strict();
+const activateModuleSchema = z.object({ type: z.literal('activateModule') }).strict();
 const debugSchema = z.discriminatedUnion('action', [
   z.object({
     type: z.literal('debug'),
@@ -140,7 +158,7 @@ wss.on('connection', (socket, request) => {
 
     try {
       const rawText = Array.isArray(raw) ? Buffer.concat(raw).toString() : raw.toString();
-      const message = JSON.parse(rawText) as ClientMessage | DebugMessage;
+      const message = JSON.parse(rawText) as ClientMessage | GameplayClientMessage | DebugMessage;
       if (message.type === 'join') {
         const parsed = joinSchema.safeParse(message);
         if (!parsed.success || playerId || game.humanCount >= GAME.maxPlayers) {
@@ -150,6 +168,16 @@ wss.on('connection', (socket, request) => {
         playerId = game.addPlayer(parsed.data.name);
         socketPlayerIds.set(socket, playerId);
         send(socket, { type: 'welcome', selfId: playerId });
+        return;
+      }
+      if (message.type === 'equipLoadout' && playerId) {
+        const parsed = equipLoadoutSchema.safeParse(message);
+        if (parsed.success) equipLoadout(game, playerId, parsed.data.activeModule, parsed.data.passiveModifier, now);
+        return;
+      }
+      if (message.type === 'activateModule' && playerId) {
+        const parsed = activateModuleSchema.safeParse(message);
+        if (parsed.success) activateModule(game, playerId, now);
         return;
       }
       if (message.type === 'debug' && playerId) {
@@ -241,7 +269,7 @@ app.get('/health', (_request: Request, response: Response) => response.json({
   humans: game.humanCount,
   ...game.entityCounts,
   mode: 'maze-alpha',
-  version: '0.8.0',
+  version: '0.9.0',
   snapshotRate: GAME.snapshotRate,
   debugTools: ENABLE_DEV_TOOLS
 }));
