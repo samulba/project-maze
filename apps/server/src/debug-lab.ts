@@ -111,13 +111,12 @@ export function tuneDebugRules<T extends MazeGame>(game: T): T {
 
   const originalKillPlayer = internals.killPlayer.bind(internals);
   internals.killPlayer = (target: RuntimePlayer, attackerId: string | null, now: number, environmentName: string): void => {
-    const isDummy = state.dummyIds.has(target.id);
-    const respawn = isDummy ? {
+    const respawn: DummyRespawn | null = state.dummyIds.has(target.id) ? {
       at: now + 1200,
       position: { ...target.position },
       angle: target.angle,
       playerClass: target.playerClass
-    } satisfies DummyRespawn : null;
+    } : null;
     originalKillPlayer(target, attackerId, now, environmentName);
     if (!respawn) return;
     target.canRespawnAt = now + 86_400_000;
