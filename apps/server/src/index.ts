@@ -39,7 +39,7 @@ function integerEnvironment(name: string, fallback: number, minimum: number, max
 const PORT = integerEnvironment('PORT', 2567, 1, 65535);
 const BOT_COUNT = integerEnvironment('BOT_COUNT', 8, 0, 18);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN?.trim() || '*';
-const ENABLE_DEV_TOOLS = process.env.ENABLE_DEV_TOOLS === 'true' || (PORT === 2567 && ALLOWED_ORIGIN === '*');
+const ENABLE_DEV_TOOLS = process.env.ENABLE_DEV_TOOLS === 'true';
 const allowedOrigins = ALLOWED_ORIGIN === '*'
   ? null
   : new Set(ALLOWED_ORIGIN.split(',').map((value) => value.trim()).filter(Boolean));
@@ -54,19 +54,18 @@ app.disable('x-powered-by');
 app.use(cors({ origin: allowedOrigins ? [...allowedOrigins] : true }));
 const server = createServer(app);
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
-const game = tuneDebugRules(
-  tuneProgression(
-    tuneDifficulty(
-      tuneClassMechanics(
-        tuneDrones(
-          tuneCombatScaling(
-            hardenSimulation(new MazeGame(BOT_COUNT))
-          )
+const baseGame = tuneProgression(
+  tuneDifficulty(
+    tuneClassMechanics(
+      tuneDrones(
+        tuneCombatScaling(
+          hardenSimulation(new MazeGame(BOT_COUNT))
         )
       )
     )
   )
 );
+const game = ENABLE_DEV_TOOLS ? tuneDebugRules(baseGame) : baseGame;
 const socketPlayerIds = new WeakMap<WebSocket, string>();
 const socketAlive = new WeakMap<WebSocket, boolean>();
 
