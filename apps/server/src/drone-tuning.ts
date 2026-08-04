@@ -50,9 +50,9 @@ interface DroneInternals {
 }
 
 const archetypeFor = (playerClass: PlayerClass): DroneArchetype => DRONE_ARCHETYPES[playerClass] ?? DRONE_ARCHETYPES.drone!;
-const damageFor = (player: RuntimePlayer): number => CLASS_DEFINITIONS[player.playerClass].damage * (1 + player.upgrades.damage * 0.09);
-const reloadFor = (player: RuntimePlayer): number => Math.max(0.075, CLASS_DEFINITIONS[player.playerClass].reload * Math.pow(0.93, player.upgrades.reload));
-const bodyDamageFor = (player: RuntimePlayer): number => CLASS_DEFINITIONS[player.playerClass].bodyDamage * (1 + player.upgrades.bodyDamage * 0.13);
+const damageFor = (player: RuntimePlayer): number => CLASS_DEFINITIONS[player.playerClass].damage * (1 + player.upgrades.damage * 0.07);
+const reloadFor = (player: RuntimePlayer): number => Math.max(0.09, CLASS_DEFINITIONS[player.playerClass].reload * Math.pow(0.95, player.upgrades.reload));
+const bodyDamageFor = (player: RuntimePlayer): number => CLASS_DEFINITIONS[player.playerClass].bodyDamage * (1 + player.upgrades.bodyDamage * 0.1);
 
 /** Gives each control-class branch its own physical drone identity. */
 export function tuneDrones<T extends MazeGame>(game: T): T {
@@ -134,7 +134,7 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
 
       if (drone.health <= 0) {
         internals.drones.delete(drone.id);
-        internals.nextDroneSpawn.set(owner.id, now + Math.max(350, definition.droneRespawn * 1000));
+        internals.nextDroneSpawn.set(owner.id, now + Math.max(400, definition.droneRespawn * 1000));
       }
     }
   };
