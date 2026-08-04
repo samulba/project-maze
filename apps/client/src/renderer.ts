@@ -1,39 +1,246 @@
 import { Application, Container, Graphics, Text } from 'pixi.js';
-import { CLASS_DEFINITIONS, GAME, type DroneSnapshot, type PlayerSnapshot, type ProjectileSnapshot, type ShapeSnapshot, type ThemeId, type Vector2, type WorldSnapshot } from '@project-maze/shared';
+import {
+  CLASS_DEFINITIONS,
+  GAME,
+  type PlayerClass,
+  type PlayerSnapshot,
+  type ShapeSnapshot,
+  type ThemeId,
+  type Vector2,
+  type WorldSnapshot
+} from '@project-maze/shared';
 import { ParticleField } from './particles';
 
-interface Palette { background:number; outside:number; grid:number; border:number; wall:number; wallEdge:number; self:number; enemy:number; barrel:number; projectile:number; drone:number; square:number; triangle:number; pentagon:number; label:number; }
-const PALETTES:Record<ThemeId,Palette>={midnight:{background:0x070910,outside:0x020307,grid:0x171c2a,border:0x414b68,wall:0x222839,wallEdge:0x46516e,self:0x7d88ff,enemy:0xe7677b,barrel:0xc7ccda,projectile:0xf7f9ff,drone:0x73d9c5,square:0x6574dd,triangle:0xe6a954,pentagon:0xcf6eb5,label:0xe9ecf5},void:{background:0x030407,outside:0x000000,grid:0x12151a,border:0x333842,wall:0x181b20,wallEdge:0x3a404b,self:0xb8ff6a,enemy:0xff5c76,barrel:0xdde2e8,projectile:0xffffff,drone:0x65e7c2,square:0x6b7c8f,triangle:0xffb84d,pentagon:0xc77dff,label:0xf1f3f5},classic:{background:0xe8ebf0,outside:0xcbd0da,grid:0xd4d8e0,border:0x818a9b,wall:0xaab1bf,wallEdge:0x7e8798,self:0x536dfe,enemy:0xf14e63,barrel:0x727b8d,projectile:0x343a46,drone:0x2ba887,square:0x6f7ee8,triangle:0xe5a044,pentagon:0xbd5c9d,label:0x252a34}};
-interface PlayerView{root:Container;rotating:Container;barrels:Container;body:Graphics;detail:Graphics;shield:Graphics;healthBackground:Graphics;healthFill:Graphics;name:Text;current:Vector2;target:Vector2;angle:number;targetAngle:number;snapshot:PlayerSnapshot;snapshotAt:number;recoil:number;flash:number}
-interface Motion<T>{current:Vector2;target:Vector2;velocity:Vector2;snapshot:T;snapshotAt:number}
-interface ViewportRect{x:number;y:number;width:number;height:number}
-const clamp=(value:number,minimum:number,maximum:number):number=>Math.max(minimum,Math.min(maximum,value));
-const normalize=(vector:Vector2):Vector2=>{const length=Math.hypot(vector.x,vector.y);return length<.001?{x:0,y:0}:{x:vector.x/length,y:vector.y/length}};
-const shortestAngle=(current:number,target:number):number=>{let difference=(target-current+Math.PI)%(Math.PI*2)-Math.PI;if(difference<-Math.PI)difference+=Math.PI*2;return current+difference};
-const polygon=(sides:number,radius:number,rotation=0):number[]=>{const points:number[]=[];for(let index=0;index<sides;index+=1){const angle=rotation+index*Math.PI*2/sides;points.push(Math.cos(angle)*radius,Math.sin(angle)*radius)}return points};
-const translate=(points:number[],x:number,y:number):number[]=>points.map((value,index)=>value+(index%2===0?x:y));
-const shapeColorFor=(shape:ShapeSnapshot,palette:Palette):number=>shape.kind==='square'?palette.square:shape.kind==='triangle'?palette.triangle:palette.pentagon;
+interface Palette {
+  background:number; grid:number; border:number; wall:number; wallEdge:number;
+  self:number; enemy:number; barrel:number; projectile:number; drone:number;
+  square:number; triangle:number; pentagon:number; label:number;
+}
+const PALETTES:Record<ThemeId,Palette>={
+  midnight:{background:0x070910,grid:0x151a28,border:0x3d4661,wall:0x222839,wallEdge:0x3f4964,self:0x7d88ff,enemy:0xe7677b,barrel:0xc4cad9,projectile:0xf5f7ff,drone:0x78d7c7,square:0x6574dd,triangle:0xe6a954,pentagon:0xcf6eb5,label:0xe9ecf5},
+  void:{background:0x030407,grid:0x111317,border:0x31343b,wall:0x181b20,wallEdge:0x343942,self:0xb8ff6a,enemy:0xff5c76,barrel:0xdde2e8,projectile:0xffffff,drone:0x65e7c2,square:0x6b7c8f,triangle:0xffb84d,pentagon:0xc77dff,label:0xf1f3f5},
+  classic:{background:0xe8ebf0,grid:0xd5d9e1,border:0x818a9b,wall:0xaab1bf,wallEdge:0x7e8798,self:0x536dfe,enemy:0xf14e63,barrel:0x727b8d,projectile:0x343a46,drone:0x2ba887,square:0x6f7ee8,triangle:0xe5a044,pentagon:0xbd5c9d,label:0x252a34}
+};
 
-export class GameRenderer{
-  readonly app=new Application();private readonly world=new Container();private readonly outside=new Graphics();private readonly background=new Graphics();private readonly wallLayer=new Graphics();private readonly shapeLayer=new Graphics();private readonly trailLayer=new Graphics();private readonly projectileLayer=new Graphics();private readonly droneLayer=new Graphics();private readonly playerLayer=new Container();private readonly screenFx=new Graphics();private readonly crosshair=new Graphics();private readonly particles=new ParticleField();private readonly playerViews=new Map<string,PlayerView>();private readonly projectileViews=new Map<string,Motion<ProjectileSnapshot>>();private readonly droneViews=new Map<string,Motion<DroneSnapshot>>();private readonly previousShapes=new Map<string,ShapeSnapshot>();private snapshot:WorldSnapshot|null=null;private palette:Palette=PALETTES.midnight;private viewport:ViewportRect={x:0,y:0,width:1280,height:720};private selfId:string|null=null;private wallsSignature='';private lastSnapshotAt=performance.now();private time=0;private pointer:Vector2={x:window.innerWidth/2,y:window.innerHeight/2};private primary=false;private secondary=false;private crosshairVisible=false;private damageOverlay=0;
-  async init(root:HTMLElement):Promise<void>{await this.app.init({resizeTo:window,antialias:true,background:this.palette.outside,resolution:Math.min(window.devicePixelRatio||1,2),autoDensity:true,preference:'webgl'});root.prepend(this.app.canvas);this.world.addChild(this.background,this.wallLayer,this.shapeLayer,this.trailLayer,this.projectileLayer,this.droneLayer,this.particles.graphics,this.playerLayer);this.app.stage.addChild(this.world,this.outside,this.screenFx,this.crosshair);this.resizeViewport();this.drawBackground();window.addEventListener('resize',()=>this.resizeViewport());this.app.ticker.add(ticker=>this.render(Math.min(.05,ticker.deltaMS/1000)))}
-  setSnapshot(snapshot:WorldSnapshot):void{const now=performance.now();const snapshotDelta=clamp((now-this.lastSnapshotAt)/1000,1/120,.25);this.lastSnapshotAt=now;this.snapshot=snapshot;this.selfId=snapshot.selfId;const signature=snapshot.walls.map(candidate=>`${candidate.id}:${candidate.x}:${candidate.y}:${candidate.width}:${candidate.height}`).join('|');if(signature!==this.wallsSignature){this.wallsSignature=signature;this.drawWalls(snapshot)}this.syncPlayers(snapshot,now);this.syncProjectiles(snapshot,now,snapshotDelta);this.syncDrones(snapshot,now,snapshotDelta);this.syncShapes(snapshot)}
-  setInput(pointer:Vector2,primary:boolean,secondary:boolean,crosshairVisible:boolean):void{this.pointer=pointer;this.primary=primary;this.secondary=secondary;this.crosshairVisible=crosshairVisible}
-  getAimOrigin():Vector2{return{x:this.viewport.x+this.viewport.width/2,y:this.viewport.y+this.viewport.height/2}}
-  setTheme(theme:ThemeId):void{this.palette=PALETTES[theme];this.app.renderer.background.color=this.palette.outside;this.drawOutside();this.drawBackground();if(this.snapshot)this.drawWalls(this.snapshot);for(const view of this.playerViews.values())this.redrawPlayer(view,view.snapshot.id===this.selfId)}
-  private resizeViewport():void{const screenWidth=this.app.screen.width||window.innerWidth,screenHeight=this.app.screen.height||window.innerHeight,widthFromHeight=screenHeight*16/9,width=Math.min(screenWidth,widthFromHeight),height=width*9/16;this.viewport={x:(screenWidth-width)/2,y:(screenHeight-height)/2,width,height};this.drawOutside()}
-  private drawOutside():void{const screenWidth=this.app.screen.width,screenHeight=this.app.screen.height;this.outside.clear();this.outside.rect(0,0,screenWidth,this.viewport.y).fill(this.palette.outside);this.outside.rect(0,this.viewport.y+this.viewport.height,screenWidth,Math.max(0,screenHeight-this.viewport.y-this.viewport.height)).fill(this.palette.outside);this.outside.rect(0,this.viewport.y,this.viewport.x,this.viewport.height).fill(this.palette.outside);this.outside.rect(this.viewport.x+this.viewport.width,this.viewport.y,Math.max(0,screenWidth-this.viewport.x-this.viewport.width),this.viewport.height).fill(this.palette.outside);this.outside.rect(this.viewport.x,this.viewport.y,this.viewport.width,this.viewport.height).stroke({color:this.palette.border,alpha:.55,width:2})}
-  private syncPlayers(snapshot:WorldSnapshot,now:number):void{const active=new Set<string>();for(const player of snapshot.players){active.add(player.id);let view=this.playerViews.get(player.id);if(!view){view=this.createPlayerView(player,now);this.playerViews.set(player.id,view);this.playerLayer.addChild(view.root)}else{const previous=view.snapshot;if(player.health<previous.health-.01){view.flash=1;this.particles.burst(player.position,player.id===snapshot.selfId?this.palette.self:this.palette.enemy,8,130,.26);if(player.id===snapshot.selfId)this.damageOverlay=1}if(!previous.dead&&player.dead)this.particles.burst(player.position,player.id===snapshot.selfId?this.palette.self:this.palette.enemy,22,250,.55);if(previous.dead&&!player.dead){view.current={...player.position};this.particles.burst(player.position,this.palette.self,16,180,.42)}const displacement=Math.hypot(player.position.x-view.target.x,player.position.y-view.target.y);if(displacement>520)view.current={...player.position};view.target={...player.position};view.targetAngle=player.angle;view.snapshot=player;view.snapshotAt=now}view.root.visible=!player.dead;this.redrawPlayer(view,player.id===snapshot.selfId)}for(const[id,view]of this.playerViews){if(active.has(id))continue;view.root.destroy({children:true});this.playerViews.delete(id)}}
-  private syncProjectiles(snapshot:WorldSnapshot,now:number,snapshotDelta:number):void{const active=new Set<string>();for(const projectile of snapshot.projectiles){active.add(projectile.id);const existing=this.projectileViews.get(projectile.id);if(!existing){this.projectileViews.set(projectile.id,{current:{...projectile.position},target:{...projectile.position},velocity:{...projectile.velocity},snapshot:projectile,snapshotAt:now});const owner=this.playerViews.get(projectile.ownerId);if(owner){owner.recoil=Math.max(owner.recoil,CLASS_DEFINITIONS[owner.snapshot.playerClass].reload>.7?1.25:.72);this.particles.muzzle(owner.current,normalize(projectile.velocity),projectile.ownerId===snapshot.selfId?this.palette.self:this.palette.enemy)}}else{existing.velocity=snapshotDelta>0?{x:(projectile.position.x-existing.target.x)/snapshotDelta,y:(projectile.position.y-existing.target.y)/snapshotDelta}:{...projectile.velocity};existing.target={...projectile.position};existing.snapshot=projectile;existing.snapshotAt=now}}for(const[id,view]of this.projectileViews){if(active.has(id))continue;this.particles.burst(view.current,this.palette.projectile,3,75,.16);this.projectileViews.delete(id)}}
-  private syncDrones(snapshot:WorldSnapshot,now:number,snapshotDelta:number):void{const active=new Set<string>();for(const drone of snapshot.drones){active.add(drone.id);const existing=this.droneViews.get(drone.id);if(!existing)this.droneViews.set(drone.id,{current:{...drone.position},target:{...drone.position},velocity:{...drone.velocity},snapshot:drone,snapshotAt:now});else{existing.velocity=snapshotDelta>0?{x:(drone.position.x-existing.target.x)/snapshotDelta,y:(drone.position.y-existing.target.y)/snapshotDelta}:{...drone.velocity};existing.target={...drone.position};existing.snapshot=drone;existing.snapshotAt=now}}for(const[id,drone]of this.droneViews){if(active.has(id))continue;this.particles.burst(drone.current,this.palette.drone,8,140,.28);this.droneViews.delete(id)}}
-  private syncShapes(snapshot:WorldSnapshot):void{const current=new Map<string,ShapeSnapshot>();for(const shape of snapshot.shapes){current.set(shape.id,shape);const previous=this.previousShapes.get(shape.id);if(previous&&shape.health<previous.health-.01)this.particles.burst(shape.position,shapeColorFor(shape,this.palette),4,80,.18)}for(const[id,shape]of this.previousShapes)if(!current.has(id))this.particles.burst(shape.position,shapeColorFor(shape,this.palette),shape.kind==='pentagon'?18:10,shape.kind==='pentagon'?220:150,.48);this.previousShapes.clear();for(const[id,shape]of current)this.previousShapes.set(id,{...shape,position:{...shape.position},velocity:{...shape.velocity}})}
-  private render(delta:number):void{this.time+=delta;const snapshot=this.snapshot;if(!snapshot){this.drawCrosshair();return}const now=performance.now();for(const view of this.playerViews.values()){const age=clamp((now-view.snapshotAt)/1000,0,.1);const target={x:view.target.x+view.snapshot.velocity.x*age,y:view.target.y+view.snapshot.velocity.y*age};const response=view.snapshot.id===this.selfId?26:17,smoothing=1-Math.exp(-response*delta);view.current.x+=(target.x-view.current.x)*smoothing;view.current.y+=(target.y-view.current.y)*smoothing;view.angle+=(shortestAngle(view.angle,view.targetAngle)-view.angle)*(1-Math.exp(-24*delta));view.recoil*=Math.exp(-18*delta);view.flash*=Math.exp(-12*delta);view.root.position.set(view.current.x,view.current.y);view.rotating.rotation=view.angle;view.rotating.position.x=-view.recoil*5;view.body.tint=view.flash>.08?0xffc6cf:0xffffff;view.shield.alpha=view.snapshot.invulnerable?.5+Math.sin(this.time*8)*.18:0}this.updateMotion(this.projectileViews,delta,now,32,.09);this.updateMotion(this.droneViews,delta,now,22,.08);const self=this.selfId?this.playerViews.get(this.selfId):undefined;if(self){const zoom=this.viewport.height/GAME.visibleWorldHeight;this.world.pivot.set(self.current.x,self.current.y);this.world.position.set(this.viewport.x+this.viewport.width/2,this.viewport.y+this.viewport.height/2);this.world.scale.set(zoom)}this.particles.update(delta);this.drawDynamic();this.drawScreenFx(delta)}
-  private updateMotion<T>(views:Map<string,Motion<T>>,delta:number,now:number,response:number,maxAge:number):void{for(const view of views.values()){const age=clamp((now-view.snapshotAt)/1000,0,maxAge);const target={x:view.target.x+view.velocity.x*age,y:view.target.y+view.velocity.y*age};const smoothing=1-Math.exp(-response*delta);view.current.x+=(target.x-view.current.x)*smoothing;view.current.y+=(target.y-view.current.y)*smoothing}}
-  private drawBackground():void{this.background.clear().rect(0,0,GAME.worldWidth,GAME.worldHeight).fill(this.palette.background);for(let x=0;x<=GAME.worldWidth;x+=80)this.background.moveTo(x,0).lineTo(x,GAME.worldHeight);for(let y=0;y<=GAME.worldHeight;y+=80)this.background.moveTo(0,y).lineTo(GAME.worldWidth,y);this.background.stroke({color:this.palette.grid,width:1});this.background.rect(0,0,GAME.worldWidth,GAME.worldHeight).stroke({color:this.palette.border,width:8})}
-  private drawWalls(snapshot:WorldSnapshot):void{this.wallLayer.clear();for(const candidate of snapshot.walls){this.wallLayer.roundRect(candidate.x+5,candidate.y+7,candidate.width,candidate.height,12).fill({color:0x000000,alpha:.18});this.wallLayer.roundRect(candidate.x,candidate.y,candidate.width,candidate.height,12).fill(this.palette.wall).stroke({color:this.palette.wallEdge,width:3})}}
-  private drawDynamic():void{const snapshot=this.snapshot;if(!snapshot)return;this.shapeLayer.clear();for(const shape of snapshot.shapes){const color=shapeColorFor(shape,this.palette),sides=shape.kind==='square'?4:shape.kind==='triangle'?3:5;this.shapeLayer.poly(translate(polygon(sides,shape.radius,shape.rotation),shape.position.x,shape.position.y)).fill(color).stroke({color:0xffffff,alpha:.26,width:2});if(shape.health<shape.maxHealth){const width=shape.radius*2;this.shapeLayer.roundRect(shape.position.x-width/2,shape.position.y+shape.radius+8,width,4,2).fill({color:0x000000,alpha:.44});this.shapeLayer.roundRect(shape.position.x-width/2,shape.position.y+shape.radius+8,width*Math.max(0,shape.health/shape.maxHealth),4,2).fill(color)}}this.trailLayer.clear();this.projectileLayer.clear();for(const view of this.projectileViews.values()){const direction=normalize(view.velocity),trail=clamp(Math.hypot(view.velocity.x,view.velocity.y)*.03,8,36);this.trailLayer.moveTo(view.current.x,view.current.y).lineTo(view.current.x-direction.x*trail,view.current.y-direction.y*trail).stroke({color:this.palette.projectile,alpha:.25,width:Math.max(2,view.snapshot.radius*.7)});this.projectileLayer.circle(view.current.x,view.current.y,view.snapshot.radius+4).fill({color:this.palette.projectile,alpha:.09});this.projectileLayer.circle(view.current.x,view.current.y,view.snapshot.radius).fill(this.palette.projectile)}this.droneLayer.clear();for(const view of this.droneViews.values()){const angle=Math.atan2(view.velocity.y,view.velocity.x)||view.snapshot.angle;this.droneLayer.poly(translate(polygon(3,13,angle),view.current.x,view.current.y)).fill(this.palette.drone).stroke({color:0xffffff,alpha:.34,width:2});if(view.snapshot.health<view.snapshot.maxHealth){this.droneLayer.roundRect(view.current.x-12,view.current.y+17,24,3,2).fill({color:0x000000,alpha:.42});this.droneLayer.roundRect(view.current.x-12,view.current.y+17,24*Math.max(0,view.snapshot.health/view.snapshot.maxHealth),3,2).fill(this.palette.drone)}}this.particles.draw()}
-  private drawScreenFx(delta:number):void{this.damageOverlay*=Math.exp(-5*delta);this.screenFx.clear();if(this.damageOverlay>.02){this.screenFx.rect(this.viewport.x,this.viewport.y,this.viewport.width,this.viewport.height).fill({color:0xff3151,alpha:this.damageOverlay*.04});this.screenFx.rect(this.viewport.x+4,this.viewport.y+4,Math.max(0,this.viewport.width-8),Math.max(0,this.viewport.height-8)).stroke({color:0xff4964,alpha:this.damageOverlay*.32,width:8})}this.drawCrosshair()}
-  private drawCrosshair():void{this.crosshair.clear();if(!this.crosshairVisible)return;const x=clamp(this.pointer.x,this.viewport.x+8,this.viewport.x+this.viewport.width-8),y=clamp(this.pointer.y,this.viewport.y+8,this.viewport.y+this.viewport.height-8),radius=this.primary?12:this.secondary?14:10,color=this.secondary?this.palette.drone:this.palette.self;this.crosshair.circle(x,y,2).fill({color,alpha:.95});this.crosshair.circle(x,y,radius).stroke({color,alpha:.55,width:1.5});const gap=4,length=5;this.crosshair.moveTo(x-gap-length,y).lineTo(x-gap,y).moveTo(x+gap,y).lineTo(x+gap+length,y).moveTo(x,y-gap-length).lineTo(x,y-gap).moveTo(x,y+gap).lineTo(x,y+gap+length).stroke({color,alpha:.82,width:1.5})}
-  private createPlayerView(player:PlayerSnapshot,now:number):PlayerView{const root=new Container(),rotating=new Container(),barrels=new Container(),body=new Graphics(),detail=new Graphics(),shield=new Graphics();rotating.addChild(barrels,body,detail,shield);root.addChild(rotating);const healthBackground=new Graphics(),healthFill=new Graphics();root.addChild(healthBackground,healthFill);const name=new Text({text:player.name,style:{fill:this.palette.label,fontSize:12,fontWeight:'650',fontFamily:'Inter, system-ui, sans-serif',dropShadow:{color:0x000000,alpha:.5,blur:2,distance:1}}});name.anchor.set(.5);name.position.set(0,-40);root.addChild(name);const view:PlayerView={root,rotating,barrels,body,detail,shield,healthBackground,healthFill,name,current:{...player.position},target:{...player.position},angle:player.angle,targetAngle:player.angle,snapshot:player,snapshotAt:now,recoil:0,flash:0};root.position.set(player.position.x,player.position.y);this.redrawPlayer(view,player.id===this.selfId);return view}
-  private redrawPlayer(view:PlayerView,isSelf:boolean):void{const player=view.snapshot,definition=CLASS_DEFINITIONS[player.playerClass],color=isSelf?this.palette.self:this.palette.enemy;view.body.clear().circle(0,0,GAME.playerRadius).fill(color).stroke({color:0xffffff,alpha:.34,width:3});for(const child of[...view.barrels.children])child.destroy();for(let index=0;index<definition.barrelCount;index+=1){const normalizedIndex=definition.barrelCount===1?0:index/(definition.barrelCount-1)-.5;const barrel=new Graphics();barrel.roundRect(4,-7,definition.barrelLength,14,4).fill(this.palette.barrel).stroke({color:0x000000,alpha:.17,width:2});barrel.rotation=normalizedIndex*definition.barrelSpread;view.barrels.addChild(barrel)}view.detail.clear();if(definition.droneCount>0){view.detail.poly(polygon(3,10,0)).fill(this.palette.drone);view.detail.circle(0,0,6).fill({color:0xffffff,alpha:.18})}if(definition.branch==='impact'){for(let index=0;index<8;index+=1){const angle=index*Math.PI/4,tip={x:Math.cos(angle)*31,y:Math.sin(angle)*31},left={x:Math.cos(angle-.16)*20,y:Math.sin(angle-.16)*20},right={x:Math.cos(angle+.16)*20,y:Math.sin(angle+.16)*20};view.detail.poly([left.x,left.y,tip.x,tip.y,right.x,right.y]).fill(color)}}view.shield.clear().circle(0,0,GAME.playerRadius+8).stroke({color,alpha:.72,width:2});view.healthBackground.clear().roundRect(-26,30,52,5,3).fill({color:0x000000,alpha:.48});view.healthFill.clear().roundRect(-26,30,52*Math.max(0,player.health/Math.max(1,player.maxHealth)),5,3).fill(player.health/Math.max(1,player.maxHealth)>.35?0x65d39a:0xf05e72);view.name.text=player.name;view.name.style.fill=this.palette.label}
+interface PlayerView {
+  root:Container; rotating:Container; body:Graphics; barrels:Graphics; detail:Graphics;
+  shield:Graphics; healthBack:Graphics; healthFill:Graphics; name:Text;
+  current:Vector2; target:Vector2; angle:number; targetAngle:number;
+  snapshot:PlayerSnapshot; classId:PlayerClass; isSelf:boolean;
+}
+
+const clamp=(value:number,min:number,max:number):number=>Math.max(min,Math.min(max,value));
+const normalize=(value:Vector2):Vector2=>{const length=Math.hypot(value.x,value.y);return length<.001?{x:0,y:0}:{x:value.x/length,y:value.y/length}};
+const polygon=(sides:number,radius:number,rotation=0):number[]=>{const points:number[]=[];for(let index=0;index<sides;index+=1){const angle=rotation+index*Math.PI*2/sides;points.push(Math.cos(angle)*radius,Math.sin(angle)*radius)}return points};
+const translated=(points:number[],position:Vector2):number[]=>points.map((value,index)=>value+(index%2===0?position.x:position.y));
+function angleLerp(current:number,target:number,factor:number):number{let difference=(target-current+Math.PI)%(Math.PI*2)-Math.PI;if(difference<-Math.PI)difference+=Math.PI*2;return current+difference*factor}
+
+export class GameRenderer {
+  readonly app=new Application();
+  private readonly world=new Container();
+  private readonly background=new Graphics();
+  private readonly walls=new Graphics();
+  private readonly shapes=new Graphics();
+  private readonly trails=new Graphics();
+  private readonly projectiles=new Graphics();
+  private readonly drones=new Graphics();
+  private readonly players=new Container();
+  private readonly particles=new ParticleField();
+  private readonly crosshair=new Graphics();
+  private readonly playerViews=new Map<string,PlayerView>();
+  private snapshot:WorldSnapshot|null=null;
+  private selfId:string|null=null;
+  private palette=PALETTES.midnight;
+  private pointer:Vector2={x:innerWidth/2,y:innerHeight/2};
+  private primary=false;
+  private secondary=false;
+  private showCrosshair=false;
+  private scale=1;
+  private time=0;
+  private wallsSignature='';
+  private knownProjectiles=new Set<string>();
+  private knownShapes=new Map<string,ShapeSnapshot>();
+
+  async init(root:HTMLElement):Promise<void>{
+    await this.app.init({resizeTo:window,antialias:true,background:this.palette.background,resolution:Math.min(devicePixelRatio||1,2),autoDensity:true,preference:'webgl'});
+    root.prepend(this.app.canvas);
+    this.world.addChild(this.background,this.walls,this.shapes,this.trails,this.projectiles,this.drones,this.particles.graphics,this.players);
+    this.app.stage.addChild(this.world,this.crosshair);
+    this.drawBackground();
+    this.app.ticker.add(ticker=>this.render(Math.min(.05,ticker.deltaMS/1000)));
+  }
+
+  setSnapshot(snapshot:WorldSnapshot):void{
+    this.snapshot=snapshot;
+    this.selfId=snapshot.selfId;
+    const signature=snapshot.walls.map(wall=>`${wall.id}:${wall.x}:${wall.y}:${wall.width}:${wall.height}`).join('|');
+    if(signature!==this.wallsSignature){this.wallsSignature=signature;this.drawWalls(snapshot)}
+    this.syncPlayers(snapshot);
+    this.syncEffects(snapshot);
+  }
+
+  setInput(pointer:Vector2,primary:boolean,secondary:boolean,showCrosshair:boolean):void{
+    this.pointer=pointer;this.primary=primary;this.secondary=secondary;this.showCrosshair=showCrosshair;
+  }
+
+  screenPointToWorldAim(pointer:Vector2):Vector2{
+    const direction={x:(pointer.x-this.app.screen.width/2)/Math.max(.001,this.scale),y:(pointer.y-this.app.screen.height/2)/Math.max(.001,this.scale)};
+    const length=Math.hypot(direction.x,direction.y);
+    if(length<=GAME.maxAimDistance)return direction;
+    const factor=GAME.maxAimDistance/Math.max(.001,length);
+    return{x:direction.x*factor,y:direction.y*factor};
+  }
+
+  setTheme(theme:ThemeId):void{
+    this.palette=PALETTES[theme];
+    this.app.renderer.background.color=this.palette.background;
+    this.drawBackground();
+    if(this.snapshot)this.drawWalls(this.snapshot);
+    for(const view of this.playerViews.values())this.redrawPlayer(view,true);
+  }
+
+  private syncPlayers(snapshot:WorldSnapshot):void{
+    const active=new Set<string>();
+    for(const player of snapshot.players){
+      active.add(player.id);
+      let view=this.playerViews.get(player.id);
+      const isSelf=player.id===snapshot.selfId;
+      if(!view){
+        view=this.createPlayerView(player,isSelf);
+        this.playerViews.set(player.id,view);
+        this.players.addChild(view.root);
+      }
+      view.target={...player.position};
+      view.targetAngle=player.angle;
+      view.snapshot=player;
+      if(view.classId!==player.playerClass||view.isSelf!==isSelf){view.classId=player.playerClass;view.isSelf=isSelf;this.redrawPlayer(view,true)}
+      else this.redrawPlayer(view,false);
+      view.root.visible=!player.dead;
+    }
+    for(const[id,view]of this.playerViews){
+      if(active.has(id))continue;
+      view.root.destroy({children:true});
+      this.playerViews.delete(id);
+    }
+  }
+
+  private syncEffects(snapshot:WorldSnapshot):void{
+    const projectileIds=new Set(snapshot.projectiles.map(projectile=>projectile.id));
+    for(const projectile of snapshot.projectiles){
+      if(this.knownProjectiles.has(projectile.id))continue;
+      const owner=this.playerViews.get(projectile.ownerId);
+      if(owner){const direction=normalize(projectile.velocity);this.particles.muzzle(owner.target,direction,projectile.ownerId===snapshot.selfId?this.palette.self:this.palette.enemy)}
+    }
+    this.knownProjectiles=projectileIds;
+    const shapes=new Map(snapshot.shapes.map(shape=>[shape.id,shape] as const));
+    for(const[id,previous]of this.knownShapes){
+      const current=shapes.get(id);
+      if(current&&current.health<previous.health)this.particles.burst(current.position,this.shapeColor(current),3,85,.18);
+      if(!current&&this.distanceToSelf(previous.position)<GAME.viewRadius*.88)this.particles.burst(previous.position,this.shapeColor(previous),10,170,.38);
+    }
+    this.knownShapes=shapes;
+  }
+
+  private render(delta:number):void{
+    this.time+=delta;
+    const self=this.selfId?this.playerViews.get(this.selfId):undefined;
+    for(const view of this.playerViews.values()){
+      const factor=1-Math.exp(-(view.isSelf?28:18)*delta);
+      view.current.x+=(view.target.x-view.current.x)*factor;
+      view.current.y+=(view.target.y-view.current.y)*factor;
+      view.angle=angleLerp(view.angle,view.targetAngle,1-Math.exp(-24*delta));
+      view.root.position.set(view.current.x,view.current.y);
+      view.rotating.rotation=view.angle;
+      view.shield.alpha=view.snapshot.invulnerable?.45+Math.sin(this.time*8)*.16:0;
+    }
+    if(self){
+      this.scale=Math.min(this.app.screen.width/GAME.visibleWorldWidth,this.app.screen.height/GAME.visibleWorldHeight);
+      this.world.scale.set(this.scale);
+      this.world.position.set(this.app.screen.width/2,this.app.screen.height/2);
+      this.world.pivot.set(self.current.x,self.current.y);
+    }
+    this.drawDynamic();
+    this.particles.update(delta);
+    this.particles.draw();
+    this.drawCrosshair();
+  }
+
+  private drawBackground():void{
+    this.background.clear().rect(0,0,GAME.worldWidth,GAME.worldHeight).fill(this.palette.background);
+    for(let x=0;x<=GAME.worldWidth;x+=80)this.background.moveTo(x,0).lineTo(x,GAME.worldHeight);
+    for(let y=0;y<=GAME.worldHeight;y+=80)this.background.moveTo(0,y).lineTo(GAME.worldWidth,y);
+    this.background.stroke({color:this.palette.grid,width:1});
+    this.background.rect(0,0,GAME.worldWidth,GAME.worldHeight).stroke({color:this.palette.border,width:7});
+  }
+
+  private drawWalls(snapshot:WorldSnapshot):void{
+    this.walls.clear();
+    for(const wall of snapshot.walls){
+      this.walls.roundRect(wall.x,wall.y,wall.width,wall.height,10).fill(this.palette.wall).stroke({color:this.palette.wallEdge,width:3});
+    }
+  }
+
+  private drawDynamic():void{
+    const snapshot=this.snapshot;if(!snapshot)return;
+    this.shapes.clear();
+    for(const shape of snapshot.shapes){
+      const sides=shape.kind==='square'?4:shape.kind==='triangle'?3:5;
+      const color=this.shapeColor(shape);
+      this.shapes.poly(translated(polygon(sides,shape.radius,shape.rotation),shape.position)).fill(color).stroke({color:0xffffff,alpha:.22,width:2});
+      if(shape.health<shape.maxHealth){
+        const width=shape.radius*2;
+        this.shapes.roundRect(shape.position.x-width/2,shape.position.y+shape.radius+7,width,4,2).fill({color:0x000000,alpha:.45});
+        this.shapes.roundRect(shape.position.x-width/2,shape.position.y+shape.radius+7,width*clamp(shape.health/shape.maxHealth,0,1),4,2).fill(color);
+      }
+    }
+    this.trails.clear();this.projectiles.clear();
+    for(const projectile of snapshot.projectiles){
+      const direction=normalize(projectile.velocity);
+      const length=clamp(Math.hypot(projectile.velocity.x,projectile.velocity.y)*.025,8,34);
+      this.trails.moveTo(projectile.position.x,projectile.position.y).lineTo(projectile.position.x-direction.x*length,projectile.position.y-direction.y*length).stroke({color:this.palette.projectile,alpha:.24,width:Math.max(2,projectile.radius*.65)});
+      this.projectiles.circle(projectile.position.x,projectile.position.y,projectile.radius).fill(this.palette.projectile);
+    }
+    this.drones.clear();
+    for(const drone of snapshot.drones){
+      this.drones.poly(translated(polygon(3,13,drone.angle),drone.position)).fill(this.palette.drone).stroke({color:0xffffff,alpha:.3,width:2});
+    }
+  }
+
+  private createPlayerView(player:PlayerSnapshot,isSelf:boolean):PlayerView{
+    const root=new Container();const rotating=new Container();const barrels=new Graphics();const body=new Graphics();const detail=new Graphics();const shield=new Graphics();
+    rotating.addChild(barrels,body,detail,shield);root.addChild(rotating);
+    const healthBack=new Graphics();const healthFill=new Graphics();root.addChild(healthBack,healthFill);
+    const name=new Text({text:'',style:{fill:this.palette.label,fontSize:12,fontWeight:'650',fontFamily:'Inter, system-ui, sans-serif'}});name.anchor.set(.5);name.position.set(0,-39);root.addChild(name);
+    const view:PlayerView={root,rotating,body,barrels,detail,shield,healthBack,healthFill,name,current:{...player.position},target:{...player.position},angle:player.angle,targetAngle:player.angle,snapshot:player,classId:player.playerClass,isSelf};
+    root.position.set(player.position.x,player.position.y);this.redrawPlayer(view,true);return view;
+  }
+
+  private redrawPlayer(view:PlayerView,geometry:boolean):void{
+    const player=view.snapshot;const color=view.isSelf?this.palette.self:this.palette.enemy;
+    if(geometry){
+      view.body.clear().circle(0,0,GAME.playerRadius).fill(color).stroke({color:0xffffff,alpha:.34,width:3});
+      view.barrels.clear();view.detail.clear();
+      const definition=CLASS_DEFINITIONS[player.playerClass];
+      if(definition.barrelCount>0){
+        for(let index=0;index<definition.barrelCount;index+=1){
+          const offset=definition.barrelCount===1?0:(index/(definition.barrelCount-1)-.5)*definition.barrelSpread;
+          const y=offset*42;
+          view.barrels.roundRect(4,y-7,definition.barrelLength,14,4).fill(this.palette.barrel).stroke({color:0x000000,alpha:.16,width:2});
+        }
+      }else view.detail.poly(polygon(3,10,0)).fill(this.palette.drone);
+      view.shield.clear().circle(0,0,GAME.playerRadius+8).stroke({color,alpha:.72,width:2});
+    }
+    view.healthBack.clear().roundRect(-25,29,50,5,3).fill({color:0x000000,alpha:.48});
+    view.healthFill.clear().roundRect(-25,29,50*clamp(player.health/Math.max(1,player.maxHealth),0,1),5,3).fill(player.health/player.maxHealth>.35?0x65d39a:0xf05e72);
+    view.name.text=`${player.name}${player.isBot?' · BOT':''}`;view.name.style.fill=this.palette.label;
+  }
+
+  private drawCrosshair():void{
+    this.crosshair.clear();if(!this.showCrosshair)return;
+    const radius=this.primary||this.secondary?12:10;const color=this.palette.self;
+    this.crosshair.circle(this.pointer.x,this.pointer.y,2).fill({color,alpha:.9});
+    this.crosshair.circle(this.pointer.x,this.pointer.y,radius).stroke({color,alpha:.55,width:1.5});
+  }
+  private shapeColor(shape:ShapeSnapshot):number{return shape.kind==='square'?this.palette.square:shape.kind==='triangle'?this.palette.triangle:this.palette.pentagon}
+  private distanceToSelf(position:Vector2):number{const self=this.selfId?this.playerViews.get(this.selfId):undefined;return self?Math.hypot(position.x-self.current.x,position.y-self.current.y):Infinity}
 }
