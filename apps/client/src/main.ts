@@ -1,4 +1,5 @@
 import {
+  CLASS_DEFINITIONS,
   GAME,
   type ChooseClassMessage,
   type JoinMessage,
@@ -205,10 +206,6 @@ function updateWorld(snapshot: WorldSnapshot): void {
   previousProjectileIds = new Set(snapshot.projectiles.map((projectile) => projectile.id));
 }
 
-const CLASS_WITH_BULLETS = new Set<PlayerClass>([
-  'core', 'rapid', 'sniper', 'rammer', 'twin', 'railgun', 'crusher', 'storm', 'lancer', 'juggernaut'
-]);
-
 function playSnapshotAudio(snapshot: WorldSnapshot, self: PlayerSnapshot): void {
   if (previousSelf) {
     if (self.health < previousSelf.health - 0.01 && self.deaths === previousSelf.deaths) audio.damage();
@@ -216,7 +213,7 @@ function playSnapshotAudio(snapshot: WorldSnapshot, self: PlayerSnapshot): void 
     if (self.deaths > previousSelf.deaths) audio.death();
     if (self.level > previousSelf.level) audio.level();
   }
-  if (CLASS_WITH_BULLETS.has(self.playerClass)) {
+  if (CLASS_DEFINITIONS[self.playerClass].barrelCount > 0) {
     const fired = snapshot.projectiles.some(
       (projectile) => projectile.ownerId === self.id && !previousProjectileIds.has(projectile.id)
     );
