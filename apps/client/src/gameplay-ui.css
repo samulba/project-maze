@@ -1,0 +1,115 @@
+.core-loadout {
+  margin: 16px 0 14px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 14px;
+  background: rgba(255,255,255,.035);
+}
+.core-loadout-heading { display:flex; justify-content:space-between; gap:12px; align-items:center; }
+.core-loadout-heading span { color:#f1f3ff; font-size:10px; font-weight:800; letter-spacing:.12em; }
+.core-loadout-heading small { color:#858da2; font-size:9px; }
+.core-loadout-fields { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:11px; }
+.core-loadout-fields label { display:grid; gap:6px; color:#8f97aa; font-size:8px; font-weight:800; letter-spacing:.1em; }
+.core-loadout-fields select {
+  min-width:0;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:9px;
+  background:#111522;
+  color:#fff;
+  padding:10px;
+  font:650 11px Inter,system-ui,sans-serif;
+}
+.core-loadout-description { margin-top:10px; color:#9ca5ba; font-size:10px; line-height:1.45; }
+.core-ability {
+  --charge:100%;
+  position:fixed;
+  left:50%;
+  bottom:22px;
+  z-index:32;
+  width:132px;
+  height:56px;
+  transform:translateX(-50%);
+  display:grid;
+  grid-template-columns:34px 1fr;
+  grid-template-rows:1fr 1fr;
+  align-items:center;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:15px;
+  background:rgba(7,10,18,.9);
+  color:#f6f7ff;
+  box-shadow:0 14px 38px rgba(0,0,0,.34);
+  backdrop-filter:blur(18px);
+  cursor:pointer;
+}
+.core-ability > i {
+  position:absolute;
+  left:0;
+  bottom:0;
+  width:var(--charge);
+  height:3px;
+  background:#7d88ff;
+  transition:width .08s linear;
+}
+.core-ability-key { grid-row:1 / 3; align-self:stretch; display:grid; place-items:center; border-right:1px solid rgba(255,255,255,.1); color:#8992aa; font-size:8px; font-weight:800; }
+.core-ability strong { align-self:end; padding-left:10px; text-align:left; font-size:12px; letter-spacing:.08em; }
+.core-ability small { align-self:start; padding:3px 0 0 10px; text-align:left; color:#929bb0; font-size:9px; }
+.core-ability:hover:not(:disabled) { border-color:rgba(125,136,255,.7); background:rgba(19,24,42,.95); }
+.core-ability:disabled { cursor:default; opacity:.68; }
+.core-ability.active { border-color:#76dec0; box-shadow:0 0 0 1px rgba(118,222,192,.25) inset,0 14px 38px rgba(0,0,0,.34); }
+.core-ability[data-module="repulse"] > i { background:#73e3bd; }
+.core-ability[data-module="barrier"] > i { background:#81a7ff; }
+.core-ability[data-module="repair"] > i { background:#69d79b; }
+.modifier-badge {
+  position:fixed;
+  left:50%;
+  bottom:86px;
+  z-index:30;
+  transform:translateX(-50%);
+  padding:5px 9px;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:999px;
+  background:rgba(7,10,18,.72);
+  color:#9099af;
+  font:700 8px Inter,system-ui,sans-serif;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  pointer-events:none;
+}
+.arena-event-banner,.bounty-banner {
+  position:fixed;
+  top:66px;
+  left:50%;
+  z-index:28;
+  transform:translateX(-50%);
+  min-width:270px;
+  display:flex;
+  justify-content:center;
+  gap:9px;
+  align-items:center;
+  padding:9px 13px;
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:999px;
+  background:rgba(8,11,19,.88);
+  color:#e9ecf7;
+  box-shadow:0 12px 32px rgba(0,0,0,.25);
+  backdrop-filter:blur(16px);
+  font-family:Inter,system-ui,sans-serif;
+}
+.arena-event-banner[hidden],.bounty-banner[hidden] { display:none; }
+.arena-event-banner strong,.bounty-banner strong { font-size:10px; letter-spacing:.1em; }
+.arena-event-banner span,.bounty-banner span { color:#a7afc2; font-size:10px; }
+.arena-event-banner[data-phase="warning"] { border-color:rgba(232,175,81,.42); }
+.arena-event-banner[data-phase="active"] { border-color:rgba(240,189,91,.8); box-shadow:0 0 28px rgba(232,175,81,.16); }
+.bounty-banner { top:108px; border-color:rgba(238,103,123,.55); }
+.bounty-banner.self { border-color:#ef7181; background:rgba(54,14,25,.9); }
+@media (max-width:700px) {
+  .core-loadout-fields { grid-template-columns:1fr; }
+  .core-loadout-heading { align-items:flex-start; flex-direction:column; gap:5px; }
+  .core-ability { left:auto; right:18px; bottom:148px; transform:none; width:76px; height:76px; border-radius:50%; grid-template-columns:1fr; grid-template-rows:1fr auto; }
+  .core-ability-key { display:none; }
+  .core-ability strong,.core-ability small { padding:0; text-align:center; align-self:center; }
+  .core-ability strong { font-size:10px; }
+  .modifier-badge { display:none; }
+  .arena-event-banner,.bounty-banner { min-width:0; width:calc(100% - 28px); border-radius:12px; }
+}
