@@ -22,8 +22,7 @@ function integerEnvironment(name: string, fallback: number, minimum: number, max
 }
 
 const PORT = integerEnvironment('PORT', 2567, 1, 65535);
-const BOT_COUNT = integerEnvironment('BOT_COUNT', 10, 0, 18);
-const NETWORK_SNAPSHOT_RATE = 30;
+const BOT_COUNT = integerEnvironment('BOT_COUNT', 8, 0, 18);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN?.trim() || '*';
 const allowedOrigins = ALLOWED_ORIGIN === '*'
   ? null
@@ -154,7 +153,7 @@ const snapshotTimer = setInterval(() => {
     const playerId = socketPlayerIds.get(socket);
     if (playerId) send(socket, game.snapshot(playerId), true);
   }
-}, 1000 / NETWORK_SNAPSHOT_RATE);
+}, 1000 / GAME.snapshotRate);
 const heartbeatTimer = setInterval(() => {
   for (const socket of wss.clients) {
     if (socketAlive.get(socket) === false) {
@@ -174,7 +173,7 @@ app.get('/health', (_request: Request, response: Response) => response.json({
   humans: game.humanCount,
   ...game.entityCounts,
   mode: 'maze-alpha',
-  version: '0.4.0',
-  snapshotRate: NETWORK_SNAPSHOT_RATE
+  version: '0.5.0',
+  snapshotRate: GAME.snapshotRate
 }));
 server.listen(PORT, () => console.log(`Project Maze server listening on http://localhost:${PORT}`));
