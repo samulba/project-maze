@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { GAME } from '@project-maze/shared';
 import { tuneClassMechanics } from './class-mechanics';
-import { tuneCombatScaling } from './combat-tuning';
+import { tuneCombatScaling, tunedStatsFor } from './combat-tuning';
 import { applyDebugBuild } from './debug-lab';
 import { MazeGame } from './game';
 
 interface Internals {
   players: Map<string, any>;
+  projectiles: Map<string, any>;
   damagePlayer(target: any, damage: number, attackerId: string | null, now: number): void;
+  fire(player: any, stats: any): void;
 }
 
 const createGame = (): MazeGame => tuneClassMechanics(tuneCombatScaling(new MazeGame(0)));
@@ -56,6 +58,42 @@ describe('class mechanics', () => {
     internals.damagePlayer(target, 10, attackerId, Date.now());
     expect(target.velocity.x).toBeGreaterThan(45);
     expect(Math.abs(target.velocity.y)).toBeLessThan(0.001);
+  });
+
+  it('tightens Gatling spread while continuous fire is maintained', () => {
+    const game = createGame();
+    const playerId = game.addPlayer('Gatling');
+    const internals = game as unknown as Internals;
+    const player = preparePlayer(game, playerId, 'gatling', 38);
+    player.position = { x: 3000, y: 2000 };
+    player.aim = { x: 600, y: 0 };
+    const stats = tunedStatsFor(player);
+
+    internals.fire(player, stats);
+    const firstSpread = Math.max(...[...internals.projectiles.values()].map((projectile) => Math.abs(projectile.velocity.y)));
+    internals.projectiles.clear();
+    internals.fire(player, stats);
+    const secondSpread = Math.max(...[...internals.projectiles.values()].map((projectile) => Math.abs(projectile.velocity.y)));
+
+    expect(secondSpread).toBeLessThan(firstSpread);
+    expect(secondSpread).toBeGreaterThan(0);
+  });
+
+  it('gives Storm a sturdier projectile wall without increasing direct damage', () => {
+    const game = createGame();
+    const playerId = game.addPlayer('Storm');
+    const internals = game as unknown as Internals;
+    const player = preparePlayer(game, playerId, 'storm', 38);
+    const stats = tunedStatsFor(player);
+
+    internals.fire(player, stats);
+    const projectiles = [...internals.projectiles.values()];
+    expect(projectiles).toHaveLength(4);
+    for (const projectile of projectiles) {
+      expect(projectile.damage).toBeCloseTo(stats.damage, 5);
+      expect(projectile.integrity).toBeCloseTo(stats.penetration * 1.18, 5);
+      expect(projectile.maxIntegrity).toBeCloseTo(stats.penetration * 1.18, 5);
+    }
   });
 
   it('keeps all class mechanic numbers finite', () => {
