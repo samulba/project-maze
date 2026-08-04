@@ -5,13 +5,21 @@ export const PLAYER_CLASS_IDS = [
   'drone',
   'rammer',
   'twin',
+  'repeater',
   'railgun',
+  'hunter',
   'warden',
+  'factory',
   'crusher',
+  'bulwark',
   'storm',
+  'gatling',
   'lancer',
+  'phantom',
   'overseer',
-  'juggernaut'
+  'carrier',
+  'juggernaut',
+  'fortress'
 ] as const;
 
 export type PlayerClass = (typeof PLAYER_CLASS_IDS)[number];
@@ -122,11 +130,25 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 15, bodyDamage: 10, barrelCount: 2, barrelSpread: 0.15, barrelLength: 35,
     droneCount: 0, droneRespawn: 0
   }),
+  repeater: classDef({
+    id: 'repeater', label: 'Repeater', description: 'Drei kompakte Läufe bündeln Druck auf einen schmalen Bereich.', parent: 'rapid',
+    unlockLevel: 24, branch: 'rapid', maxHealth: 102, regen: 2, acceleration: 1640, moveSpeed: 286,
+    reload: 0.34, projectileSpeed: 835, projectileLife: 1.45, damage: 8, projectileRadius: 6,
+    penetration: 14, bodyDamage: 10, barrelCount: 3, barrelSpread: 0.22, barrelLength: 32,
+    droneCount: 0, droneRespawn: 0
+  }),
   railgun: classDef({
     id: 'railgun', label: 'Railgun', description: 'Schwerer Präzisionsschuss mit hoher Durchschlagskraft.', parent: 'sniper',
     unlockLevel: 24, branch: 'precision', maxHealth: 92, regen: 1.6, acceleration: 1250, moveSpeed: 235,
     reload: 1, projectileSpeed: 1420, projectileLife: 2.35, damage: 60, projectileRadius: 9,
     penetration: 78, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 62,
+    droneCount: 0, droneRespawn: 0
+  }),
+  hunter: classDef({
+    id: 'hunter', label: 'Hunter', description: 'Mobiler Präzisionstank mit schnellerer Schussfolge.', parent: 'sniper',
+    unlockLevel: 24, branch: 'precision', maxHealth: 98, regen: 1.8, acceleration: 1450, moveSpeed: 270,
+    reload: 0.5, projectileSpeed: 1100, projectileLife: 1.8, damage: 32, projectileRadius: 7,
+    penetration: 36, bodyDamage: 9, barrelCount: 1, barrelSpread: 0, barrelLength: 47,
     droneCount: 0, droneRespawn: 0
   }),
   warden: classDef({
@@ -136,11 +158,25 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
     droneCount: 6, droneRespawn: 1.12
   }),
+  factory: classDef({
+    id: 'factory', label: 'Factory', description: 'Weniger, stärkere Drohnen mit langsamerer Wiederherstellung.', parent: 'drone',
+    unlockLevel: 24, branch: 'control', maxHealth: 130, regen: 2.9, acceleration: 1280, moveSpeed: 242,
+    reload: 0.8, projectileSpeed: 0, projectileLife: 0, damage: 13, projectileRadius: 0,
+    penetration: 0, bodyDamage: 13, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
+    droneCount: 5, droneRespawn: 1.4
+  }),
   crusher: classDef({
     id: 'crusher', label: 'Crusher', description: 'Schwerer Rammer mit hoher Haltbarkeit.', parent: 'rammer',
     unlockLevel: 24, branch: 'impact', maxHealth: 170, regen: 3.3, acceleration: 1550, moveSpeed: 285,
     reload: 0.5, projectileSpeed: 660, projectileLife: 1.15, damage: 8.5, projectileRadius: 8,
     penetration: 13, bodyDamage: 42, barrelCount: 1, barrelSpread: 0, barrelLength: 24,
+    droneCount: 0, droneRespawn: 0
+  }),
+  bulwark: classDef({
+    id: 'bulwark', label: 'Bulwark', description: 'Defensiver Hybrid mit hoher Haltbarkeit und schweren Projektilen.', parent: 'rammer',
+    unlockLevel: 24, branch: 'impact', maxHealth: 185, regen: 3.6, acceleration: 1320, moveSpeed: 255,
+    reload: 0.65, projectileSpeed: 640, projectileLife: 1.4, damage: 13, projectileRadius: 10,
+    penetration: 22, bodyDamage: 34, barrelCount: 1, barrelSpread: 0, barrelLength: 22,
     droneCount: 0, droneRespawn: 0
   }),
   storm: classDef({
@@ -150,6 +186,13 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 12, bodyDamage: 10, barrelCount: 4, barrelSpread: 0.3, barrelLength: 34,
     droneCount: 0, droneRespawn: 0
   }),
+  gatling: classDef({
+    id: 'gatling', label: 'Gatling', description: 'Sechs leichte Läufe liefern konzentriertes Dauerfeuer.', parent: 'repeater',
+    unlockLevel: 38, branch: 'rapid', maxHealth: 106, regen: 2.1, acceleration: 1520, moveSpeed: 278,
+    reload: 0.28, projectileSpeed: 875, projectileLife: 1.3, damage: 4.3, projectileRadius: 5.5,
+    penetration: 10, bodyDamage: 10, barrelCount: 6, barrelSpread: 0.42, barrelLength: 31,
+    droneCount: 0, droneRespawn: 0
+  }),
   lancer: classDef({
     id: 'lancer', label: 'Lancer', description: 'Extremer Einzelschuss mit langer Vorbereitung.', parent: 'railgun',
     unlockLevel: 38, branch: 'precision', maxHealth: 86, regen: 1.45, acceleration: 1150, moveSpeed: 222,
@@ -157,18 +200,39 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 112, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 70,
     droneCount: 0, droneRespawn: 0
   }),
+  phantom: classDef({
+    id: 'phantom', label: 'Phantom', description: 'Schneller Final-Sniper für Bewegung, Winkel und präzise Picks.', parent: 'hunter',
+    unlockLevel: 38, branch: 'precision', maxHealth: 90, regen: 1.55, acceleration: 1380, moveSpeed: 260,
+    reload: 0.62, projectileSpeed: 1500, projectileLife: 2.25, damage: 50, projectileRadius: 8,
+    penetration: 72, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 58,
+    droneCount: 0, droneRespawn: 0
+  }),
   overseer: classDef({
-    id: 'overseer', label: 'Overseer', description: 'Acht Drohnen für anspruchsvolle Schwarmkontrolle.', parent: 'warden',
+    id: 'overseer', label: 'Overseer', description: 'Acht leichtere Drohnen für anspruchsvolle Schwarmkontrolle.', parent: 'warden',
     unlockLevel: 38, branch: 'control', maxHealth: 128, regen: 3, acceleration: 1320, moveSpeed: 246,
     reload: 0.58, projectileSpeed: 0, projectileLife: 0, damage: 12, projectileRadius: 0,
     penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
     droneCount: 8, droneRespawn: 0.88
+  }),
+  carrier: classDef({
+    id: 'carrier', label: 'Carrier', description: 'Sechs schwere Drohnen für langsamen, massiven Flächendruck.', parent: 'factory',
+    unlockLevel: 38, branch: 'control', maxHealth: 150, regen: 3.4, acceleration: 1180, moveSpeed: 230,
+    reload: 0.85, projectileSpeed: 0, projectileLife: 0, damage: 16, projectileRadius: 0,
+    penetration: 0, bodyDamage: 15, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
+    droneCount: 6, droneRespawn: 1.5
   }),
   juggernaut: classDef({
     id: 'juggernaut', label: 'Juggernaut', description: 'Extrem widerstandsfähiger Nahkämpfer mit kurzer Reichweite.', parent: 'crusher',
     unlockLevel: 38, branch: 'impact', maxHealth: 215, regen: 4, acceleration: 1350, moveSpeed: 255,
     reload: 0.62, projectileSpeed: 620, projectileLife: 1, damage: 8, projectileRadius: 9,
     penetration: 13, bodyDamage: 60, barrelCount: 1, barrelSpread: 0, barrelLength: 21,
+    droneCount: 0, droneRespawn: 0
+  }),
+  fortress: classDef({
+    id: 'fortress', label: 'Fortress', description: 'Langsamer Defensivanker mit maximaler Haltbarkeit und schweren Schüssen.', parent: 'bulwark',
+    unlockLevel: 38, branch: 'impact', maxHealth: 250, regen: 4.8, acceleration: 1050, moveSpeed: 225,
+    reload: 0.75, projectileSpeed: 600, projectileLife: 1.5, damage: 16, projectileRadius: 11,
+    penetration: 28, bodyDamage: 45, barrelCount: 1, barrelSpread: 0, barrelLength: 20,
     droneCount: 0, droneRespawn: 0
   })
 };
