@@ -1,35 +1,50 @@
-# Project Maze – Balance- und Klassen-Masterplan
+# Project Maze – Gameplay-, Balance- und Klassen-Masterplan
 
-## Aktueller Stand – Alpha 0.7
+## Vision
 
-- **Phase 1 abgeschlossen:** Farming, Bot-Schwierigkeit, bestehende Tanks und Upgrade-Skalierung wurden neu balanciert.
-- **Phase 2 weitgehend abgeschlossen:** reproduzierbare Balance-Metriken, Grenzwerttests und `npm run balance` sind eingebaut. Automatisierte Duell-Simulationen folgen nach dem ersten Spieltest.
-- **Phase 3 abgeschlossen:** Der Klassenbaum wurde von 13 auf 21 Tanks erweitert.
-- **Phase 4 abgeschlossen für In-Game-Silhouetten:** Alle 21 Tanks besitzen eigene Rumpf-, Modul- und Laufdesigns. Mini-Vorschauen in den Klassenkarten bleiben eine spätere UI-Verbesserung.
-- **Phase 5 weitgehend abgeschlossen:** Leichte Schwarmdrohnen und schwere Factory-Drohnen besitzen unterschiedliche Physikwerte. Weitere Steuerungsmodi werden nach dem Spieltest bewertet.
-- **Phase 6 weitgehend abgeschlossen:** Bots reagieren langsamer, zielen ungenauer und verteilen sich auf sämtliche Klassenpfade.
-- **Phase 7 offen:** Aussagekräftige Pick-, Kill- und Überlebensraten benötigen echte Online-Matches und eine spätere Telemetrie-/Datenbankanbindung.
+Project Maze behält die sofort verständliche Basis eines klassischen Browser-Arena-Tankspiels:
 
-## Zielbild
+- bewegen
+- zielen
+- schießen
+- Formen farmen
+- leveln
+- Stats verbessern
+- Tankklasse entwickeln
+- andere Spieler besiegen
 
-Project Maze soll leicht zu lernen, aber schwer zu meistern sein. Farming muss in den ersten Sekunden verständlich und belohnend wirken. Klassen sollen keine linearen Upgrades sein, sondern unterschiedliche Spielstile mit klaren Stärken, Schwächen und visueller Identität.
+Darüber liegt eine eigene zweite Ebene aus gezielten Outplay-Momenten, riskanten Arena-Zielen und klaren Build-Entscheidungen. Diese Ebene darf das Kernspiel vertiefen, aber niemals überdecken.
 
-## Verbindliche Balance-Ziele
+## Verbindliche Komplexitätsregel
 
-- Erste Klassenwahl nach ungefähr 60–90 Sekunden normalem Farming.
-- Zweite Klassenwahl nach ungefähr 4–6 Minuten.
-- Finale Klassenwahl nach ungefähr 9–13 Minuten.
-- Ein neuer Spieler soll Squares mit einem Core-Tank zuverlässig in 1–2 Treffern zerstören können.
-- Kein Tank darf gleichzeitig höchste Reichweite, höchsten Burst, höchste Mobilität und höchste Haltbarkeit besitzen.
-- Tier-Aufstiege erhöhen die Gesamtstärke moderat; sie sollen vor allem den Spielstil spezialisieren.
-- Basis-DPS-Zielkorridore für Bullet-Tanks:
-  - Tier 1: 48–58
-  - Tier 2: 52–66
-  - Tier 3: 64–82
-  - Tier 4: 78–100
-- Burst-Tanks dürfen unter dem DPS-Korridor liegen, wenn Projektiltempo, Reichweite und Durchschlag höher sind.
-- Rammer und Drohnen werden separat über effektive Kontaktzeit, Überlebensfähigkeit und Kontrolle bewertet.
-- Bots dürfen glaubwürdige Fehler machen und keine perfekten Reaktionszeiten besitzen.
+Project Maze darf tief sein, aber nicht kompliziert wirken.
+
+Ein Spieler sieht während eines normalen Lebens höchstens:
+
+1. seine Tankklasse,
+2. die acht bekannten Stat-Upgrades,
+3. genau ein aktives Core Module,
+4. genau einen passiven Frame Modifier.
+
+Es gibt keine Hotbar mit mehreren Fähigkeiten, kein Inventar während des Kampfes und keine langen Itemtexte im HUD. Elite Shapes, Arena Events und Bounties werden direkt in der Welt erklärt.
+
+### Progressive Disclosure
+
+- **Erste Runde:** bewegen, schießen, farmen und Level 10 erreichen.
+- **Startscreen:** ein Core Module und optional ein Frame Modifier.
+- **Im Match:** eine Ability-Taste mit Cooldown.
+- **Nach dem Tod:** Loadout darf gewechselt werden.
+- **Events und Bounties:** erscheinen erst über klare Weltmarker und kurze Hinweise.
+- **Erweiterte Zahlen:** nur im lokalen Balance Lab und später in optionalen Detailansichten.
+
+## Aktueller Stand – Alpha 0.8
+
+- Farming und Upgrade-Skalierung wurden neu balanciert.
+- 21 Tanks mit vier Branches sind vorhanden.
+- Eigene Tank-Silhouetten und mehrere klassenspezifische Mechaniken sind vorhanden.
+- Drohnen besitzen unterschiedliche Schwarm- und Heavy-Archetypen.
+- Bots nutzen sämtliche Klassenpfade mit menschlicheren Reaktionswerten.
+- Ein lokales Balance Lab erlaubt schnelle Klassen-, Build- und DPS-Tests.
 
 ## Klassenbaum – 21 Tanks
 
@@ -57,100 +72,272 @@ Core
         └── Fortress
 ```
 
-## Rollen
+## System 1 – Core Modules
 
-### Core
-Einfacher Allrounder ohne extreme Stärke oder Schwäche.
+Jeder Spieler rüstet genau ein aktives Modul aus. Aktivierung über `Leertaste` oder `Shift`; Mobile erhält einen einzelnen Ability-Button.
 
-### Rapid Branch
-Konstanter Druck, gute Mobilität und Projektilabwehr. Weniger Burst und geringere Projektilstärke.
+### Dash
 
-### Precision Branch
-Hoher Burst, Reichweite und Durchschlag. Langsamer, fragiler und bei Fehlschüssen verwundbar.
+- kurzer kontrollierter Bewegungsschub
+- keine Unverwundbarkeit
+- Wände stoppen den Dash
+- während und kurz nach dem Dash keine Schüsse
+- Body-Damage während des Schubs stark reduziert
+- Ziel-Cooldown: 10 Sekunden
 
-### Control Branch
-Drohnen, Raumkontrolle und Skill über Positionierung. Begrenzte direkte Feuerkraft und hohe Abhängigkeit vom Drohnenschwarm.
+Rolle: Mobilität, Ausweichen, Repositionierung.
 
-### Impact Branch
-Leben, Body-Damage und Nahkampf. Kurze Reichweite und anfällig gegen gutes Kiting.
+### Repulse Pulse
 
-## Visuelle Designregeln
+- kreisförmige Druckwelle
+- stößt Gegner zurück
+- verdrängt Drohnen stärker
+- lenkt oder schwächt nahe Projektile
+- verursacht keinen direkten Spielerschaden
+- Ziel-Cooldown: 12 Sekunden
 
-- Jede Branch erhält eine klar erkennbare Silhouette.
-- Rapid: mehrere kurze, kompakte Läufe.
-- Precision: lange, schmale Läufe und reduzierte Geometrie.
-- Control: Drohnen-Kern, Seitenmodule und Kontrollring.
-- Impact: breiter Rumpf, verstärkte Front und kurze Läufe.
-- Tier 2 verändert die Silhouette sichtbar.
-- Tier 3 fügt eine zweite eindeutige Formensprache hinzu.
-- Tier 4 muss auf einen Blick erkennbar sein, darf aber nicht unnötig überladen wirken.
-- Eigene, gegnerische und neutrale Entities bleiben farblich eindeutig.
+Rolle: Raumkontrolle und Anti-Rush.
 
-## Umsetzungsphasen
+### Front Barrier
 
-### Phase 1 – Schwierigkeit und bestehende 13 Tanks
+- kurzer frontal ausgerichteter Schild
+- feste Schildpunkte statt Skalierung mit Tank-HP
+- reduziert nur Angriffe aus dem Frontwinkel
+- Spieler kann währenddessen nicht schießen
+- Ziel-Cooldown: 12 Sekunden
 
-- Farmobjekte leichter und weniger gefährlich machen.
-- Bot-Reaktionszeiten und Genauigkeit entschärfen.
-- Klassenwahl auf Level 10 / 24 / 38 verschieben.
-- Bestehende 13 Tanks auf feste Power-Korridore setzen.
-- Upgrade-Skalierung entschärfen, damit Max-Level-Spieler nicht exponentiell eskalieren.
-- Snapshot-Konfiguration vereinheitlichen.
+Rolle: Timing-basierte Verteidigung gegen Burst.
 
-### Phase 2 – Balance-Messsystem
+### Repair Cycle
 
-- Automatische Kennzahlen für DPS, Burst, Reichweite, Haltbarkeit und Mobilität.
-- Tests gegen extreme Ausreißer.
-- Simulierte Duelle und Farming-Zeitmessung.
-- Balance-Report als reproduzierbares Script.
+- sichtbare Vorbereitungsphase
+- Heilung über Zeit
+- Abbruch bei Schaden, Schuss oder starker Bewegung
+- Grundheilung plus kleiner Max-HP-Anteil
+- Ziel-Cooldown: 17 Sekunden
 
-### Phase 3 – Acht neue Klassen
+Rolle: Sustain außerhalb aktiver Gefechte.
 
-- Repeater
-- Gatling
-- Hunter
-- Phantom
-- Factory
-- Carrier
-- Bulwark
-- Fortress
+### Modul-Balance-Regeln
 
-Jede Klasse bekommt eine eigene Rolle, Stats, Bot-Pfade und Beschreibung.
+- exakt ein aktives Modul pro Leben
+- Wechsel nur vor dem Spawn oder nach dem Tod
+- Modulnutzung beendet Spawn-Schutz
+- Tod, Klassenwechsel und Reconnect setzen Cooldowns nicht missbrauchbar zurück
+- keine universelle Schadensfähigkeit in der ersten Modul-Serie
+- jede Aktivierung ist visuell und akustisch verständlich
+- sämtliche Effekte werden serverautoritativ berechnet
 
-### Phase 4 – Tank-Designsystem
+## System 2 – Passive Frame Modifier
 
-- Renderer nicht mehr nur über `barrelCount` zeichnen.
-- Eigene Visual-Presets pro Klasse.
-- Unterschiedliche Rumpfformen, Laufanordnungen, Seitenelemente und Kontrollringe.
-- Klassenkarten mit Mini-Vorschau und verständlichen Stärken/Schwächen.
+Ein optionaler passiver Sidegrade mit echtem Trade-off. Es gibt keinen kostenlosen reinen Buff.
 
-### Phase 5 – Drohnen-Rework
+### Standard Frame
 
-- Separate Werte für Drohnenleben, Geschwindigkeit, Beschleunigung und Kontaktschaden.
-- Warden und Factory spielen sich klar unterschiedlich.
-- Overseer und Carrier erhalten unterschiedliche Schwarmlogik.
-- Repel, Attack und Recall werden sauber getrennt.
+Keine Veränderung. Empfohlene und vorausgewählte Option.
 
-### Phase 6 – Bot-Balance
+### Lightweight Frame
 
-- Eigene Klassenpräferenzen für alle 21 Tanks.
-- Fehlerprofile, Reaktionszeiten und Aim-Streuung pro Bot-Persönlichkeit.
-- Keine sofortige perfekte Zielerfassung.
-- Bots farmen, fliehen, kiten und wechseln Ziele glaubwürdig.
+- +6 % Bewegung
+- -8 % maximales Leben
 
-### Phase 7 – Öffentlicher Balance-Test
+### Projectile Stabilizer
 
-- Serverseitige anonyme Match-Metriken.
-- Pickrate, Killrate, Todesrate, durchschnittliches Level und Lebensdauer pro Klasse.
-- Keine automatischen Nerfs; Änderungen werden bewusst aus den Daten abgeleitet.
+- +10 % Projektiltempo
+- -8 % Feuerrate
+
+### Reinforced Core
+
+- +10 % maximales Leben
+- -6 % Bewegung
+
+### Modifier-Regeln
+
+- genau ein Modifier oder Standard Frame
+- keine Freischaltungsvorteile und kein Pay-to-win
+- Wechsel nur zusammen mit dem Core Module
+- Effekte bleiben klein genug, dass die Tankklasse wichtiger ist
+- Modifier dürfen keine harte Klassen-Schwäche vollständig entfernen
+
+## System 3 – Elite Shapes
+
+Seltene, sofort erkennbare Farmziele mit höherem Risiko und höherer Belohnung.
+
+### Eigenschaften
+
+- goldene oder pulsierende Kontur
+- deutlich mehr Leben
+- größer und langsamer als normale Formen
+- hoher XP- und Score-Wert
+- begrenzte Anzahl gleichzeitig
+- keine zufälligen One-Shot-Angriffe
+
+### Ziel
+
+Elite Shapes schaffen lokale Konflikte und Farming-Abwechslung, ohne eine neue Steuerung oder ein eigenes Menü einzuführen.
+
+## System 4 – Arena Events
+
+Seltene, kurze Ereignisse verändern die Prioritäten der Arena. Immer nur ein Event gleichzeitig.
+
+### Core Surge – erstes Event
+
+- 10 Sekunden sichtbare Vorwarnung
+- 40 Sekunden aktive Phase
+- markierte Zone in der Kartenmitte
+- erhöhte Shape-Dichte
+- höhere Chance auf Elite Shapes
+- Spieler werden nicht teleportiert
+
+### Spätere Event-Kandidaten
+
+- **Fracture:** ausgewählte Durchgänge öffnen oder schließen sich vorübergehend.
+- **Overcharge:** Projektilkollisionen erzeugen stärkere visuelle Energie, ohne pauschalen Schadensbuff.
+- **Hunter Signal:** ein neutraler Elite-Guardian erscheint als gemeinsames Ziel.
+
+Neue Events werden erst ergänzt, wenn Core Surge verständlich und balanciert ist.
+
+## System 5 – Bounties
+
+Ein dominanter Spieler wird zu einem sichtbaren Arena-Ziel.
+
+### Auslösung
+
+Eine Bounty wird nur gesetzt, wenn ein Spieler eine klare Dominanzschwelle erreicht, zum Beispiel:
+
+- mehrere Kills ohne Tod,
+- deutlicher Score-Vorsprung,
+- Mindestlevel und Mindestspielzeit.
+
+### Wirkung
+
+- klarer Marker am Tank und auf der Minimap
+- sichtbarer Bonuswert
+- Bonus-XP und Score für den Spieler, der die Bounty beendet
+- keine permanente Positionsanzeige außerhalb der normalen Sichtweite
+- Bounty wächst kontrolliert mit weiterer Dominanz
+
+### Ziel
+
+Bounties wirken gegen Snowballing und erzeugen natürliche Geschichten in der Lobby, ohne den führenden Spieler künstlich zu schwächen.
+
+## System 6 – Klassenspezifische Mechaniken
+
+Universelle Module ergänzen Klassen, ersetzen aber nicht deren Identität.
+
+### Bereits begonnen
+
+- Precision: Knockback, Bewegungstransfer und starke Einzelschüsse
+- Control: unterschiedliche Drohnenphysik und Schwarmgrößen
+- Impact: Frontpanzerung und allgemeine Schadensreduktion
+- Rapid: Projektilwände und konstante Raumkontrolle
+
+### Ausbauprinzip
+
+Jede finale Klasse erhält genau eine gut lesbare Kernmechanik. Keine Klasse bekommt mehrere versteckte Passives gleichzeitig.
+
+Beispiele:
+
+- Storm: kontrollierbare breite Salven statt reine DPS-Steigerung
+- Gatling: zunehmende Präzision bei dauerhaftem Feuer
+- Lancer: hoher Rückstoß und klar telegraphierter Einzelschuss
+- Phantom: Bonus durch Bewegung und Winkel
+- Overseer: reaktionsschneller Schwarm mit geringer Einzelhaltbarkeit
+- Carrier: langsamer Heavy-Schwarm mit hoher Verluststrafe
+- Juggernaut: Nahkampfdruck und allgemeine Robustheit
+- Fortress: starke Front, klare Flanken-Schwäche
+
+## System 7 – Telemetrie und echte Balance
+
+Mit Online-Server und Datenbank werden anonym und serverseitig erfasst:
+
+- Modul-Pickrate
+- Modifier-Pickrate
+- Klassen-Pickrate
+- Kill- und Todesrate
+- durchschnittliche Lebensdauer
+- durchschnittliches Level
+- verursachter und erhaltener Schaden
+- Elite-Shape-Beteiligung
+- Event-Beteiligung
+- Bounty-Dauer und Bounty-Abschlüsse
+
+Keine automatischen Buffs oder Nerfs. Änderungen werden bewusst aus Daten und Spielgefühl abgeleitet.
+
+## Umsetzungsreihenfolge
+
+### Phase A – Fundament und Einfachheit
+
+- gemeinsame Definitionen für Module, Modifier, Events und Bounties
+- serverautoritatives Loadout
+- genau ein Ability-Input
+- kompakter HUD-Slot mit Cooldown
+- Wechsel nur vor Spawn oder nach Tod
+- lokale Balance-Lab-Unterstützung
+
+### Phase B – Vier Core Modules
+
+- Dash
+- Repulse Pulse
+- Front Barrier
+- Repair Cycle
+- serverseitige Tests für Cooldown, Abbruch und Klassen-Kombinationen
+
+### Phase C – Passive Frame Modifier
+
+- Standard
+- Lightweight
+- Stabilizer
+- Reinforced
+- Integration in zentrale Stat-Berechnung
+- Grenzwerttests gegen problematische Klassenkombinationen
+
+### Phase D – Elite Shapes
+
+- Elite-Markierung normaler Formen
+- Bonusleben, Größe und Belohnung
+- visuelles Telegraphing
+- gleichzeitiges Limit und Respawn-Regeln
+
+### Phase E – Core Surge
+
+- Event-Zustandsmaschine
+- Warnphase und aktive Phase
+- zentrale Event-Zone
+- zusätzliche Shapes und Elite-Chance
+- HUD- und Weltanzeige
+
+### Phase F – Bounties
+
+- Dominanzbewertung
+- Bounty-Markierung
+- wachsender Bonus
+- serverseitige Belohnung beim Abschluss
+- Anti-Abuse-Regeln gegen Freunde-Farming
+
+### Phase G – Finale Klassenidentität
+
+- genau eine zentrale Mechanik pro finaler Klasse
+- verständliche UI-Texte
+- visuelle und akustische Rückmeldung
+- Counter und günstige Matchups dokumentieren
+
+### Phase H – Öffentlicher Test und Telemetrie
+
+- Match-Metriken
+- Dashboard oder Datenexport
+- Balance-Pässe nach realen Sessions
+- neue Events und Module nur bei nachgewiesenem Bedarf
 
 ## Abnahmekriterien
 
-Ein Build gilt erst als abgeschlossen, wenn:
+Ein System gilt erst als abgeschlossen, wenn:
 
-- Typecheck, Tests und Produktionsbuild erfolgreich sind.
-- Keine Klasse den festgelegten Power-Korridor ohne begründeten Trade-off verlässt.
-- Farming bis Level 10 nicht frustrierend wirkt.
-- Jede Klasse visuell innerhalb einer Sekunde erkennbar ist.
-- Mindestens zwei echte Counter und zwei günstige Matchups pro finaler Klasse dokumentiert sind.
-- Desktop und Mobile dieselben Spielregeln verwenden.
+- Typecheck, Tests und Produktionsbuild erfolgreich sind,
+- sämtliche Effekte serverautoritativ sind,
+- Desktop und Mobile dieselben Regeln verwenden,
+- die Mechanik ohne Tutorialtext im Kampf verständlich ist,
+- keine Kombination eine Klassen-Schwäche vollständig entfernt,
+- der normale Spieler während eines Lebens nur einen Ability-Button benötigt,
+- Cooldowns und Eventzeiten im Snapshot eindeutig sind,
+- lokale Debug-Tools niemals auf dem Produktionsserver aktiv sind.
