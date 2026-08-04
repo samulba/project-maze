@@ -16,6 +16,7 @@ import { GameAudio } from './audio';
 import { BalanceCombatMeter } from './balance-combat-meter';
 import { BalanceLab } from './balance-lab';
 import { enhanceClassChoices } from './class-choice-enhancer';
+import { GameplayEffects } from './gameplay-effects';
 import { GameplayUI } from './gameplay-ui';
 import { InputController } from './input';
 import { GameRenderer } from './renderer';
@@ -73,6 +74,7 @@ const balanceCombatMeter = new BalanceCombatMeter(ui.root);
 enhanceClassChoices(ui.root);
 
 await renderer.init(ui.root);
+const gameplayEffects = new GameplayEffects(renderer.app);
 input = new InputController(
   renderer.app.canvas,
   (pointer) => renderer.screenPointToWorldAim(pointer),
@@ -194,6 +196,7 @@ function handleServerMessage(message: ServerMessage): void {
 function updateWorld(snapshot: WorldSnapshot): void {
   balanceCombatMeter.update(snapshot);
   gameplayUI.update(snapshot);
+  gameplayEffects.update(snapshot);
   const self = snapshot.players.find((player) => player.id === snapshot.selfId) ?? null;
   if (self) playSnapshotAudio(snapshot, self);
   renderer.setSnapshot(snapshot);
