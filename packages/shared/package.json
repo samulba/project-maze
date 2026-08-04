@@ -11,6 +11,10 @@
     "./balance": {
       "types": "./dist/balance.d.ts",
       "default": "./dist/balance.js"
+    },
+    "./gameplay": {
+      "types": "./dist/gameplay.d.ts",
+      "default": "./dist/gameplay.js"
     }
   },
   "types": "./dist/index.d.ts",
