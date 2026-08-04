@@ -78,7 +78,7 @@ export const PASSIVE_MODIFIER_DEFINITIONS: Record<PassiveModifierId, PassiveModi
   lightweight: {
     id: 'lightweight',
     label: 'Lightweight Frame',
-    description: '+6 % Bewegung, -8 % maximales Leben.',
+    description: '+6 % Bewegungs- und Drohnentempo, -8 % maximales Leben.',
     healthMultiplier: 0.92,
     moveMultiplier: 1.06,
     reloadMultiplier: 1,
@@ -87,7 +87,7 @@ export const PASSIVE_MODIFIER_DEFINITIONS: Record<PassiveModifierId, PassiveModi
   stabilizer: {
     id: 'stabilizer',
     label: 'Projectile Stabilizer',
-    description: '+10 % Projektiltempo, -8 % Feuerrate.',
+    description: '+10 % Projektil- oder Drohnentempo, -8 % Feuer- bzw. Kontaktrate.',
     healthMultiplier: 1,
     moveMultiplier: 1,
     reloadMultiplier: 1.087,
@@ -96,7 +96,7 @@ export const PASSIVE_MODIFIER_DEFINITIONS: Record<PassiveModifierId, PassiveModi
   reinforced: {
     id: 'reinforced',
     label: 'Reinforced Core',
-    description: '+10 % maximales Leben, -6 % Bewegung.',
+    description: '+10 % maximales Leben und Drohnenleben, -6 % Bewegungs- und Drohnentempo.',
     healthMultiplier: 1.1,
     moveMultiplier: 0.94,
     reloadMultiplier: 1,
