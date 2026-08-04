@@ -13,6 +13,7 @@ import {
   type WorldSnapshot
 } from '@project-maze/shared';
 import { GameAudio } from './audio';
+import { BalanceCombatMeter } from './balance-combat-meter';
 import { BalanceLab } from './balance-lab';
 import { enhanceClassChoices } from './class-choice-enhancer';
 import { InputController } from './input';
@@ -65,6 +66,7 @@ const ui = new GameUI(
   }
 );
 new BalanceLab(ui.root, send);
+const balanceCombatMeter = new BalanceCombatMeter(ui.root);
 enhanceClassChoices(ui.root);
 
 await renderer.init(ui.root);
@@ -185,6 +187,7 @@ function handleServerMessage(message: ServerMessage): void {
 }
 
 function updateWorld(snapshot: WorldSnapshot): void {
+  balanceCombatMeter.update(snapshot);
   const self = snapshot.players.find((player) => player.id === snapshot.selfId) ?? null;
   if (self) playSnapshotAudio(snapshot, self);
   renderer.setSnapshot(snapshot);
