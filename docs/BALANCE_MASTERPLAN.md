@@ -1,266 +1,263 @@
 # Project Maze – Gameplay-, Balance- und Klassen-Masterplan
 
-## Aktueller Stand – Alpha 0.9
+## Status – Alpha 0.9
 
-### Als spielbarer Alpha-Prototyp umgesetzt
+### Spielbar umgesetzt
 
-- **Phase A – Fundament und Einfachheit:** gemeinsames Loadout-Modell, genau ein Ability-Input, kompakter HUD-Slot, serverautoritatives Netzwerk und lokale Balance-Lab-Unterstützung.
-- **Phase B – Core Modules:** Dash, Repulse Pulse, Front Barrier und Repair Cycle mit Cooldowns, Abbruchregeln, Effekten und serverseitigen Anti-Exploit-Tests.
-- **Phase C – Passive Frame Modifier:** Standard, Lightweight, Projectile Stabilizer und Reinforced Core sind in die zentrale Stat-Berechnung integriert.
-- **Phase D – Elite Shapes:** seltene goldene Formen mit mehr Leben, größerer Belohnung, gleichzeitigem Limit und sichtbarer Weltmarkierung.
-- **Phase E – Core Surge:** Warnphase, aktive Mittelzone, zusätzliche Formen, erhöhte Elite-Chance und begrenzte Event-Entities.
-- **Phase F – Bounties:** Dominanzbewertung, sichtbares Ziel, wachsender Bonus und Anti-Farming-Sperre pro Spielerpaar.
-- **Phase G – Klassenidentität:** teilweise umgesetzt. Precision-Knockback, unterschiedliche Drohnentypen, Impact-Panzerung und klare Silhouetten sind vorhanden. Weitere finale Klassenmechaniken folgen erst nach dem Alpha-Test.
+- 21 Tanks in vier klaren Klassenfamilien
+- acht klassische Stat-Upgrades
+- genau ein aktives Core Module pro Leben
+- genau ein passiver Frame Modifier oder Standard Frame
+- Elite Shapes
+- Core-Surge-Arena-Event
+- Bounty-System
+- lokale F2-Balance- und DPS-Werkzeuge
+- mehrere klassenspezifische Kernmechaniken
 
-### Bewusst nach dem ersten großen Test offen
+### Bewusst noch offen
 
-- **Phase H – Öffentlicher Test und Telemetrie:** Pickrates, Killrates, Lebensdauer, Modulnutzung, Elite-/Event-Beteiligung und Bounty-Abschlüsse benötigen den Online-Server und eine Datenbank.
-- zusätzliche Module, Modifier oder Events werden erst ergänzt, wenn die vier Grundmodule und Core Surge verständlich und balanciert sind.
-- Zahlen gelten als Startwerte, nicht als endgültige Balance.
+- reale Online-Telemetrie
+- datenbasierte Feinbalance
+- weitere Events und Module
+- weitere visuelle und akustische Verfeinerung nach dem ersten vollständigen Test
 
-## Vision
+Neue Inhalte werden erst ergänzt, wenn die aktuellen Systeme verständlich und balanciert sind.
+
+## Leitbild
 
 Project Maze behält die sofort verständliche Basis eines klassischen Browser-Arena-Tankspiels:
 
-- bewegen
-- zielen
-- schießen
-- Formen farmen
-- leveln
-- Stats verbessern
-- Tankklasse entwickeln
-- andere Spieler besiegen
+1. bewegen
+2. zielen
+3. schießen
+4. Formen farmen
+5. leveln und Stats verbessern
+6. Tankklasse entwickeln
+7. andere Spieler besiegen
 
-Darüber liegt eine eigene zweite Ebene aus gezielten Outplay-Momenten, riskanten Arena-Zielen und klaren Build-Entscheidungen. Diese Ebene darf das Kernspiel vertiefen, aber niemals überdecken.
+Die zusätzlichen Systeme schaffen Outplay-Momente und wechselnde Ziele, dürfen den Kern aber niemals überdecken.
 
-## Verbindliche Komplexitätsregel
+## Verbindliche Komplexitätsgrenze
 
-Project Maze darf tief sein, aber nicht kompliziert wirken.
+Während eines normalen Lebens sieht und bedient ein Spieler höchstens:
 
-Ein Spieler sieht während eines normalen Lebens höchstens:
+- seine Tankklasse
+- die acht Stat-Upgrades
+- einen Ability-Button
+- einen kleinen Frame-Hinweis
 
-1. seine Tankklasse,
-2. die acht bekannten Stat-Upgrades,
-3. genau ein aktives Core Module,
-4. genau einen passiven Frame Modifier.
-
-Es gibt keine Hotbar mit mehreren Fähigkeiten, kein Inventar während des Kampfes und keine langen Itemtexte im HUD. Elite Shapes, Arena Events und Bounties werden direkt in der Welt erklärt.
+Es gibt keine mehrteilige Hotbar, kein Kampfinventar und keine fünf gleichzeitig aktiven Fähigkeiten.
 
 ### Progressive Disclosure
 
-- **Erste Runde:** bewegen, schießen, farmen und Level 10 erreichen.
-- **Startscreen:** ein Core Module und optional ein Frame Modifier.
-- **Im Match:** eine Ability-Taste mit Cooldown.
-- **Nach dem Tod:** dasselbe kleine Loadout-Feld erscheint im Death-Screen.
-- **Events und Bounties:** kurze Weltmarker und ein kompakter Hinweis.
-- **Erweiterte Zahlen:** ausschließlich im lokalen Balance Lab und später in optionalen Detailansichten.
+- Auf dem Startscreen wird ein kleines Loadout gewählt.
+- Im Match wird ausschließlich eine Ability-Taste benötigt.
+- Nach dem Tod kann das Loadout im Death-Screen geändert werden.
+- Elite Shapes, Events und Bounties erklären sich durch Weltmarker und kurze Hinweise.
+- Detailzahlen bleiben im optionalen F2-Balance-Lab.
 
-## Klassenbaum – 21 Tanks
+## Klassenbaum
 
 ```text
 Core
 ├── Rapid
-│   ├── Twin
-│   │   └── Storm
-│   └── Repeater
-│       └── Gatling
+│   ├── Twin → Storm
+│   └── Repeater → Gatling
 ├── Sniper
-│   ├── Railgun
-│   │   └── Lancer
-│   └── Hunter
-│       └── Phantom
+│   ├── Railgun → Lancer
+│   └── Hunter → Phantom
 ├── Controller
-│   ├── Warden
-│   │   └── Overseer
-│   └── Factory
-│       └── Carrier
+│   ├── Warden → Overseer
+│   └── Factory → Carrier
 └── Impact
-    ├── Crusher
-    │   └── Juggernaut
-    └── Bulwark
-        └── Fortress
+    ├── Crusher → Juggernaut
+    └── Bulwark → Fortress
 ```
 
-## System 1 – Core Modules
+Klassenentscheidungen erfolgen aktuell auf Level 10, 24 und 38.
 
-Jeder Spieler rüstet genau ein aktives Modul aus. Aktivierung über `Leertaste` oder `Shift`; Mobile verwendet einen einzelnen Ability-Button.
+## Core Modules
+
+Jeder Spieler rüstet exakt ein aktives Modul aus. Aktivierung über `Leertaste` oder `Shift`; Mobile erhält einen einzelnen Ability-Button.
 
 ### Dash
 
-- kurzer kontrollierter Bewegungsschub
+- ungefähr 190 Einheiten Bewegungsschub
 - keine Unverwundbarkeit
-- Wände stoppen den Dash
+- Wände stoppen die Bewegung
 - während und kurz nach dem Dash keine Schüsse
-- Body-Damage während des Schubs auf 25 % reduziert
+- Body-Damage während des aktiven Dash-Fensters auf 25 % reduziert
 - Cooldown: 10 Sekunden
 
-Rolle: Mobilität, Ausweichen und Repositionierung.
+**Rolle:** Ausweichen und Repositionierung.
 
 ### Repulse Pulse
 
-- kreisförmige Druckwelle
-- stößt Gegner zurück
+- Druckwelle mit ungefähr 195 Einheiten Radius
+- stößt Spieler zurück
 - verdrängt Drohnen stärker
-- lenkt und schwächt nahe Projektile
+- lenkt nahe gegnerische Projektile um und schwächt ihre Integrität
 - verursacht keinen direkten Spielerschaden
 - Cooldown: 12 Sekunden
 
-Rolle: Raumkontrolle und Anti-Rush.
+**Rolle:** Raumkontrolle und Anti-Rush.
 
 ### Front Barrier
 
-- kurzer frontal ausgerichteter Schild
-- feste 70 Schildpunkte statt Skalierung mit Tank-HP
-- wirkt ausschließlich im Frontwinkel
-- Spieler kann währenddessen nicht schießen
+- kurzer Schild im Frontwinkel
+- feste 70 Schildpunkte
+- keine Skalierung mit Fortress-, Reinforced- oder Max-HP-Werten
 - Angriffe von hinten bleiben vollständig wirksam
+- währenddessen keine Schüsse
 - Cooldown: 12 Sekunden
 
-Rolle: Timing-basierte Verteidigung gegen Burst.
+**Rolle:** Timing-basierte Verteidigung gegen Burst.
 
 ### Repair Cycle
 
-- 0,8 Sekunden sichtbare Vorbereitungsphase
-- Heilung über die verbleibende Aktivzeit
+- 0,8 Sekunden Vorbereitung
+- anschließende Heilung über Zeit
 - Abbruch bei Schaden, Schuss, Secondary-Input oder deutlicher Bewegung
-- Heilung: fester Grundwert plus kleiner Max-HP-Anteil
 - kann bei vollem Leben nicht ausgelöst werden
 - Cooldown: 17 Sekunden
 
-Rolle: Sustain außerhalb aktiver Gefechte.
+**Rolle:** Erholung außerhalb aktiver Kämpfe.
 
-### Modul-Balance-Regeln
+### Modulregeln
 
-- exakt ein aktives Modul pro Leben
-- Wechsel nur vor dem Spawn, im Spawn-Schutz oder nach dem Tod
-- Modulnutzung beendet Spawn-Schutz
-- Tod, Klassenwechsel und Reconnect setzen Cooldowns nicht missbrauchbar zurück
-- keine universelle Schadensfähigkeit in der ersten Modul-Serie
-- jede bestätigte Aktivierung besitzt Effekt und Sound
+- exakt ein Modul pro Leben
+- Wechsel nur vor dem Spawn, während Spawn-Schutz oder nach dem Tod
+- Nutzung beendet Spawn-Schutz
+- Cooldowns werden durch Tod, Klassenwechsel oder Reconnect nicht missbrauchbar zurückgesetzt
+- keine universelle direkte Schadensfähigkeit in der ersten Modulserie
+- Effekte und Sounds werden erst nach bestätigter Serveraktivierung gezeigt
 - sämtliche Auswirkungen werden serverautoritativ berechnet
 
-## System 2 – Passive Frame Modifier
+## Passive Frame Modifier
 
-Ein optionaler Sidegrade mit echtem Trade-off. Es gibt keinen kostenlosen reinen Buff.
+Jeder Modifier ist ein Sidegrade mit Vorteil und Preis.
 
 ### Standard Frame
 
-Keine Veränderung. Empfohlene und vorausgewählte Option.
+Keine Veränderung. Empfohlene Basis.
 
 ### Lightweight Frame
 
 - +6 % Bewegung und Beschleunigung
 - -8 % maximales Leben
-- beeinflusst auch Drohnenbewegung und Drohnenleben
+- Drohnen werden ebenfalls schneller, besitzen aber weniger Leben
 
 ### Projectile Stabilizer
 
 - +10 % Projektiltempo
-- -8 % Feuerrate
-- bei Drohnenklassen bleibt die Feuerraten-Strafe erhalten, ohne einen versteckten Gratisvorteil zu erzeugen
+- bei Control-Tanks stattdessen +10 % Drohnenweg und Reaktion
+- -8 % Feuer- beziehungsweise Drohnen-Kontaktrate
+
+Damit bleibt der Modifier für Bullet- und Control-Klassen sinnvoll, ohne irgendwo ein kostenloser Buff zu sein.
 
 ### Reinforced Core
 
 - +10 % maximales Leben
 - -6 % Bewegung und Beschleunigung
-- beeinflusst auch Heavy-Drohnen entsprechend
+- Drohnen erhalten ebenfalls mehr Leben, werden aber langsamer
 
-### Modifier-Regeln
+### Modifierregeln
 
 - genau ein Modifier oder Standard Frame
-- keine Freischaltungsvorteile und kein Pay-to-win
-- Wechsel nur zusammen mit dem Core Module
-- Effekte bleiben klein genug, dass die Tankklasse wichtiger ist
-- Modifier dürfen keine harte Klassen-Schwäche vollständig entfernen
+- keine stärkeren Account-Unlocks
+- kein Pay-to-win
+- keine harte Klassen-Schwäche darf vollständig entfernt werden
+- Tankklasse und Stat-Build bleiben wichtiger als der Modifier
 
-## System 3 – Elite Shapes
+## Elite Shapes
 
-Seltene, sofort erkennbare Farmziele mit höherem Risiko und höherer Belohnung.
+Seltene goldene Farmziele erzeugen lokale Konflikte, ohne eine neue Steuerung einzuführen.
 
 - goldene pulsierende Kontur
 - 1,55-fache Größe
 - vierfaches Leben
-- verlangsamte Bewegung
-- hoher Bonus auf XP und Score
-- normalerweise höchstens drei gleichzeitig
-- während Core Surge höchstens vier gleichzeitig
+- langsamere Bewegung
+- zusätzliche XP- und Score-Belohnung
+- normalerweise maximal drei gleichzeitig
+- während Core Surge maximal vier gleichzeitig
 - Vergrößerung nur an kollisionssicheren Positionen
 
-Elite Shapes schaffen lokale Konflikte und Farming-Abwechslung, ohne eine neue Steuerung oder ein Menü einzuführen.
-
-## System 4 – Arena Events
-
-Immer nur ein Event gleichzeitig. Der Spieler wird niemals teleportiert.
-
-### Core Surge
+## Arena Event – Core Surge
 
 - erstes Event ungefähr 65 Sekunden nach Serverstart
 - 10 Sekunden sichtbare Vorwarnung
 - 40 Sekunden aktive Phase
-- markierte Zone in der Kartenmitte
-- zusätzliche Formen in der Zone
+- markierte Zone im Zentrum
+- zusätzliche Formen innerhalb der Zone
 - höhere Elite-Chance
 - maximal 42 zusätzliche Event-Formen
-- verbleibende Bonusformen werden nach dem Event entfernt
+- verbleibende Bonusformen werden am Ende entfernt
 - nächstes Event frühestens ungefähr zwei Minuten später
+
+Spieler werden niemals teleportiert oder zur Teilnahme gezwungen.
 
 ### Spätere Event-Kandidaten
 
-- **Fracture:** ausgewählte Durchgänge öffnen oder schließen sich vorübergehend.
-- **Overcharge:** Projektilkollisionen erhalten ein besonderes visuelles Verhalten ohne pauschalen Schadensbuff.
-- **Hunter Signal:** ein neutraler Elite-Guardian erscheint als gemeinsames Ziel.
+- **Fracture:** temporär veränderte Durchgänge
+- **Overcharge:** besonderes Projektilkollisions-Verhalten ohne pauschalen Schadensbuff
+- **Hunter Signal:** neutraler Elite-Guardian
 
-Diese Events bleiben gesperrt, bis Core Surge im echten Match verständlich ist.
+Diese Events bleiben gesperrt, bis Core Surge getestet wurde.
 
-## System 5 – Bounties
+## Bounties
 
 Ein dominanter Spieler wird zu einem sichtbaren Arena-Ziel.
 
-### Auslösung
+### Aktuelle Auslösung
 
-Aktuelle Startschwelle:
-
-- mindestens Level 10,
-- mindestens drei Kills,
-- mindestens 1.500 Score,
-- höchste kombinierte Dominanz aus Kills und Score.
+- mindestens Level 10
+- mindestens drei Kills
+- mindestens 1.500 Score
+- höchste kombinierte Dominanz aus Kills und Score
 
 ### Wirkung
 
 - goldener Ring und Marker am Tank
 - kompakter HUD-Hinweis
 - wachsender Bonus bis maximal 1.200
-- keine permanente Position außerhalb normaler Sichtweite
+- keine Positionsanzeige außerhalb der normalen Sichtweite
 - Bonus-XP und Score für den Abschluss
 - dasselbe Spielerpaar kann die Belohnung nicht sofort wiederholt farmen
 
-Bounties wirken gegen Snowballing, ohne den führenden Spieler künstlich zu schwächen.
+Der führende Spieler wird nicht künstlich geschwächt. Die Arena erhält lediglich ein attraktives Gegenziel.
 
-## System 6 – Klassenspezifische Mechaniken
+## Klassenspezifische Mechaniken
 
-Universelle Module ergänzen Klassen, ersetzen aber nicht deren Identität.
+Universelle Module ergänzen die Tankklasse, ersetzen sie aber nicht.
 
-### Bereits umgesetzt
+### Rapid
 
-- Precision: Knockback, Bewegungstransfer und starke Einzelschüsse
-- Control: unterschiedliche Drohnenphysik, Schwarmgrößen und Heavy-Drohnen
-- Impact: Frontpanzerung, allgemeine Schadensreduktion und Nahkampfdruck
-- Rapid: breite Projektilwände und konstante Raumkontrolle
+- **Storm:** Projektile besitzen mehr Integrität und bilden eine bessere defensive Kugelwand.
+- **Gatling:** anhaltendes Feuer reduziert schrittweise die Streuung.
 
-### Ausbauprinzip
+### Precision
 
-Jede finale Klasse erhält genau eine gut lesbare Kernmechanik. Keine Klasse bekommt mehrere versteckte Passives gleichzeitig.
+- sichtbarer Treffer-Knockback
+- Hunter übernimmt einen Teil der eigenen Bewegung in Projektile
+- Phantom erhält bei schneller Bewegung einen kontrollierten Schussbonus
+- Lancer besitzt stärkeren Schussrückstoß und langlebigere Projektile
 
-- Storm: kontrollierbare breite Salven statt reiner DPS-Steigerung
-- Gatling: zunehmende Präzision bei dauerhaftem Feuer
-- Lancer: hoher Rückstoß und klar telegraphierter Einzelschuss
-- Phantom: Bonus durch Bewegung und Winkel
-- Overseer: reaktionsschneller Schwarm mit geringer Einzelhaltbarkeit
-- Carrier: langsamer Heavy-Schwarm mit hoher Verluststrafe
-- Juggernaut: Nahkampfdruck und allgemeine Robustheit
-- Fortress: starke Front und klare Flanken-Schwäche
+### Control
 
-## System 7 – Balance Lab
+- Warden und Overseer verwenden schnelle, leichtere Schwärme
+- Factory und Carrier verwenden langsamere, robuste Heavy-Drohnen
+- Frame Modifier beeinflussen Drohnenleben, Wegtempo und Kontaktfrequenz konsistent
+
+### Impact
+
+- Bulwark reduziert frontalen Schaden
+- Fortress besitzt eine stärkere Front, bleibt aber flankierbar
+- Juggernaut besitzt eine kleine allgemeine Schadensreduktion
+- Dash kann den vollen Rammer-Kontaktschaden nicht transportieren
+
+Jede finale Klasse soll langfristig genau eine zentrale, gut lesbare Mechanik besitzen.
+
+## Balance Lab
 
 Das lokale F2-Labor kann komplette Testkombinationen laden:
 
@@ -274,19 +271,53 @@ Das lokale F2-Labor kann komplette Testkombinationen laden:
 - serverautoritatives Testziel
 - Live-DPS-Messung
 
-So lassen sich insbesondere problematische Kombinationen wie `Juggernaut + Dash`, `Fortress + Barrier + Reinforced` oder `Overseer + Lightweight` direkt vergleichen.
+Wichtige Vergleichskombinationen:
 
-## System 8 – Telemetrie und echte Balance
+- Juggernaut + Dash
+- Fortress + Barrier + Reinforced
+- Overseer + Lightweight
+- Carrier + Stabilizer
+- Gatling gegen Storm
+- Lancer frontal und seitlich gegen Fortress
 
-Mit Online-Server und Datenbank werden anonym und serverseitig erfasst:
+## Technische Balance-Sicherung
 
-- Modul- und Modifier-Pickrate
-- Klassen-Pickrate
+`npm run balance` zeigt:
+
+- DPS
+- Burst
+- Reichweite
+- Haltbarkeit
+- Mobilität
+- Drohnendruck
+- Body-Damage-Bedrohung
+- Modul-Cooldowns und Aktivzeiten
+- Frame-Vorteile und Trade-offs
+
+Regressionstests sichern unter anderem:
+
+- Dash ohne Unverwundbarkeit
+- reduzierten Rammer-Schaden während Dash
+- Barrier mit festen Schildpunkten
+- Repulse ohne direkten Schaden
+- Repair-Abbruch
+- Modifier mit Vorteil und Preis
+- Drohnen-Modifier-Konsistenz
+- Elite-Shape-Limits und Belohnungen
+- Core-Surge-Phasen
+- Bounty-Auslösung und Anti-Farming
+- Gatling-Spin-up
+- Storm-Projektilintegrität
+
+## Telemetrie nach dem Online-Start
+
+Später werden anonym und serverseitig erfasst:
+
+- Klassen-, Modul- und Modifier-Pickrate
 - Kill- und Todesrate
 - durchschnittliche Lebensdauer und Levelzeit
 - verursachter und erhaltener Schaden
-- Elite-Shape-Beteiligung
-- Event-Beteiligung
+- Elite- und Event-Beteiligung
 - Bounty-Dauer und Bounty-Abschlüsse
 
 Es gibt keine automatischen Buffs oder Nerfs. Änderungen werden bewusst aus Daten und Spielgefühl abgeleitet.
@@ -295,11 +326,11 @@ Es gibt keine automatischen Buffs oder Nerfs. Änderungen werden bewusst aus Dat
 
 Ein System gilt erst als abgeschlossen, wenn:
 
-- Typecheck, Tests und Produktionsbuild erfolgreich sind,
-- sämtliche Effekte serverautoritativ sind,
-- Desktop und Mobile dieselben Regeln verwenden,
-- die Mechanik ohne langen Tutorialtext im Kampf verständlich ist,
-- keine Kombination eine Klassen-Schwäche vollständig entfernt,
-- der normale Spieler während eines Lebens nur einen Ability-Button benötigt,
-- Cooldowns und Eventzeiten im Snapshot eindeutig sind,
-- lokale Debug-Tools niemals auf dem Produktionsserver aktiv sind.
+- Typecheck, Tests und Produktionsbuild erfolgreich sind
+- sämtliche Effekte serverautoritativ sind
+- Desktop und Mobile dieselben Regeln verwenden
+- die Mechanik ohne langen Tutorialtext verständlich ist
+- keine Kombination eine Klassen-Schwäche vollständig entfernt
+- der normale Spieler während eines Lebens nur einen Ability-Button benötigt
+- Cooldowns und Eventzeiten eindeutig übertragen werden
+- lokale Debug-Tools niemals auf dem Produktionsserver aktiv sind
