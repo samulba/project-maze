@@ -293,7 +293,7 @@ export class GameRenderer {
     const root=new Container();const rotating=new Container();const barrels=new Graphics();const body=new Graphics();const detail=new Graphics();const shield=new Graphics();
     rotating.addChild(barrels,body,detail,shield);root.addChild(rotating);
     const healthBack=new Graphics();const healthFill=new Graphics();root.addChild(healthBack,healthFill);
-    const name=new Text({text:'',style:{fill:this.palette.label,fontSize:12,fontWeight:'650',fontFamily:'Inter, system-ui, sans-serif'}});name.anchor.set(.5);name.position.set(0,-39);root.addChild(name);
+    const name=new Text({text:'',style:{fill:this.palette.label,fontSize:12,fontWeight:'650',fontFamily:'Inter, system-ui, sans-serif'}});name.anchor.set(.5);name.position.set(0,-42);root.addChild(name);
     const view:PlayerView={root,rotating,body,barrels,detail,shield,healthBack,healthFill,name,current:{...player.position},target:{...player.position},velocity:{...player.velocity},angle:player.angle,targetAngle:player.angle,snapshot:player,snapshotAt:now,classId:player.playerClass,isSelf};
     root.position.set(player.position.x,player.position.y);this.redrawPlayer(view,true);return view;
   }
@@ -301,22 +301,151 @@ export class GameRenderer {
   private redrawPlayer(view:PlayerView,geometry:boolean):void{
     const player=view.snapshot;const color=view.isSelf?this.palette.self:this.palette.enemy;
     if(geometry){
-      view.body.clear().circle(0,0,GAME.playerRadius).fill(color).stroke({color:0xffffff,alpha:.38,width:3});
-      view.barrels.clear();view.detail.clear();
-      const definition=CLASS_DEFINITIONS[player.playerClass];
-      if(definition.barrelCount>0){
-        for(let index=0;index<definition.barrelCount;index+=1){
-          const offset=definition.barrelCount===1?0:(index/(definition.barrelCount-1)-.5)*definition.barrelSpread;
-          const y=offset*42;
-          view.barrels.roundRect(4,y-7,definition.barrelLength,14,4).fill(this.palette.barrel).stroke({color:color,alpha:.34,width:2});
-        }
-      }else view.detail.poly(polygon(3,10,0)).fill(color);
-      view.shield.clear().circle(0,0,GAME.playerRadius+8).stroke({color,alpha:.72,width:2});
+      view.body.clear();view.barrels.clear();view.detail.clear();
+      this.drawClassHull(view.body,view.detail,player.playerClass,color);
+      this.drawClassBarrels(view.barrels,player.playerClass,color);
+      view.shield.clear().circle(0,0,GAME.playerRadius+9).stroke({color,alpha:.72,width:2});
     }
-    view.healthBack.clear().roundRect(-25,29,50,5,3).fill({color:0x000000,alpha:.48});
-    view.healthFill.clear().roundRect(-25,29,50*clamp(player.health/Math.max(1,player.maxHealth),0,1),5,3).fill(player.health/player.maxHealth>.35?0x65d39a:0xf05e72);
+    view.healthBack.clear().roundRect(-25,31,50,5,3).fill({color:0x000000,alpha:.48});
+    view.healthFill.clear().roundRect(-25,31,50*clamp(player.health/Math.max(1,player.maxHealth),0,1),5,3).fill(player.health/player.maxHealth>.35?0x65d39a:0xf05e72);
     view.name.text=`${player.name}${player.isBot?' · BOT':''}`;
     view.name.style.fill=view.isSelf?this.palette.label:this.palette.enemy;
+  }
+
+  private drawClassBarrels(graphics:Graphics,playerClass:PlayerClass,color:number):void{
+    const definition=CLASS_DEFINITIONS[playerClass];
+    if(definition.barrelCount<=0)return;
+    const precision=definition.branch==='precision';
+    const impact=definition.branch==='impact';
+    const height=precision?12:impact?16:14;
+    for(let index=0;index<definition.barrelCount;index+=1){
+      const offset=definition.barrelCount===1?0:(index/(definition.barrelCount-1)-.5)*definition.barrelSpread;
+      const y=offset*44;
+      const start=impact?1:4;
+      graphics.roundRect(start,y-height/2,definition.barrelLength,height,precision?3:4)
+        .fill(this.palette.barrel)
+        .stroke({color,alpha:.36,width:2});
+    }
+  }
+
+  private drawClassHull(body:Graphics,detail:Graphics,playerClass:PlayerClass,color:number):void{
+    const outline={color:0xffffff,alpha:.38,width:3};
+    const subtle={color:0xffffff,alpha:.22,width:2};
+    switch(playerClass){
+      case'core':
+        body.circle(0,0,22).fill(color).stroke(outline);
+        detail.circle(0,0,6).stroke({color:0xffffff,alpha:.24,width:2});
+        break;
+      case'rapid':
+        body.circle(0,0,21).fill(color).stroke(outline);
+        detail.poly([-18,-8,-27,0,-18,8]).fill({color,alpha:.78});
+        detail.circle(0,0,5).fill({color:0xffffff,alpha:.18});
+        break;
+      case'twin':
+        body.circle(0,0,22).fill(color).stroke(outline);
+        detail.circle(-16,-12,4).fill({color:0xffffff,alpha:.2});
+        detail.circle(-16,12,4).fill({color:0xffffff,alpha:.2});
+        break;
+      case'repeater':
+        body.poly(polygon(6,22,Math.PI/6)).fill(color).stroke(outline);
+        detail.circle(0,0,8).stroke({color:0xffffff,alpha:.28,width:2});
+        detail.rect(-19,-3,8,6).fill({color:0xffffff,alpha:.18});
+        break;
+      case'storm':
+        body.circle(0,0,23).fill(color).stroke(outline);
+        detail.circle(0,0,17).stroke(subtle);
+        this.drawNodes(detail,4,17,3,color);
+        break;
+      case'gatling':
+        body.poly(polygon(6,23,Math.PI/6)).fill(color).stroke(outline);
+        detail.circle(0,0,10).stroke({color:0xffffff,alpha:.3,width:3});
+        this.drawNodes(detail,6,17,2.6,color);
+        break;
+      case'sniper':
+        body.circle(0,0,21).fill(color).stroke(outline);
+        detail.poly([-17,-9,-27,0,-17,9]).fill({color:0xffffff,alpha:.17});
+        detail.rect(5,-4,14,8).fill({color:0xffffff,alpha:.16});
+        break;
+      case'railgun':
+        body.poly(polygon(6,21,Math.PI/6)).fill(color).stroke(outline);
+        detail.rect(-13,-4,29,8).fill({color:0xffffff,alpha:.18});
+        detail.circle(-9,0,4).fill({color:0xffffff,alpha:.3});
+        break;
+      case'hunter':
+        body.circle(0,0,21).fill(color).stroke(outline);
+        detail.poly([-11,-19,4,-13,-4,-6]).fill({color:0xffffff,alpha:.18});
+        detail.poly([-11,19,4,13,-4,6]).fill({color:0xffffff,alpha:.18});
+        break;
+      case'lancer':
+        body.poly(polygon(4,23,Math.PI/4)).fill(color).stroke(outline);
+        detail.rect(-12,-3,29,6).fill({color:0xffffff,alpha:.22});
+        detail.circle(-10,0,4).fill({color:0xffffff,alpha:.32});
+        break;
+      case'phantom':
+        body.poly(polygon(6,21,0)).fill(color).stroke(outline);
+        detail.circle(0,0,25).stroke({color,alpha:.42,width:2});
+        detail.poly([-16,-9,-25,0,-16,9]).fill({color:0xffffff,alpha:.16});
+        break;
+      case'drone':
+        body.circle(0,0,22).fill(color).stroke(outline);
+        detail.poly(polygon(3,10,0)).fill({color:0xffffff,alpha:.28});
+        detail.circle(0,0,16).stroke(subtle);
+        break;
+      case'warden':
+        body.circle(0,0,22).fill(color).stroke(outline);
+        detail.circle(0,0,17).stroke({color:0xffffff,alpha:.26,width:2});
+        this.drawNodes(detail,6,18,3,color);
+        break;
+      case'factory':
+        body.roundRect(-21,-21,42,42,8).fill(color).stroke(outline);
+        detail.roundRect(-9,-9,18,18,4).stroke({color:0xffffff,alpha:.3,width:2});
+        detail.rect(-20,-4,8,8).fill({color:0xffffff,alpha:.18});
+        break;
+      case'overseer':
+        body.circle(0,0,23).fill(color).stroke(outline);
+        detail.circle(0,0,18).stroke({color:0xffffff,alpha:.3,width:2});
+        this.drawNodes(detail,8,19,2.7,color);
+        break;
+      case'carrier':
+        body.poly(polygon(6,25,Math.PI/6)).fill(color).stroke(outline);
+        detail.circle(0,0,11).fill({color:0xffffff,alpha:.14}).stroke({color:0xffffff,alpha:.28,width:2});
+        this.drawNodes(detail,6,20,3.4,color);
+        break;
+      case'rammer':
+        body.poly(polygon(8,23,Math.PI/8)).fill(color).stroke(outline);
+        detail.roundRect(14,-13,9,26,3).fill({color:0xffffff,alpha:.24});
+        break;
+      case'crusher':
+        body.poly(polygon(8,24,Math.PI/8)).fill(color).stroke(outline);
+        detail.roundRect(12,-16,11,32,3).fill({color:0xffffff,alpha:.25});
+        detail.rect(-18,-3,10,6).fill({color:0xffffff,alpha:.16});
+        break;
+      case'bulwark':
+        body.roundRect(-23,-21,46,42,8).fill(color).stroke(outline);
+        detail.roundRect(13,-17,11,34,4).fill({color:0xffffff,alpha:.26});
+        detail.circle(-8,0,7).stroke(subtle);
+        break;
+      case'juggernaut':
+        body.poly(polygon(8,26,Math.PI/8)).fill(color).stroke(outline);
+        detail.poly(polygon(8,19,Math.PI/8)).stroke({color:0xffffff,alpha:.24,width:2});
+        detail.roundRect(14,-17,11,34,3).fill({color:0xffffff,alpha:.28});
+        break;
+      case'fortress':
+        body.roundRect(-26,-23,52,46,7).fill(color).stroke(outline);
+        detail.roundRect(-21,-18,42,36,6).stroke({color:0xffffff,alpha:.24,width:2});
+        detail.roundRect(14,-19,13,38,3).fill({color:0xffffff,alpha:.3});
+        detail.circle(-8,0,6).fill({color:0xffffff,alpha:.16});
+        break;
+    }
+  }
+
+  private drawNodes(graphics:Graphics,count:number,radius:number,nodeRadius:number,color:number):void{
+    for(let index=0;index<count;index+=1){
+      const angle=index*Math.PI*2/count;
+      graphics.circle(Math.cos(angle)*radius,Math.sin(angle)*radius,nodeRadius)
+        .fill({color:0xffffff,alpha:.34})
+        .stroke({color,alpha:.6,width:1});
+    }
   }
 
   private drawCrosshair():void{
