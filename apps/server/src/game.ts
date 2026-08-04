@@ -1,7 +1,13 @@
 import crypto from 'node:crypto';
 import {
+  CLASS_DEFINITIONS,
+  EMPTY_UPGRADES,
   GAME,
   UPGRADE_IDS,
+  classAvailableAtLevel,
+  isValidClassChoice,
+  respawnLevelFrom,
+  xpAtLevelStart,
   xpThresholdForLevel,
   type DroneSnapshot,
   type InputMessage,
@@ -11,444 +17,72 @@ import {
   type ProjectileSnapshot,
   type ShapeSnapshot,
   type UpgradeId,
-  type UpgradeLevels,
   type Vector2,
   type WorldSnapshot
 } from '@project-maze/shared';
-import { createShape, isFree, randomSpawn, SHAPE_REWARDS, WALLS } from './world.js';
+import { clampMagnitude, distanceSquared, moveVectorToward, normalize, resolveProjectilePair } from './physics.js';
+import { SHAPE_CONFIG, createShape, hasLineOfSight, isFree, moveCircle, randomSpawn, stepShape, wallsInView } from './world.js';
 
-interface BaseClassStats {
-  maxHealth: number;
-  regen: number;
-  moveSpeed: number;
-  reload: number;
-  projectileSpeed: number;
-  projectileLife: number;
-  damage: number;
-  projectileRadius: number;
+interface RuntimeStats { maxHealth:number; regen:number; acceleration:number; moveSpeed:number; reload:number; projectileSpeed:number; projectileLife:number; damage:number; projectileRadius:number; penetration:number; bodyDamage:number; barrelCount:number; barrelSpread:number; barrelLength:number; droneCount:number; droneRespawn:number; }
+type BotStyle = 'farmer' | 'hunter' | 'kiter' | 'ambusher' | 'brawler' | 'controller';
+interface BotProfile { style:BotStyle; reactionMs:number; aimError:number; aggression:number; farmBias:number; fleeHealth:number; preferredDistance:number; dodge:number; vision:number; classPath:PlayerClass[]; upgradePath:UpgradeId[]; }
+interface BotState { profile:BotProfile; targetPlayerId:string|null; targetShapeId:string|null; decisionAt:number; aimOffset:number; strafe:number; }
+interface GamePlayer extends PlayerSnapshot { move:Vector2; aim:Vector2; primary:boolean; secondary:boolean; lastInput:number; cooldown:number; lastDamageAt:number; invulnerableUntil:number; bot:BotState|null; }
+interface GameProjectile extends ProjectileSnapshot { damage:number; life:number; }
+interface GameDrone extends DroneSnapshot { slot:number; contactCooldown:number; }
+
+const BOT_NAMES=['Vektor','Nyx','Orbit','Kairo','Mako','Echo','Rift','Nova','Flux','Onyx','Astra','Mira'];
+const BOT_STYLES:BotStyle[]=['farmer','hunter','kiter','ambusher','brawler','controller'];
+function profileFor(index:number):BotProfile{
+  const style=BOT_STYLES[index%BOT_STYLES.length]??'farmer'; const base=index%5;
+  const profiles:Record<BotStyle,Omit<BotProfile,'style'>>={
+    farmer:{reactionMs:250+base*24,aimError:.13,aggression:.28,farmBias:.92,fleeHealth:.48,preferredDistance:430,dodge:.58,vision:880,classPath:['rapid','twin','storm'],upgradePath:['reload','damage','projectileSpeed','moveSpeed','penetration','maxHealth','regen','bodyDamage']},
+    hunter:{reactionMs:150+base*18,aimError:.07,aggression:.9,farmBias:.2,fleeHealth:.22,preferredDistance:470,dodge:.7,vision:1080,classPath:['sniper','railgun','lancer'],upgradePath:['damage','penetration','projectileSpeed','reload','moveSpeed','maxHealth','regen','bodyDamage']},
+    kiter:{reactionMs:175+base*20,aimError:.09,aggression:.66,farmBias:.38,fleeHealth:.36,preferredDistance:620,dodge:.9,vision:1060,classPath:['sniper','railgun','lancer'],upgradePath:['projectileSpeed','moveSpeed','damage','reload','penetration','maxHealth','regen','bodyDamage']},
+    ambusher:{reactionMs:230+base*26,aimError:.11,aggression:.72,farmBias:.45,fleeHealth:.3,preferredDistance:350,dodge:.62,vision:780,classPath:['rapid','twin','storm'],upgradePath:['moveSpeed','reload','damage','penetration','maxHealth','projectileSpeed','regen','bodyDamage']},
+    brawler:{reactionMs:210+base*20,aimError:.18,aggression:.96,farmBias:.18,fleeHealth:.12,preferredDistance:80,dodge:.3,vision:850,classPath:['rammer','crusher','juggernaut'],upgradePath:['bodyDamage','maxHealth','moveSpeed','regen','damage','reload','penetration','projectileSpeed']},
+    controller:{reactionMs:190+base*22,aimError:.1,aggression:.64,farmBias:.48,fleeHealth:.34,preferredDistance:390,dodge:.76,vision:980,classPath:['drone','warden','overseer'],upgradePath:['damage','reload','moveSpeed','maxHealth','regen','bodyDamage','penetration','projectileSpeed']}
+  }; return {style,...profiles[style]};
 }
-
-interface BotState {
-  targetPlayerId: string | null;
-  targetShapeId: string | null;
-  strafe: number;
-  rethinkAt: number;
+function derivedStats(player:GamePlayer):RuntimeStats{
+  const base=CLASS_DEFINITIONS[player.playerClass];
+  return {maxHealth:Math.round(base.maxHealth*(1+player.upgrades.maxHealth*.12)),regen:base.regen+player.upgrades.regen*.62,acceleration:base.acceleration*(1+player.upgrades.moveSpeed*.025),moveSpeed:base.moveSpeed*(1+player.upgrades.moveSpeed*.042),reload:Math.max(.075,base.reload*Math.pow(.93,player.upgrades.reload)),projectileSpeed:base.projectileSpeed*(1+player.upgrades.projectileSpeed*.055),projectileLife:base.projectileLife,damage:base.damage*(1+player.upgrades.damage*.09),projectileRadius:base.projectileRadius,penetration:base.penetration*(1+player.upgrades.penetration*.12),bodyDamage:base.bodyDamage*(1+player.upgrades.bodyDamage*.13),barrelCount:base.barrelCount,barrelSpread:base.barrelSpread,barrelLength:base.barrelLength,droneCount:base.droneCount,droneRespawn:Math.max(.35,base.droneRespawn*Math.pow(.94,player.upgrades.reload))};
 }
+function snapshotPlayer(player:GamePlayer):PlayerSnapshot{return {id:player.id,name:player.name,playerClass:player.playerClass,position:{...player.position},velocity:{...player.velocity},angle:player.angle,health:player.health,maxHealth:player.maxHealth,level:player.level,xp:player.xp,xpForNextLevel:player.xpForNextLevel,availablePoints:player.availablePoints,upgrades:{...player.upgrades},score:player.score,kills:player.kills,deaths:player.deaths,invulnerable:player.invulnerable,isBot:player.isBot,dead:player.dead,deathLevel:player.deathLevel,respawnLevel:player.respawnLevel,canRespawnAt:player.canRespawnAt,autoRespawnAt:player.autoRespawnAt,killerName:player.killerName};}
 
-interface GamePlayer extends PlayerSnapshot {
-  move: Vector2;
-  aim: Vector2;
-  shooting: boolean;
-  lastInput: number;
-  cooldown: number;
-  lastDamageAt: number;
-  invulnerableUntil: number;
-  bot: BotState | null;
-}
-
-interface GameProjectile extends ProjectileSnapshot {
-  velocity: Vector2;
-  damage: number;
-  life: number;
-}
-
-interface GameDrone extends DroneSnapshot {
-  slot: number;
-  hitCooldown: number;
-}
-
-const CLASS_STATS: Record<PlayerClass, BaseClassStats> = {
-  shooter: { maxHealth: 100, regen: 1.8, moveSpeed: 255, reload: 0.21, projectileSpeed: 780, projectileLife: 1.5, damage: 18, projectileRadius: 7 },
-  sniper: { maxHealth: 84, regen: 1.4, moveSpeed: 226, reload: 0.76, projectileSpeed: 1180, projectileLife: 2.15, damage: 48, projectileRadius: 8 },
-  drone: { maxHealth: 108, regen: 2.1, moveSpeed: 238, reload: 0.48, projectileSpeed: 0, projectileLife: 0, damage: 15, projectileRadius: 0 }
-};
-
-const EMPTY_UPGRADES = (): UpgradeLevels => ({ maxHealth: 0, regen: 0, moveSpeed: 0, reload: 0, damage: 0, projectileSpeed: 0 });
-
-const normalize = (vector: Vector2): Vector2 => {
-  const length = Math.hypot(vector.x, vector.y);
-  if (!Number.isFinite(length) || length < 0.0001) return { x: 0, y: 0 };
-  return { x: vector.x / Math.max(1, length), y: vector.y / Math.max(1, length) };
-};
-
-const distanceSquared = (a: Vector2, b: Vector2): number => {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return dx * dx + dy * dy;
-};
-
-function derivedStats(player: GamePlayer): BaseClassStats {
-  const base = CLASS_STATS[player.playerClass];
-  return {
-    maxHealth: Math.round(base.maxHealth * (1 + player.upgrades.maxHealth * 0.13)),
-    regen: base.regen + player.upgrades.regen * 0.65,
-    moveSpeed: base.moveSpeed * (1 + player.upgrades.moveSpeed * 0.045),
-    reload: Math.max(0.08, base.reload * Math.pow(0.94, player.upgrades.reload)),
-    projectileSpeed: base.projectileSpeed * (1 + player.upgrades.projectileSpeed * 0.055),
-    projectileLife: base.projectileLife,
-    damage: base.damage * (1 + player.upgrades.damage * 0.09),
-    projectileRadius: base.projectileRadius
-  };
-}
-
-export class MazeGame {
-  private readonly players = new Map<string, GamePlayer>();
-  private readonly projectiles = new Map<string, GameProjectile>();
-  private readonly drones = new Map<string, GameDrone>();
-  private readonly shapes = new Map<string, ShapeSnapshot>();
-  private readonly shapeRespawns: number[] = [];
-  private readonly killfeed: KillEvent[] = [];
-  private tick = 0;
-  private eventId = 0;
-
-  constructor(botCount = 7) {
-    for (let i = 0; i < GAME.shapeTargetCount; i += 1) {
-      const shape = createShape(`shape-${i}`);
-      this.shapes.set(shape.id, shape);
-    }
-    const botNames = ['Vektor', 'Nyx', 'Orbit', 'Kairo', 'Mako', 'Echo', 'Rift', 'Nova', 'Flux', 'Onyx'];
-    const botClasses: PlayerClass[] = ['shooter', 'sniper', 'drone'];
-    for (let index = 0; index < Math.max(0, Math.min(14, botCount)); index += 1) {
-      this.addBot(botNames[index % botNames.length] ?? `Bot ${index + 1}`, botClasses[index % botClasses.length] ?? 'shooter');
-    }
-  }
-
-  addPlayer(name: string, playerClass: PlayerClass): string {
-    return this.createPlayer(name, playerClass, false);
-  }
-
-  private addBot(name: string, playerClass: PlayerClass): string {
-    return this.createPlayer(name, playerClass, true);
-  }
-
-  private createPlayer(name: string, playerClass: PlayerClass, isBot: boolean): string {
-    const id = crypto.randomUUID();
-    const upgrades = EMPTY_UPGRADES();
-    const base = CLASS_STATS[playerClass];
-    const player: GamePlayer = {
-      id,
-      name,
-      playerClass,
-      position: randomSpawn(),
-      velocity: { x: 0, y: 0 },
-      angle: 0,
-      health: base.maxHealth,
-      maxHealth: base.maxHealth,
-      level: 1,
-      xp: 0,
-      xpForNextLevel: xpThresholdForLevel(1),
-      availablePoints: 0,
-      upgrades,
-      score: 0,
-      kills: 0,
-      deaths: 0,
-      invulnerable: true,
-      isBot,
-      move: { x: 0, y: 0 },
-      aim: { x: 1, y: 0 },
-      shooting: false,
-      lastInput: -1,
-      cooldown: 0,
-      lastDamageAt: Date.now(),
-      invulnerableUntil: Date.now() + GAME.respawnInvulnerabilityMs,
-      bot: isBot ? { targetPlayerId: null, targetShapeId: null, strafe: Math.random() > 0.5 ? 1 : -1, rethinkAt: 0 } : null
-    };
-    this.players.set(id, player);
-    if (playerClass === 'drone') this.ensureDrones(player);
-    return id;
-  }
-
-  removePlayer(id: string): void {
-    this.players.delete(id);
-    for (const [projectileId, projectile] of this.projectiles) if (projectile.ownerId === id) this.projectiles.delete(projectileId);
-    for (const [droneId, drone] of this.drones) if (drone.ownerId === id) this.drones.delete(droneId);
-  }
-
-  applyInput(playerId: string, input: InputMessage): void {
-    const player = this.players.get(playerId);
-    if (!player || input.sequence <= player.lastInput) return;
-    player.lastInput = input.sequence;
-    player.move = normalize(input.move);
-    player.aim = normalize(input.aim);
-    player.shooting = input.shooting;
-  }
-
-  applyUpgrade(playerId: string, upgrade: UpgradeId): boolean {
-    const player = this.players.get(playerId);
-    if (!player || player.availablePoints <= 0 || !UPGRADE_IDS.includes(upgrade) || player.upgrades[upgrade] >= GAME.maxUpgradeLevel) return false;
-    const oldMaxHealth = player.maxHealth;
-    player.upgrades[upgrade] += 1;
-    player.availablePoints -= 1;
-    const stats = derivedStats(player);
-    player.maxHealth = stats.maxHealth;
-    if (upgrade === 'maxHealth') player.health = Math.min(player.maxHealth, player.health + (player.maxHealth - oldMaxHealth));
-    return true;
-  }
-
-  step(dt: number, now = Date.now()): void {
-    this.tick += 1;
-    this.spawnQueuedShapes(now);
-    for (const player of this.players.values()) this.stepPlayer(player, dt, now);
-    this.stepDrones(dt, now);
-    this.stepProjectiles(dt, now);
-  }
-
-  snapshot(selfId: string | null, now = Date.now()): WorldSnapshot {
-    const players = [...this.players.values()].map((player): PlayerSnapshot => ({
-      id: player.id,
-      name: player.name,
-      playerClass: player.playerClass,
-      position: { ...player.position },
-      velocity: { ...player.velocity },
-      angle: player.angle,
-      health: player.health,
-      maxHealth: player.maxHealth,
-      level: player.level,
-      xp: player.xp,
-      xpForNextLevel: player.xpForNextLevel,
-      availablePoints: player.availablePoints,
-      upgrades: { ...player.upgrades },
-      score: player.score,
-      kills: player.kills,
-      deaths: player.deaths,
-      invulnerable: player.invulnerable,
-      isBot: player.isBot
-    }));
-    return {
-      type: 'snapshot',
-      selfId,
-      tick: this.tick,
-      serverTime: now,
-      players,
-      projectiles: [...this.projectiles.values()].map(({ velocity: _velocity, damage: _damage, life: _life, ...projectile }) => ({ ...projectile, position: { ...projectile.position } })),
-      drones: [...this.drones.values()].map(({ slot: _slot, hitCooldown: _cooldown, ...drone }) => ({ ...drone, position: { ...drone.position } })),
-      shapes: [...this.shapes.values()].map((shape) => ({ ...shape, position: { ...shape.position } })),
-      walls: WALLS,
-      leaderboard: players.sort((a, b) => b.score - a.score).slice(0, 8).map(({ id, name, score, level, isBot }) => ({ id, name, score, level, isBot })),
-      killfeed: this.killfeed.slice(-6)
-    };
-  }
-
-  get playerCount(): number {
-    return this.players.size;
-  }
-
-  get humanCount(): number {
-    return [...this.players.values()].filter((player) => !player.isBot).length;
-  }
-
-  private stepPlayer(player: GamePlayer, dt: number, now: number): void {
-    if (player.bot) this.updateBot(player, now);
-    const stats = derivedStats(player);
-    player.maxHealth = stats.maxHealth;
-    player.invulnerable = now < player.invulnerableUntil;
-    const move = normalize(player.move);
-    player.velocity = { x: move.x * stats.moveSpeed, y: move.y * stats.moveSpeed };
-    const nextX = { x: player.position.x + player.velocity.x * dt, y: player.position.y };
-    const nextY = { x: player.position.x, y: player.position.y + player.velocity.y * dt };
-    if (isFree(nextX, GAME.playerRadius)) player.position.x = nextX.x;
-    if (isFree(nextY, GAME.playerRadius)) player.position.y = nextY.y;
-    if (player.aim.x !== 0 || player.aim.y !== 0) player.angle = Math.atan2(player.aim.y, player.aim.x);
-    player.cooldown = Math.max(0, player.cooldown - dt);
-    if (now - player.lastDamageAt > 4000 && player.health < player.maxHealth) player.health = Math.min(player.maxHealth, player.health + stats.regen * dt);
-    if (player.playerClass !== 'drone' && player.shooting && player.cooldown <= 0 && (player.aim.x !== 0 || player.aim.y !== 0)) {
-      this.fireProjectile(player, stats);
-      player.cooldown = stats.reload;
-    }
-  }
-
-  private fireProjectile(player: GamePlayer, stats: BaseClassStats): void {
-    const aim = normalize(player.aim);
-    const id = crypto.randomUUID();
-    const muzzle = GAME.playerRadius + 16;
-    this.projectiles.set(id, {
-      id,
-      ownerId: player.id,
-      position: { x: player.position.x + aim.x * muzzle, y: player.position.y + aim.y * muzzle },
-      velocity: { x: aim.x * stats.projectileSpeed, y: aim.y * stats.projectileSpeed },
-      damage: stats.damage,
-      radius: stats.projectileRadius,
-      life: stats.projectileLife,
-      kind: 'bullet'
-    });
-  }
-
-  private stepProjectiles(dt: number, now: number): void {
-    for (const projectile of [...this.projectiles.values()]) {
-      projectile.position.x += projectile.velocity.x * dt;
-      projectile.position.y += projectile.velocity.y * dt;
-      projectile.life -= dt;
-      if (projectile.life <= 0 || !isFree(projectile.position, projectile.radius)) {
-        this.projectiles.delete(projectile.id);
-        continue;
-      }
-      const shape = [...this.shapes.values()].find((candidate) => distanceSquared(candidate.position, projectile.position) <= Math.pow(candidate.radius + projectile.radius, 2));
-      if (shape) {
-        this.damageShape(shape, projectile.damage, projectile.ownerId, now);
-        this.projectiles.delete(projectile.id);
-        continue;
-      }
-      const target = [...this.players.values()].find((candidate) => candidate.id !== projectile.ownerId && !candidate.invulnerable && distanceSquared(candidate.position, projectile.position) <= Math.pow(GAME.playerRadius + projectile.radius, 2));
-      if (target) {
-        this.damagePlayer(target, projectile.damage, projectile.ownerId, now);
-        this.projectiles.delete(projectile.id);
-      }
-    }
-  }
-
-  private ensureDrones(owner: GamePlayer): void {
-    const owned = [...this.drones.values()].filter((drone) => drone.ownerId === owner.id);
-    const desired = Math.min(7, 4 + Math.floor(owner.level / 8));
-    for (let slot = owned.length; slot < desired; slot += 1) {
-      const id = crypto.randomUUID();
-      this.drones.set(id, { id, ownerId: owner.id, position: { ...owner.position }, angle: 0, health: 40, slot, hitCooldown: 0 });
-    }
-  }
-
-  private stepDrones(dt: number, now: number): void {
-    for (const drone of this.drones.values()) {
-      const owner = this.players.get(drone.ownerId);
-      if (!owner) {
-        this.drones.delete(drone.id);
-        continue;
-      }
-      drone.hitCooldown = Math.max(0, drone.hitCooldown - dt);
-      const aim = normalize(owner.aim);
-      const orbitAngle = now / 850 + drone.slot * (Math.PI * 2 / Math.max(1, 4 + Math.floor(owner.level / 8)));
-      const orbit = { x: owner.position.x + Math.cos(orbitAngle) * 78, y: owner.position.y + Math.sin(orbitAngle) * 78 };
-      const attack = { x: owner.position.x + aim.x * 420, y: owner.position.y + aim.y * 420 };
-      const target = owner.shooting && (aim.x !== 0 || aim.y !== 0) ? attack : orbit;
-      const direction = normalize({ x: target.x - drone.position.x, y: target.y - drone.position.y });
-      const droneSpeed = 430 * (1 + owner.upgrades.projectileSpeed * 0.04);
-      const next = { x: drone.position.x + direction.x * droneSpeed * dt, y: drone.position.y + direction.y * droneSpeed * dt };
-      if (isFree(next, 12)) drone.position = next;
-      else drone.position = { x: drone.position.x - direction.x * 10, y: drone.position.y - direction.y * 10 };
-      drone.angle = Math.atan2(direction.y, direction.x);
-      if (drone.hitCooldown > 0) continue;
-      const shape = [...this.shapes.values()].find((candidate) => distanceSquared(candidate.position, drone.position) <= Math.pow(candidate.radius + 12, 2));
-      if (shape) {
-        this.damageShape(shape, derivedStats(owner).damage, owner.id, now);
-        drone.hitCooldown = derivedStats(owner).reload;
-        continue;
-      }
-      const targetPlayer = [...this.players.values()].find((candidate) => candidate.id !== owner.id && !candidate.invulnerable && distanceSquared(candidate.position, drone.position) <= Math.pow(GAME.playerRadius + 12, 2));
-      if (targetPlayer) {
-        this.damagePlayer(targetPlayer, derivedStats(owner).damage, owner.id, now);
-        drone.hitCooldown = derivedStats(owner).reload;
-      }
-    }
-  }
-
-  private damageShape(shape: ShapeSnapshot, damage: number, ownerId: string, now: number): void {
-    shape.health -= damage;
-    if (shape.health > 0) return;
-    this.shapes.delete(shape.id);
-    this.shapeRespawns.push(now + 1800 + Math.random() * 2200);
-    const owner = this.players.get(ownerId);
-    if (owner) this.awardXp(owner, SHAPE_REWARDS[shape.kind]);
-  }
-
-  private damagePlayer(target: GamePlayer, damage: number, attackerId: string, now: number): void {
-    if (target.invulnerable) return;
-    target.health -= damage;
-    target.lastDamageAt = now;
-    if (target.health > 0) return;
-    const attacker = this.players.get(attackerId);
-    if (attacker && attacker.id !== target.id) {
-      attacker.kills += 1;
-      this.awardXp(attacker, 150 + target.level * 18);
-      this.killfeed.push({ id: ++this.eventId, killer: attacker.name, victim: target.name, at: now });
-      if (this.killfeed.length > 12) this.killfeed.shift();
-    }
-    target.deaths += 1;
-    this.respawn(target, now);
-  }
-
-  private awardXp(player: GamePlayer, amount: number): void {
-    player.xp += amount;
-    player.score += amount;
-    while (player.xp >= player.xpForNextLevel) {
-      player.level += 1;
-      player.availablePoints += 1;
-      player.xpForNextLevel = xpThresholdForLevel(player.level);
-      if (player.playerClass === 'drone') this.ensureDrones(player);
-    }
-    if (player.bot) this.spendBotPoints(player);
-  }
-
-  private updateBot(player: GamePlayer, now: number): void {
-    const bot = player.bot;
-    if (!bot) return;
-    if (now >= bot.rethinkAt) {
-      const enemies = [...this.players.values()].filter((candidate) => candidate.id !== player.id);
-      enemies.sort((a, b) => distanceSquared(player.position, a.position) - distanceSquared(player.position, b.position));
-      const nearestEnemy = enemies[0];
-      const nearestDistance = nearestEnemy ? Math.sqrt(distanceSquared(player.position, nearestEnemy.position)) : Infinity;
-      if (nearestEnemy && nearestDistance < 900) {
-        bot.targetPlayerId = nearestEnemy.id;
-        bot.targetShapeId = null;
-      } else {
-        const nearbyShapes = [...this.shapes.values()].sort((a, b) => distanceSquared(player.position, a.position) - distanceSquared(player.position, b.position));
-        bot.targetShapeId = nearbyShapes[0]?.id ?? null;
-        bot.targetPlayerId = null;
-      }
-      bot.strafe = Math.random() > 0.5 ? 1 : -1;
-      bot.rethinkAt = now + 420 + Math.random() * 720;
-    }
-    const target = bot.targetPlayerId ? this.players.get(bot.targetPlayerId)?.position : bot.targetShapeId ? this.shapes.get(bot.targetShapeId)?.position : undefined;
-    if (!target) {
-      bot.rethinkAt = 0;
-      player.move = { x: 0, y: 0 };
-      player.shooting = false;
-      return;
-    }
-    const delta = { x: target.x - player.position.x, y: target.y - player.position.y };
-    const direction = normalize(delta);
-    const distance = Math.hypot(delta.x, delta.y);
-    const preferred = player.playerClass === 'sniper' ? 560 : player.playerClass === 'drone' ? 360 : 330;
-    const radial = distance > preferred + 80 ? 1 : distance < preferred - 100 ? -0.72 : 0.08;
-    const strafe = distance < 760 ? 0.58 * bot.strafe : 0;
-    player.move = normalize({ x: direction.x * radial - direction.y * strafe, y: direction.y * radial + direction.x * strafe });
-    player.aim = direction;
-    player.shooting = distance < (player.playerClass === 'sniper' ? 1200 : 760);
-  }
-
-  private spendBotPoints(player: GamePlayer): void {
-    const preferences: Record<PlayerClass, UpgradeId[]> = {
-      shooter: ['damage', 'reload', 'moveSpeed', 'projectileSpeed', 'maxHealth', 'regen'],
-      sniper: ['damage', 'projectileSpeed', 'reload', 'moveSpeed', 'maxHealth', 'regen'],
-      drone: ['damage', 'reload', 'projectileSpeed', 'moveSpeed', 'maxHealth', 'regen']
-    };
-    for (const upgrade of preferences[player.playerClass]) {
-      while (player.availablePoints > 0 && player.upgrades[upgrade] < GAME.maxUpgradeLevel) this.applyUpgrade(player.id, upgrade);
-      if (player.availablePoints <= 0) break;
-    }
-  }
-
-  private respawn(player: GamePlayer, now: number): void {
-    player.position = randomSpawn();
-    player.velocity = { x: 0, y: 0 };
-    player.level = 1;
-    player.xp = 0;
-    player.xpForNextLevel = xpThresholdForLevel(1);
-    player.availablePoints = 0;
-    player.upgrades = EMPTY_UPGRADES();
-    player.score = Math.floor(player.score * 0.35);
-    player.maxHealth = CLASS_STATS[player.playerClass].maxHealth;
-    player.health = player.maxHealth;
-    player.lastDamageAt = now;
-    player.invulnerableUntil = now + GAME.respawnInvulnerabilityMs;
-    player.invulnerable = true;
-    for (const [droneId, drone] of this.drones) if (drone.ownerId === player.id) this.drones.delete(droneId);
-    if (player.playerClass === 'drone') this.ensureDrones(player);
-  }
-
-  private spawnQueuedShapes(now: number): void {
-    this.shapeRespawns.sort((a, b) => a - b);
-    while ((this.shapeRespawns[0] ?? Infinity) <= now && this.shapes.size < GAME.shapeTargetCount) {
-      this.shapeRespawns.shift();
-      const shape = createShape(crypto.randomUUID());
-      this.shapes.set(shape.id, shape);
-    }
-  }
+export class MazeGame{
+  private readonly players=new Map<string,GamePlayer>(); private readonly projectiles=new Map<string,GameProjectile>(); private readonly drones=new Map<string,GameDrone>(); private readonly shapes=new Map<string,ShapeSnapshot>(); private readonly shapeRespawns:number[]=[]; private readonly nextDroneSpawn=new Map<string,number>(); private readonly killfeed:KillEvent[]=[]; private tick=0; private eventId=0;
+  constructor(botCount=10){for(let index=0;index<GAME.shapeTargetCount;index+=1){const shape=createShape(`shape-${index}`);this.shapes.set(shape.id,shape)}for(let index=0;index<Math.max(0,Math.min(18,botCount));index+=1)this.addBot(index)}
+  addPlayer(name:string):string{return this.createPlayer(name,false,null)}
+  removePlayer(id:string):void{this.players.delete(id);this.nextDroneSpawn.delete(id);for(const[projectileId,projectile]of this.projectiles)if(projectile.ownerId===id)this.projectiles.delete(projectileId);for(const[droneId,drone]of this.drones)if(drone.ownerId===id)this.drones.delete(droneId)}
+  applyInput(playerId:string,input:InputMessage):void{const player=this.players.get(playerId);if(!player||input.sequence<=player.lastInput)return;player.lastInput=input.sequence;player.move=clampMagnitude(input.move,1);player.aim=normalize(input.aim);player.primary=input.primary;player.secondary=input.secondary;if((input.primary||input.secondary)&&player.invulnerable)player.invulnerableUntil=0}
+  applyUpgrade(playerId:string,upgrade:UpgradeId):boolean{const player=this.players.get(playerId);if(!player||player.dead||player.availablePoints<=0||!UPGRADE_IDS.includes(upgrade)||player.upgrades[upgrade]>=GAME.maxUpgradeLevel)return false;const oldMaximum=player.maxHealth;player.upgrades[upgrade]+=1;player.availablePoints-=1;const stats=derivedStats(player);player.maxHealth=stats.maxHealth;if(upgrade==='maxHealth')player.health=Math.min(player.maxHealth,player.health+player.maxHealth-oldMaximum);return true}
+  chooseClass(playerId:string,playerClass:PlayerClass):boolean{const player=this.players.get(playerId);if(!player||player.dead||!isValidClassChoice(player.playerClass,playerClass,player.level))return false;player.playerClass=playerClass;const stats=derivedStats(player);const ratio=player.maxHealth>0?player.health/player.maxHealth:1;player.maxHealth=stats.maxHealth;player.health=Math.max(1,player.maxHealth*ratio);this.removeOwnerDrones(player.id);this.spawnInitialDrones(player);return true}
+  requestRespawn(playerId:string,now=Date.now()):boolean{const player=this.players.get(playerId);if(!player||!player.dead||now<player.canRespawnAt)return false;this.respawn(player,now);return true}
+  step(dt:number,now=Date.now()):void{this.tick+=1;this.spawnQueuedShapes(now);for(const shape of this.shapes.values())stepShape(shape,dt);for(const player of this.players.values()){if(player.dead){if(now>=player.autoRespawnAt)this.respawn(player,now);continue}this.stepPlayer(player,dt,now)}this.resolvePlayerCollisions(dt,now);this.stepDrones(dt,now);this.stepProjectiles(dt,now);this.resolveShapeContacts(dt,now)}
+  snapshot(selfId:string|null,now=Date.now()):WorldSnapshot{const self=selfId?this.players.get(selfId):undefined;const center=self?.position??{x:GAME.worldWidth/2,y:GAME.worldHeight/2};const viewDistanceSquared=Math.pow(GAME.viewRadius*1.18,2);const visiblePlayers=[...this.players.values()].filter(player=>player.id===selfId||(!player.dead&&distanceSquared(player.position,center)<=viewDistanceSquared)).map(snapshotPlayer);const visibleProjectiles=[...this.projectiles.values()].filter(projectile=>distanceSquared(projectile.position,center)<=viewDistanceSquared).map(projectile=>({id:projectile.id,ownerId:projectile.ownerId,position:{...projectile.position},velocity:{...projectile.velocity},radius:projectile.radius,integrity:projectile.integrity,maxIntegrity:projectile.maxIntegrity}));const visibleDrones=[...this.drones.values()].filter(drone=>distanceSquared(drone.position,center)<=viewDistanceSquared).map(drone=>({id:drone.id,ownerId:drone.ownerId,position:{...drone.position},velocity:{...drone.velocity},angle:drone.angle,health:drone.health,maxHealth:drone.maxHealth}));const visibleShapes=[...this.shapes.values()].filter(shape=>distanceSquared(shape.position,center)<=viewDistanceSquared).map(shape=>({...shape,position:{...shape.position},velocity:{...shape.velocity}}));const leaderboard=[...this.players.values()].sort((a,b)=>b.score-a.score).slice(0,10).map(({id,name,score,level,playerClass,isBot})=>({id,name,score,level,playerClass,isBot}));return{type:'snapshot',selfId,tick:this.tick,serverTime:now,players:visiblePlayers,projectiles:visibleProjectiles,drones:visibleDrones,shapes:visibleShapes,walls:wallsInView(center),leaderboard,killfeed:this.killfeed.slice(-6)}}
+  get playerCount():number{return this.players.size} get humanCount():number{return[...this.players.values()].filter(player=>!player.isBot).length}
+  private addBot(index:number):void{const profile=profileFor(index);const bot:BotState={profile,targetPlayerId:null,targetShapeId:null,decisionAt:0,aimOffset:0,strafe:index%2===0?1:-1};this.createPlayer(BOT_NAMES[index%BOT_NAMES.length]??`Bot ${index+1}`,true,bot)}
+  private createPlayer(name:string,isBot:boolean,bot:BotState|null):string{const id=crypto.randomUUID();const base=CLASS_DEFINITIONS.core;const now=Date.now();const player:GamePlayer={id,name,playerClass:'core',position:randomSpawn(),velocity:{x:0,y:0},angle:0,health:base.maxHealth,maxHealth:base.maxHealth,level:1,xp:0,xpForNextLevel:xpThresholdForLevel(1),availablePoints:0,upgrades:EMPTY_UPGRADES(),score:0,kills:0,deaths:0,invulnerable:true,isBot,dead:false,deathLevel:1,respawnLevel:1,canRespawnAt:0,autoRespawnAt:0,killerName:'',move:{x:0,y:0},aim:{x:1,y:0},primary:false,secondary:false,lastInput:-1,cooldown:0,lastDamageAt:now,invulnerableUntil:now+GAME.respawnInvulnerabilityMs,bot};this.players.set(id,player);return id}
+  private stepPlayer(player:GamePlayer,dt:number,now:number):void{if(player.bot)this.updateBot(player,now);const stats=derivedStats(player);player.maxHealth=stats.maxHealth;player.invulnerable=now<player.invulnerableUntil;const targetVelocity={x:player.move.x*stats.moveSpeed,y:player.move.y*stats.moveSpeed};player.velocity=moveVectorToward(player.velocity,targetVelocity,stats.acceleration*dt);if(Math.hypot(player.move.x,player.move.y)<.02){const damping=Math.exp(-7.2*dt);player.velocity.x*=damping;player.velocity.y*=damping}player.velocity=clampMagnitude(player.velocity,stats.moveSpeed*1.18);const movement=moveCircle(player.position,player.velocity,dt,GAME.playerRadius);player.position=movement.position;player.velocity=movement.velocity;if(player.aim.x!==0||player.aim.y!==0)player.angle=Math.atan2(player.aim.y,player.aim.x);player.cooldown=Math.max(0,player.cooldown-dt);if(now-player.lastDamageAt>4300&&player.health<player.maxHealth)player.health=Math.min(player.maxHealth,player.health+stats.regen*dt);if(stats.droneCount>0)this.maintainDrones(player,stats,now);else if(player.primary&&player.cooldown<=0&&stats.barrelCount>0&&(player.aim.x!==0||player.aim.y!==0)){this.fireProjectiles(player,stats);player.cooldown=stats.reload}}
+  private fireProjectiles(player:GamePlayer,stats:RuntimeStats):void{const baseAngle=Math.atan2(player.aim.y,player.aim.x);const count=Math.max(1,stats.barrelCount);for(let index=0;index<count;index+=1){const normalizedIndex=count===1?0:index/(count-1)-.5;const angle=baseAngle+normalizedIndex*stats.barrelSpread;const direction={x:Math.cos(angle),y:Math.sin(angle)};const id=crypto.randomUUID();const muzzle=GAME.playerRadius+stats.barrelLength;this.projectiles.set(id,{id,ownerId:player.id,position:{x:player.position.x+direction.x*muzzle,y:player.position.y+direction.y*muzzle},velocity:{x:direction.x*stats.projectileSpeed,y:direction.y*stats.projectileSpeed},radius:stats.projectileRadius,integrity:stats.penetration,maxIntegrity:stats.penetration,damage:stats.damage,life:stats.projectileLife})}const recoil=player.playerClass==='lancer'||player.playerClass==='railgun'?78:player.playerClass==='sniper'?48:24;player.velocity.x-=Math.cos(baseAngle)*recoil;player.velocity.y-=Math.sin(baseAngle)*recoil}
+  private stepProjectiles(dt:number,now:number):void{for(const projectile of[...this.projectiles.values()]){projectile.position.x+=projectile.velocity.x*dt;projectile.position.y+=projectile.velocity.y*dt;projectile.life-=dt;if(projectile.life<=0||!isFree(projectile.position,projectile.radius))this.projectiles.delete(projectile.id)}this.resolveProjectileCollisions();for(const projectile of[...this.projectiles.values()]){const shape=[...this.shapes.values()].find(candidate=>distanceSquared(candidate.position,projectile.position)<=Math.pow(candidate.radius+projectile.radius,2));if(shape){this.damageShape(shape,projectile.damage,projectile.ownerId,now);this.projectiles.delete(projectile.id);continue}const drone=[...this.drones.values()].find(candidate=>candidate.ownerId!==projectile.ownerId&&distanceSquared(candidate.position,projectile.position)<=Math.pow(12+projectile.radius,2));if(drone){drone.health-=projectile.damage;this.projectiles.delete(projectile.id);if(drone.health<=0)this.destroyDrone(drone);continue}const target=[...this.players.values()].find(candidate=>!candidate.dead&&candidate.id!==projectile.ownerId&&!candidate.invulnerable&&distanceSquared(candidate.position,projectile.position)<=Math.pow(GAME.playerRadius+projectile.radius,2));if(target){this.damagePlayer(target,projectile.damage,projectile.ownerId,now);this.projectiles.delete(projectile.id)}}}
+  private resolveProjectileCollisions():void{const cellSize=96;const grid=new Map<string,GameProjectile[]>();for(const projectile of this.projectiles.values()){const x=Math.floor(projectile.position.x/cellSize),y=Math.floor(projectile.position.y/cellSize),key=`${x}:${y}`;const bucket=grid.get(key)??[];bucket.push(projectile);grid.set(key,bucket)}const checked=new Set<string>();for(const projectile of this.projectiles.values()){const cellX=Math.floor(projectile.position.x/cellSize),cellY=Math.floor(projectile.position.y/cellSize);for(let offsetX=-1;offsetX<=1;offsetX+=1)for(let offsetY=-1;offsetY<=1;offsetY+=1){const bucket=grid.get(`${cellX+offsetX}:${cellY+offsetY}`);if(!bucket)continue;for(const other of bucket){if(other.id===projectile.id||other.ownerId===projectile.ownerId)continue;const pair=projectile.id<other.id?`${projectile.id}|${other.id}`:`${other.id}|${projectile.id}`;if(checked.has(pair))continue;checked.add(pair);if(distanceSquared(projectile.position,other.position)>Math.pow(projectile.radius+other.radius,2))continue;resolveProjectilePair(projectile,other);const direction=normalize({x:projectile.position.x-other.position.x,y:projectile.position.y-other.position.y});projectile.position.x+=direction.x*2;projectile.position.y+=direction.y*2;other.position.x-=direction.x*2;other.position.y-=direction.y*2}}}for(const[id,projectile]of this.projectiles)if(projectile.integrity<=0)this.projectiles.delete(id)}
+  private maintainDrones(owner:GamePlayer,stats:RuntimeStats,now:number):void{const owned=[...this.drones.values()].filter(drone=>drone.ownerId===owner.id);if(owned.length>=stats.droneCount)return;const next=this.nextDroneSpawn.get(owner.id)??0;if(now<next)return;this.spawnDrone(owner,owned.length,stats);this.nextDroneSpawn.set(owner.id,now+stats.droneRespawn*1000)}
+  private spawnInitialDrones(owner:GamePlayer):void{const stats=derivedStats(owner);if(stats.droneCount<=0)return;for(let slot=0;slot<stats.droneCount;slot+=1)this.spawnDrone(owner,slot,stats);this.nextDroneSpawn.set(owner.id,Date.now()+stats.droneRespawn*1000)}
+  private spawnDrone(owner:GamePlayer,slot:number,stats:RuntimeStats):void{const angle=slot*Math.PI*2/Math.max(1,stats.droneCount);const id=crypto.randomUUID();this.drones.set(id,{id,ownerId:owner.id,position:{x:owner.position.x+Math.cos(angle)*72,y:owner.position.y+Math.sin(angle)*72},velocity:{x:0,y:0},angle,health:42+owner.upgrades.maxHealth*4,maxHealth:42+owner.upgrades.maxHealth*4,slot,contactCooldown:0})}
+  private stepDrones(dt:number,now:number):void{for(const drone of[...this.drones.values()]){const owner=this.players.get(drone.ownerId);if(!owner||owner.dead){this.drones.delete(drone.id);continue}const stats=derivedStats(owner);if(stats.droneCount<=0){this.drones.delete(drone.id);continue}const count=Math.max(1,stats.droneCount);const orbitAngle=now/900+drone.slot*Math.PI*2/count;const orbitTarget={x:owner.position.x+Math.cos(orbitAngle)*82,y:owner.position.y+Math.sin(orbitAngle)*82};let target=orbitTarget;if(owner.primary&&(owner.aim.x!==0||owner.aim.y!==0)){const attackPoint={x:owner.position.x+owner.aim.x*540,y:owner.position.y+owner.aim.y*540};const spreadAngle=drone.slot*Math.PI*2/count;target={x:attackPoint.x+Math.cos(spreadAngle)*42,y:attackPoint.y+Math.sin(spreadAngle)*42}}else if(owner.secondary&&(owner.aim.x!==0||owner.aim.y!==0)){const cursorPoint={x:owner.position.x+owner.aim.x*430,y:owner.position.y+owner.aim.y*430};const away=normalize({x:drone.position.x-cursorPoint.x,y:drone.position.y-cursorPoint.y});const spreadAngle=drone.slot*Math.PI*2/count;target={x:owner.position.x+away.x*390+Math.cos(spreadAngle)*60,y:owner.position.y+away.y*390+Math.sin(spreadAngle)*60}}const direction=normalize({x:target.x-drone.position.x,y:target.y-drone.position.y});const targetVelocity={x:direction.x*(owner.primary||owner.secondary?520:360),y:direction.y*(owner.primary||owner.secondary?520:360)};drone.velocity=moveVectorToward(drone.velocity,targetVelocity,1250*dt);const moved=moveCircle(drone.position,drone.velocity,dt,12);drone.position=moved.position;drone.velocity=moved.velocity;drone.angle=Math.atan2(drone.velocity.y,drone.velocity.x);drone.contactCooldown=Math.max(0,drone.contactCooldown-dt);if(drone.contactCooldown>0)continue;const shape=[...this.shapes.values()].find(candidate=>distanceSquared(candidate.position,drone.position)<=Math.pow(candidate.radius+12,2));if(shape){this.damageShape(shape,stats.damage,owner.id,now);drone.contactCooldown=stats.reload;continue}const targetPlayer=[...this.players.values()].find(candidate=>!candidate.dead&&candidate.id!==owner.id&&!candidate.invulnerable&&distanceSquared(candidate.position,drone.position)<=Math.pow(GAME.playerRadius+12,2));if(targetPlayer){this.damagePlayer(targetPlayer,stats.damage,owner.id,now);drone.contactCooldown=stats.reload;continue}const enemyDrone=[...this.drones.values()].find(candidate=>candidate.ownerId!==owner.id&&candidate.id!==drone.id&&distanceSquared(candidate.position,drone.position)<=Math.pow(24,2));if(enemyDrone){enemyDrone.health-=stats.damage*.75;drone.health-=derivedStats(this.players.get(enemyDrone.ownerId)??owner).damage*.45;drone.contactCooldown=stats.reload;if(enemyDrone.health<=0)this.destroyDrone(enemyDrone);if(drone.health<=0)this.destroyDrone(drone)}}}
+  private destroyDrone(drone:GameDrone):void{this.drones.delete(drone.id);const owner=this.players.get(drone.ownerId);if(owner)this.nextDroneSpawn.set(owner.id,Math.max(this.nextDroneSpawn.get(owner.id)??0,Date.now()+derivedStats(owner).droneRespawn*1000))}
+  private removeOwnerDrones(ownerId:string):void{for(const[id,drone]of this.drones)if(drone.ownerId===ownerId)this.drones.delete(id);this.nextDroneSpawn.delete(ownerId)}
+  private resolvePlayerCollisions(dt:number,now:number):void{const alive=[...this.players.values()].filter(player=>!player.dead);for(let first=0;first<alive.length;first+=1){const a=alive[first];if(!a)continue;for(let second=first+1;second<alive.length;second+=1){const b=alive[second];if(!b)continue;const delta={x:b.position.x-a.position.x,y:b.position.y-a.position.y};const distance=Math.hypot(delta.x,delta.y),minimum=GAME.playerRadius*2;if(distance>=minimum)continue;const direction=distance<.001?{x:1,y:0}:{x:delta.x/distance,y:delta.y/distance};const overlap=minimum-distance,push=overlap*.5+.2;const aCandidate={x:a.position.x-direction.x*push,y:a.position.y-direction.y*push},bCandidate={x:b.position.x+direction.x*push,y:b.position.y+direction.y*push};if(isFree(aCandidate,GAME.playerRadius))a.position=aCandidate;if(isFree(bCandidate,GAME.playerRadius))b.position=bCandidate;a.velocity.x-=direction.x*45;a.velocity.y-=direction.y*45;b.velocity.x+=direction.x*45;b.velocity.y+=direction.y*45;this.damagePlayer(a,derivedStats(b).bodyDamage*dt*1.55,b.id,now);this.damagePlayer(b,derivedStats(a).bodyDamage*dt*1.55,a.id,now)}}}
+  private resolveShapeContacts(dt:number,now:number):void{for(const shape of this.shapes.values()){const config=SHAPE_CONFIG[shape.kind];for(const player of this.players.values()){if(player.dead||player.invulnerable)continue;const delta={x:player.position.x-shape.position.x,y:player.position.y-shape.position.y};const distance=Math.hypot(delta.x,delta.y),minimum=GAME.playerRadius+shape.radius;if(distance>=minimum)continue;const direction=distance<.001?{x:1,y:0}:{x:delta.x/distance,y:delta.y/distance};const overlap=minimum-distance,candidate={x:player.position.x+direction.x*overlap,y:player.position.y+direction.y*overlap};if(isFree(candidate,GAME.playerRadius))player.position=candidate;player.velocity.x+=direction.x*70;player.velocity.y+=direction.y*70;shape.velocity.x-=direction.x*45;shape.velocity.y-=direction.y*45;this.damagePlayer(player,config.bodyDamage*dt*2.1,null,now,shape.kind);this.damageShape(shape,derivedStats(player).bodyDamage*dt*1.9,player.id,now);if(!this.shapes.has(shape.id))break}}}
+  private damageShape(shape:ShapeSnapshot,damage:number,ownerId:string,now:number):void{shape.health-=Math.max(0,damage);if(shape.health>0)return;this.shapes.delete(shape.id);this.shapeRespawns.push(now+1200+Math.random()*1800);const owner=this.players.get(ownerId);if(owner)this.awardXp(owner,SHAPE_CONFIG[shape.kind].reward)}
+  private damagePlayer(target:GamePlayer,damage:number,attackerId:string|null,now:number,environmentName='Arena'):void{if(target.dead||target.invulnerable||damage<=0)return;target.health-=damage;target.lastDamageAt=now;if(target.health>0)return;this.killPlayer(target,attackerId,now,environmentName)}
+  private killPlayer(target:GamePlayer,attackerId:string|null,now:number,environmentName:string):void{if(target.dead)return;const attacker=attackerId?this.players.get(attackerId):undefined;if(attacker&&attacker.id!==target.id){attacker.kills+=1;this.awardXp(attacker,150+target.level*20)}const killerName=attacker?.name??environmentName;this.killfeed.push({id:++this.eventId,killer:killerName,victim:target.name,at:now});if(this.killfeed.length>16)this.killfeed.shift();target.health=0;target.dead=true;target.deaths+=1;target.deathLevel=target.level;target.respawnLevel=respawnLevelFrom(target.level);target.canRespawnAt=now+GAME.respawnDelayMs;target.autoRespawnAt=now+GAME.autoRespawnDelayMs;target.killerName=killerName;target.velocity={x:0,y:0};target.move={x:0,y:0};target.primary=false;target.secondary=false;target.invulnerable=false;this.removeOwnerDrones(target.id)}
+  private respawn(player:GamePlayer,now:number):void{const retainedLevel=Math.max(1,player.respawnLevel);player.playerClass=classAvailableAtLevel(player.playerClass,retainedLevel);player.position=randomSpawn();player.velocity={x:0,y:0};player.move={x:0,y:0};player.aim={x:1,y:0};player.primary=false;player.secondary=false;player.level=retainedLevel;player.xp=xpAtLevelStart(retainedLevel);player.xpForNextLevel=xpThresholdForLevel(retainedLevel);player.upgrades=EMPTY_UPGRADES();player.availablePoints=Math.max(0,retainedLevel-1);player.score=Math.floor(player.score*.45);const stats=derivedStats(player);player.maxHealth=stats.maxHealth;player.health=player.maxHealth;player.dead=false;player.deathLevel=retainedLevel;player.canRespawnAt=0;player.autoRespawnAt=0;player.killerName='';player.lastDamageAt=now;player.invulnerableUntil=now+GAME.respawnInvulnerabilityMs;player.invulnerable=true;player.cooldown=0;this.spawnInitialDrones(player);if(player.bot){this.spendBotPoints(player);this.advanceBotClass(player)}}
+  private awardXp(player:GamePlayer,amount:number):void{if(player.dead||player.level>=GAME.maxLevel){player.score+=Math.max(0,Math.round(amount));return}player.xp+=Math.max(0,Math.round(amount));player.score+=Math.max(0,Math.round(amount));while(player.level<GAME.maxLevel&&player.xp>=player.xpForNextLevel){player.level+=1;player.availablePoints+=1;player.xpForNextLevel=xpThresholdForLevel(player.level)}if(player.bot){this.spendBotPoints(player);this.advanceBotClass(player)}}
+  private spendBotPoints(player:GamePlayer):void{if(!player.bot)return;for(const upgrade of player.bot.profile.upgradePath){while(player.availablePoints>0&&player.upgrades[upgrade]<GAME.maxUpgradeLevel)this.applyUpgrade(player.id,upgrade);if(player.availablePoints<=0)break}}
+  private advanceBotClass(player:GamePlayer):void{if(!player.bot)return;for(const desired of player.bot.profile.classPath)if(isValidClassChoice(player.playerClass,desired,player.level)){this.chooseClass(player.id,desired);return}}
+  private updateBot(player:GamePlayer,now:number):void{const bot=player.bot;if(!bot)return;const profile=bot.profile;if(now>=bot.decisionAt){const visibleEnemies=[...this.players.values()].filter(candidate=>!candidate.dead&&candidate.id!==player.id&&distanceSquared(candidate.position,player.position)<=profile.vision*profile.vision&&hasLineOfSight(player.position,candidate.position)).sort((a,b)=>distanceSquared(a.position,player.position)-distanceSquared(b.position,player.position));const nearestEnemy=visibleEnemies[0];const shouldFight=nearestEnemy&&(profile.aggression>Math.random()||player.level>=nearestEnemy.level+4);if(shouldFight){bot.targetPlayerId=nearestEnemy.id;bot.targetShapeId=null}else{const shapes=[...this.shapes.values()].filter(shape=>distanceSquared(shape.position,player.position)<=Math.pow(profile.vision*.9,2)&&hasLineOfSight(player.position,shape.position)).sort((a,b)=>{const rewardA=SHAPE_CONFIG[a.kind].reward*profile.farmBias-Math.sqrt(distanceSquared(a.position,player.position))*.06;const rewardB=SHAPE_CONFIG[b.kind].reward*profile.farmBias-Math.sqrt(distanceSquared(b.position,player.position))*.06;return rewardB-rewardA});bot.targetShapeId=shapes[0]?.id??null;bot.targetPlayerId=null}bot.aimOffset=(Math.random()-.5)*profile.aimError*2;if(Math.random()<.22)bot.strafe*=-1;bot.decisionAt=now+profile.reactionMs*(.8+Math.random()*.55)}const enemy=bot.targetPlayerId?this.players.get(bot.targetPlayerId):undefined;const shape=bot.targetShapeId?this.shapes.get(bot.targetShapeId):undefined;const target=enemy?.position??shape?.position;if(!target){bot.decisionAt=0;player.move={x:0,y:0};player.primary=false;player.secondary=false;return}const delta={x:target.x-player.position.x,y:target.y-player.position.y};const distance=Math.hypot(delta.x,delta.y);const baseDirection=normalize(delta);const cosine=Math.cos(bot.aimOffset),sine=Math.sin(bot.aimOffset);player.aim={x:baseDirection.x*cosine-baseDirection.y*sine,y:baseDirection.x*sine+baseDirection.y*cosine};const healthRatio=player.maxHealth>0?player.health/player.maxHealth:1;let radial=distance>profile.preferredDistance+80?1:distance<profile.preferredDistance-80?-.75:.08;if(healthRatio<profile.fleeHealth&&enemy)radial=-1;if(profile.style==='brawler'&&enemy)radial=1;const strafeAmount=enemy?(profile.style==='kiter'?.82:profile.style==='ambusher'?.35:.55)*bot.strafe:.08;let movement=normalize({x:baseDirection.x*radial-baseDirection.y*strafeAmount,y:baseDirection.y*radial+baseDirection.x*strafeAmount});const threatening=[...this.projectiles.values()].filter(projectile=>projectile.ownerId!==player.id&&distanceSquared(projectile.position,player.position)<260*260).sort((a,b)=>distanceSquared(a.position,player.position)-distanceSquared(b.position,player.position))[0];if(threatening&&profile.dodge>Math.random()){const incoming=normalize(threatening.velocity),side=bot.strafe;movement=normalize({x:movement.x+-incoming.y*side*1.15,y:movement.y+incoming.x*side*1.15})}player.move=movement;const stats=derivedStats(player);if(stats.droneCount>0){player.primary=distance<760&&healthRatio>profile.fleeHealth;player.secondary=enemy?distance<230||(profile.style==='controller'&&Math.sin(now/650)>.45):false}else{const firingDistance=player.playerClass==='lancer'||player.playerClass==='railgun'||player.playerClass==='sniper'?1280:860;player.primary=distance<firingDistance&&hasLineOfSight(player.position,target);player.secondary=false}}
+  private spawnQueuedShapes(now:number):void{this.shapeRespawns.sort((a,b)=>a-b);while((this.shapeRespawns[0]??Infinity)<=now&&this.shapes.size<GAME.shapeTargetCount){this.shapeRespawns.shift();const shape=createShape(crypto.randomUUID());this.shapes.set(shape.id,shape)}}
 }

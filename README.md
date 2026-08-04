@@ -1,86 +1,74 @@
 # Project Maze
 
-Project Maze ist ein moderner, eigenständiger Browser-Arena-Prototyp mit autoritativem Server. Der Fokus liegt auf direktem Einstieg, präzisem Movement, Maze-Kämpfen, Build-Entscheidungen und einem starken Community-Loop.
+Project Maze ist ein eigenständiges, serverautoritäres Browser-Arena-Game mit Farming, Tank-Progression, Maze-Welt, Projektil-Kollisionen und Desktop-/Mobile-Steuerung.
 
-## Aktueller Alpha-Stand
+## Voraussetzungen
 
-- sofortiger Gastbeitritt ohne Account
-- responsiver PixiJS-Client für Desktop und Mobile
-- autoritative WebSocket-Simulation mit 30 Ticks pro Sekunde
-- drei unterschiedliche Klassen: Shooter, Sniper und Drone Controller
-- echte kontrollierbare Drone-Einheiten
-- Maze mit serverseitiger Wand- und Projektilkollision
-- Squares, Triangles und Pentagons mit unterschiedlichen Belohnungen
-- Levelsystem und sechs serverseitig geprüfte Upgrade-Werte
-- Auto-Fire, Kamera-Zoom und Dual-Stick-Touchsteuerung
-- sieben klar gekennzeichnete Bots für sinnvolle Solo-Tests
-- Kills, Tode, Respawn-Schutz, Killfeed und Leaderboard
-- Minimap und drei frei wählbare Themes
-- automatische Wiederverbindung nach einem Serverabbruch
-- grundlegende Validierung, Rate-Limits und Payload-Limits
+- Node.js 22 oder neuer
+- npm 10 oder neuer
 
 ## Lokal starten
-
-Voraussetzung: Node.js 22 oder neuer.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Danach öffnen:
+Danach:
 
-- Spiel: `http://localhost:5173`
-- Serverstatus: `http://localhost:2567/health`
+- Client: `http://localhost:5173`
+- Server-Health: `http://localhost:2567/health`
 
-Für einen echten Multiplayer-Test können mehrere Browserfenster geöffnet werden. Die Bots sorgen dafür, dass die Arena auch bei einem einzelnen Testspieler bereits lebt.
+Für einen lokalen Multiplayer-Test mehrere Browserfenster öffnen.
+
+## Scripts
+
+```bash
+npm run dev
+npm run typecheck
+npm run test
+npm run build
+```
+
+## Aktueller Alpha-Stand
+
+- feste 16:9-Sichtweite ohne Zoom-Vorteil
+- eigener Spieler bleibt exakt in der Bildschirmmitte
+- 6000 × 4000 große Maze-Welt
+- autoritative Bewegung, Beschleunigung, Wand- und Tank-Kollisionen
+- Kugeln kollidieren mit gegnerischen Kugeln
+- Farmobjekte mit XP, Leben, Body-Damage und Respawns
+- Level 1–45 und acht Upgrade-Werte
+- dreistufiger Klassenbaum mit Rapid-, Precision-, Control- und Impact-Pfad
+- Drohnensteuerung mit linker und rechter Maustaste
+- unterschiedliche Bot-Profile und Spielstile
+- Death-Screen und Respawn mit 50 % des vorherigen Levels
+- Desktop- und Mobile-Landscape-Steuerung
+- Area-of-Interest-Filter für dynamische Entitäten
 
 ## Steuerung
 
-| Aktion | Desktop | Mobile |
-| --- | --- | --- |
-| Bewegung | WASD oder Pfeiltasten | linker Stick |
-| Zielen | Maus | rechter Stick |
-| Schießen | linke Maustaste | rechter Stick |
-| Auto-Fire | E | Auto-Fire-Button |
-| Upgrade | Tasten 1–6 oder HUD | HUD |
-| Zoom | Mausrad | vorerst automatisch |
+### Desktop
 
-## Optionale Umgebungsvariablen
+- `WASD` oder Pfeiltasten: Bewegen
+- Maus: Zielen
+- Linke Maustaste: Feuern / Drohnen angreifen lassen
+- Rechte Maustaste: Drohnen von der Mausposition wegdrücken
+- `E`: Auto-Fire
+- `1–8`: Upgrade wählen
 
-```env
-PORT=2567
-BOT_COUNT=7
-ALLOWED_ORIGIN=*
-```
+### Mobile
 
-Für einen extern gehosteten Server kann im Client gesetzt werden:
-
-```env
-VITE_WS_URL=wss://dein-game-server.example
-```
+- linker Stick: Bewegen
+- rechter Stick: Zielen und Primäraktion
+- `REPEL`: Drohnen-Sekundäraktion
 
 ## Architektur
 
 ```text
-apps/client        PixiJS-Rendering, HUD, Kamera, Desktop- und Touch-Input
-apps/server        autoritative Simulation, Bots, Kollision und WebSocket-Transport
-packages/shared    gemeinsame Netzwerktypen, Spielkonstanten und Upgrade-Definitionen
+apps/client       PixiJS-Rendering, Eingaben, HUD
+apps/server       autoritative Simulation und WebSocket-Server
+packages/shared   Netzwerktypen, Klassen- und Progressionsregeln
 ```
 
-Der Client sendet ausschließlich Eingaben und Upgrade-Wünsche. Positionen, Feuerraten, Treffer, Schaden, XP, Level, Skillpunkte und Respawns werden vom Server entschieden.
-
-## Qualitätsbefehle
-
-```bash
-npm run typecheck
-npm run build
-```
-
-## Nächste große Schritte
-
-1. Delta-Snapshots und bessere Interpolation für geringeren Netzwerkverbrauch
-2. echtes Matchmaking und mehrere isolierte Arenen
-3. Party-Links und private Lobbys
-4. Sounddesign, Trefferfeedback und Screen-Shake-Einstellungen
-5. öffentliche Testserver und anschließend optionale Accounts
+Der Client sendet ausschließlich Eingaben. Positionen, Treffer, XP, Klassenwahl, Respawns und Projektile werden serverseitig validiert und simuliert.

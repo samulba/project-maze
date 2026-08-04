@@ -1,17 +1,19 @@
 {
   "name": "project-maze",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.3.0",
   "type": "module",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "predev": "npm run build -w @project-maze/shared",
     "dev": "concurrently -n client,server -c auto \"npm run dev -w @project-maze/client\" \"npm run dev -w @project-maze/server\"",
     "build": "npm run build -w @project-maze/shared && npm run build -w @project-maze/server && npm run build -w @project-maze/client",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run"
   },
   "devDependencies": {
     "concurrently": "^9.2.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   }
 }
