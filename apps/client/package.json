@@ -1,0 +1,18 @@
+{
+  "name": "@project-maze/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@project-maze/shared": "*",
+    "pixi.js": "^8.12.0"
+  },
+  "devDependencies": {
+    "vite": "^7.1.1"
+  }
+}
