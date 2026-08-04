@@ -1,9 +1,16 @@
 import type { PlayerClass } from '@project-maze/shared';
 
+const HEAVY_CLASSES = new Set<PlayerClass>(['sniper', 'railgun', 'lancer', 'phantom', 'bulwark', 'fortress']);
+const RAPID_CLASSES = new Set<PlayerClass>(['rapid', 'twin', 'repeater', 'storm', 'gatling']);
+
 export class GameAudio {
   private context: AudioContext | null = null;
   unlock(): void { try { this.context ??= new AudioContext(); void this.context.resume(); } catch { this.context = null; } }
-  shot(playerClass: PlayerClass): void { const heavy = playerClass === 'sniper' || playerClass === 'railgun' || playerClass === 'lancer'; this.tone(heavy ? 105 : 185, heavy ? 0.11 : 0.055, heavy ? 0.055 : 0.026, 'square'); }
+  shot(playerClass: PlayerClass): void {
+    const heavy = HEAVY_CLASSES.has(playerClass);
+    const rapid = RAPID_CLASSES.has(playerClass);
+    this.tone(heavy ? 105 : rapid ? 215 : 175, heavy ? 0.11 : rapid ? 0.04 : 0.06, heavy ? 0.055 : rapid ? 0.018 : 0.026, heavy ? 'square' : 'triangle');
+  }
   damage(): void { this.tone(78, 0.12, 0.04, 'sawtooth'); }
   kill(): void { this.sequence([330, 470, 660], 0.055, 0.025); }
   level(): void { this.sequence([420, 560, 760], 0.06, 0.022); }
