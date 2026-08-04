@@ -23,6 +23,7 @@ const editableTarget = (target: EventTarget | null): boolean => {
 export class GameplayUI {
   private readonly root: HTMLElement;
   private readonly send: SendMessage;
+  private readonly loadoutPanel: HTMLElement;
   private readonly moduleSelect: HTMLSelectElement;
   private readonly modifierSelect: HTMLSelectElement;
   private readonly abilityButton: HTMLButtonElement;
@@ -52,6 +53,7 @@ export class GameplayUI {
         <label>FRAME<select data-modifier-select></select></label>
       </div>
       <div class="core-loadout-description" data-loadout-description></div>`;
+    this.loadoutPanel = loadout;
 
     const playButton = root.querySelector('#join-button');
     playButton?.parentElement?.insertBefore(loadout, playButton);
@@ -132,6 +134,12 @@ export class GameplayUI {
 
   onWelcome(): void {
     this.connected = true;
+    const deathCard = this.root.querySelector<HTMLElement>('.death-card');
+    const respawnButton = deathCard?.querySelector<HTMLElement>('#respawn-button');
+    if (deathCard && this.loadoutPanel.parentElement !== deathCard) {
+      if (respawnButton) deathCard.insertBefore(this.loadoutPanel, respawnButton);
+      else deathCard.append(this.loadoutPanel);
+    }
     this.sendLoadout();
   }
 
