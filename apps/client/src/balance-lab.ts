@@ -5,6 +5,16 @@ import {
   type PlayerClass
 } from '@project-maze/shared';
 import { classBalanceMetrics } from '@project-maze/shared/balance';
+import {
+  ACTIVE_MODULE_DEFINITIONS,
+  ACTIVE_MODULE_IDS,
+  DEFAULT_ACTIVE_MODULE,
+  DEFAULT_PASSIVE_MODIFIER,
+  PASSIVE_MODIFIER_DEFINITIONS,
+  PASSIVE_MODIFIER_IDS,
+  type ActiveModuleId,
+  type PassiveModifierId
+} from '@project-maze/shared/gameplay';
 
 export type DebugPreset = 'blank' | 'balanced' | 'offense' | 'defense' | 'mobility';
 type SendDebug = (message: object) => void;
@@ -41,6 +51,8 @@ export class BalanceLab {
   private readonly classSelect: HTMLSelectElement | null;
   private readonly levelSelect: HTMLSelectElement | null;
   private readonly presetSelect: HTMLSelectElement | null;
+  private readonly moduleSelect: HTMLSelectElement | null;
+  private readonly modifierSelect: HTMLSelectElement | null;
   private readonly title: HTMLElement | null;
   private readonly description: HTMLElement | null;
   private readonly ability: HTMLElement | null;
@@ -54,6 +66,8 @@ export class BalanceLab {
       this.classSelect = null;
       this.levelSelect = null;
       this.presetSelect = null;
+      this.moduleSelect = null;
+      this.modifierSelect = null;
       this.title = null;
       this.description = null;
       this.ability = null;
@@ -87,17 +101,19 @@ export class BalanceLab {
           <div class="balance-lab-fields">
             <label>KLASSE<select data-lab-class></select></label>
             <label>LEVEL<select data-lab-level>${[10, 24, 38, 45].map((level) => `<option value="${level}">${level}</option>`).join('')}</select></label>
-            <label>BUILD<select data-lab-preset>
+            <label>STAT-BUILD<select data-lab-preset>
               <option value="balanced">Balanced</option>
               <option value="offense">Offense</option>
               <option value="defense">Defense</option>
               <option value="mobility">Mobility</option>
               <option value="blank">Punkte selbst verteilen</option>
             </select></label>
+            <label>CORE MODULE<select data-lab-module></select></label>
+            <label>FRAME<select data-lab-modifier></select></label>
           </div>
           <div class="balance-lab-metrics" data-lab-metrics></div>
           <div class="balance-lab-actions">
-            <button type="button" class="primary" data-lab-apply>BUILD LADEN</button>
+            <button type="button" class="primary" data-lab-apply>LOADOUT LADEN</button>
             <button type="button" data-lab-heal>HEILEN</button>
             <button type="button" data-lab-clear>PROJEKTILE LÖSCHEN</button>
           </div>
@@ -107,7 +123,7 @@ export class BalanceLab {
             <button type="button" data-lab-dummy>KLASSE ALS TARGET SPAWNEN</button>
             <button type="button" data-lab-clear-dummies>TARGETS LÖSCHEN</button>
           </div>
-          <p class="balance-lab-note">Die aktuell ausgewählte Klasse wird auch für neue Testziele verwendet. Nur lokal aktiv; Produktion bleibt gesperrt.</p>
+          <p class="balance-lab-note">Tank, Level, Stats, Modul und Frame werden gemeinsam geladen. Die ausgewählte Klasse wird auch für neue Testziele verwendet.</p>
         </div>
       </div>`;
 
@@ -117,12 +133,14 @@ export class BalanceLab {
     this.classSelect = panel.querySelector<HTMLSelectElement>('[data-lab-class]');
     this.levelSelect = panel.querySelector<HTMLSelectElement>('[data-lab-level]');
     this.presetSelect = panel.querySelector<HTMLSelectElement>('[data-lab-preset]');
+    this.moduleSelect = panel.querySelector<HTMLSelectElement>('[data-lab-module]');
+    this.modifierSelect = panel.querySelector<HTMLSelectElement>('[data-lab-modifier]');
     this.title = panel.querySelector<HTMLElement>('[data-lab-title]');
     this.description = panel.querySelector<HTMLElement>('[data-lab-description]');
     this.ability = panel.querySelector<HTMLElement>('[data-lab-ability]');
     this.metrics = panel.querySelector<HTMLElement>('[data-lab-metrics]');
 
-    if (!this.classSelect || !this.levelSelect || !this.presetSelect) return;
+    if (!this.classSelect || !this.levelSelect || !this.presetSelect || !this.moduleSelect || !this.modifierSelect) return;
 
     for (const playerClass of PLAYER_CLASS_IDS) {
       const definition = CLASS_DEFINITIONS[playerClass];
@@ -130,6 +148,20 @@ export class BalanceLab {
       option.value = playerClass;
       option.textContent = `${definition.label} · L${definition.unlockLevel}`;
       this.classSelect.append(option);
+    }
+    for (const module of ACTIVE_MODULE_IDS) {
+      const definition = ACTIVE_MODULE_DEFINITIONS[module];
+      const option = document.createElement('option');
+      option.value = module;
+      option.textContent = `${definition.label} · ${(definition.cooldownMs / 1000).toFixed(0)}s`;
+      this.moduleSelect.append(option);
+    }
+    for (const modifier of PASSIVE_MODIFIER_IDS) {
+      const definition = PASSIVE_MODIFIER_DEFINITIONS[modifier];
+      const option = document.createElement('option');
+      option.value = modifier;
+      option.textContent = definition.label;
+      this.modifierSelect.append(option);
     }
 
     const classes = panel.querySelector<HTMLElement>('[data-lab-classes]');
@@ -180,6 +212,11 @@ export class BalanceLab {
         level: Number(this.levelSelect?.value ?? GAME.maxLevel),
         preset: this.presetSelect?.value as DebugPreset
       });
+      send({
+        type: 'equipLoadout',
+        activeModule: this.moduleSelect?.value as ActiveModuleId,
+        passiveModifier: this.modifierSelect?.value as PassiveModifierId
+      });
     });
     panel.querySelector<HTMLElement>('[data-lab-heal]')?.addEventListener('click', () => send({ type: 'debug', action: 'heal' }));
     panel.querySelector<HTMLElement>('[data-lab-clear]')?.addEventListener('click', () => send({ type: 'debug', action: 'clearProjectiles' }));
@@ -209,6 +246,8 @@ export class BalanceLab {
 
     this.classSelect.value = 'core';
     this.levelSelect.value = '45';
+    this.moduleSelect.value = DEFAULT_ACTIVE_MODULE;
+    this.modifierSelect.value = DEFAULT_PASSIVE_MODIFIER;
     this.renderClass('core');
   }
 
