@@ -10,6 +10,7 @@ import {
   type PlayerSnapshot,
   type UpgradeId
 } from '@project-maze/shared';
+import { tunedStatsFor } from './combat-tuning.js';
 import { MazeGame } from './game.js';
 
 export type DebugPreset = 'blank' | 'balanced' | 'offense' | 'defense' | 'mobility';
@@ -78,6 +79,8 @@ export function applyDebugBuild(game: MazeGame, playerId: string, request: Debug
   player.invulnerable = true;
   player.invulnerableUntil = now + 900;
   player.lastDamageAt = now;
+  player.maxHealth = tunedStatsFor(player).maxHealth;
+  player.health = player.maxHealth;
 
   for (const nextClass of lineage(request.playerClass)) internals.chooseClass(player.id, nextClass);
 
@@ -92,6 +95,7 @@ export function applyDebugBuild(game: MazeGame, playerId: string, request: Debug
     }
   }
 
+  player.maxHealth = tunedStatsFor(player).maxHealth;
   player.health = player.maxHealth;
   internals.removeOwnerDrones(player.id);
   internals.spawnInitialDrones(player, now);
