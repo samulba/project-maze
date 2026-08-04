@@ -112,11 +112,12 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
       else if (owner.primary) target = { x: owner.position.x + aim.x, y: owner.position.y + aim.y };
 
       const direction = normalize({ x: target.x - drone.position.x, y: target.y - drone.position.y });
-      const speed = archetype.speed * modifier.moveMultiplier;
+      const travelMultiplier = modifier.moveMultiplier * modifier.projectileSpeedMultiplier;
+      const speed = archetype.speed * travelMultiplier;
       drone.velocity = moveVectorToward(
         drone.velocity,
         { x: direction.x * speed, y: direction.y * speed },
-        archetype.acceleration * modifier.moveMultiplier * dt
+        archetype.acceleration * travelMultiplier * dt
       );
       const moved = moveCircle(drone.position, drone.velocity, dt, radius);
       drone.position = moved.position;
