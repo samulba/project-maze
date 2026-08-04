@@ -38,7 +38,7 @@ const hitSet = (projectile: object): Set<string> => {
 };
 const bodyDamage = (player: RuntimePlayer): number => {
   const definition = CLASS_DEFINITIONS[player.playerClass];
-  return definition.bodyDamage * (1 + player.upgrades.bodyDamage * 0.13);
+  return definition.bodyDamage * (1 + player.upgrades.bodyDamage * 0.1);
 };
 const inFixedView = (position: Vector2, center: Vector2, padding = 0): boolean =>
   Math.abs(position.x - center.x) <= GAME.visibleWorldWidth / 2 + padding &&
