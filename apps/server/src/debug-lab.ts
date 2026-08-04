@@ -41,10 +41,18 @@ interface DebugInternals {
   chooseClass(playerId: string, target: PlayerClass): boolean;
   damagePlayer(target: RuntimePlayer, damage: number, attackerId: string | null, now: number): void;
   updateBot(player: RuntimePlayer, now: number): void;
+  killPlayer(target: RuntimePlayer, attackerId: string | null, now: number, environmentName: string): void;
+}
+interface DummyRespawn {
+  at: number;
+  position: Vector2;
+  angle: number;
+  playerClass: PlayerClass;
 }
 interface DebugState {
   godPlayers: Set<string>;
   dummyIds: Set<string>;
+  dummyRespawns: Map<string, DummyRespawn>;
   botsPaused: boolean;
 }
 
@@ -52,7 +60,12 @@ const states = new WeakMap<MazeGame, DebugState>();
 const stateFor = (game: MazeGame): DebugState => {
   const existing = states.get(game);
   if (existing) return existing;
-  const created: DebugState = { godPlayers: new Set(), dummyIds: new Set(), botsPaused: false };
+  const created: DebugState = {
+    godPlayers: new Set(),
+    dummyIds: new Set(),
+    dummyRespawns: new Map(),
+    botsPaused: false
+  };
   states.set(game, created);
   return created;
 };
@@ -78,11 +91,13 @@ function lineage(target: PlayerClass): PlayerClass[] {
 export function tuneDebugRules<T extends MazeGame>(game: T): T {
   const internals = game as unknown as DebugInternals;
   const state = stateFor(game);
+
   const originalDamagePlayer = internals.damagePlayer.bind(internals);
   internals.damagePlayer = (target: RuntimePlayer, damage: number, attackerId: string | null, now: number): void => {
     if (state.godPlayers.has(target.id)) return;
     originalDamagePlayer(target, damage, attackerId, now);
   };
+
   const originalUpdateBot = internals.updateBot.bind(internals);
   internals.updateBot = (player: RuntimePlayer, now: number): void => {
     if (state.botsPaused) {
@@ -93,6 +108,46 @@ export function tuneDebugRules<T extends MazeGame>(game: T): T {
     }
     originalUpdateBot(player, now);
   };
+
+  const originalKillPlayer = internals.killPlayer.bind(internals);
+  internals.killPlayer = (target: RuntimePlayer, attackerId: string | null, now: number, environmentName: string): void => {
+    const isDummy = state.dummyIds.has(target.id);
+    const respawn = isDummy ? {
+      at: now + 1200,
+      position: { ...target.position },
+      angle: target.angle,
+      playerClass: target.playerClass
+    } satisfies DummyRespawn : null;
+    originalKillPlayer(target, attackerId, now, environmentName);
+    if (!respawn) return;
+    target.canRespawnAt = now + 86_400_000;
+    target.autoRespawnAt = now + 86_400_000;
+    state.dummyRespawns.set(target.id, respawn);
+  };
+
+  const originalStep = game.step.bind(game);
+  game.step = ((dt: number, now = Date.now()): void => {
+    originalStep(dt, now);
+    for (const [id, respawn] of state.dummyRespawns) {
+      if (now < respawn.at) continue;
+      const dummy = internals.players.get(id);
+      if (!dummy) {
+        state.dummyRespawns.delete(id);
+        state.dummyIds.delete(id);
+        continue;
+      }
+      applyDebugBuild(game, id, { playerClass: respawn.playerClass, level: GAME.maxLevel, preset: 'balanced' }, now);
+      dummy.position = { ...respawn.position };
+      dummy.angle = respawn.angle;
+      dummy.velocity = { x: 0, y: 0 };
+      dummy.move = { x: 0, y: 0 };
+      dummy.aim = { x: 0, y: 0 };
+      dummy.invulnerable = false;
+      dummy.invulnerableUntil = 0;
+      state.dummyRespawns.delete(id);
+    }
+  }) as T['step'];
+
   return game;
 }
 
@@ -217,4 +272,5 @@ export function clearDebugDummies(game: MazeGame): void {
   const state = stateFor(game);
   for (const id of state.dummyIds) game.removePlayer(id);
   state.dummyIds.clear();
+  state.dummyRespawns.clear();
 }
