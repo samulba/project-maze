@@ -12,6 +12,7 @@ import {
   type ServerMessage
 } from '@project-maze/shared';
 import { MazeGame } from './game.js';
+import { tuneProgression } from './progression-tuning.js';
 import { hardenSimulation } from './simulation-hardening.js';
 
 function integerEnvironment(name: string, fallback: number, minimum: number, maximum: number): number {
@@ -22,6 +23,7 @@ function integerEnvironment(name: string, fallback: number, minimum: number, max
 
 const PORT = integerEnvironment('PORT', 2567, 1, 65535);
 const BOT_COUNT = integerEnvironment('BOT_COUNT', 10, 0, 18);
+const NETWORK_SNAPSHOT_RATE = 30;
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN?.trim() || '*';
 const allowedOrigins = ALLOWED_ORIGIN === '*'
   ? null
@@ -37,7 +39,7 @@ app.disable('x-powered-by');
 app.use(cors({ origin: allowedOrigins ? [...allowedOrigins] : true }));
 const server = createServer(app);
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
-const game = hardenSimulation(new MazeGame(BOT_COUNT));
+const game = tuneProgression(hardenSimulation(new MazeGame(BOT_COUNT)));
 const socketPlayerIds = new WeakMap<WebSocket, string>();
 const socketAlive = new WeakMap<WebSocket, boolean>();
 
@@ -152,7 +154,7 @@ const snapshotTimer = setInterval(() => {
     const playerId = socketPlayerIds.get(socket);
     if (playerId) send(socket, game.snapshot(playerId), true);
   }
-}, 1000 / GAME.snapshotRate);
+}, 1000 / NETWORK_SNAPSHOT_RATE);
 const heartbeatTimer = setInterval(() => {
   for (const socket of wss.clients) {
     if (socketAlive.get(socket) === false) {
@@ -172,6 +174,7 @@ app.get('/health', (_request: Request, response: Response) => response.json({
   humans: game.humanCount,
   ...game.entityCounts,
   mode: 'maze-alpha',
-  version: '0.3.1'
+  version: '0.4.0',
+  snapshotRate: NETWORK_SNAPSHOT_RATE
 }));
 server.listen(PORT, () => console.log(`Project Maze server listening on http://localhost:${PORT}`));
