@@ -1,3 +1,6 @@
+.start-card .eyebrow { font-size:0; }
+.start-card .eyebrow::after { content:'PLAYABLE ALPHA 0.8'; font-size:10px; }
+.start-card .eyebrow > span { font-size:10px; }
 .balance-lab-toggle {
   position: fixed;
   right: 18px;
