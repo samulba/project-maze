@@ -16,6 +16,7 @@ import { GameAudio } from './audio';
 import { BalanceCombatMeter } from './balance-combat-meter';
 import { BalanceLab } from './balance-lab';
 import { enhanceClassChoices } from './class-choice-enhancer';
+import { GameplayUI } from './gameplay-ui';
 import { InputController } from './input';
 import { GameRenderer } from './renderer';
 import { GameUI, type JoinOptions } from './ui';
@@ -23,6 +24,7 @@ import './style.css';
 import './stability.css';
 import './balance-lab.css';
 import './class-choice.css';
+import './gameplay-ui.css';
 
 let socket: WebSocket | null = null;
 let joinOptions: JoinOptions | null = null;
@@ -65,6 +67,7 @@ const ui = new GameUI(
     send(message);
   }
 );
+const gameplayUI = new GameplayUI(ui.root, send);
 new BalanceLab(ui.root, send);
 const balanceCombatMeter = new BalanceCombatMeter(ui.root);
 enhanceClassChoices(ui.root);
@@ -138,6 +141,7 @@ function connect(): void {
     currentSelfDead = true;
     previousSelf = null;
     previousProjectileIds.clear();
+    gameplayUI.onDisconnect();
     if (input?.resetAll()) ui.setAutoFire(false);
     input?.setEnabled(false);
     ui.setConnection('offline', 'VERBINDUNG VERLOREN');
@@ -165,6 +169,7 @@ function handleServerMessage(message: ServerMessage): void {
     previousProjectileIds.clear();
     ui.setJoinPending(false);
     ui.enterGame();
+    gameplayUI.onWelcome();
     enteredGame = true;
     ui.setConnection('online', 'MAZE ALPHA');
     ui.toast('Arena betreten', 'Farme Formen und entwickle deinen Tank.', 'success');
@@ -188,6 +193,7 @@ function handleServerMessage(message: ServerMessage): void {
 
 function updateWorld(snapshot: WorldSnapshot): void {
   balanceCombatMeter.update(snapshot);
+  gameplayUI.update(snapshot);
   const self = snapshot.players.find((player) => player.id === snapshot.selfId) ?? null;
   if (self) playSnapshotAudio(snapshot, self);
   renderer.setSnapshot(snapshot);
