@@ -22,6 +22,7 @@ interface RuntimePlayer extends PlayerSnapshot {
   cooldown: number;
   invulnerableUntil: number;
   lastDamageAt: number;
+  bot: unknown | null;
   passiveModifier?: PassiveModifierId;
 }
 
@@ -159,18 +160,23 @@ export function activateModule(game: MazeGame, playerId: string, now = Date.now(
   const definition = ACTIVE_MODULE_DEFINITIONS[loadout.activeModule];
   if (now < loadout.readyAt || now < loadout.activeUntil) return false;
 
+  let dashDirection: Vector2 | null = null;
+  if (loadout.activeModule === 'dash') {
+    const movement = clampMagnitude(player.move, 1);
+    dashDirection = Math.hypot(movement.x, movement.y) > 0.12 ? normalize(movement) : normalize(player.aim);
+    if (Math.hypot(dashDirection.x, dashDirection.y) < 0.01) return false;
+  }
+  if (loadout.activeModule === 'repair' && player.health >= player.maxHealth - 0.5) return false;
+
   player.invulnerable = false;
   player.invulnerableUntil = 0;
   loadout.readyAt = now + definition.cooldownMs;
   loadout.activeUntil = now + definition.activeMs;
 
-  if (loadout.activeModule === 'dash') {
-    const movement = clampMagnitude(player.move, 1);
-    const direction = Math.hypot(movement.x, movement.y) > 0.12 ? normalize(movement) : normalize(player.aim);
-    if (Math.hypot(direction.x, direction.y) < 0.01) return false;
-    const moved = moveCircle(player.position, { x: direction.x * 1_050, y: direction.y * 1_050 }, 0.18, GAME.playerRadius);
+  if (loadout.activeModule === 'dash' && dashDirection) {
+    const moved = moveCircle(player.position, { x: dashDirection.x * 1_050, y: dashDirection.y * 1_050 }, 0.18, GAME.playerRadius);
     player.position = moved.position;
-    player.velocity = { x: direction.x * 480, y: direction.y * 480 };
+    player.velocity = { x: dashDirection.x * 480, y: dashDirection.y * 480 };
     player.primary = false;
     player.secondary = false;
     player.cooldown = Math.max(player.cooldown, 0.32);
@@ -210,11 +216,6 @@ export function activateModule(game: MazeGame, playerId: string, now = Date.now(
     return true;
   }
 
-  if (player.health >= player.maxHealth - 0.5) {
-    loadout.readyAt = now + 1_000;
-    loadout.activeUntil = 0;
-    return false;
-  }
   loadout.repairStartedAt = now;
   loadout.repairLastTickAt = now;
   loadout.repairEndsAt = now + definition.activeMs;
