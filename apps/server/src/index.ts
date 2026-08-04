@@ -11,6 +11,7 @@ import {
   type ClientMessage,
   type ServerMessage
 } from '@project-maze/shared';
+import { tuneDifficulty } from './difficulty-tuning.js';
 import { MazeGame } from './game.js';
 import { tuneProgression } from './progression-tuning.js';
 import { hardenSimulation } from './simulation-hardening.js';
@@ -38,7 +39,7 @@ app.disable('x-powered-by');
 app.use(cors({ origin: allowedOrigins ? [...allowedOrigins] : true }));
 const server = createServer(app);
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
-const game = tuneProgression(hardenSimulation(new MazeGame(BOT_COUNT)));
+const game = tuneProgression(tuneDifficulty(hardenSimulation(new MazeGame(BOT_COUNT))));
 const socketPlayerIds = new WeakMap<WebSocket, string>();
 const socketAlive = new WeakMap<WebSocket, boolean>();
 
@@ -173,7 +174,7 @@ app.get('/health', (_request: Request, response: Response) => response.json({
   humans: game.humanCount,
   ...game.entityCounts,
   mode: 'maze-alpha',
-  version: '0.5.0',
+  version: '0.5.1',
   snapshotRate: GAME.snapshotRate
 }));
 server.listen(PORT, () => console.log(`Project Maze server listening on http://localhost:${PORT}`));
