@@ -12,14 +12,14 @@ import {
 import { ParticleField } from './particles';
 
 interface Palette {
-  background:number; grid:number; border:number; wall:number; wallEdge:number;
+  background:number; outside:number; grid:number; border:number; wall:number; wallEdge:number;
   self:number; enemy:number; barrel:number; projectile:number; drone:number;
   square:number; triangle:number; pentagon:number; label:number;
 }
 const PALETTES:Record<ThemeId,Palette>={
-  midnight:{background:0x070910,grid:0x151a28,border:0x3d4661,wall:0x222839,wallEdge:0x3f4964,self:0x7d88ff,enemy:0xe7677b,barrel:0xc4cad9,projectile:0xf5f7ff,drone:0x78d7c7,square:0x6574dd,triangle:0xe6a954,pentagon:0xcf6eb5,label:0xe9ecf5},
-  void:{background:0x030407,grid:0x111317,border:0x31343b,wall:0x181b20,wallEdge:0x343942,self:0xb8ff6a,enemy:0xff5c76,barrel:0xdde2e8,projectile:0xffffff,drone:0x65e7c2,square:0x6b7c8f,triangle:0xffb84d,pentagon:0xc77dff,label:0xf1f3f5},
-  classic:{background:0xe8ebf0,grid:0xd5d9e1,border:0x818a9b,wall:0xaab1bf,wallEdge:0x7e8798,self:0x536dfe,enemy:0xf14e63,barrel:0x727b8d,projectile:0x343a46,drone:0x2ba887,square:0x6f7ee8,triangle:0xe5a044,pentagon:0xbd5c9d,label:0x252a34}
+  midnight:{background:0x070910,outside:0x020307,grid:0x151a28,border:0x3d4661,wall:0x222839,wallEdge:0x3f4964,self:0x7d88ff,enemy:0xe7677b,barrel:0xc4cad9,projectile:0xf5f7ff,drone:0x78d7c7,square:0x6574dd,triangle:0xe6a954,pentagon:0xcf6eb5,label:0xe9ecf5},
+  void:{background:0x030407,outside:0x000000,grid:0x111317,border:0x31343b,wall:0x181b20,wallEdge:0x343942,self:0xb8ff6a,enemy:0xff5c76,barrel:0xdde2e8,projectile:0xffffff,drone:0x65e7c2,square:0x6b7c8f,triangle:0xffb84d,pentagon:0xc77dff,label:0xf1f3f5},
+  classic:{background:0xe8ebf0,outside:0xcbd0da,grid:0xd5d9e1,border:0x818a9b,wall:0xaab1bf,wallEdge:0x7e8798,self:0x536dfe,enemy:0xf14e63,barrel:0x727b8d,projectile:0x343a46,drone:0x2ba887,square:0x6f7ee8,triangle:0xe5a044,pentagon:0xbd5c9d,label:0x252a34}
 };
 
 interface PlayerView {
@@ -46,6 +46,8 @@ export class GameRenderer {
   private readonly drones=new Graphics();
   private readonly players=new Container();
   private readonly particles=new ParticleField();
+  private readonly viewportMask=new Graphics();
+  private readonly viewportFrame=new Graphics();
   private readonly crosshair=new Graphics();
   private readonly playerViews=new Map<string,PlayerView>();
   private snapshot:WorldSnapshot|null=null;
@@ -56,16 +58,20 @@ export class GameRenderer {
   private secondary=false;
   private showCrosshair=false;
   private scale=1;
+  private viewport={x:0,y:0,width:1280,height:720};
   private time=0;
   private wallsSignature='';
   private knownProjectiles=new Set<string>();
   private knownShapes=new Map<string,ShapeSnapshot>();
 
   async init(root:HTMLElement):Promise<void>{
-    await this.app.init({resizeTo:window,antialias:true,background:this.palette.background,resolution:Math.min(devicePixelRatio||1,2),autoDensity:true,preference:'webgl'});
+    await this.app.init({resizeTo:window,antialias:true,background:this.palette.outside,resolution:Math.min(devicePixelRatio||1,2),autoDensity:true,preference:'webgl'});
     root.prepend(this.app.canvas);
     this.world.addChild(this.background,this.walls,this.shapes,this.trails,this.projectiles,this.drones,this.particles.graphics,this.players);
-    this.app.stage.addChild(this.world,this.crosshair);
+    this.world.mask=this.viewportMask;
+    this.app.stage.addChild(this.world,this.viewportMask,this.viewportFrame,this.crosshair);
+    this.resizeViewport();
+    window.addEventListener('resize',()=>this.resizeViewport());
     this.drawBackground();
     this.app.ticker.add(ticker=>this.render(Math.min(.05,ticker.deltaMS/1000)));
   }
@@ -84,7 +90,8 @@ export class GameRenderer {
   }
 
   screenPointToWorldAim(pointer:Vector2):Vector2{
-    const direction={x:(pointer.x-this.app.screen.width/2)/Math.max(.001,this.scale),y:(pointer.y-this.app.screen.height/2)/Math.max(.001,this.scale)};
+    const center={x:this.viewport.x+this.viewport.width/2,y:this.viewport.y+this.viewport.height/2};
+    const direction={x:(pointer.x-center.x)/Math.max(.001,this.scale),y:(pointer.y-center.y)/Math.max(.001,this.scale)};
     const length=Math.hypot(direction.x,direction.y);
     if(length<=GAME.maxAimDistance)return direction;
     const factor=GAME.maxAimDistance/Math.max(.001,length);
@@ -93,7 +100,8 @@ export class GameRenderer {
 
   setTheme(theme:ThemeId):void{
     this.palette=PALETTES[theme];
-    this.app.renderer.background.color=this.palette.background;
+    this.app.renderer.background.color=this.palette.outside;
+    this.resizeViewport();
     this.drawBackground();
     if(this.snapshot)this.drawWalls(this.snapshot);
     for(const view of this.playerViews.values())this.redrawPlayer(view,true);
@@ -154,15 +162,25 @@ export class GameRenderer {
       view.shield.alpha=view.snapshot.invulnerable?.45+Math.sin(this.time*8)*.16:0;
     }
     if(self){
-      this.scale=Math.min(this.app.screen.width/GAME.visibleWorldWidth,this.app.screen.height/GAME.visibleWorldHeight);
+      this.scale=this.viewport.height/GAME.visibleWorldHeight;
       this.world.scale.set(this.scale);
-      this.world.position.set(this.app.screen.width/2,this.app.screen.height/2);
+      this.world.position.set(this.viewport.x+this.viewport.width/2,this.viewport.y+this.viewport.height/2);
       this.world.pivot.set(self.current.x,self.current.y);
     }
     this.drawDynamic();
     this.particles.update(delta);
     this.particles.draw();
     this.drawCrosshair();
+  }
+
+  private resizeViewport():void{
+    const screenWidth=this.app.screen.width||window.innerWidth;
+    const screenHeight=this.app.screen.height||window.innerHeight;
+    const width=Math.min(screenWidth,screenHeight*16/9);
+    const height=width*9/16;
+    this.viewport={x:(screenWidth-width)/2,y:(screenHeight-height)/2,width,height};
+    this.viewportMask.clear().rect(this.viewport.x,this.viewport.y,this.viewport.width,this.viewport.height).fill(0xffffff);
+    this.viewportFrame.clear().rect(this.viewport.x,this.viewport.y,this.viewport.width,this.viewport.height).stroke({color:this.palette.border,alpha:.55,width:2});
   }
 
   private drawBackground():void{
@@ -238,8 +256,10 @@ export class GameRenderer {
   private drawCrosshair():void{
     this.crosshair.clear();if(!this.showCrosshair)return;
     const radius=this.primary||this.secondary?12:10;const color=this.palette.self;
-    this.crosshair.circle(this.pointer.x,this.pointer.y,2).fill({color,alpha:.9});
-    this.crosshair.circle(this.pointer.x,this.pointer.y,radius).stroke({color,alpha:.55,width:1.5});
+    const x=clamp(this.pointer.x,this.viewport.x+8,this.viewport.x+this.viewport.width-8);
+    const y=clamp(this.pointer.y,this.viewport.y+8,this.viewport.y+this.viewport.height-8);
+    this.crosshair.circle(x,y,2).fill({color,alpha:.9});
+    this.crosshair.circle(x,y,radius).stroke({color,alpha:.55,width:1.5});
   }
   private shapeColor(shape:ShapeSnapshot):number{return shape.kind==='square'?this.palette.square:shape.kind==='triangle'?this.palette.triangle:this.palette.pentagon}
   private distanceToSelf(position:Vector2):number{const self=this.selfId?this.playerViews.get(this.selfId):undefined;return self?Math.hypot(position.x-self.current.x,position.y-self.current.y):Infinity}
