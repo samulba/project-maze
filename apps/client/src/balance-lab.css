@@ -60,16 +60,20 @@
 .balance-lab-metrics i { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#6975ef,#a0a8ff); }
 .balance-lab-metrics b { text-align:right; color:#f7f8ff; font-size:11px; }
 .balance-lab-actions { display:grid; grid-template-columns:1.25fr .75fr 1fr; gap:10px; margin-top:24px; }
-.balance-lab-actions button { min-height:42px; border:1px solid rgba(255,255,255,.12); border-radius:10px; background:rgba(255,255,255,.045); color:#fff; font:750 10px Inter,system-ui,sans-serif; letter-spacing:.07em; cursor:pointer; }
-.balance-lab-actions button:hover { background:rgba(255,255,255,.08); }
+.balance-lab-actions button,.balance-lab-tools button { min-height:42px; border:1px solid rgba(255,255,255,.12); border-radius:10px; background:rgba(255,255,255,.045); color:#fff; font:750 10px Inter,system-ui,sans-serif; letter-spacing:.07em; cursor:pointer; }
+.balance-lab-actions button:hover,.balance-lab-tools button:hover { background:rgba(255,255,255,.08); }
 .balance-lab-actions button.primary { border-color:transparent; background:#6f79ef; }
 .balance-lab-actions button.primary:hover { background:#818bf8; }
+.balance-lab-tools { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:10px; }
+.balance-lab-tools button.active { border-color:#7d88ff; background:rgba(125,136,255,.16); color:#cfd3ff; }
+.balance-lab-tools [data-lab-dummy] { border-color:rgba(115,227,189,.3); }
+.balance-lab-tools [data-lab-clear-dummies] { border-color:rgba(255,129,146,.24); }
 .balance-lab-note { margin:16px 0 0; color:#747d92; font-size:10px; line-height:1.5; }
 @media (max-width: 1000px) {
   .balance-lab-panel { inset:10px; }
   .balance-lab-layout { grid-template-columns:1fr; overflow:auto; }
   .balance-lab-classes { grid-template-columns:repeat(2,minmax(0,1fr)); border-right:0; border-bottom:1px solid rgba(255,255,255,.09); overflow:visible; }
-  .balance-lab-fields,.balance-lab-actions { grid-template-columns:1fr; }
+  .balance-lab-fields,.balance-lab-actions,.balance-lab-tools { grid-template-columns:1fr; }
 }
 @media (pointer:coarse) {
   .balance-lab-toggle { display:none; }
