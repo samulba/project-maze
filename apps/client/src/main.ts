@@ -14,12 +14,14 @@ import {
 } from '@project-maze/shared';
 import { GameAudio } from './audio';
 import { BalanceLab } from './balance-lab';
+import { enhanceClassChoices } from './class-choice-enhancer';
 import { InputController } from './input';
 import { GameRenderer } from './renderer';
 import { GameUI, type JoinOptions } from './ui';
 import './style.css';
 import './stability.css';
 import './balance-lab.css';
+import './class-choice.css';
 
 let socket: WebSocket | null = null;
 let joinOptions: JoinOptions | null = null;
@@ -63,6 +65,7 @@ const ui = new GameUI(
   }
 );
 new BalanceLab(ui.root, send);
+enhanceClassChoices(ui.root);
 
 await renderer.init(ui.root);
 input = new InputController(
