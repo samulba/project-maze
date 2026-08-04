@@ -1,8 +1,19 @@
-import { type JoinMessage, type ServerMessage, type ThemeId, type UpgradeId, type UpgradeMessage, type WorldSnapshot } from '@project-maze/shared';
+import {
+  GAME,
+  type JoinMessage,
+  type PlayerSnapshot,
+  type ServerMessage,
+  type ThemeId,
+  type UpgradeId,
+  type UpgradeMessage,
+  type WorldSnapshot
+} from '@project-maze/shared';
+import { GameAudio } from './audio';
 import { InputController } from './input';
 import { GameRenderer } from './renderer';
 import { GameUI, type JoinOptions } from './ui';
 import './style.css';
+import './feel.css';
 
 let socket: WebSocket | null = null;
 let joinOptions: JoinOptions | null = null;
@@ -11,6 +22,10 @@ let reconnectDelay = 1200;
 let lastLevel = 1;
 let joined = false;
 let input: InputController | null = null;
+let previousSelf: PlayerSnapshot | null = null;
+let previousProjectileIds = new Set<string>();
+
+const audio = new GameAudio();
 
 function sendUpgrade(upgrade: UpgradeId): void {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
@@ -20,6 +35,7 @@ function sendUpgrade(upgrade: UpgradeId): void {
 
 const ui = new GameUI(
   (options) => {
+    audio.unlock();
     joinOptions = options;
     renderer.setTheme(options.theme);
     ui.enterGame();
@@ -31,9 +47,17 @@ const ui = new GameUI(
 
 const renderer = new GameRenderer();
 await renderer.init(ui.root);
-input = new InputController(renderer.app.canvas, sendUpgrade, (enabled) => ui.setAutoFire(enabled));
+input = new InputController(renderer.app.canvas, sendUpgrade, (enabled) => ui.setAutoFire(enabled), () => renderer.getSelfScreenPosition());
 renderer.app.ticker.add(() => {
-  if (input) renderer.setCameraInput(input.getAim(), input.zoom);
+  if (!input) return;
+  renderer.setCameraInput(
+    input.getAim(),
+    input.getMovement(),
+    input.zoom,
+    input.getPointerPosition(),
+    input.isShooting,
+    joined && input.showCrosshair
+  );
 });
 
 function endpoint(): string {
@@ -71,6 +95,8 @@ function connect(): void {
 
   currentSocket.addEventListener('close', () => {
     joined = false;
+    previousSelf = null;
+    previousProjectileIds.clear();
     ui.setConnection('offline', 'VERBINDUNG VERLOREN');
     if (socket === currentSocket && joinOptions) {
       reconnectTimer = window.setTimeout(connect, reconnectDelay);
@@ -84,6 +110,9 @@ function connect(): void {
 function handleServerMessage(message: ServerMessage): void {
   if (message.type === 'welcome') {
     joined = true;
+    previousSelf = null;
+    previousProjectileIds.clear();
+    lastLevel = 1;
     ui.setConnection('online', 'MAZE ALPHA');
     ui.toast('Arena betreten', 'Zerstöre Formen, sammle Punkte und entwickle deinen Build.', 'success');
     return;
@@ -100,17 +129,34 @@ function handleServerMessage(message: ServerMessage): void {
 }
 
 function updateWorld(snapshot: WorldSnapshot): void {
+  const self = snapshot.players.find((player) => player.id === snapshot.selfId) ?? null;
+  if (self) playSnapshotAudio(snapshot, self);
   renderer.setSnapshot(snapshot);
-  const self = ui.update(snapshot);
-  if (!self) return;
-  if (self.level > lastLevel) ui.toast(`Level ${self.level}`, 'Du hast einen neuen Upgrade-Punkt erhalten.', 'success');
-  lastLevel = self.level;
+  const updatedSelf = ui.update(snapshot);
+  if (!updatedSelf) return;
+  if (updatedSelf.level > lastLevel) ui.toast(`Level ${updatedSelf.level}`, 'Du hast einen neuen Upgrade-Punkt erhalten.', 'success');
+  lastLevel = updatedSelf.level;
+  previousSelf = { ...updatedSelf, position: { ...updatedSelf.position }, velocity: { ...updatedSelf.velocity }, upgrades: { ...updatedSelf.upgrades } };
+  previousProjectileIds = new Set(snapshot.projectiles.map((projectile) => projectile.id));
+}
+
+function playSnapshotAudio(snapshot: WorldSnapshot, self: PlayerSnapshot): void {
+  if (previousSelf) {
+    if (self.health < previousSelf.health - 0.01 && self.deaths === previousSelf.deaths) audio.damage();
+    if (self.kills > previousSelf.kills) audio.kill();
+    if (self.deaths > previousSelf.deaths) audio.death();
+    if (self.level > previousSelf.level) audio.level();
+  }
+  if (self.playerClass !== 'drone') {
+    const fired = snapshot.projectiles.some((projectile) => projectile.ownerId === self.id && !previousProjectileIds.has(projectile.id));
+    if (fired) audio.shot(self.playerClass);
+  }
 }
 
 window.setInterval(() => {
   if (!joined || !input || !socket || socket.readyState !== WebSocket.OPEN) return;
   socket.send(JSON.stringify(input.nextMessage()));
-}, 1000 / 30);
+}, 1000 / GAME.tickRate);
 
 window.setInterval(() => {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
