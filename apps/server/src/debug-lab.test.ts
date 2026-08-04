@@ -125,4 +125,27 @@ describe('local balance lab', () => {
     clearDebugDummies(game);
     expect(internals.players.has(dummyId as string)).toBe(false);
   });
+
+  it('rebuilds destroyed targets at the same position and class', () => {
+    const game = createGame();
+    const ownerId = game.addPlayer('Tester');
+    const internals = game as unknown as Internals;
+    const owner = internals.players.get(ownerId);
+    owner.position = { x: 3000, y: 2000 };
+    owner.angle = 0;
+    const now = Date.now();
+    const dummyId = spawnDebugDummy(game, ownerId, 'bulwark', now) as string;
+    const dummy = internals.players.get(dummyId);
+    const position = { ...dummy.position };
+
+    internals.damagePlayer(dummy, dummy.maxHealth * 2, ownerId, now + 10);
+    expect(dummy.dead).toBe(true);
+    game.step(1 / GAME.tickRate, now + 1300);
+
+    expect(dummy.dead).toBe(false);
+    expect(dummy.playerClass).toBe('bulwark');
+    expect(dummy.health).toBe(dummy.maxHealth);
+    expect(dummy.position.x).toBeCloseTo(position.x, 4);
+    expect(dummy.position.y).toBeCloseTo(position.y, 4);
+  });
 });
