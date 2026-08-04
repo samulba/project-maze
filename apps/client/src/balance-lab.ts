@@ -101,7 +101,13 @@ export class BalanceLab {
             <button type="button" data-lab-heal>HEILEN</button>
             <button type="button" data-lab-clear>PROJEKTILE LÖSCHEN</button>
           </div>
-          <p class="balance-lab-note">Nur lokal aktiv. Auf dem späteren Produktivserver sind diese Befehle standardmäßig deaktiviert.</p>
+          <div class="balance-lab-tools">
+            <button type="button" data-lab-god>GOD MODE · OFF</button>
+            <button type="button" data-lab-bots>BOTS · AKTIV</button>
+            <button type="button" data-lab-dummy>KLASSE ALS TARGET SPAWNEN</button>
+            <button type="button" data-lab-clear-dummies>TARGETS LÖSCHEN</button>
+          </div>
+          <p class="balance-lab-note">Die aktuell ausgewählte Klasse wird auch für neue Testziele verwendet. Nur lokal aktiv; Produktion bleibt gesperrt.</p>
         </div>
       </div>`;
 
@@ -177,6 +183,29 @@ export class BalanceLab {
     });
     panel.querySelector<HTMLElement>('[data-lab-heal]')?.addEventListener('click', () => send({ type: 'debug', action: 'heal' }));
     panel.querySelector<HTMLElement>('[data-lab-clear]')?.addEventListener('click', () => send({ type: 'debug', action: 'clearProjectiles' }));
+
+    let godEnabled = false;
+    let botsPaused = false;
+    const godButton = panel.querySelector<HTMLButtonElement>('[data-lab-god]');
+    const botsButton = panel.querySelector<HTMLButtonElement>('[data-lab-bots]');
+    godButton?.addEventListener('click', () => {
+      godEnabled = !godEnabled;
+      godButton.classList.toggle('active', godEnabled);
+      godButton.textContent = `GOD MODE · ${godEnabled ? 'ON' : 'OFF'}`;
+      send({ type: 'debug', action: 'setGod', enabled: godEnabled });
+    });
+    botsButton?.addEventListener('click', () => {
+      botsPaused = !botsPaused;
+      botsButton.classList.toggle('active', botsPaused);
+      botsButton.textContent = botsPaused ? 'BOTS · PAUSIERT' : 'BOTS · AKTIV';
+      send({ type: 'debug', action: 'pauseBots', paused: botsPaused });
+    });
+    panel.querySelector<HTMLElement>('[data-lab-dummy]')?.addEventListener('click', () => send({
+      type: 'debug',
+      action: 'spawnDummy',
+      playerClass: this.classSelect?.value as PlayerClass
+    }));
+    panel.querySelector<HTMLElement>('[data-lab-clear-dummies]')?.addEventListener('click', () => send({ type: 'debug', action: 'clearDummies' }));
 
     this.classSelect.value = 'core';
     this.levelSelect.value = '45';
