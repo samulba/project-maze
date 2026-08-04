@@ -1,0 +1,29 @@
+.balance-combat-meter {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin-top:12px;
+}
+.balance-combat-meter > div {
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:12px;
+  background:rgba(255,255,255,.035);
+  padding:12px 13px;
+}
+.balance-combat-meter span {
+  display:block;
+  color:#7e879b;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.1em;
+}
+.balance-combat-meter b {
+  display:block;
+  margin-top:7px;
+  color:#f5f7ff;
+  font-size:19px;
+  line-height:1;
+}
+@media (max-width:1000px) {
+  .balance-combat-meter { grid-template-columns:1fr; }
+}
