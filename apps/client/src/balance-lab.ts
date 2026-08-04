@@ -7,7 +7,6 @@ import {
 import { classBalanceMetrics } from '@project-maze/shared/balance';
 
 export type DebugPreset = 'blank' | 'balanced' | 'offense' | 'defense' | 'mobility';
-
 type SendDebug = (message: object) => void;
 
 const abilityText: Record<PlayerClass, string> = {
@@ -109,13 +108,13 @@ export class BalanceLab {
     layer.append(toggle, panel);
     this.panel = panel;
     this.toggle = toggle;
-    this.classSelect = panel.querySelector('[data-lab-class]');
-    this.levelSelect = panel.querySelector('[data-lab-level]');
-    this.presetSelect = panel.querySelector('[data-lab-preset]');
-    this.title = panel.querySelector('[data-lab-title]');
-    this.description = panel.querySelector('[data-lab-description]');
-    this.ability = panel.querySelector('[data-lab-ability]');
-    this.metrics = panel.querySelector('[data-lab-metrics]');
+    this.classSelect = panel.querySelector<HTMLSelectElement>('[data-lab-class]');
+    this.levelSelect = panel.querySelector<HTMLSelectElement>('[data-lab-level]');
+    this.presetSelect = panel.querySelector<HTMLSelectElement>('[data-lab-preset]');
+    this.title = panel.querySelector<HTMLElement>('[data-lab-title]');
+    this.description = panel.querySelector<HTMLElement>('[data-lab-description]');
+    this.ability = panel.querySelector<HTMLElement>('[data-lab-ability]');
+    this.metrics = panel.querySelector<HTMLElement>('[data-lab-metrics]');
 
     if (!this.classSelect || !this.levelSelect || !this.presetSelect) return;
 
@@ -149,10 +148,10 @@ export class BalanceLab {
     const setOpen = (open: boolean): void => {
       panel.hidden = !open;
       toggle.classList.toggle('active', open);
-      if (open) this.renderClass(this.classSelect?.value as PlayerClass || 'core');
+      if (open) this.renderClass((this.classSelect?.value as PlayerClass) || 'core');
     };
     toggle.addEventListener('click', () => setOpen(panel.hidden));
-    panel.querySelector('[data-lab-close]')?.addEventListener('click', () => setOpen(false));
+    panel.querySelector<HTMLElement>('[data-lab-close]')?.addEventListener('click', () => setOpen(false));
     window.addEventListener('keydown', (event) => {
       if (event.key === 'F2') {
         event.preventDefault();
@@ -167,7 +166,7 @@ export class BalanceLab {
       if (this.levelSelect && Number(this.levelSelect.value) < definition.unlockLevel) this.levelSelect.value = String(definition.unlockLevel);
       this.renderClass(selected);
     });
-    panel.querySelector('[data-lab-apply]')?.addEventListener('click', () => {
+    panel.querySelector<HTMLElement>('[data-lab-apply]')?.addEventListener('click', () => {
       send({
         type: 'debug',
         action: 'setBuild',
@@ -176,8 +175,8 @@ export class BalanceLab {
         preset: this.presetSelect?.value as DebugPreset
       });
     });
-    panel.querySelector('[data-lab-heal]')?.addEventListener('click', () => send({ type: 'debug', action: 'heal' }));
-    panel.querySelector('[data-lab-clear]')?.addEventListener('click', () => send({ type: 'debug', action: 'clearProjectiles' }));
+    panel.querySelector<HTMLElement>('[data-lab-heal]')?.addEventListener('click', () => send({ type: 'debug', action: 'heal' }));
+    panel.querySelector<HTMLElement>('[data-lab-clear]')?.addEventListener('click', () => send({ type: 'debug', action: 'clearProjectiles' }));
 
     this.classSelect.value = 'core';
     this.levelSelect.value = '45';
