@@ -13,11 +13,13 @@ import {
   type WorldSnapshot
 } from '@project-maze/shared';
 import { GameAudio } from './audio';
+import { BalanceLab } from './balance-lab';
 import { InputController } from './input';
 import { GameRenderer } from './renderer';
 import { GameUI, type JoinOptions } from './ui';
 import './style.css';
 import './stability.css';
+import './balance-lab.css';
 
 let socket: WebSocket | null = null;
 let joinOptions: JoinOptions | null = null;
@@ -60,6 +62,7 @@ const ui = new GameUI(
     send(message);
   }
 );
+new BalanceLab(ui.root, send);
 
 await renderer.init(ui.root);
 input = new InputController(
