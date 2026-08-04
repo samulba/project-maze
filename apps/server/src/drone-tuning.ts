@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import {
   CLASS_DEFINITIONS,
   GAME,
