@@ -1,0 +1,5 @@
+.start-status{min-height:16px;margin:10px 0 -2px;text-align:center;color:var(--muted);font-size:10px}.start-status.error{color:var(--danger)}
+.play-button:disabled{cursor:wait;filter:saturate(.55);opacity:.72;transform:none}
+.upgrade-list button:disabled{cursor:not-allowed;opacity:.42;border-color:transparent;background:color-mix(in srgb,var(--text) 2%,transparent)}
+.class-selection{z-index:8}.death-screen{z-index:20}.toasts{z-index:30}
+.hud[hidden],.death-screen[hidden],.class-selection[hidden],.upgrade-panel[hidden]{display:none!important}
