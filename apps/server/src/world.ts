@@ -3,9 +3,9 @@ import { clamp, normalize } from './physics.js';
 
 interface ShapeConfig { radius: number; health: number; reward: number; bodyDamage: number; drift: number; }
 export const SHAPE_CONFIG: Record<ShapeKind, ShapeConfig> = {
-  square: { radius: 13, health: 28, reward: 20, bodyDamage: 8, drift: 20 },
-  triangle: { radius: 18, health: 58, reward: 48, bodyDamage: 13, drift: 27 },
-  pentagon: { radius: 25, health: 145, reward: 125, bodyDamage: 22, drift: 16 }
+  square: { radius: 13, health: 16, reward: 18, bodyDamage: 4, drift: 12 },
+  triangle: { radius: 18, health: 40, reward: 45, bodyDamage: 8, drift: 16 },
+  pentagon: { radius: 25, health: 100, reward: 120, bodyDamage: 14, drift: 10 }
 };
 function seededRandom(seed: number): () => number { let state = seed >>> 0; return () => { state = (state * 1664525 + 1013904223) >>> 0; return state / 0x100000000; }; }
 const wall = (id: string, x: number, y: number, width: number, height: number): Wall => ({ id, x, y, width, height });
@@ -44,13 +44,13 @@ export function randomSpawn(random = Math.random): Vector2 {
   for (let attempt = 0; attempt < 120; attempt += 1) { const candidate = { x: 120 + random() * (GAME.worldWidth - 240), y: 120 + random() * (GAME.worldHeight - 240) }; if (isFree(candidate, 42)) return candidate; }
   return { x: 240, y: 240 };
 }
-function randomShapeKind(random: () => number): ShapeKind { const roll = random(); if (roll < 0.1) return 'pentagon'; if (roll < 0.38) return 'triangle'; return 'square'; }
+function randomShapeKind(random: () => number): ShapeKind { const roll = random(); if (roll < 0.06) return 'pentagon'; if (roll < 0.3) return 'triangle'; return 'square'; }
 export function createShape(id: string, random = Math.random): ShapeSnapshot {
   const kind = randomShapeKind(random); const config = SHAPE_CONFIG[kind];
   for (let attempt = 0; attempt < 160; attempt += 1) { const position = { x: 100 + random() * (GAME.worldWidth - 200), y: 100 + random() * (GAME.worldHeight - 200) }; if (!isFree(position, config.radius + 12)) continue; const angle = random() * Math.PI * 2; const speed = config.drift * (0.45 + random() * 0.55); return { id, kind, position, velocity: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed }, radius: config.radius, rotation: random() * Math.PI * 2, health: config.health, maxHealth: config.health }; }
   return { id, kind, position: randomSpawn(random), velocity: { x: 0, y: 0 }, radius: config.radius, rotation: 0, health: config.health, maxHealth: config.health };
 }
-export function stepShape(shape: ShapeSnapshot, dt: number): void { shape.rotation += (shape.kind === 'triangle' ? -0.55 : shape.kind === 'pentagon' ? 0.22 : 0.38) * dt; const result = moveCircle(shape.position, shape.velocity, dt, shape.radius); shape.position = result.position; if (result.collided) { const direction = normalize({ x: -shape.velocity.x + (Math.random() - 0.5) * 18, y: -shape.velocity.y + (Math.random() - 0.5) * 18 }); const speed = Math.max(8, Math.hypot(shape.velocity.x, shape.velocity.y)); shape.velocity = { x: direction.x * speed, y: direction.y * speed }; } }
+export function stepShape(shape: ShapeSnapshot, dt: number): void { shape.rotation += (shape.kind === 'triangle' ? -0.55 : shape.kind === 'pentagon' ? 0.22 : 0.38) * dt; const result = moveCircle(shape.position, shape.velocity, dt, shape.radius); shape.position = result.position; if (result.collided) { const direction = normalize({ x: -shape.velocity.x + (Math.random() - 0.5) * 18, y: -shape.velocity.y + (Math.random() - 0.5) * 18 }); const speed = Math.max(6, Math.hypot(shape.velocity.x, shape.velocity.y)); shape.velocity = { x: direction.x * speed, y: direction.y * speed }; } }
 function segmentIntersectsWall(start: Vector2, end: Vector2, candidate: Wall): boolean { const dx = end.x - start.x; const dy = end.y - start.y; let tMin = 0; let tMax = 1; const checks: Array<[number, number]> = [[-dx, start.x - candidate.x], [dx, candidate.x + candidate.width - start.x], [-dy, start.y - candidate.y], [dy, candidate.y + candidate.height - start.y]]; for (const [p, q] of checks) { if (Math.abs(p) < 0.00001) { if (q < 0) return false; continue; } const ratio = q / p; if (p < 0) tMin = Math.max(tMin, ratio); else tMax = Math.min(tMax, ratio); if (tMin > tMax) return false; } return true; }
 export function hasLineOfSight(start: Vector2, end: Vector2): boolean { const center = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }; const radius = Math.hypot(end.x - start.x, end.y - start.y) / 2 + 20; return !nearbyWalls(center, radius).some((candidate) => segmentIntersectsWall(start, end, candidate)); }
 export function wallsInView(position: Vector2): Wall[] { const halfWidth = GAME.visibleWorldWidth * 0.62; const halfHeight = GAME.visibleWorldHeight * 0.72; return WALLS.filter((candidate) => candidate.x <= position.x + halfWidth && candidate.x + candidate.width >= position.x - halfWidth && candidate.y <= position.y + halfHeight && candidate.y + candidate.height >= position.y - halfHeight); }
