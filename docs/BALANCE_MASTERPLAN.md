@@ -1,5 +1,15 @@
 # Project Maze – Balance- und Klassen-Masterplan
 
+## Aktueller Stand – Alpha 0.7
+
+- **Phase 1 abgeschlossen:** Farming, Bot-Schwierigkeit, bestehende Tanks und Upgrade-Skalierung wurden neu balanciert.
+- **Phase 2 weitgehend abgeschlossen:** reproduzierbare Balance-Metriken, Grenzwerttests und `npm run balance` sind eingebaut. Automatisierte Duell-Simulationen folgen nach dem ersten Spieltest.
+- **Phase 3 abgeschlossen:** Der Klassenbaum wurde von 13 auf 21 Tanks erweitert.
+- **Phase 4 abgeschlossen für In-Game-Silhouetten:** Alle 21 Tanks besitzen eigene Rumpf-, Modul- und Laufdesigns. Mini-Vorschauen in den Klassenkarten bleiben eine spätere UI-Verbesserung.
+- **Phase 5 weitgehend abgeschlossen:** Leichte Schwarmdrohnen und schwere Factory-Drohnen besitzen unterschiedliche Physikwerte. Weitere Steuerungsmodi werden nach dem Spieltest bewertet.
+- **Phase 6 weitgehend abgeschlossen:** Bots reagieren langsamer, zielen ungenauer und verteilen sich auf sämtliche Klassenpfade.
+- **Phase 7 offen:** Aussagekräftige Pick-, Kill- und Überlebensraten benötigen echte Online-Matches und eine spätere Telemetrie-/Datenbankanbindung.
+
 ## Zielbild
 
 Project Maze soll leicht zu lernen, aber schwer zu meistern sein. Farming muss in den ersten Sekunden verständlich und belohnend wirken. Klassen sollen keine linearen Upgrades sein, sondern unterschiedliche Spielstile mit klaren Stärken, Schwächen und visueller Identität.
@@ -21,7 +31,7 @@ Project Maze soll leicht zu lernen, aber schwer zu meistern sein. Farming muss i
 - Rammer und Drohnen werden separat über effektive Kontaktzeit, Überlebensfähigkeit und Kontrolle bewertet.
 - Bots dürfen glaubwürdige Fehler machen und keine perfekten Reaktionszeiten besitzen.
 
-## Geplanter Klassenbaum – 21 Tanks
+## Klassenbaum – 21 Tanks
 
 ```text
 Core
