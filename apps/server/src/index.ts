@@ -15,8 +15,13 @@ import { tuneClassMechanics } from './class-mechanics.js';
 import { tuneCombatScaling } from './combat-tuning.js';
 import {
   applyDebugBuild,
+  clearDebugDummies,
   clearDebugProjectiles,
   healDebugPlayer,
+  setDebugBotsPaused,
+  setDebugGodMode,
+  spawnDebugDummy,
+  tuneDebugRules,
   type DebugPreset
 } from './debug-lab.js';
 import { tuneDifficulty } from './difficulty-tuning.js';
@@ -49,12 +54,14 @@ app.disable('x-powered-by');
 app.use(cors({ origin: allowedOrigins ? [...allowedOrigins] : true }));
 const server = createServer(app);
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
-const game = tuneProgression(
-  tuneDifficulty(
-    tuneClassMechanics(
-      tuneDrones(
-        tuneCombatScaling(
-          hardenSimulation(new MazeGame(BOT_COUNT))
+const game = tuneDebugRules(
+  tuneProgression(
+    tuneDifficulty(
+      tuneClassMechanics(
+        tuneDrones(
+          tuneCombatScaling(
+            hardenSimulation(new MazeGame(BOT_COUNT))
+          )
         )
       )
     )
@@ -91,7 +98,11 @@ const debugSchema = z.discriminatedUnion('action', [
     preset: z.enum(['blank', 'balanced', 'offense', 'defense', 'mobility'])
   }).strict(),
   z.object({ type: z.literal('debug'), action: z.literal('heal') }).strict(),
-  z.object({ type: z.literal('debug'), action: z.literal('clearProjectiles') }).strict()
+  z.object({ type: z.literal('debug'), action: z.literal('clearProjectiles') }).strict(),
+  z.object({ type: z.literal('debug'), action: z.literal('setGod'), enabled: z.boolean() }).strict(),
+  z.object({ type: z.literal('debug'), action: z.literal('pauseBots'), paused: z.boolean() }).strict(),
+  z.object({ type: z.literal('debug'), action: z.literal('spawnDummy'), playerClass: z.enum(PLAYER_CLASS_IDS) }).strict(),
+  z.object({ type: z.literal('debug'), action: z.literal('clearDummies') }).strict()
 ]);
 type DebugMessage = z.infer<typeof debugSchema>;
 
@@ -154,8 +165,16 @@ wss.on('connection', (socket, request) => {
           }, now);
         } else if (parsed.data.action === 'heal') {
           healDebugPlayer(game, playerId);
-        } else {
+        } else if (parsed.data.action === 'clearProjectiles') {
           clearDebugProjectiles(game);
+        } else if (parsed.data.action === 'setGod') {
+          setDebugGodMode(game, playerId, parsed.data.enabled);
+        } else if (parsed.data.action === 'pauseBots') {
+          setDebugBotsPaused(game, parsed.data.paused);
+        } else if (parsed.data.action === 'spawnDummy') {
+          spawnDebugDummy(game, playerId, parsed.data.playerClass, now);
+        } else {
+          clearDebugDummies(game);
         }
         return;
       }
