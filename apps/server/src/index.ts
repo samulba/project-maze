@@ -12,6 +12,7 @@ import {
   type ServerMessage
 } from '@project-maze/shared';
 import { MazeGame } from './game.js';
+import { hardenSimulation } from './simulation-hardening.js';
 
 function integerEnvironment(name: string, fallback: number, minimum: number, maximum: number): number {
   const parsed = Number.parseInt(process.env[name] ?? '', 10);
@@ -36,7 +37,7 @@ app.disable('x-powered-by');
 app.use(cors({ origin: allowedOrigins ? [...allowedOrigins] : true }));
 const server = createServer(app);
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
-const game = new MazeGame(BOT_COUNT);
+const game = hardenSimulation(new MazeGame(BOT_COUNT));
 const socketPlayerIds = new WeakMap<WebSocket, string>();
 const socketAlive = new WeakMap<WebSocket, boolean>();
 
