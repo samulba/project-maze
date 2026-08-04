@@ -46,6 +46,8 @@ interface LoadoutInternals {
   projectiles: Map<string, RuntimeProjectile>;
   drones: Map<string, RuntimeDrone>;
   damagePlayer(target: RuntimePlayer, damage: number, attackerId: string | null, now: number): void;
+  removeOwnerDrones(ownerId: string): void;
+  spawnInitialDrones(owner: RuntimePlayer, now: number): void;
 }
 
 interface LoadoutState {
@@ -135,6 +137,7 @@ export function equipLoadout(
   if (!player || (!player.dead && !player.invulnerable)) return false;
 
   const loadout = loadoutFor(game, playerId);
+  const modifierChanged = loadout.passiveModifier !== passiveModifier;
   const previousMaximum = Math.max(1, player.maxHealth);
   const healthRatio = player.health / previousMaximum;
   loadout.activeModule = activeModule;
@@ -148,6 +151,10 @@ export function equipLoadout(
   const nextStats = tunedStatsFor(player);
   player.maxHealth = nextStats.maxHealth;
   player.health = player.dead ? 0 : Math.max(1, Math.min(player.maxHealth, player.maxHealth * healthRatio));
+  if (modifierChanged && !player.dead) {
+    internals.removeOwnerDrones(player.id);
+    internals.spawnInitialDrones(player, now);
+  }
   return true;
 }
 
