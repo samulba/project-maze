@@ -8,6 +8,9 @@ dist/
 coverage/
 balance-report.txt
 
-# Wegwerf-Artefakte aus Review- und Debug-Läufen (Prüfskripte, temporäre Tests)
+# Wegwerf-Artefakte aus Review- und Debug-Läufen (Prüfskripte, temporäre Tests,
+# Ad-hoc-Benchmarks). Gehören nie ins Repo – echte Tests haben sprechende Namen.
 .probe/
 **/__tmp_*
+**/zz*.test.ts
+**/*.bench.test.ts
