@@ -20,6 +20,7 @@ import {
   type GameplayClientMessage
 } from '@project-maze/shared/gameplay';
 import { attachAchievementSnapshots, tuneAchievements } from './achievements.js';
+import { tuneArenaDirector } from './arena-director.js';
 import { tuneArenaEvents } from './arena-events.js';
 import { tuneArenaSystems } from './arena-systems.js';
 import { authStatus, initAuth, verifyAuthToken } from './auth.js';
@@ -76,6 +77,11 @@ const SNAPSHOT_DELTAS = process.env.SNAPSHOT_DELTAS === 'true';
  * ohne den Schalter wird die Schicht gar nicht erst angehängt.
  */
 const ACHIEVEMENTS_ENABLED = process.env.ACHIEVEMENTS_ENABLED === 'true';
+/**
+ * Arena-Direktor: hält die Bot-Population passend zur Zahl der Menschen.
+ * Standardmäßig an; `false` friert die Population auf `BOT_COUNT` ein.
+ */
+const ARENA_DIRECTOR_ENABLED = process.env.ARENA_DIRECTOR_ENABLED !== 'false';
 const allowedOrigins = ALLOWED_ORIGIN === '*'
   ? null
   : new Set(ALLOWED_ORIGIN.split(',').map((value) => value.trim()).filter(Boolean));
@@ -106,14 +112,17 @@ const encodedGame = tuneSnapshotEncoding(
             tuneArenaSystems(
               tuneLoadoutSystem(
                 tuneProgression(
-                  tuneBotBrain(
-                    tuneClassMechanics(
-                      tuneDrones(
-                        tuneCombatScaling(
-                          hardenSimulation(new MazeGame(BOT_COUNT))
+                  tuneArenaDirector(
+                    tuneBotBrain(
+                      tuneClassMechanics(
+                        tuneDrones(
+                          tuneCombatScaling(
+                            hardenSimulation(new MazeGame(BOT_COUNT))
+                          )
                         )
                       )
-                    )
+                    ),
+                    ARENA_DIRECTOR_ENABLED
                   )
                 )
               )

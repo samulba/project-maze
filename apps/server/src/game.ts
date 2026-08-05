@@ -62,7 +62,7 @@ interface RuntimeStats {
 }
 
 type BotStyle = 'farmer' | 'hunter' | 'kiter' | 'brawler' | 'controller';
-interface BotState {
+export interface BotState {
   style: BotStyle;
   targetId: string | null;
   targetShapeId: string | null;
@@ -89,10 +89,11 @@ interface GamePlayer extends PlayerSnapshot {
 interface GameProjectile extends ProjectileSnapshot { damage: number; life: number; }
 interface GameDrone extends DroneSnapshot { slot: number; contactCooldown: number; }
 
-const BOT_NAMES = ['Vektor', 'Nyx', 'Orbit', 'Kairo', 'Mako', 'Echo', 'Rift', 'Nova', 'Flux', 'Onyx', 'Astra', 'Mira'];
+export const BOT_NAMES = ['Vektor', 'Nyx', 'Orbit', 'Kairo', 'Mako', 'Echo', 'Rift', 'Nova', 'Flux', 'Onyx', 'Astra', 'Mira'];
 const BOT_STYLES: BotStyle[] = ['farmer', 'hunter', 'kiter', 'brawler', 'controller'];
 
-function botState(index: number): BotState {
+/** Baut den Bot-Zustand für den Index-ten Bot. Auch der Arena-Direktor spawnt darüber. */
+export function botState(index: number): BotState {
   const style = BOT_STYLES[index % BOT_STYLES.length] ?? 'farmer';
   const classPaths: Record<BotStyle, PlayerClass[]> = {
     farmer: ['rapid', 'twin', 'storm'],
