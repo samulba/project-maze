@@ -26,6 +26,7 @@ import { DEFAULT_THEME, applyTheme } from './themes';
 import { GameUI, type JoinOptions } from './ui';
 import './style.css';
 import './stability.css';
+import './boot.css';
 import './balance-lab.css';
 import './class-choice.css';
 import './gameplay-ui.css';
@@ -86,10 +87,10 @@ enhanceClassChoices(ui.root);
 // Renderer-Chunks dynamisch nach, und ein Klick davor hätte keinen Renderer zum Zeichnen.
 const GRAPHICS_HELP = 'Grafik konnte nicht gestartet werden. Das liegt fast immer am Browser: Hardwarebeschleunigung einschalten (Einstellungen → System) oder ein paar Tabs schließen – Browser vergeben nur eine begrenzte Zahl an WebGL-Fenstern. Danach Seite neu laden.';
 
-ui.setJoinPending(true, 'Grafik wird geladen …');
+ui.setJoinPending(true, 'Grafik wird geladen …', 'booting');
 const rendererReady = renderer.init(ui.root);
 // Hängt PixiJS trotz vorhandenem Kontext, bleibt der Spieler sonst ohne Erklärung sitzen.
-const stuckNotice = window.setTimeout(() => ui.setJoinPending(true, GRAPHICS_HELP), 8000);
+const stuckNotice = window.setTimeout(() => ui.setJoinPending(true, GRAPHICS_HELP, 'failed'), 8000);
 try {
   await rendererReady;
   window.clearTimeout(stuckNotice);
@@ -97,7 +98,7 @@ try {
 } catch (error) {
   window.clearTimeout(stuckNotice);
   console.error('Renderer-Init fehlgeschlagen', error);
-  ui.setJoinPending(true, GRAPHICS_HELP);
+  ui.setJoinPending(true, GRAPHICS_HELP, 'failed');
   throw error;
 }
 const gameplayEffects = new GameplayEffects(renderer.app);

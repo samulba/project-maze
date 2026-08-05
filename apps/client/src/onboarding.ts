@@ -5,6 +5,13 @@
  */
 
 export const ONBOARDING_DURATION_MS = 60_000;
+/**
+ * Arena-Events kommen selten und selten in der ersten Minute. Der Event-Hinweis
+ * hängt deshalb am ersten Event statt am 60-Sekunden-Fenster – aber nicht ewig.
+ */
+export const ONBOARDING_EVENT_WINDOW_MS = 600_000;
+/** So lange muss der Event-Hinweis gestanden haben, damit er als gelesen gilt. */
+export const ONBOARDING_EVENT_SEEN_MS = 6_000;
 export const ONBOARDING_STORAGE_KEY = 'project-maze-onboarded';
 
 export interface OnboardingContext {
@@ -19,6 +26,14 @@ export interface OnboardingContext {
   usedAbility: boolean;
   classChoicesOpen: boolean;
   specialized: boolean;
+  /** Gerade läuft ein Arena-Event (Vorwarnung oder aktiv). */
+  eventRunning: boolean;
+  /**
+   * Wie lange der Event-Hinweis schon auf dem Schirm stand. Bewusst nicht
+   * „wie lange lief ein Event“: Ein Event, das lief, während der Spieler noch
+   * Grundlagen lernte, hat ihm nichts erklärt.
+   */
+  eventHintShownMs: number;
 }
 
 export interface OnboardingStep {
@@ -32,6 +47,11 @@ export interface OnboardingStep {
   isRelevant: (context: OnboardingContext) => boolean;
   /** Der Spieler hat es verstanden – der Hinweis kommt nicht wieder. */
   isDone: (context: OnboardingContext) => boolean;
+  /**
+   * Schritt darf auch nach dem 60-Sekunden-Fenster noch erscheinen. Nötig für
+   * Ereignisse, auf deren Zeitpunkt der Spieler keinen Einfluss hat.
+   */
+  outlivesWindow?: boolean;
 }
 
 /**
@@ -82,6 +102,17 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     isDone: (context) => context.farmed || context.elapsedMs > 34_000
   },
   {
+    id: 'event',
+    title: 'Arena-Event läuft',
+    hint: () =>
+      'Events ändern für kurze Zeit die Regeln der ganzen Arena. Der Banner oben nennt, was gerade gilt – Farbe und Rahmen zeigen es dir auch im Spielfeld.',
+    focus: () => '.arena-event-banner',
+    isRelevant: (context) => context.eventRunning,
+    isDone: (context) => context.eventHintShownMs >= ONBOARDING_EVENT_SEEN_MS,
+    // Das erste Event kommt fast nie in der ersten Minute.
+    outlivesWindow: true
+  },
+  {
     id: 'ability',
     title: 'Fähigkeit einsetzen',
     hint: (touch) =>
@@ -95,10 +126,15 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
   }
 ];
 
+const OUTLIVING_STEPS = ONBOARDING_STEPS.filter((step) => step.outlivesWindow);
+
 /** Der Hinweis, der gerade dran ist – oder `null`, wenn nichts mehr zu zeigen ist. */
 export function activeStep(context: OnboardingContext): OnboardingStep | null {
-  if (context.elapsedMs >= ONBOARDING_DURATION_MS) return null;
-  return ONBOARDING_STEPS.find((step) => step.isRelevant(context) && !step.isDone(context)) ?? null;
+  if (context.elapsedMs >= ONBOARDING_EVENT_WINDOW_MS) return null;
+  // Nach dem Grundlagen-Fenster kommen nur noch ereignisgebundene Hinweise in
+  // Frage – ein weiterhin offener Grundlagen-Schritt darf sie nicht verdecken.
+  const candidates = context.elapsedMs < ONBOARDING_DURATION_MS ? ONBOARDING_STEPS : OUTLIVING_STEPS;
+  return candidates.find((entry) => entry.isRelevant(context) && !entry.isDone(context)) ?? null;
 }
 
 /** Zählt die erledigten Schritte – für die Fortschrittsanzeige. */
@@ -106,7 +142,13 @@ export function completedSteps(context: OnboardingContext): number {
   return ONBOARDING_STEPS.filter((step) => step.isDone(context)).length;
 }
 
-/** Onboarding ist vorbei, wenn die Zeit um ist oder alles verstanden wurde. */
+/**
+ * Onboarding ist vorbei, wenn alles verstanden wurde, wenn nach dem
+ * Grundlagen-Fenster kein ereignisgebundener Hinweis mehr aussteht – oder
+ * spätestens am Ende des Event-Fensters.
+ */
 export function isOnboardingComplete(context: OnboardingContext): boolean {
-  return context.elapsedMs >= ONBOARDING_DURATION_MS || ONBOARDING_STEPS.every((step) => step.isDone(context));
+  if (ONBOARDING_STEPS.every((step) => step.isDone(context))) return true;
+  if (context.elapsedMs >= ONBOARDING_EVENT_WINDOW_MS) return true;
+  return context.elapsedMs >= ONBOARDING_DURATION_MS && OUTLIVING_STEPS.every((step) => step.isDone(context));
 }

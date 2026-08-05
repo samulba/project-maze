@@ -82,6 +82,8 @@ export class GameplayEffects {
         .fill({ color: style.core, alpha: 0.16 + Math.sin(this.time * 4) * 0.05 });
       if (event.kind === 'overcharge') this.drawChargedRim(center, radius, active);
       if (event.kind === 'hunterSignal') this.drawHunterRim(center, radius, active);
+    } else if (event) {
+      this.drawArenaWideHint(viewport, arenaEventStyle(event.kind), event.phase === 'active');
     }
 
     const eliteIds = new Set(snapshot.eliteShapeIds ?? []);
@@ -157,6 +159,33 @@ export class GameplayEffects {
         this.graphics.circle(position.x, position.y, radius)
           .stroke({ color, alpha: 0.58, width: 3 });
       }
+    }
+  }
+
+  /**
+   * Hinweis für ortlose Events (Fracture): ein langsam atmender Rahmen am
+   * Sichtfeldrand. Er zeigt „überall“, ohne auf eine Stelle zu deuten, und
+   * bleibt aus dem Blickfeld der Arena heraus.
+   */
+  private drawArenaWideHint(
+    viewport: Viewport,
+    style: { ring: number; core: number },
+    active: boolean
+  ): void {
+    const breath = 0.5 + Math.sin(this.time * 1.5) * 0.5;
+    const base = active ? 0.46 : 0.2;
+    for (let index = 0; index < 3; index += 1) {
+      const inset = 3 + index * 7;
+      const alpha = base * (1 - index * 0.3) * (0.55 + breath * 0.45);
+      this.graphics
+        .roundRect(
+          viewport.x + inset,
+          viewport.y + inset,
+          viewport.width - inset * 2,
+          viewport.height - inset * 2,
+          10
+        )
+        .stroke({ color: index === 0 ? style.core : style.ring, alpha, width: index === 0 ? 2 : 1.5 });
     }
   }
 
