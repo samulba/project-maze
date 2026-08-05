@@ -28,13 +28,30 @@ npm run dev
 npm run typecheck
 npm run test
 npm run build
-npm start        # Produktion: ein Prozess liefert Client + Server (siehe docs/DEPLOY.md)
+npm run balance   # Balance-Report für Klassen, Module und Frames
+npm run check     # Typecheck + Tests + Build
+npm start         # Produktion: ein Prozess liefert Client + Server (siehe docs/DEPLOY.md)
 ```
 
 ## Live gehen
 
-Siehe [docs/DEPLOY.md](docs/DEPLOY.md) – Single-Service-Deploy (ein Node-Prozess,
-WebSocket-fähiger Host) und die spätere Supabase-Phase für Leaderboard/Telemetrie.
+Zwei Wege, beide dokumentiert:
+
+- **Single-Service (aktuell auf Railway live):** ein Node-Prozess liefert Client
+  und Server über eine Origin aus – siehe [docs/DEPLOY.md](docs/DEPLOY.md)
+  (Railway, Hetzner-Skripte, ENV-Referenz, Supabase-Phase 2).
+- **Container:** `cp .env.example .env && docker compose up -d --build` – nginx
+  liefert den Client auf `http://localhost:8080` und reicht `/ws` an den
+  Spielserver weiter; Details in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
+## Telemetrie
+
+Der Server erhebt anonyme Balance-Kennzahlen – Pickraten, Lebensdauer sowie
+Kills/Deaths je Klasse, Core Module und Frame – und exportiert sie über
+`/metrics` (Prometheus-Text, alternativ `?format=json`). Es werden keine Namen,
+IDs oder Adressen gespeichert. Abschaltbar über `TELEMETRY_ENABLED=false`,
+absicherbar über `METRICS_TOKEN`. Details in
+[`docs/TELEMETRY.md`](docs/TELEMETRY.md).
 
 ## Aktueller Alpha-Stand (1.0)
 
