@@ -14,3 +14,4 @@ balance-report.txt
 **/__tmp_*
 **/zz*.test.ts
 **/*.bench.test.ts
+*.tsbuildinfo
