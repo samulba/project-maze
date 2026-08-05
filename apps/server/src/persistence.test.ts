@@ -7,12 +7,14 @@ import {
   flushPersistence,
   leaderboard,
   leaderboardHandler,
+  linkPlayerToUser,
   persistenceConfig,
   persistenceStats,
   stopPersistence,
   tunePersistence,
   type LeaderboardEntry,
   type PersistenceClient,
+  type ProfileRecord,
   type RunRecord
 } from './persistence';
 
@@ -25,7 +27,9 @@ const baseGame = (): MazeGame => tuneArenaSystems(tuneLoadoutSystem(tuneCombatSc
 
 class FakeClient implements PersistenceClient {
   readonly inserted: RunRecord[] = [];
+  readonly profiles: ProfileRecord[] = [];
   insertCalls = 0;
+  profileCalls = 0;
   topCalls = 0;
   failInserts = false;
   failReads = false;
@@ -35,6 +39,12 @@ class FakeClient implements PersistenceClient {
     this.insertCalls += 1;
     if (this.failInserts) throw new Error('supabase down');
     this.inserted.push(...runs);
+  }
+
+  async upsertProfiles(profiles: readonly ProfileRecord[]): Promise<void> {
+    this.profileCalls += 1;
+    if (this.failInserts) throw new Error('supabase down');
+    this.profiles.push(...profiles);
   }
 
   async topRuns(limit: number): Promise<LeaderboardEntry[]> {
@@ -168,7 +178,8 @@ describe('run persistence', () => {
       playerClass: 'lancer',
       kills: 7,
       bestStreak: 4,
-      durationSeconds: 12.5
+      durationSeconds: 12.5,
+      userId: null
     }]);
     expect(persistenceStats(game).written).toBe(1);
     stopPersistence(game);
@@ -272,6 +283,78 @@ describe('run persistence', () => {
     await flushPersistence(game);
     expect(client.inserted).toHaveLength(0);
     stopPersistence(game);
+  });
+});
+
+describe('account link (Sprint B, noch nicht verdrahtet)', () => {
+  const USER_ID = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
+
+  it('leaves runs as guest runs while nobody links an account', async () => {
+    const client = new FakeClient();
+    const game = withPersistence(client);
+    const playerId = game.addPlayer('Gast');
+    const internals = game as unknown as Internals;
+    const now = Date.now();
+    game.step(1 / 40, now);
+    const player = internals.players.get(playerId);
+    player.score = 900;
+    internals.killPlayer(player, null, now + 1_000, 'Arena');
+
+    await flushPersistence(game);
+    expect(client.inserted[0]?.userId).toBeNull();
+    expect(client.profileCalls).toBe(0);
+    stopPersistence(game);
+  });
+
+  it('stamps the account on the run and upserts the profile once linked', async () => {
+    const client = new FakeClient();
+    const game = withPersistence(client);
+    const playerId = game.addPlayer('Ada');
+    const internals = game as unknown as Internals;
+    const now = Date.now();
+    game.step(1 / 40, now);
+
+    linkPlayerToUser(game, playerId, { userId: USER_ID, displayName: 'Ada Lovelace' });
+    const player = internals.players.get(playerId);
+    player.score = 1_500;
+    internals.killPlayer(player, null, now + 2_000, 'Arena');
+
+    await flushPersistence(game);
+    expect(client.inserted[0]?.userId).toBe(USER_ID);
+    expect(client.profiles).toEqual([{ userId: USER_ID, displayName: 'Ada Lovelace' }]);
+    stopPersistence(game);
+  });
+
+  it('clamps an over-long display name and drops the link on leave', async () => {
+    const client = new FakeClient();
+    const game = withPersistence(client);
+    const playerId = game.addPlayer('Ada');
+    game.step(1 / 40, Date.now());
+
+    linkPlayerToUser(game, playerId, { userId: USER_ID, displayName: 'Eine viel zu lange Anzeige' });
+    await flushPersistence(game);
+    expect(client.profiles[0]?.displayName).toHaveLength(18);
+
+    game.removePlayer(playerId);
+    const rejoinId = game.addPlayer('Ada');
+    const internals = game as unknown as Internals;
+    const now = Date.now();
+    game.step(1 / 40, now);
+    const player = internals.players.get(rejoinId);
+    player.score = 700;
+    internals.killPlayer(player, null, now + 1_000, 'Arena');
+
+    await flushPersistence(game);
+    // Neuer Spielplatz, kein übernommenes Konto.
+    expect(client.inserted[0]?.userId).toBeNull();
+    stopPersistence(game);
+  });
+
+  it('is a no-op while persistence is switched off', () => {
+    const game = tunePersistence(baseGame());
+    const playerId = game.addPlayer('Ada');
+    expect(() => linkPlayerToUser(game, playerId, { userId: USER_ID, displayName: 'Ada' })).not.toThrow();
+    expect(persistenceStats(game).enabled).toBe(false);
   });
 });
 

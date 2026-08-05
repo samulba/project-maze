@@ -195,8 +195,182 @@ pro Minute, damit ein längerer Ausfall die Logs nicht flutet.
   eine inhaltliche Prüfung findet nicht statt. Wer das braucht, filtert vor dem
   Einfügen in `persistence.ts` oder löscht einzelne Zeilen im Table Editor.
 
-## Was als Nächstes kommt
+---
 
-Google-Login und Achievements sind Etappe 3 und bewusst noch nicht gebaut. Die
-Tabelle `runs` ist so geschnitten, dass sie später eine optionale
-Benutzerspalte bekommen kann, ohne dass bestehende Zeilen ungültig werden.
+# Teil 2 – Google-Login einrichten (Sprint B)
+
+Ab hier geht es um den optionalen Login. **Nichts davon ist Pflicht, und Gäste
+können immer ohne Konto spielen** – das bleibt so. Solange `AUTH_ENABLED` nicht
+auf `true` steht, ist der gesamte Login-Pfad im Server abgeschaltet.
+
+Der Weg eines Logins in einem Satz: Der Browser meldet sich bei Google an,
+Supabase gibt ihm dafür ein Zugriffstoken, der Client schickt dieses Token beim
+Betreten der Arena mit, und der Spielserver prüft die Signatur lokal – ohne
+Rückfrage bei Supabase.
+
+> **Reihenfolge beachten:** Die Server-Seite (dieser Teil) funktioniert erst
+> vollständig, wenn auch Client und Protokoll nachgezogen sind. Du kannst die
+> Schritte 6–9 aber schon jetzt erledigen; sie ändern am laufenden Spiel nichts.
+
+Dauer: ungefähr 25 Minuten, davon 15 in der Google Cloud Console.
+
+## Schritt 6 – Migration 0002 einspielen
+
+Wie Schritt 2, nur mit der zweiten Datei:
+
+1. **SQL Editor** → **New query**
+2. Inhalt von
+   [`supabase/migrations/20260805130000_0002_profiles_and_run_user.sql`](../supabase/migrations/20260805130000_0002_profiles_and_run_user.sql)
+   einfügen → **Run**
+3. Erwartet: `Success. No rows returned.`
+
+Danach gibt es die Tabelle `profiles` und in `runs` die neue Spalte `user_id`.
+Beide bleiben leer beziehungsweise `NULL`, bis der Login wirklich läuft – die
+Migration allein ändert am Spiel nichts.
+
+## Schritt 7 – Google-Zugangsdaten in der Google Cloud Console
+
+Das ist der längste Teil, weil Google viele Menüpunkte hat. Halte die
+Supabase-Callback-URL bereit; du findest sie in Supabase unter
+**Authentication → Sign In / Providers → Google**, sie sieht so aus:
+
+```text
+https://abcdefghijkl.supabase.co/auth/v1/callback
+```
+
+1. [console.cloud.google.com](https://console.cloud.google.com) öffnen und mit
+   dem Google-Konto anmelden, dem das Projekt gehören soll.
+2. Oben in der blauen Leiste auf die Projektauswahl klicken → **Neues Projekt**
+   → Name `mazers` → **Erstellen**. Danach oben prüfen, dass wirklich `mazers`
+   ausgewählt ist – der häufigste Anfängerfehler ist, im falschen Projekt
+   weiterzuklicken.
+3. Linkes Menü → **APIs & Dienste** → **OAuth-Zustimmungsbildschirm**.
+   - **Nutzertyp:** `Extern` → **Erstellen**
+   - **App-Name:** `MAZERS`
+   - **Support-E-Mail** und **Kontakt-E-Mail:** deine Adresse
+   - **Autorisierte Domains:** `supabase.co` und deine Spieldomain
+     (`mazers.de`) hinzufügen
+   - Speichern und weiter, bis der Bildschirm fertig ist.
+4. Im selben Bereich **Zielgruppe** (früher „Veröffentlichungsstatus"):
+   Solange die App auf `Testing` steht, können sich **nur die Konten anmelden,
+   die du unter „Testnutzer" einträgst.** Für einen öffentlichen Login auf
+   **Veröffentlichen** klicken. Für einen reinen Login ohne sensible Scopes
+   verlangt Google dafür keine Überprüfung.
+5. Linkes Menü → **APIs & Dienste** → **Anmeldedaten** → oben
+   **+ Anmeldedaten erstellen** → **OAuth-Client-ID**.
+   - **Anwendungstyp:** `Webanwendung`
+   - **Name:** `MAZERS Web`
+   - **Autorisierte Weiterleitungs-URIs** → **+ URI hinzufügen** → die
+     Supabase-Callback-URL von oben einfügen. Exakt, mit `https://`, ohne
+     Schrägstrich am Ende.
+   - **Erstellen**
+6. Google zeigt jetzt **Client-ID** und **Client-Schlüssel**. Beide kopieren –
+   der Schlüssel lässt sich später zwar erneut ansehen, aber du brauchst ihn
+   gleich.
+
+Häufigster Fehler an dieser Stelle: `redirect_uri_mismatch` beim ersten
+Anmeldeversuch. Er bedeutet immer, dass die URI in Google nicht zeichengenau
+der Supabase-Callback-URL entspricht.
+
+## Schritt 8 – Google in Supabase aktivieren
+
+1. Supabase → **Authentication** → **Sign In / Providers** → **Google**
+2. **Enable Sign in with Google** einschalten
+3. **Client ID** und **Client Secret** aus Schritt 7 einfügen → **Save**
+4. Unter **Authentication → URL Configuration** die **Site URL** auf
+   `https://www.mazers.de` setzen und die Spieldomain zusätzlich unter
+   **Redirect URLs** eintragen. Ohne diesen Schritt landet der Browser nach dem
+   Login auf `localhost`.
+
+## Schritt 9 – Den Login am Spielserver freischalten
+
+Eine einzige neue Variable:
+
+```dotenv
+AUTH_ENABLED=true
+```
+
+`SUPABASE_URL` ist schon gesetzt (Schritt 4) und wird hier mitbenutzt: Aus ihr
+leiten sich der erwartete Aussteller (`<url>/auth/v1`) und die Adresse des
+öffentlichen Schlüsselsatzes ab.
+
+| Variable | Standard | Bedeutung |
+| --- | --- | --- |
+| `AUTH_ENABLED` | `false` | Schaltet die Token-Prüfung ein. Ohne `SUPABASE_URL` bleibt sie trotzdem aus. |
+| `SUPABASE_JWT_SECRET` | – | **Nur für ältere Projekte.** Siehe unten. |
+
+**Brauche ich `SUPABASE_JWT_SECRET`?** Supabase signiert Zugriffstokens je nach
+Alter des Projekts unterschiedlich:
+
+- **Neuere Projekte** benutzen asymmetrische Schlüssel. Der Server holt den
+  öffentlichen Schlüsselsatz einmal von
+  `https://<projekt>.supabase.co/auth/v1/.well-known/jwks.json` und prüft
+  danach lokal. **Dann brauchst du die Variable nicht.**
+- **Ältere Projekte** signieren mit einem geteilten Geheimnis (HS256). Dann
+  liefert der JWKS-Endpunkt keinen passenden Schlüssel, und jedes Token würde
+  abgelehnt. In dem Fall das Geheimnis unter **Project Settings → API → JWT
+  Settings → JWT Secret** kopieren und als `SUPABASE_JWT_SECRET` setzen.
+
+Welcher Fall vorliegt, zeigt der Server selbst – siehe nächster Schritt. Das
+JWT-Secret ist genauso geheim wie der Service-Role-Key.
+
+## Schritt 10 – Prüfen
+
+`https://<deine-domain>/health` aufrufen. Neu ist ein `auth`-Block:
+
+```json
+"auth": { "enabled": true, "mode": "jwks", "verified": 0, "rejected": 0, "lastRejectionReason": null }
+```
+
+- `mode: "off"` → `AUTH_ENABLED` fehlt oder `SUPABASE_URL` ist nicht gesetzt
+- `mode: "jwks"` → asymmetrische Signatur, kein weiteres Geheimnis nötig
+- `mode: "shared-secret"` → `SUPABASE_JWT_SECRET` ist gesetzt und wird benutzt
+
+Sobald der Client Tokens mitschickt, wandern `verified` und `rejected` nach
+oben. Steigt nur `rejected`, verrät `lastRejectionReason` den Grund:
+
+| Grund | Bedeutung |
+| --- | --- |
+| `ERR_JWS_SIGNATURE_VERIFICATION_FAILED` | Falscher Schlüssel – meist ein HS256-Projekt ohne `SUPABASE_JWT_SECRET` |
+| `ERR_JWT_CLAIM_VALIDATION_FAILED` | Token eines anderen Projekts, oder `SUPABASE_URL` zeigt woandershin |
+| `ERR_JWT_EXPIRED` | Token abgelaufen; der Client muss es erneuern |
+| `role` | Kein Nutzer-Token (z. B. versehentlich ein Service-Role-Key) |
+| `malformed` | Kein JWT – meist ein Client-Fehler beim Zusammenbauen der Join-Message |
+
+## Wie der Server das Token prüft
+
+- **Kein Netzwerk-Roundtrip pro Join.** Der öffentliche Schlüsselsatz wird
+  einmal geholt und im Speicher gehalten; erst eine Schlüsselrotation löst ein
+  erneutes Laden aus, und auch das frühestens alle 30 Sekunden. Ein
+  Testfall belegt: 25 Anmeldungen, ein einziger Abruf.
+- Geprüft werden Signatur, Aussteller, Zielgruppe (`authenticated`), Rolle und
+  Ablaufzeit – mit 10 Sekunden Toleranz für Uhrendrift.
+- Ein Service-Role-Token wird ausdrücklich abgelehnt, auch wenn es formal
+  gültig ist.
+- Fehlt das Token oder ist es ungültig, spielt die Person als Gast weiter. Ein
+  kaputter Login sperrt niemanden aus.
+
+## Konten und Datenschutz
+
+- Gespeichert wird nur, was das Spiel anzeigt: Konto-ID und Anzeigename in
+  `profiles`, Konto-ID an den Runs. **Keine E-Mail-Adresse** – die verwaltet
+  Supabase in `auth.users`.
+- `runs.user_id` ist `NULL` bei allen Gast-Runs; das ist und bleibt der
+  Normalfall.
+- Löscht jemand sein Konto (Supabase → **Authentication → Users** → Nutzer →
+  **Delete user**), verschwinden Profil und zugeordnete Runs mit. Gast-Runs
+  bleiben, weil sie keiner Person zugeordnet sind.
+- Auch für `profiles` gilt Row Level Security ohne erlaubende Policy: Selbst
+  mit gültigem Google-Login kommt aus dem Browser nichts direkt an die Tabelle.
+
+## Was danach noch fehlt
+
+Damit ein Spieler den Login tatsächlich benutzen kann, fehlen zwei Bausteine
+außerhalb dieses Servers:
+
+1. **Protokoll:** Die Join-Message braucht ein optionales `authToken`-Feld
+   (`packages/shared`, Chat 01).
+2. **Login-UI:** Der Startscreen braucht einen „Mit Google anmelden"-Knopf, der
+   das Token von Supabase holt und beim Join mitschickt (Chat 03).
+
+Achievements sind ein eigenes Paket und hier noch nicht enthalten.
