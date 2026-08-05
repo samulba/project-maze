@@ -50,6 +50,9 @@ export class GameUI {
   private readonly killfeed: HTMLElement;
   private readonly upgrades: HTMLElement;
   private readonly points: HTMLElement;
+  /** Touch-Einstieg in die Upgrades: Badge an der Statusleiste öffnet das Sheet. */
+  private readonly pointsBadge: HTMLButtonElement;
+  private readonly pointsBadgeCount: HTMLElement;
   private readonly autoFire: HTMLButtonElement;
   private readonly toastContainer: HTMLElement;
   private readonly minimap: HTMLCanvasElement;
@@ -131,13 +134,14 @@ export class GameUI {
 
         <section class="hud" id="hud" hidden>
           <div class="top-left">
-            <div class="glass player-panel">
+            <div class="glass player-panel" id="player-panel">
               <div class="player-heading"><div><strong id="ui-name">Player</strong><span id="ui-class">CORE</span></div><div class="level-badge">LVL <b id="ui-level">1</b></div></div>
               <div class="meter health-meter"><div id="health-bar"></div></div>
-              <div class="meter-row"><span id="health-text">100 / 100 HP</span><span id="kd">0 K / 0 D</span></div>
+              <div class="meter-row hp-row"><span id="health-text">100 / 100 HP</span><span id="kd">0 K / 0 D</span></div>
               <div class="meter xp-meter"><div id="xp-bar"></div></div>
-              <div class="meter-row"><span id="xp-text">0 / 73 XP</span><span id="score">0 SCORE</span></div>
+              <div class="meter-row xp-row"><span id="xp-text">0 / 73 XP</span><span id="score">0 SCORE</span></div>
             </div>
+            <button class="points-badge" id="points-badge" type="button" hidden><b id="points-badge-count">1</b><span>PUNKTE</span></button>
             <div class="killfeed" id="killfeed"></div>
           </div>
 
@@ -145,7 +149,7 @@ export class GameUI {
           <aside class="glass leaderboard" id="leaderboard"><div class="panel-title">TOP PLAYERS</div></aside>
 
           <div class="upgrade-panel" id="upgrades" hidden>
-            <div class="upgrade-header"><span>UPGRADES</span><b><span id="upgrade-points">0</span> PUNKTE</b></div>
+            <div class="upgrade-header"><span>UPGRADES</span><b><span id="upgrade-points">0</span> PUNKTE</b><button class="sheet-close" id="upgrades-close" type="button" aria-label="Upgrades schließen">✕</button></div>
             <div class="upgrade-list">
               ${UPGRADE_IDS.map((id, index) => `<button data-upgrade="${id}"><kbd>${index + 1}</kbd><span>${upgradeLabels[id]}</span><div class="upgrade-pips" data-pips="${id}">${Array.from({ length: GAME.maxUpgradeLevel }, () => '<i></i>').join('')}</div></button>`).join('')}
             </div>
@@ -200,6 +204,8 @@ export class GameUI {
     this.killfeed = this.require('#killfeed');
     this.upgrades = this.require('#upgrades');
     this.points = this.require('#upgrade-points');
+    this.pointsBadge = this.require<HTMLButtonElement>('#points-badge');
+    this.pointsBadgeCount = this.require('#points-badge-count');
     this.autoFire = this.require<HTMLButtonElement>('#auto-fire');
     this.toastContainer = this.require('#toasts');
     this.minimap = this.require<HTMLCanvasElement>('#minimap');
@@ -238,6 +244,19 @@ export class GameUI {
     });
     this.autoFire.addEventListener('click', () => this.setAutoFire(onAutoFire()));
     this.respawnButton.addEventListener('click', onRespawn);
+
+    // Touch-Wege ins HUD. Beide Umschalter setzen nur eine Klasse – ob daraus
+    // ein Bottom-Sheet bzw. eine sichtbare Minimap wird, entscheidet mobile.css.
+    // Auf Maus-Geräten ändert sich dadurch nichts.
+    this.pointsBadge.addEventListener('click', () => this.upgrades.classList.toggle('sheet-open'));
+    this.require<HTMLButtonElement>('#upgrades-close').addEventListener('click', () => {
+      this.upgrades.classList.remove('sheet-open');
+    });
+    // Die Minimap kostet auf dem Handy Spielfeld – sie kommt auf Abruf über die
+    // Statusleiste und geht beim nächsten Tipp wieder.
+    this.require('#player-panel').addEventListener('click', () => {
+      this.root.classList.toggle('minimap-open');
+    });
     // Zurück zur Landingpage: Ein sauberer Neuladen ist hier bewusst die ganze
     // Wahrheit – frischer Startscreen, frische Bestenliste, kein halber Zustand.
     this.require<HTMLButtonElement>('#exit-to-start').addEventListener('click', () => location.reload());
@@ -345,7 +364,13 @@ export class GameUI {
     this.score.textContent = `${self.score.toLocaleString('de-DE')} SCORE`;
     this.kd.textContent = `${self.kills} K / ${self.deaths} D`;
     this.points.textContent = String(self.availablePoints);
-    this.upgrades.hidden = self.availablePoints <= 0 || self.dead;
+    const noPoints = self.availablePoints <= 0 || self.dead;
+    this.upgrades.hidden = noPoints;
+    this.pointsBadge.hidden = noPoints;
+    this.pointsBadgeCount.textContent = String(self.availablePoints);
+    // Der letzte verteilte Punkt schließt das Sheet – sonst bliebe eine leere
+    // Fläche über den Sticks stehen.
+    if (noPoints) this.upgrades.classList.remove('sheet-open');
 
     for (const id of UPGRADE_IDS) {
       const currentLevel = self.upgrades[id];
