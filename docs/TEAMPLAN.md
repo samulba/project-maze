@@ -75,4 +75,4 @@ Stand: Alpha 1.0 live auf https://www.mazers.de (Railway, Auto-Deploy von `main`
 - [x] Supabase `profiles` + `runs.user_id` liegen an (Migration 0002, eingespielt 2026-08-05)
 - [x] Google-OAuth eingerichtet (Client + Provider + URL-Config, 2026-08-05)
 - [x] Railway-Variablen komplett: `SUPABASE_*`, `AUTH_ENABLED`, `ACHIEVEMENTS_ENABLED`, `ALLOWED_ORIGIN`, `METRICS_TOKEN` (2026-08-05)
-- [ ] Supabase `achievements` + `profile_stats` einspielen (Migration 0003, `supabase/migrations/20260805140000_0003_achievements.sql`)
+- [x] Supabase `achievements` + `profile_stats` liegen an (Migration 0003, eingespielt 2026-08-05)

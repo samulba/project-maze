@@ -1,7 +1,7 @@
 -- Project Maze / MAZERS – Migration 0002: Konten (Sprint B, Google-Login)
 --
 -- Legt die Profiltabelle an und verknüpft Runs optional mit einem Konto.
--- Voraussetzung: Migration 0001 (20260805120000_create_runs.sql) ist gelaufen.
+-- Voraussetzung: Migration 0001 (0001_runs.sql) ist gelaufen.
 --
 -- Wichtig: Diese Migration ändert das Verhalten des Servers nicht. Ohne
 -- AUTH_ENABLED=true bleibt `runs.user_id` immer NULL, und `profiles` bleibt

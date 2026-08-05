@@ -3,7 +3,10 @@
 Supabase bekommt sein Schema über nummerierte SQL-Dateien aus diesem Ordner –
 eingespielt von Hand über den SQL Editor (siehe `docs/SUPABASE.md`).
 
-**Konvention:**
+**Namensschema:** `<laufende Nummer>_<kurzer Inhalt>.sql`, z. B. `0004_stats.sql`.
+Keine Zeitstempel im Namen – die Nummer allein bestimmt die Reihenfolge.
+
+**Ablage-Konvention:**
 
 - Direkt in `migrations/` liegen Migrationen, die **noch eingespielt werden
   müssen**. Neue Dateien landen immer hier.
@@ -15,7 +18,8 @@ Der Inhalt einer Datei ändert sich durch das Verschieben nicht; jede Migration
 ist so geschrieben, dass ein versehentlicher zweiter Durchlauf nichts kaputt
 macht (`if not exists` / `on conflict do nothing`).
 
-| Nr. | Datei | Status |
-| --- | --- | --- |
-| 0001 | `applied/20260805120000_create_runs.sql` | eingespielt 2026-08-05 |
-| 0002 | `applied/20260805130000_0002_profiles_and_run_user.sql` | eingespielt 2026-08-05 |
+| Nr. | Datei | Inhalt | Status |
+| --- | --- | --- | --- |
+| 0001 | `applied/0001_runs.sql` | Tabelle `runs` (Leaderboard) | eingespielt 2026-08-05 |
+| 0002 | `applied/0002_profiles.sql` | Tabelle `profiles` + `runs.user_id` | eingespielt 2026-08-05 |
+| 0003 | `applied/0003_achievements.sql` | Tabelle `achievements` + View `profile_stats` | eingespielt 2026-08-05 |

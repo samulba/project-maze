@@ -1,4 +1,6 @@
-import { Application, Container, Graphics, Text, type ApplicationOptions } from 'pixi.js';
+// Browser-Umgebung sofort registrieren statt sie beim init nachladen zu lassen.
+import 'pixi.js/browser';
+import { Application, Container, Graphics, Text, WebGLRenderer, WebGPURenderer, type ApplicationOptions } from 'pixi.js';
 import {
   CLASS_DEFINITIONS,
   GAME,
@@ -89,6 +91,14 @@ const translated=(points:number[],position:Vector2):number[]=>points.map((value,
 function angleLerp(current:number,target:number,factor:number):number{let difference=(target-current+Math.PI)%(Math.PI*2)-Math.PI;if(difference<-Math.PI)difference+=Math.PI*2;return current+difference*factor}
 
 export class GameRenderer {
+  /**
+   * Beide Renderer fest ins Bundle zwingen: PixiJS lädt sie sonst beim init per
+   * dynamic import nach – hängt dieser Nachlade-Request (Deploy-Wechsel,
+   * wackliges Netz, Browser-Erweiterungen), läuft jeder Grafikweg ins Zeitlimit,
+   * obwohl die Grafikkarte völlig in Ordnung ist. Statisch importiert löst
+   * PixiJS' interner import() sofort aus dem Modul-Cache auf.
+   */
+  static readonly bundledRenderers=[WebGLRenderer,WebGPURenderer] as const;
   // Nicht readonly: Schlägt der WebGL-Start fehl, braucht der WebGPU-Versuch
   // eine frische Application – eine halb initialisierte lässt sich nicht neu starten.
   app=new Application();
