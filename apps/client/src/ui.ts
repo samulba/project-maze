@@ -90,8 +90,9 @@ export class GameUI {
       <div class="ui-layer">
         <section class="start-screen" id="start-screen">
           <form class="start-card" id="join-form">
+            <img class="start-logo" src="/logo.png" alt="Mazers-Logo" width="76" height="76" />
             <div class="eyebrow"><span></span> PLAYABLE ALPHA 1.0</div>
-            <h1>PROJECT <b>MAZE</b></h1>
+            <h1>MAZE<b>RS</b></h1>
             <p class="intro">Farmen, leveln, spezialisieren und mit deinem Build die Arena kontrollieren. Jeder startet als Core-Tank.</p>
             <label class="field-label" for="player-name">SPIELERNAME</label>
             <input id="player-name" maxlength="18" autocomplete="off" value="Player" />

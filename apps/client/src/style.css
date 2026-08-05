@@ -23,3 +23,4 @@
 :root[data-theme=neon] .play-button{box-shadow:0 14px 38px color-mix(in srgb,var(--accent2) 34%,transparent),0 0 22px color-mix(in srgb,var(--accent) 28%,transparent)}
 :root[data-theme=neon] .level-badge b,:root[data-theme=neon] .upgrade-header b{text-shadow:0 0 12px color-mix(in srgb,var(--accent) 70%,transparent)}
 :root[data-theme=neon] .upgrade-pips i.filled{box-shadow:0 0 10px color-mix(in srgb,var(--accent) 75%,transparent)}
+.start-logo{display:block;width:76px;height:76px;margin:0 0 16px;border-radius:18px;box-shadow:0 10px 34px rgba(0,0,0,.45),0 0 0 1px var(--line)}

@@ -1,6 +1,6 @@
-# Project Maze
+# MAZERS (Project Maze)
 
-Project Maze ist ein eigenständiges, serverautoritäres Browser-Arena-Game mit Farming, Tank-Progression, Maze-Welt, Projektil-Kollisionen und Desktop-/Mobile-Steuerung.
+MAZERS (Codename Project Maze) ist ein eigenständiges, serverautoritäres Browser-Arena-Game mit Farming, Tank-Progression, Maze-Welt, Projektil-Kollisionen und Desktop-/Mobile-Steuerung.
 
 ## Voraussetzungen
 

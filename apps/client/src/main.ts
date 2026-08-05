@@ -189,7 +189,7 @@ function handleServerMessage(message: ServerMessage): void {
     ui.enterGame();
     gameplayUI.onWelcome();
     enteredGame = true;
-    ui.setConnection('online', 'MAZE ALPHA');
+    ui.setConnection('online', 'MAZERS ALPHA');
     ui.toast('Arena betreten', 'Farme Formen und entwickle deinen Tank.', 'success');
     input?.setEnabled(true);
     return;
