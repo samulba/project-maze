@@ -36,6 +36,7 @@ import { MazeGame } from './game.js';
 import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system.js';
 import { tuneProgression } from './progression-tuning.js';
 import { hardenSimulation } from './simulation-hardening.js';
+import { metricsHandler, tuneTelemetry } from './telemetry.js';
 
 function integerEnvironment(name: string, fallback: number, minimum: number, maximum: number): number {
   const parsed = Number.parseInt(process.env[name] ?? '', 10);
@@ -61,15 +62,17 @@ app.disable('x-powered-by');
 app.use(cors({ origin: allowedOrigins ? [...allowedOrigins] : true }));
 const server = createServer(app);
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
-const game = tuneDebugRules(
-  tuneArenaSystems(
-    tuneLoadoutSystem(
-      tuneProgression(
-        tuneBotBrain(
-          tuneClassMechanics(
-            tuneDrones(
-              tuneCombatScaling(
-                hardenSimulation(new MazeGame(BOT_COUNT))
+const game = tuneTelemetry(
+  tuneDebugRules(
+    tuneArenaSystems(
+      tuneLoadoutSystem(
+        tuneProgression(
+          tuneBotBrain(
+            tuneClassMechanics(
+              tuneDrones(
+                tuneCombatScaling(
+                  hardenSimulation(new MazeGame(BOT_COUNT))
+                )
               )
             )
           )
@@ -273,4 +276,5 @@ app.get('/health', (_request: Request, response: Response) => response.json({
   snapshotRate: GAME.snapshotRate,
   debugTools: ENABLE_DEV_TOOLS
 }));
+app.get('/metrics', metricsHandler(game));
 server.listen(PORT, () => console.log(`Project Maze server listening on http://localhost:${PORT}`));

@@ -28,7 +28,30 @@ npm run dev
 npm run typecheck
 npm run test
 npm run build
+npm run balance   # Balance-Report für Klassen, Module und Frames
+npm run check     # Typecheck + Tests + Build
 ```
+
+## Deployment
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+nginx liefert den Client auf `http://localhost:8080` aus und reicht `/ws` an den
+Spielserver weiter; der Serverport bleibt im internen Netz. Alle ENV-Variablen,
+die beiden Betriebsarten (ein Origin / getrennte Hosts) und die Betriebshinweise
+stehen in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
+## Telemetrie
+
+Der Server erhebt anonyme Balance-Kennzahlen – Pickraten, Lebensdauer sowie
+Kills/Deaths je Klasse, Core Module und Frame – und exportiert sie über
+`/metrics` (Prometheus-Text, alternativ `?format=json`). Es werden keine Namen,
+IDs oder Adressen gespeichert. Abschaltbar über `TELEMETRY_ENABLED=false`,
+absicherbar über `METRICS_TOKEN`. Details in
+[`docs/TELEMETRY.md`](docs/TELEMETRY.md).
 
 ## Aktueller Alpha-Stand (1.0)
 

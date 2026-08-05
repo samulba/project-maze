@@ -1,0 +1,62 @@
+name: project-maze
+
+# Produktions-Stack: nginx liefert den Client aus und reicht /ws an den
+# autoritativen Spielserver weiter. Der Spielserver ist damit nur im internen
+# Compose-Netz erreichbar – inklusive /metrics.
+# Start:  cp .env.example .env && docker compose up -d --build
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    image: project-maze-server:${MAZE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "2567"
+      BOT_COUNT: ${BOT_COUNT:-8}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-*}
+      ENABLE_DEV_TOOLS: ${ENABLE_DEV_TOOLS:-false}
+      TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-true}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+    expose:
+      - "2567"
+    networks:
+      - maze
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:2567/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 4s
+      retries: 3
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  client:
+    build:
+      context: .
+      dockerfile: apps/client/Dockerfile
+      args:
+        # Muss absolut sein; leer lassen fällt auf ws(s)://<hostname>:2567 zurück.
+        VITE_WS_URL: ${MAZE_WS_URL:-ws://localhost:8080/ws}
+    image: project-maze-client:${MAZE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      MAZE_SERVER_UPSTREAM: server:2567
+    ports:
+      - "${MAZE_HTTP_PORT:-8080}:8080"
+    depends_on:
+      server:
+        condition: service_healthy
+    networks:
+      - maze
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  maze:
+    driver: bridge

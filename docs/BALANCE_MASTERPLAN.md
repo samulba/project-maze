@@ -17,11 +17,12 @@ Der v2-Ausbau ist in `docs/MASTERPLAN_V2.md` beschrieben und umgesetzt.
 - Treffer-Feedback (Hit-Flash, Schadenszahlen, Shake) und Audio v2
 - lokale F2-Balance- und DPS-Werkzeuge
 - klassenspezifische Kernmechaniken in allen vier Familien
+- anonyme Server-Telemetrie: Pickraten, Lebensdauer und Kills/Deaths je Klasse,
+  Modul und Frame, exportiert über `/metrics` (siehe `docs/TELEMETRY.md`)
 
 ### Bewusst noch offen
 
-- reale Online-Telemetrie
-- datenbasierte Feinbalance
+- datenbasierte Feinbalance auf Basis der erhobenen Telemetrie
 - weitere Events und Module
 
 Neue Inhalte werden erst ergänzt, wenn die aktuellen Systeme verständlich und balanciert sind.
