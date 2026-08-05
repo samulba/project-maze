@@ -1,0 +1,72 @@
+/*
+ * Login-Zeile auf dem Startscreen. Sie steht zwischen Statuszeile und
+ * Einstellungen und ist bewusst leiser als „ARENA BETRETEN“: gedeckte Farben,
+ * kein Verlauf, kein Schatten.
+ */
+.start-auth {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 10px;
+  margin-top: 12px;
+}
+.start-auth[hidden] { display: none !important; }
+.start-auth.is-busy { opacity: .6; pointer-events: none; }
+
+.start-auth-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 40px;
+  padding: 0 15px;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 11px;
+  color: #d3d8e8;
+  background: rgba(255, 255, 255, .045);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  transition: border-color .18s, background .18s, color .18s;
+}
+.start-auth-button:hover {
+  border-color: rgba(255, 255, 255, .26);
+  color: #fff;
+  background: rgba(255, 255, 255, .08);
+}
+.start-auth-button svg { flex: 0 0 auto; }
+
+.start-auth-hint {
+  flex-basis: 100%;
+  color: #6d748a;
+  text-align: center;
+  font-size: 9px;
+  letter-spacing: .04em;
+}
+
+.start-auth-user { color: #a7adc4; font-size: 11px; }
+.start-auth-user b { color: #fff; font-weight: 700; }
+
+.start-auth-link {
+  padding: 4px 9px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 8px;
+  color: #7d859b;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+.start-auth-link:hover { border-color: rgba(255, 255, 255, .22); color: #d3d8e8; }
+
+/* Wenig Höhe: Der Hinweis fällt weg, der Knopf wird kompakter. */
+@media (max-height: 700px) {
+  .start-auth { margin-top: 9px; }
+  .start-auth-hint { display: none; }
+  .start-auth-button { height: 36px; font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-auth-button { transition: none; }
+}
