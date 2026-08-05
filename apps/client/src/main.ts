@@ -15,6 +15,7 @@ import type { GameplayWorldExtension } from '@project-maze/shared/gameplay';
 import { GameAudio } from './audio';
 import { AuthClient, AUTH_TIMEOUT_MS, withTimeout } from './auth';
 import { AuthPanel } from './auth-panel';
+import { ProfilePanel } from './profile-panel';
 import { BalanceCombatMeter } from './balance-combat-meter';
 import { BalanceLab } from './balance-lab';
 import { enhanceClassChoices } from './class-choice-enhancer';
@@ -44,6 +45,7 @@ import './spectator.css';
 import './onboarding.css';
 import './achievements.css';
 import './auth.css';
+import './profile.css';
 
 let socket: WebSocket | null = null;
 let joinOptions: JoinOptions | null = null;
@@ -107,9 +109,19 @@ ui.onStartScreenGone(() => startBackdrop.stop());
 void new StartLeaderboard(ui.root).load();
 // Ohne konfigurierten Login bleibt der Container leer und versteckt – es gibt
 // dann keinen Knopf, der ins Leere führt.
+const profilePanel = new ProfilePanel(
+  ui.root,
+  (title, message, tone) => ui.toast(title, message, tone),
+  (name) => ui.prefillPlayerName(name)
+);
 void authReady.then((client) => {
   if (!client) return;
   new AuthPanel(ui.root, client, (title, message, tone) => ui.toast(title, message, tone), (name) => ui.prefillPlayerName(name));
+  // Das Profil-Panel kennt Supabase nicht – es bekommt nur ein frisches Token,
+  // wenn es eines braucht.
+  profilePanel.setTokenProvider(() => client.accessToken());
+  client.onChange((user) => profilePanel.setUser(user));
+  profilePanel.setUser(client.user);
 });
 const spectator = new SpectatorBanner(ui.root);
 const onboarding = new OnboardingCoach(ui.root);

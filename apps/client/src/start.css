@@ -12,10 +12,10 @@
   place-items: center;
   padding: clamp(14px, 3vw, 32px);
   overflow: hidden;
-  /* Ruhige dunkle Fläche. Die violetten Radial-Verläufe sind raus: Sie waren
-     der Hauptgrund, warum der Screen „Neon City" wirkte. Der einzige Akzent
-     ist der Startknopf. */
-  background: linear-gradient(180deg, #090b12, #05060b);
+  /* Ruhige Fläche ohne Verläufe – die violetten Radien waren der Hauptgrund,
+     warum der Screen „Neon City" wirkte. Der Grundton folgt seit dem 06.08.
+     den angehobenen Basistönen: ruhig ja, düster nein. */
+  background: linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg) 74%, #000));
 }
 .start-backdrop {
   position: absolute;
@@ -30,7 +30,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(70% 55% at 50% 45%, transparent 40%, rgba(3, 4, 9, .72) 100%);
+  background: radial-gradient(78% 62% at 50% 45%, transparent 46%, color-mix(in srgb, var(--bg) 55%, #000) 100%);
 }
 .start-stage {
   position: relative;
@@ -124,7 +124,7 @@
   border: 1px solid rgba(255, 255, 255, .12);
   border-radius: 14px;
   color: #fff;
-  background: rgba(12, 14, 25, .86);
+  background: color-mix(in srgb, var(--strong) 88%, transparent);
   font-size: 16px;
   font-weight: 700;
 }
@@ -156,9 +156,9 @@
  * ------------------------------------------------------------------ */
 .start-settings {
   margin-top: clamp(12px, 2vw, 18px);
-  border: 1px solid rgba(255, 255, 255, .08);
+  border: 1px solid var(--line);
   border-radius: 13px;
-  background: rgba(11, 13, 22, .6);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
   text-align: left;
 }
 .start-settings > summary {
@@ -233,11 +233,14 @@
 /* ------------------------------------------------------------------ *
  * Bestenliste (A4) – nur sichtbar, wenn der Server sie liefert
  * ------------------------------------------------------------------ */
+/* Seitenspalte: Profil über Bestenliste, beide können einzeln fehlen. */
+.start-side { display: grid; align-content: start; gap: 10px; width: min(430px, 100%); }
+
 .start-board {
-  width: min(430px, 100%);
-  border: 1px solid rgba(255, 255, 255, .08);
+  width: 100%;
+  border: 1px solid var(--line);
   border-radius: 16px;
-  background: rgba(10, 12, 20, .72);
+  background: var(--surface);
   backdrop-filter: blur(14px);
 }
 .start-board[hidden] { display: none; }
@@ -306,8 +309,10 @@
     justify-items: stretch;
     gap: clamp(28px, 5vw, 64px);
   }
-  /* Ohne Bestenliste bleibt die Bühne mittig statt links zu kleben. */
-  .start-stage:not(:has(.start-board:not([hidden]))) { grid-template-columns: minmax(0, 430px); }
+  /* Ohne sichtbares Panel in der Seitenspalte bleibt die Bühne mittig statt
+     links zu kleben. Geprüft wird die Spalte, nicht mehr nur die Bestenliste –
+     seit K2 kann dort auch das Profil stehen. */
+  .start-stage:not(:has(.start-side > details:not([hidden]))) { grid-template-columns: minmax(0, 430px); }
   .start-board { width: 100%; }
   .start-board > summary { cursor: default; }
 }
