@@ -6,8 +6,8 @@
     "apps/client"
   ],
   "aktualisiert": "2026-08-06",
-  "latest": "11-signature-impact-wucht.md",
-  "offene_pakete": 1,
+  "latest": "12-kl4-familien-upgrades-konzept.md",
+  "offene_pakete": 0,
   "pakete": [
     {
       "nr": 1,
@@ -115,13 +115,23 @@
       "datei": "11-signature-impact-wucht.md",
       "branch": "claude/signature-impact-wucht",
       "basis": "main@2551d34",
-      "status": "offen",
+      "status": "in main",
       "tests": "15 neu / 515 gesamt",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 12,
+      "titel": "KL4-Konzept: Familien-Upgrades (Vorschlagspaket, kein Code)",
+      "datei": "12-kl4-familien-upgrades-konzept.md",
+      "branch": "-",
+      "basis": "main@d8568b6",
+      "status": "vorschlag",
+      "tests": "-",
       "braucht_von_01": [
-        "Nichts zwingend – PlayerSnapshot.signature traegt jetzt beide Familien, kein Shared-Bedarf",
-        "Entscheidung: WUCHT_MAX_TTK_GAIN = 0.25 ist meine Uebersetzung der Forderung 'toetet nie in einem Kontakt' – die woertliche Fassung ist ohne Wucht schon verletzt (Juggernaut toetet frischen Lancer heute in 0,45 s). Strenger geht ueber contactDrainPerSecond",
-        "Zur Kenntnis: Rammschaden gegen Formen bewusst nicht verstaerkt (waere eine Balance-Entscheidung, keine Signature)",
-        "Fuer 03: docs/CLIENT_PREDICTION.md Abschnitt 7 – Aufbau ist nachrechenbar (ohne primary), der Kontaktverbrauch nicht vorhersagbar"
+        "Entscheidung: Variante B – der Signature-Festwert wandert in die Punkte-Oekonomie (Sockel + Punkte statt Gratis-Festwert). Ohne das gibt es kein Fenster zwischen 'tot' (0.4x) und 'explodiert'",
+        "Shared: zwei familienneutrale IDs signatureRate/signaturePower an UPGRADE_IDS + UpgradeLevels + EMPTY_UPGRADES anhaengen (exakter Vorschlag im Bericht)",
+        "Fuer 03: input.ts muss Digit0 auf Index 9 abbilden (heute -1); zwei familienabhaengige Knopf-Beschriftungen; ohne Familie gesperrt",
+        "Warnung: spendBotPoints dreht endlos, sobald applyUpgrade ablehnen kann (Familiensperre) – Einzeiler im Bericht, liefere ich mit dem KL4-Code oder vorab"
       ]
     }
   ]

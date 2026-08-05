@@ -6,7 +6,7 @@
     "apps/server"
   ],
   "aktualisiert": "2026-08-05",
-  "latest": "11-profil-tab.md",
+  "latest": "12-fullscreen-letterbox-qualitaet.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -117,10 +117,21 @@
       "datei": "11-profil-tab.md",
       "branch": "claude/project-maze-profil-tab-o2q3n4",
       "basis": "main@f6b510c",
-      "status": "offen",
+      "status": "in main",
       "tests": "14 neu / 531 gesamt, vier Zustaende im Browser geprueft",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 12,
+      "titel": "R1/R2/R4: Vollbild, Letterbox-Rand, Qualitaetsstufen",
+      "datei": "12-fullscreen-letterbox-qualitaet.md",
+      "branch": "claude/project-maze-fullscreen-quality-o2q3n4",
+      "basis": "main@d8568b6",
+      "status": "offen",
+      "tests": "12 neu / 558 gesamt, Testmatrix ueber Fenster, Dichte und Stufen",
       "braucht_von_01": [
-        "Merge - danach ist das Profil ohne Flag da"
+        "Merge",
+        "an 04 weiterreichen: Vorschlag fuer ein eigenes Feld 'tier' im Perf-Bericht statt kombinierter quality-Labels (Kardinalitaet 4x4 bleibt)"
       ]
     }
   ]

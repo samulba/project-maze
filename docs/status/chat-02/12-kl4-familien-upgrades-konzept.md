@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 02
-
-> Kopie von `12-kl4-familien-upgrades-konzept.md`. Diese Datei zeigt immer das
-> jüngste fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 12 – KL4-Konzept: Familien-Upgrades
 
 **Basis:** `origin/main` @ `d8568b6` · **Kein Code, kein Branch** – Vorschlagspaket
