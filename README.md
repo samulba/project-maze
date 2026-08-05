@@ -115,6 +115,17 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   Ohne den Schalter verhält sich der Server exakt wie vorher. Wer aus der
   Deckung feuert, spielt auf den alten Werten – Spam aus dem Stand ist der
   schlechtere Weg.
+- **Signature „Wucht" (IMPACT, Klassen 3.0):** Mit
+  `SIGNATURE_IMPACT_ENABLED=true` lädt die Impact-Familie allein durch Fahren
+  einen Anlauf-Skalar auf (+30/s, −50/s im Stand) und rammt bei Vollausschlag
+  bis zu 2,5-mal härter. Der Anlauf wird beim Aufprall verbraucht (600/s, eine
+  volle Ladung hält 0,17 s Dauerkontakt) – Wucht ist ein Rammstoß, kein
+  Dauerbuff. Zwei Grenzen verhindern den Ramm-Tod aus dem Nichts: Ein
+  Kontakttick nimmt nie mehr als 8 % des Maximallebens, und gegen
+  anfängergeschützte Spieler wirkt der Aufschlag gar nicht. Gemessen über alle
+  Klassen: Ein voller Anlauf verkürzt die Zeit bis zum Tod eines frischen,
+  gleichlevelig Gegners um höchstens 23 %. Ohne den Schalter verhält sich der
+  Server exakt wie vorher.
 - **Aggro-Pacing der Bots:** Kämpfe enden auch mal. Nach einem Abschuss lässt
   ein Bot 6 s von Menschen ab, eine erfolglose Jagd bricht er nach 8 s ohne
   eigenen Treffer ab (das Ziel bleibt ihm danach 6 s tabu), und höchstens zwei
@@ -153,8 +164,9 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   (Rapid, Precision, Control, Impact – je drei Endpfade)
 - klassenspezifische Kernmechaniken: Heckläufe, Rundum-Feuer,
   Exekutionsbonus, Defensiv-Orbit, Mikro-Schwarm, Momentum-Rammen u. a.
-- Familien-Signature (Klassen 3.0): Rapid feuert schneller, solange es in
-  Bewegung feuert (`SIGNATURE_RAPID_ENABLED`)
+- Familien-Signatures (Klassen 3.0): Rapid feuert schneller, solange es in
+  Bewegung feuert (`SIGNATURE_RAPID_ENABLED`); Impact rammt härter mit Anlauf
+  (`SIGNATURE_IMPACT_ENABLED`)
 - Core Modules (Dash, Repulse, Barrier, Repair) und passive Frames
 - Elite Shapes, Bounty-System, Kill-Streaks
 - vier rotierende Arena-Events: Core Surge (mehr Formen), Overcharge
