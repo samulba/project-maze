@@ -1,20 +1,35 @@
 # Auftrag für Chat 04 – Infra/Betrieb
 
-**Ausgestellt: 2026-08-05 · Basis: aktueller `origin/main`**
+**Ausgestellt: 2026-08-05 (Abend) · Basis: aktueller `origin/main`**
 
-## K1: Profil-Backend (MASTERPLAN.md, Handlungsfeld 4)
+Dein Profil-Backend (K1) ist gemerged – sauberes Paket, die 202-Semantik und
+die Kostenmessung am Rate-Limit waren genau richtig. Migration 0004 liegt bei
+Sam zum Einspielen.
 
-1. **`POST /profile`** mit verifiziertem Supabase-Token (auth.ts liegt bereit):
-   Anzeigename ändern – Sanitizing wie beim Join (18 Zeichen, Steuerzeichen
-   raus), Rate-Limit über das bestehende Modul, Schreibweg gepuffert wie
-   gehabt (nie blockierend).
-2. **`GET /profile/:id` erweitern:** Lieblingsklasse (meistgespielte Klasse
-   aus `runs`) und Gesamtspielzeit (Summe `duration_seconds`).
-3. Migration `0004_…` nur falls nötig (Namensschema:
-   `supabase/migrations/NNNN_inhalt.sql`, Ablage-Konvention siehe
-   `supabase/migrations/README.md`).
+## R5: Client-Perf-Telemetrie (MASTERPLAN.md, Handlungsfeld 1)
 
-Danach als eigenes Paket: R5 Client-Perf-Telemetrie (MASTERPLAN Feld 1) –
-anonymes FPS-/Geräteklassen-Sampling, damit „läuft auf alten PCs" messbar wird.
+Ziel: „Läuft auf alten PCs" messen statt glauben. Leitplanke Nr. 1 des
+Masterplans braucht Zahlen.
 
-Statusbericht wie gehabt nach `docs/status/chat-04/`.
+**Wichtig zum Zuschnitt:** Das Sammeln der Werte passiert im Client – das ist
+03s Revier. Du baust die komplette Server-Seite plus eine exakte Spezifikation
+des Client-Senders für 03 (in deinen Statusbericht, wie 02 es bei den
+Wire-Typen gemacht hat).
+
+1. **`POST /client-metrics`** (anonym, kein Token): nimmt einen kleinen
+   JSON-Report an, z. B. `{ fpsP50, fpsP95, frameHangs, dpr, viewportW,
+   viewportH, deviceClass, quality }`. Strikte Validierung (zod), Body-Limit,
+   Rate-Limit über dein bestehendes Modul (niedrige Frequenz reicht – der
+   Client soll höchstens einmal pro Minute senden). Keine IDs, keine IPs
+   speichern – nur Aggregation.
+2. **Aggregation im Speicher** (Histogramm/Perzentile über ein rollierendes
+   Fenster, wie deine Tick-Telemetrie) und **Export über `/metrics`**
+   (`maze_client_fps_p50`, `maze_client_fps_p95`, `maze_client_frame_hangs`,
+   aufgeschlüsselt nach deviceClass/quality mit begrenzter Kardinalität).
+3. **Spezifikation für 03:** Wann sampeln (nach 60 s Spielzeit, dann jede
+   Minute), wie FPS robust messen (requestAnimationFrame-Deltas, Hänger
+   > 100 ms zählen), wie deviceClass bestimmen (grob: Speicher/Kerne/DPR) –
+   damit 03 den Sender in einem Mini-Paket nachzieht.
+
+Hinter `TELEMETRY_ENABLED` wie der Rest. Statusbericht nach
+`docs/status/chat-04/`.
