@@ -47,6 +47,8 @@ function integerEnvironment(name: string, fallback: number, minimum: number, max
 }
 
 const PORT = integerEnvironment('PORT', 2567, 1, 65535);
+/** In Produktion hinter Reverse-Proxy auf 127.0.0.1 binden – nur Caddy/nginx erreicht den Prozess. */
+const HOST = process.env.HOST?.trim() || '0.0.0.0';
 const BOT_COUNT = integerEnvironment('BOT_COUNT', 8, 0, 18);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN?.trim() || '*';
 const ENABLE_DEV_TOOLS = process.env.ENABLE_DEV_TOOLS === 'true';
@@ -293,4 +295,4 @@ if (CLIENT_DIST) {
   });
 }
 
-server.listen(PORT, () => console.log(`Project Maze server listening on http://localhost:${PORT}`));
+server.listen(PORT, HOST, () => console.log(`Project Maze server listening on http://${HOST}:${PORT}`));

@@ -47,21 +47,54 @@ fly launch --no-deploy   # erkennt Node; internal_port auf 2567 stellen
 fly deploy
 ```
 
-## Option B: Eigener VPS (z. B. Hetzner, ~5 €/Monat)
+## Option B: Hetzner VPS (gehärtet, ~4,50 €/Monat)
+
+Voraussetzungen: Hetzner-Cloud-Server (CX22, Ubuntu 24.04, **mit SSH-Key
+erstellt**) und eine Domain mit A-Record auf die Server-IP.
 
 ```bash
-# auf dem Server
-git clone <repo> && cd project-maze
-npm ci && npm run build
-ALLOWED_ORIGIN=https://maze.example.com PORT=2567 npm start
+# per SSH als root auf dem Server:
+curl -fsSL https://raw.githubusercontent.com/samulba/project-maze/main/scripts/deploy/hetzner-setup.sh -o setup.sh
+MAZE_DOMAIN=deine-domain.de bash setup.sh
 ```
-Davor Caddy oder nginx als Reverse-Proxy mit TLS (Caddy macht wss automatisch):
+
+Das Skript ist idempotent und übernimmt die komplette Härtung:
+
+- Firewall (ufw): nur SSH/80/443 offen, Game-Prozess nur via Caddy erreichbar
+  (bindet auf 127.0.0.1)
+- SSH: Passwort-Login aus (sobald ein Key hinterlegt ist), fail2ban aktiv
+- automatische Sicherheitsupdates inkl. nächtlichem Auto-Reboot bei Bedarf
+- App läuft als unprivilegierter User `maze` in einer systemd-Sandbox
+  (ProtectSystem=strict, NoNewPrivileges, Memory-Limit) mit Auto-Restart
+- Caddy besorgt und erneuert TLS-Zertifikate automatisch (wss inklusive)
+
+Bei privatem Repo bricht das Skript einmal ab und zeigt einen Deploy-Key an –
+diesen in GitHub unter *Settings → Deploy keys* (read-only) eintragen und das
+Skript erneut ausführen.
+
+**Updates einspielen** (nach jedem Merge):
+```bash
+bash /opt/project-maze/app/scripts/deploy/deploy.sh
 ```
-maze.example.com {
-    reverse_proxy localhost:2567
-}
+
+**Optionales Auto-Deploy bei jedem Push auf `main`** – GitHub-Action, die per
+SSH `deploy.sh` ausführt (Secrets `DEPLOY_HOST` und `DEPLOY_SSH_KEY` im Repo
+hinterlegen):
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy
+on: { push: { branches: [main] } }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: bash /opt/project-maze/app/scripts/deploy/deploy.sh
 ```
-Prozess mit systemd oder pm2 am Leben halten.
 
 ## Option C: Getrenntes Hosting (Client-CDN + Game-Server)
 
