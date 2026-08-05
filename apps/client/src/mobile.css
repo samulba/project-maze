@@ -113,8 +113,11 @@
     pointer-events: auto;
   }
   /* Name, Klasse, K/D, Score stehen im Death-Screen – nicht im Dauer-HUD. */
+  /* Auf dem Handy trägt der Balken am Tank die Signature allein – für ein
+     Wort ist in einer 44-px-Leiste kein Platz. */
   .player-heading > div:first-child,
   .player-panel .xp-row,
+  .player-panel .signature-row,
   #kd { display: none; }
   .player-heading {
     grid-row: 1 / 3;

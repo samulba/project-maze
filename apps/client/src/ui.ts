@@ -11,6 +11,7 @@ import {
 } from '@project-maze/shared';
 import type { ArenaEventKind } from '@project-maze/shared/gameplay';
 import { arenaEventStyle, cssColor } from './arena-event-style';
+import { signatureLabel, signatureRatio } from './signature';
 import { DEFAULT_THEME, applyTheme, type ClientThemeId } from './themes';
 
 export interface JoinOptions {
@@ -50,6 +51,10 @@ export class GameUI {
   private readonly killfeed: HTMLElement;
   private readonly upgrades: HTMLElement;
   private readonly points: HTMLElement;
+  /** Beschriftung der Familien-Signature; der Balken selbst sitzt am Tank. */
+  private readonly signatureRow: HTMLElement;
+  private readonly signatureLabelEl: HTMLElement;
+  private readonly signatureValue: HTMLElement;
   /** Touch-Einstieg in die Upgrades: Badge an der Statusleiste öffnet das Sheet. */
   private readonly pointsBadge: HTMLButtonElement;
   private readonly pointsBadgeCount: HTMLElement;
@@ -140,6 +145,7 @@ export class GameUI {
               <div class="meter-row hp-row"><span id="health-text">100 / 100 HP</span><span id="kd">0 K / 0 D</span></div>
               <div class="meter xp-meter"><div id="xp-bar"></div></div>
               <div class="meter-row xp-row"><span id="xp-text">0 / 73 XP</span><span id="score">0 SCORE</span></div>
+              <div class="meter-row signature-row" id="signature-row" hidden><span id="signature-label">MOMENTUM</span><span id="signature-value">0 %</span></div>
             </div>
             <button class="points-badge" id="points-badge" type="button" hidden><b id="points-badge-count">1</b><span>PUNKTE</span></button>
             <div class="killfeed" id="killfeed"></div>
@@ -204,6 +210,9 @@ export class GameUI {
     this.killfeed = this.require('#killfeed');
     this.upgrades = this.require('#upgrades');
     this.points = this.require('#upgrade-points');
+    this.signatureRow = this.require('#signature-row');
+    this.signatureLabelEl = this.require('#signature-label');
+    this.signatureValue = this.require('#signature-value');
     this.pointsBadge = this.require<HTMLButtonElement>('#points-badge');
     this.pointsBadgeCount = this.require('#points-badge-count');
     this.autoFire = this.require<HTMLButtonElement>('#auto-fire');
@@ -363,6 +372,17 @@ export class GameUI {
     this.xpBar.style.width = `${self.level >= GAME.maxLevel ? 100 : Math.max(0, Math.min(100, (progress / required) * 100))}%`;
     this.score.textContent = `${self.score.toLocaleString('de-DE')} SCORE`;
     this.kd.textContent = `${self.kills} K / ${self.deaths} D`;
+    // Signature nur zeigen, wenn der Server die Mechanik meldet UND die
+    // Familie ein Wort dafür hat – sonst stünde dort ein namenloser Prozentwert.
+    const signature = signatureRatio(self.signature);
+    const signatureName = signatureLabel(self.playerClass);
+    const showSignature = signature !== null && signatureName !== null;
+    this.signatureRow.hidden = !showSignature;
+    if (showSignature) {
+      this.signatureLabelEl.textContent = signatureName;
+      this.signatureValue.textContent = `${Math.round(signature * 100)} %`;
+    }
+
     this.points.textContent = String(self.availablePoints);
     const noPoints = self.availablePoints <= 0 || self.dead;
     this.upgrades.hidden = noPoints;
