@@ -284,6 +284,7 @@ function applyShortIds(state: ShortIdState, snapshot: EncodedSnapshot): void {
     eliteShapeIds?: number[];
     bountyTargetId?: number | null;
     arenaGuardianId?: number | null;
+    spectatorTargetId?: number | null;
   };
 
   if (snapshot.selfId !== null) wire.selfId = short(snapshot.selfId);
@@ -308,6 +309,7 @@ function applyShortIds(state: ShortIdState, snapshot: EncodedSnapshot): void {
   if (snapshot.eliteShapeIds) wire.eliteShapeIds = snapshot.eliteShapeIds.map(short);
   if (snapshot.bountyTargetId) wire.bountyTargetId = short(snapshot.bountyTargetId);
   if (snapshot.arenaGuardianId) wire.arenaGuardianId = short(snapshot.arenaGuardianId);
+  if (snapshot.spectatorTargetId) wire.spectatorTargetId = short(snapshot.spectatorTargetId);
 }
 
 /**

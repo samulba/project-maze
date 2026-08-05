@@ -171,7 +171,9 @@ describe('Zuschauen nach dem Tod', () => {
 
     const snapshot = game.snapshot(victimId) as any;
     expect(snapshot.selfId).toBe(victimId);
-    expect(snapshot.spectatorTargetId).toBeUndefined();
+    // Die Loadout-Schicht liefert das Feld immer als null mit – entscheidend
+    // ist, dass ohne Schalter niemals ein Ziel gesetzt wird.
+    expect(snapshot.spectatorTargetId ?? null).toBeNull();
     // Ohne Zuschauermodus liegt der Killer weit außerhalb des eigenen Fensters.
     expect(snapshot.players.some((player: any) => player.id === killerId)).toBe(false);
   });

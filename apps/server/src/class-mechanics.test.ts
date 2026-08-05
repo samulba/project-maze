@@ -79,7 +79,7 @@ describe('class mechanics', () => {
     expect(secondSpread).toBeGreaterThan(0);
   });
 
-  it('gives Storm a sturdier projectile wall without increasing direct damage', () => {
+  it('passt Storms Kugelwand-Integrität an, ohne den Direktschaden zu erhöhen', () => {
     const game = createGame();
     const playerId = game.addPlayer('Storm');
     const internals = game as unknown as Internals;
@@ -91,8 +91,10 @@ describe('class mechanics', () => {
     expect(projectiles).toHaveLength(4);
     for (const projectile of projectiles) {
       expect(projectile.damage).toBeCloseTo(stats.damage, 5);
-      expect(projectile.integrity).toBeCloseTo(stats.penetration * 1.18, 5);
-      expect(projectile.maxIntegrity).toBeCloseTo(stats.penetration * 1.18, 5);
+      // 0.95: Der Tempo-Dämpfer hält ~25 % mehr Storm-Kugeln gleichzeitig in
+      // der Luft – der gesenkte Faktor gleicht den Neben-Buff der Wand aus.
+      expect(projectile.integrity).toBeCloseTo(stats.penetration * 0.95, 5);
+      expect(projectile.maxIntegrity).toBeCloseTo(stats.penetration * 0.95, 5);
     }
   });
 

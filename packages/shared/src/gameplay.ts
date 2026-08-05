@@ -151,16 +151,23 @@ export interface GameplayWorldExtension {
   arenaGuardianId: string | null;
   /** Seit dem letzten Snapshot dieses Clients freigeschaltet. Leer = nichts Neues. */
   freshAchievements: AchievementId[];
+  /**
+   * Tank, aus dessen Perspektive dieser Snapshot gebaut wurde – gesetzt, solange
+   * der eigene Spieler tot ist und seinem Killer zusieht (SPECTATOR_ENABLED).
+   * `selfId` bleibt davon unberührt und zeigt weiterhin auf den eigenen Spieler.
+   */
+  spectatorTargetId: string | null;
 }
 
 /** Wire-Variante der Gameplay-Erweiterung: IDs können kurze Zahlen sein. */
 export interface WireGameplayWorldExtension
-  extends Omit<GameplayWorldExtension, 'gameplay' | 'eliteShapeIds' | 'bountyTargetId' | 'arenaGuardianId'> {
+  extends Omit<GameplayWorldExtension, 'gameplay' | 'eliteShapeIds' | 'bountyTargetId' | 'arenaGuardianId' | 'spectatorTargetId'> {
   /** Schlüssel sind die NetIds aus `players` – als String, wie in JSON üblich. */
   gameplay: Record<string, PlayerGameplaySnapshot>;
   eliteShapeIds: NetId[];
   bountyTargetId: NetId | null;
   arenaGuardianId: NetId | null;
+  spectatorTargetId: NetId | null;
 }
 
 export const DEFAULT_ACTIVE_MODULE: ActiveModuleId = 'dash';

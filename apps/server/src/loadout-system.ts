@@ -318,6 +318,7 @@ export function tuneLoadoutSystem<T extends MazeGame>(game: T): T {
     snapshot.bountyValue ??= 0;
     snapshot.arenaGuardianId ??= null;
     snapshot.freshAchievements ??= [];
+    snapshot.spectatorTargetId ??= null;
     return snapshot;
   }) as T['snapshot'];
 

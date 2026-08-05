@@ -70,13 +70,13 @@ interface CombatInternals {
 }
 
 /**
- * Globaler Dämpfer auf die Projektilgeschwindigkeit: Die Klassen-Basiswerte
- * stammen aus einer Zeit ohne echtes Ausweich-Spiel – Kugeln waren praktisch
- * nicht dodgebar. 0.8 macht sie sichtbar ausweichbar; die im gleichen Maß
- * verlängerte Lebenszeit hält die Reichweite jeder Waffe exakt konstant.
- * Feinschliff je Klasse folgt in der Telemetrie-Balance-Runde.
+ * Dämpfer auf die Projektilgeschwindigkeit; die im gleichen Maß verlängerte
+ * Lebenszeit hält die Reichweite jeder Waffe exakt konstant. Precision zahlt
+ * pro Fehlschuss eine komplette Ladephase (0,5–1,3 s) – der volle Dämpfer
+ * träfe die Linie 2–7× härter als Rapid, obwohl er sie physikalisch am
+ * wenigsten verändert (Analyse 02, .probe/damper2.mjs). Deshalb dort nur 0.9.
  */
-const PROJECTILE_SPEED_SCALE = 0.75;
+const projectileSpeedScaleFor = (branch: string): number => (branch === 'precision' ? 0.9 : 0.75);
 
 /**
  * Ausweichen ist Beschleunigung, nicht Höchsttempo: Der Buff macht
@@ -87,14 +87,15 @@ const ACCELERATION_SCALE = 1.12;
 export function tunedStatsFor(player: RuntimePlayer): TunedStats {
   const base = CLASS_DEFINITIONS[player.playerClass];
   const modifier = PASSIVE_MODIFIER_DEFINITIONS[player.passiveModifier ?? 'standard'];
+  const speedScale = projectileSpeedScaleFor(base.branch);
   return {
     maxHealth: Math.round(base.maxHealth * (1 + player.upgrades.maxHealth * 0.09) * modifier.healthMultiplier),
     regen: base.regen + player.upgrades.regen * 0.5,
     acceleration: base.acceleration * ACCELERATION_SCALE * (1 + player.upgrades.moveSpeed * 0.018) * modifier.moveMultiplier,
     moveSpeed: base.moveSpeed * (1 + player.upgrades.moveSpeed * 0.03) * modifier.moveMultiplier,
     reload: Math.max(0.09, base.reload * modifier.reloadMultiplier * Math.pow(0.95, player.upgrades.reload)),
-    projectileSpeed: base.projectileSpeed * PROJECTILE_SPEED_SCALE * (1 + player.upgrades.projectileSpeed * 0.04) * modifier.projectileSpeedMultiplier,
-    projectileLife: base.projectileLife / PROJECTILE_SPEED_SCALE,
+    projectileSpeed: base.projectileSpeed * speedScale * (1 + player.upgrades.projectileSpeed * 0.04) * modifier.projectileSpeedMultiplier,
+    projectileLife: base.projectileLife / speedScale,
     damage: base.damage * (1 + player.upgrades.damage * 0.07),
     projectileRadius: base.projectileRadius,
     penetration: base.penetration * (1 + player.upgrades.penetration * 0.085),

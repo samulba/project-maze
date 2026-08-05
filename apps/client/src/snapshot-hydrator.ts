@@ -212,4 +212,5 @@ function normalizeNetIds(wire: WireWorldSnapshot): void {
   if (Array.isArray(extension.eliteShapeIds)) extension.eliteShapeIds = extension.eliteShapeIds.map(String);
   if (typeof extension.bountyTargetId === 'number') extension.bountyTargetId = String(extension.bountyTargetId);
   if (typeof extension.arenaGuardianId === 'number') extension.arenaGuardianId = String(extension.arenaGuardianId);
+  if (typeof extension.spectatorTargetId === 'number') extension.spectatorTargetId = String(extension.spectatorTargetId);
 }

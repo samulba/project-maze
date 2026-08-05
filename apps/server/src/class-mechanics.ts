@@ -164,8 +164,12 @@ export function tuneClassMechanics<T extends MazeGame>(game: T): T {
       }
       if (player.playerClass === 'lancer') projectile.life *= 1.08;
       if (player.playerClass === 'storm') {
-        projectile.integrity *= 1.18;
-        projectile.maxIntegrity *= 1.18;
+        // 0.95 statt 1.18: Der Projektiltempo-Dämpfer verlängert die Lebenszeit
+        // um ein Viertel – also stehen dauerhaft ~25 % mehr Storm-Kugeln in der
+        // Luft. Der gesenkte Bonus fängt genau diesen Neben-Buff der Kugelwand
+        // wieder ein (Analyse 02, .probe/damper2.mjs).
+        projectile.integrity *= 0.95;
+        projectile.maxIntegrity *= 0.95;
       }
     }
   };
