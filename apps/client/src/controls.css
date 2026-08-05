@@ -10,8 +10,11 @@
 /* ------------------------------------------------------------------ *
  * Dropdowns
  * ------------------------------------------------------------------ */
-.core-loadout-fields label { position: relative; }
-.core-loadout-fields select {
+/* Gilt für beide Auswahlfelder auf dem Startscreen: Loadout und Grafikstufe. */
+.core-loadout-fields label,
+.start-quality { position: relative; }
+.core-loadout-fields select,
+.start-quality select {
   appearance: none;
   -webkit-appearance: none;
   min-width: 0;
@@ -28,20 +31,24 @@
   font: 650 11px inherit;
   transition: border-color .18s, box-shadow .18s;
 }
-.core-loadout-fields select:hover { border-color: var(--line-strong); }
-.core-loadout-fields select:focus-visible {
+.core-loadout-fields select:hover,
+.start-quality select:hover { border-color: var(--line-strong); }
+.core-loadout-fields select:focus-visible,
+.start-quality select:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 70%, transparent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 /* Die aufgeklappte Liste erbt unter Linux/Windows die Farben des Elements. */
-.core-loadout-fields option { color: var(--text); background: var(--strong); }
+.core-loadout-fields option,
+.start-quality option { color: var(--text); background: var(--strong); }
 
 /*
  * Eigener Pfeil auf dem Label statt des Systemdreiecks. Die Mitte des 42px
  * hohen Feldes liegt 21px über der Label-Unterkante – dort sitzt das gedrehte
  * Quadrat mit seiner Bounding-Box.
  */
-.core-loadout-fields label::after {
+.core-loadout-fields label::after,
+.start-quality::after {
   content: '';
   position: absolute;
   right: 14px;

@@ -16,6 +16,7 @@ import {
 import type { ArenaEventSnapshot } from '@project-maze/shared/gameplay';
 import { GUARDIAN_COLOR, GUARDIAN_NAME, arenaEventStyle } from './arena-event-style';
 import { ParticleField } from './particles';
+import { QUALITY_TIERS, type QualitySettings, type QualityTier } from './quality';
 import { type RecoilState, startRecoil, stepRecoil } from './recoil';
 import type { RenderQuality } from './perf-metrics';
 import { signatureLabel, signatureRatio } from './signature';
@@ -155,6 +156,8 @@ export class GameRenderer {
   private readonly rings:ShockRing[]=[];
   private shakeAmplitude=0;
   private readonly viewportMask=new Graphics();
+  /** Weicher Abschluss am Rand des Sichtfelds – liegt INNEN, siehe drawViewportEdge. */
+  private readonly viewportEdge=new Graphics();
   private readonly crosshair=new Graphics();
   private readonly playerViews=new Map<string,PlayerView>();
   private readonly projectileViews=new Map<string,MotionView<ProjectileSnapshot>>();
@@ -181,6 +184,11 @@ export class GameRenderer {
    * der „alte PC".
    */
   quality:RenderQuality='unknown';
+  /** Aktive Qualitätsstufe (R4). Steuert Partikel, Leuchten und Auflösung. */
+  private tier:QualityTier='mid';
+  private ratioCheck=1;
+  private lastDeviceRatio=1;
+  private settings:QualitySettings=QUALITY_TIERS.mid;
   private lastSnapshotAt=performance.now();
   private guardianId:string|null=null;
   /** Gesetzt, solange der Server einen Zuschauer-Blick vorgibt (SPECTATOR_ENABLED). */
@@ -223,7 +231,21 @@ export class GameRenderer {
     });
   }
 
-  async init(root:HTMLElement):Promise<void>{
+  /**
+   * Stufe setzen. Antialias und Auflösung greifen erst beim nächsten Start
+   * bzw. beim nächsten `syncSize` – Partikel und Leuchten sofort.
+   */
+  setQuality(tier:QualityTier):void{
+    this.tier=tier;
+    this.settings=QUALITY_TIERS[tier];
+    this.particles.setQuality(this.settings.particleScale,this.settings.maxParticles);
+    if(this.initialized)this.syncSize();
+  }
+
+  get qualityTier():QualityTier{return this.tier}
+
+  async init(root:HTMLElement,tier:QualityTier='mid'):Promise<void>{
+    this.setQuality(tier);
     // Kein resizeTo: Die Größe wird selbst verwaltet (syncSize), weil
     // window.innerHeight auf iOS nicht dem sichtbaren Bereich entspricht.
     const base={background:this.palette.outside,autoDensity:true};
@@ -239,7 +261,7 @@ export class GameRenderer {
     // das der Telemetrie-Endpunkt akzeptiert – ein Tippfehler fiele sonst erst
     // in der Server-Statistik auf.
     const attempts:{label:RenderQuality;possible:boolean;options:Partial<ApplicationOptions>}[]=[
-      {label:'webgl',possible:webgl,options:{...base,preference:'webgl',antialias:true,resolution:Math.min(devicePixelRatio||1,2)}},
+      {label:'webgl',possible:webgl,options:{...base,preference:'webgl',antialias:this.settings.antialias,resolution:this.pixelRatio()}},
       {label:'webgl-kompat',possible:webgl,options:{...base,preference:'webgl',antialias:false,resolution:1,failIfMajorPerformanceCaveat:false,powerPreference:'low-power'}},
       {label:'webgpu',possible:'gpu' in navigator,options:{...base,preference:'webgpu',antialias:true,resolution:1}}
     ];
@@ -270,7 +292,8 @@ export class GameRenderer {
     root.prepend(this.app.canvas);
     this.world.addChild(this.background,this.walls,this.shapes,this.projectiles,this.drones,this.particles.graphics,this.players,this.fx,this.numbers.container);
     this.world.mask=this.viewportMask;
-    this.app.stage.addChild(this.world,this.viewportMask,this.crosshair);
+    this.viewportEdge.mask=this.viewportMask;
+    this.app.stage.addChild(this.world,this.viewportEdge,this.viewportMask,this.crosshair);
     this.syncSize();
     // iOS meldet neue Maße gern verspätet – deshalb nach jedem Ereignis ein
     // zweiter Abgleich mit kurzem Abstand.
@@ -280,6 +303,15 @@ export class GameRenderer {
     document.addEventListener('fullscreenchange',resync);
     window.visualViewport?.addEventListener('resize',resync);
     window.visualViewport?.addEventListener('scroll',resync);
+    // Zoom und Monitorwechsel melden nicht überall ein `resize` – die
+    // Medienabfrage auf die aktuelle Dichte tut es zuverlässig. Sie gilt immer
+    // nur für genau einen Wert und wird nach jedem Treffer neu gestellt.
+    const watchRatio=():void=>{
+      const query=window.matchMedia(`(resolution: ${window.devicePixelRatio||1}dppx)`);
+      const once=():void=>{resync();watchRatio()};
+      if('addEventListener' in query)query.addEventListener('change',once,{once:true});
+    };
+    watchRatio();
     this.drawBackground();
     this.app.ticker.add(ticker=>this.render(Math.min(.05,ticker.deltaMS/1000)));
   }
@@ -552,6 +584,7 @@ export class GameRenderer {
       this.world.position.set(this.viewport.x+this.viewport.width/2+shakeX,this.viewport.y+this.viewport.height/2+shakeY);
       this.world.pivot.set(camera.current.x,camera.current.y);
     }
+    this.checkPixelRatio(delta);
     this.emitOverchargeSparks(delta);
     this.drawDynamic(now);
     this.particles.update(delta);
@@ -596,7 +629,7 @@ export class GameRenderer {
     // Was sichtbar ist, hängt an der Kamera – beim Zuschauen also am beobachteten Tank.
     const self=(this.spectatorId?this.playerViews.get(this.spectatorId):undefined)
       ??(this.selfId?this.playerViews.get(this.selfId):undefined);
-    if(!event||event.kind!=='overcharge'||event.phase!=='active'||!self){this.sparkBudget=0;return}
+    if(!this.settings.glow||!event||event.kind!=='overcharge'||event.phase!=='active'||!self){this.sparkBudget=0;return}
     // Ohne frische Snapshots (Verbindungsverlust) friert der Weltzustand ein –
     // dann dürfen auch die Funken nicht endlos weitersprühen.
     if(performance.now()-this.lastSnapshotAt>2000){this.sparkBudget=0;return}
@@ -633,7 +666,8 @@ export class GameRenderer {
         .stroke({color:ring.color,alpha:(1-progress)*.75,width:ring.width*(1-progress*.5)});
     }
     this.drawWallFlashes(delta);
-    this.drawMuzzleBlips(delta);
+    if(this.settings.glow)this.drawMuzzleBlips(delta);
+    else this.muzzleBlips.length=0;
   }
 
   /** Kurzer heller Fleck am Rohrende, quer zur Schussrichtung gestreckt. */
@@ -688,11 +722,64 @@ export class GameRenderer {
    * Safari-Leisten meldet es den Layout-Viewport – dann rutscht die
    * Spielfeldmitte unter den Bildschirmrand. visualViewport ist die Wahrheit.
    */
+  /**
+   * Weicher Abschluss zwischen Spielfeld und Letterbox-Balken (R2).
+   *
+   * Bewusst KEIN Rahmenstrich: Genau der hat die „komischen Striche" erzeugt,
+   * weil sein Strich zur Hälfte außerhalb der Maske lag. Hier liegen alle
+   * Rechtecke vollständig innen (`alignment: 0`) und werden zusätzlich von der
+   * Maske beschnitten; die Abstufung ist so fein, dass keine Kante entsteht –
+   * der Rand des Sichtfelds wird ruhig dunkler statt abgeschnitten.
+   */
+  private drawViewportEdge():void{
+    const steps=7;
+    const depth=Math.max(6,Math.round(Math.min(this.viewport.width,this.viewport.height)*.018));
+    const width=Math.max(1,Math.ceil(depth/steps));
+    this.viewportEdge.clear();
+    for(let index=0;index<steps;index+=1){
+      const inset=Math.round(depth*index/steps);
+      const boxWidth=this.viewport.width-inset*2;
+      const boxHeight=this.viewport.height-inset*2;
+      if(boxWidth<=0||boxHeight<=0)break;
+      this.viewportEdge
+        .rect(this.viewport.x+inset,this.viewport.y+inset,boxWidth,boxHeight)
+        .stroke({color:this.palette.outside,alpha:.085,width,alignment:0});
+    }
+  }
+
+  /** Auflösung: Gerätedichte, gedeckelt von der Qualitätsstufe. */
+  private pixelRatio():number{return Math.max(1,Math.min(window.devicePixelRatio||1,this.settings.resolutionCap))}
+
+  /**
+   * Sicherheitsnetz für Zoom und Monitorwechsel: Die Medienabfrage auf die
+   * Gerätedichte ist der saubere Weg, aber nicht überall zuverlässig (unter
+   * Emulation etwa feuert sie nicht). Ein Vergleich zweier Zahlen einmal pro
+   * Sekunde kostet nichts und schließt die Lücke.
+   */
+  private checkPixelRatio(delta:number):void{
+    this.ratioCheck-=delta;
+    if(this.ratioCheck>0)return;
+    this.ratioCheck=1;
+    const ratio=window.devicePixelRatio||1;
+    if(Math.abs(ratio-this.lastDeviceRatio)<.01)return;
+    this.lastDeviceRatio=ratio;
+    this.syncSize();
+  }
+
   private syncSize():void{
     const vv=window.visualViewport;
     const width=Math.max(1,Math.round(vv?.width??window.innerWidth));
     const height=Math.max(1,Math.round(vv?.height??window.innerHeight));
-    if(this.app.screen.width!==width||this.app.screen.height!==height)this.app.renderer.resize(width,height);
+    // Zoom, Monitorwechsel und Stufenwechsel ändern die nötige Auflösung. Ohne
+    // das bliebe der Renderer auf dem Wert vom Start – nach einem Wechsel auf
+    // einen HiDPI-Monitor sähe alles matschig aus, umgekehrt kostet es Leistung.
+    const ratio=this.pixelRatio();
+    const ratioChanged=Math.abs(this.app.renderer.resolution-ratio)>.01;
+    // Die Auflösung gehört als drittes Argument in `resize` – sie nur am
+    // Renderer zu setzen ändert die Zeichenfläche nicht mit.
+    if(ratioChanged||this.app.screen.width!==width||this.app.screen.height!==height){
+      this.app.renderer.resize(width,height,ratio);
+    }
     this.resizeViewport();
   }
 
@@ -717,6 +804,7 @@ export class GameRenderer {
       height
     };
     this.viewportMask.clear().rect(this.viewport.x,this.viewport.y,this.viewport.width,this.viewport.height).fill(0xffffff);
+    this.drawViewportEdge();
     // Das HUD hängt sich auf breiten Bildschirmen an diese Werte, damit die
     // Panels am Spielfeld kleben statt im schwarzen Balken zu schweben.
     const root=document.documentElement.style;

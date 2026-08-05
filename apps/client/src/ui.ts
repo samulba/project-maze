@@ -124,6 +124,10 @@ export class GameUI {
                 <summary><span>Sound &amp; Loadout</span><i aria-hidden="true"></i></summary>
                 <div class="start-settings-body" id="start-settings-body">
                   <label class="start-sound"><span>SOUND</span><b id="volume-value">80%</b><input type="range" id="volume" min="0" max="100" step="5" /></label>
+                  <div class="start-display">
+                    <label class="start-quality"><span>GRAFIK</span><select id="quality-select"></select></label>
+                    <button class="start-fullscreen" id="fullscreen-toggle" type="button" hidden>VOLLBILD</button>
+                  </div>
                 </div>
               </details>
 
