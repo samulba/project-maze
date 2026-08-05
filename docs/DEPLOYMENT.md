@@ -52,6 +52,11 @@ docker build -f apps/client/Dockerfile --build-arg VITE_WS_URL=wss://maze.exampl
 | `LEADERBOARD_CACHE_MS` | `30000` | 1000–600000 | Cache-Fenster von `GET /leaderboard`. |
 | `AUTH_ENABLED` | `false` | `true`/`false` | Schaltet die Prüfung von Supabase-Zugriffstokens frei (Google-Login). Braucht zusätzlich `SUPABASE_URL`; fehlt eine der beiden, ist der Login-Pfad komplett inaktiv und der Server verhält sich exakt wie ohne. Gäste spielen immer. Siehe [`SUPABASE.md`](./SUPABASE.md#teil-2--google-login-einrichten-sprint-b). |
 | `SUPABASE_JWT_SECRET` | – | Geheimnis | **Nur für ältere Supabase-Projekte mit HS256-Signatur.** Neuere Projekte prüfen über die JWKS des Projekts und brauchen die Variable nicht. `/health` zeigt unter `auth.mode`, welcher Weg aktiv ist. **Niemals in den Client.** |
+| `RATE_LIMITS_ENABLED` | `true` | `true`/`false` | Rate-Limits und Missbrauchsschutz. Nur `false`, `0` und `off` schalten ab; bei `false` verhält sich der Server exakt wie ohne das Modul. |
+| `RATE_LIMIT_CONNECTIONS_PER_IP` | `5` | 1–200 | Gleichzeitige WebSocket-Verbindungen je IP. **Hinter Carrier-NAT (Mobilfunk) teilen sich viele Fremde eine IPv4** – das ist die wahrscheinlichste Fehlauslösung. Steigt `abuse.rejectedConnections` in `/health` ohne erkennbaren Angriff, hier erhöhen. |
+| `RATE_LIMIT_JOINS_PER_MINUTE` | `20` | 1–1000 | Beitritte je IP und Minute. |
+| `RATE_LIMIT_HTTP_PER_MINUTE` | `60` | 1–10000 | Anfragen je IP und Minute auf `/leaderboard` und `/profile`. `/health` bleibt ungebremst. |
+| `TRUST_PROXY_HOPS` | `1` | 0–8 | Zahl der eigenen Proxys vor dem Server (Railway: 1). Bestimmt, welcher Eintrag aus `x-forwarded-for` als echte Client-IP gilt. `0` ignoriert den Header. |
 | `SHUTDOWN_DRAIN_MS` | `0` | 0–30000 | Vorlauf beim Herunterfahren, in dem `/health` bereits `503` meldet, der Listener aber noch offen ist. Railway nimmt die Instanz schon beim Signal aus dem Verkehr und braucht das nicht; hinter einem eigenen Loadbalancer sind 500–2000 ms sinnvoll. |
 | `SNAPSHOT_DELTAS` | `false` | `true`/`false` | Lässt unveränderte Snapshot-Felder (Name, Klasse, Upgrades, Wände, Bestenliste, Killfeed, Formstatik) weg – rund 40 % weniger Bytes je Snapshot. **Setzt einen Client voraus, der den letzten Stand puffert.** Das Runden der Zahlen ist davon unabhängig und immer aktiv. |
 | `ARENA_DIRECTOR_ENABLED` | `true` | `true`/`false` | Dynamische Bot-Population: Zielgröße richtet sich nach der Zahl der Menschen (1 → 11 Bots, je weiterem −2, Minimum 4), höchstens eine Änderung alle 5 s. Bots verschwinden nur tot oder weit außer Sicht. Bei `false` bleibt die Population starr bei `BOT_COUNT` – dem Verhalten vor dem Direktor. |
@@ -176,6 +181,52 @@ außerhalb der Simulation auf. Details in [`TELEMETRY.md`](./TELEMETRY.md).
 
 Den Lasttest nie gegen eine produktive Arena mit echten Spielern fahren – er
 belegt reale Plätze.
+
+## Rate-Limits und Missbrauchsschutz
+
+Das Spiel ist öffentlich erreichbar. Drei Ebenen sind begrenzt, alle hinter
+`RATE_LIMITS_ENABLED` (Standard: an):
+
+| Ebene | Grenze | Reaktion |
+| --- | --- | --- |
+| Verbindungen je IP | 5 gleichzeitig | Close mit Code `1013` („try again later") |
+| Beitritte je IP | 20 pro Minute | Fehlermeldung an den Client, Verbindung bleibt |
+| Nachrichten je Verbindung | Budget je Art, `input` 50/s | erst Drosseln (Nachricht fällt weg), bei anhaltendem Missbrauch Close `1008` |
+| Flut je Verbindung | 250 Nachrichten/s | sofortiges Close `1008` |
+| `/leaderboard`, `/profile` je IP | 60 pro Minute (Burst 15) | `429` mit `Retry-After` |
+
+**Client-IP hinter dem Proxy.** `x-forwarded-for` ist eine Liste, an die jeder
+Proxy anhängt. Schickt ein Angreifer den Header selbst mit, stehen seine
+erfundenen Werte **links**. Vertrauenswürdig ist deshalb nur der Eintrag, den
+der eigene Proxy angehängt hat – bei Railway (`TRUST_PROXY_HOPS=1`) der
+rechteste. Den linken zu nehmen wäre der klassische Fehler: Dann sucht sich
+jeder Angreifer seinen eigenen Limit-Topf aus.
+
+**Gemessen wird mit Token-Buckets, nicht mit festen Sekundenfenstern.** Ein
+ehrlicher Client sendet mit 40 Hz; feste Fenster hätten an der Grenze schon
+normales Ruckeln bestraft. Nachgemessen mit 12 Clients über 25 Sekunden und
+11 856 Eingaben: **null Drosselungen.**
+
+**Was im Blick bleiben sollte:** `abuse.rejectedConnections` in `/health`.
+Steigt der Wert ohne erkennbaren Angriff, sitzen vermutlich mehrere echte
+Spieler hinter einem Carrier-NAT (Mobilfunk) – dann
+`RATE_LIMIT_CONNECTIONS_PER_IP` erhöhen. Das ist die wahrscheinlichste
+Fehlauslösung im Betrieb.
+
+Der `abuse`-Block in `/health`:
+
+```json
+"abuse": {
+  "enabled": true, "trackedIps": 12, "openConnections": 8,
+  "rejectedConnections": 0, "rejectedJoins": 0, "throttledMessages": 0,
+  "disconnectedSockets": 0, "rejectedRequests": 0
+}
+```
+
+Alle Zähler leben im Prozessspeicher und starten bei jedem Deploy bei null.
+Beobachtete IPs werden nach zehn Minuten ohne Verbindung vergessen; mehr als
+20 000 gleichzeitig hält der Server nie vor, damit IP-Rotation kein Speicherleck
+wird.
 
 ## Redeploy und Graceful Shutdown
 

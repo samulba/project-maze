@@ -164,6 +164,7 @@ export async function runLoadTest(options, hooks = {}) {
       aimAngle: Math.random() * Math.PI * 2,
       firing: Math.random() < 0.6,
       lastSnapshotAt: 0,
+      lastRespawnAt: 0,
       bestRtt: Infinity,
       clockOffset: 0,
       startedAt: Date.now()
@@ -227,7 +228,13 @@ export async function runLoadTest(options, hooks = {}) {
         client.level = self.level;
         client.playerClass = self.playerClass;
         client.availablePoints = self.availablePoints ?? 0;
-        if (self.dead) socket.send(JSON.stringify({ type: 'respawn' }));
+        // Höchstens einmal pro Sekunde: Der Server frühestens nach
+        // respawnDelayMs (2,5 s) an, und ein echter Client schickt das
+        // ohnehin nur auf Knopfdruck. Ein Respawn je Snapshot wären 30/s.
+        if (self.dead && now - client.lastRespawnAt >= 1_000) {
+          client.lastRespawnAt = now;
+          socket.send(JSON.stringify({ type: 'respawn' }));
+        }
       }
     });
 

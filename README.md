@@ -84,6 +84,11 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   zusätzlich alle Felder weg, die sich seit dem letzten Snapshot dieses Clients
   nicht geändert haben. Gemessen mit 40 Clients: **256,8 → 153,1 KB/s je Client
   (−40 %)** bei unveränderter Latenz.
+- **Rate-Limits:** Verbindungen und Beitritte je IP, Nachrichten-Budgets je
+  Verbindung (Input 50/s, alles andere deutlich weniger) und Limits auf
+  `/leaderboard` und `/profile`. Bei Überschreitung wird erst gedrosselt, dann
+  getrennt; die Zähler stehen im `abuse`-Block von `/health`. Abschaltbar über
+  `RATE_LIMITS_ENABLED=false`.
 - **Redeploy:** Bei `SIGTERM` meldet `/health` sofort `503`, dann werden alle
   WebSockets mit Code 1001 sauber geschlossen – Clients reconnecten umgehend
   statt in einen Timeout zu laufen.
