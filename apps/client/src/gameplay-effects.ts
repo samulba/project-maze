@@ -69,7 +69,7 @@ export class GameplayEffects {
     const estimatedServerNow = snapshot.serverTime + (performance.now() - this.receivedAt);
 
     const event = snapshot.arenaEvent;
-    if (event) {
+    if (event && arenaEventStyle(event.kind).zoned) {
       const style = arenaEventStyle(event.kind);
       const active = event.phase === 'active';
       const center = this.toScreen(event.center, self, viewport);

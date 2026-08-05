@@ -11,15 +11,22 @@ export interface ArenaEventStyle {
   core: number;
   /** Kurzname für Debug-/Testzwecke. */
   label: string;
+  /**
+   * Ob das Event überhaupt einen Ort hat. Fracture wirkt arenaweit – ein Zonenkreis
+   * würde auf eine Stelle zeigen, an der nichts passiert.
+   */
+  zoned: boolean;
 }
 
 export const ARENA_EVENT_STYLES: Record<ArenaEventKind, ArenaEventStyle> = {
   // Gold wie bisher – Core Surge ist das eingeführte Standard-Event.
-  coreSurge: { ring: 0xe9b653, core: 0xf2c86f, label: 'Core Surge' },
+  coreSurge: { ring: 0xe9b653, core: 0xf2c86f, label: 'Core Surge', zoned: true },
   // Elektrisch: Geschosse löschen sich in der Zone nicht mehr aus.
-  overcharge: { ring: 0x53c8ff, core: 0x9ce4ff, label: 'Overcharge' },
+  overcharge: { ring: 0x53c8ff, core: 0x9ce4ff, label: 'Overcharge', zoned: true },
   // Rot-Gold: Jagd auf den neutralen Guardian.
-  hunterSignal: { ring: 0xff6b4a, core: 0xf7c766, label: 'Hunter Signal' }
+  hunterSignal: { ring: 0xff6b4a, core: 0xf7c766, label: 'Hunter Signal', zoned: true },
+  // Violett wie aufgebrochener Fels – ortlos, das Feedback sind die fehlenden Wände.
+  fracture: { ring: 0xa878ff, core: 0xd0b6ff, label: 'Fracture', zoned: false }
 };
 
 /** Gold für den Guardian selbst – bewusst identisch zum Hunter-Signal-Kern. */

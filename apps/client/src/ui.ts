@@ -426,7 +426,7 @@ export class GameUI {
       context.fillRect(topLeft.x, topLeft.y, (wall.width / halfWorldWidth) * (width / 2), (wall.height / halfWorldHeight) * (height / 2));
     }
     const event = extended.arenaEvent;
-    if (event) {
+    if (event && arenaEventStyle(event.kind).zoned) {
       const center = toRadar(event.center);
       context.beginPath();
       // Gleiche Farbsprache wie die Zone im Spielfeld.

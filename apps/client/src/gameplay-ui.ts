@@ -24,7 +24,8 @@ const editableTarget = (target: EventTarget | null): boolean => {
 const EVENT_COPY: Partial<Record<string, { name: string; active: string }>> = {
   coreSurge: { name: 'CORE SURGE', active: 'mehr Shapes und Elites im Zentrum' },
   overcharge: { name: 'OVERCHARGE', active: 'Geschosse löschen sich in der Zone nicht mehr aus' },
-  hunterSignal: { name: 'HUNTER SIGNAL', active: 'neutraler Guardian im Zentrum · 600 Bonus-XP' }
+  hunterSignal: { name: 'HUNTER SIGNAL', active: 'neutraler Guardian im Zentrum · 600 Bonus-XP' },
+  fracture: { name: 'FRACTURE', active: 'einzelne Wände sind arenaweit aufgebrochen' }
 };
 
 export class GameplayUI {

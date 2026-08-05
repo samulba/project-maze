@@ -128,7 +128,7 @@ export interface PlayerGameplaySnapshot {
   bountyValue: number;
 }
 
-export type ArenaEventKind = 'coreSurge' | 'overcharge' | 'hunterSignal';
+export type ArenaEventKind = 'coreSurge' | 'overcharge' | 'hunterSignal' | 'fracture';
 export type ArenaEventPhase = 'warning' | 'active';
 
 export interface ArenaEventSnapshot {
