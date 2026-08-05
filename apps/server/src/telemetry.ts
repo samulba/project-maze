@@ -18,6 +18,7 @@ import {
   type GameplayWorldExtension,
   type PassiveModifierId
 } from '@project-maze/shared/gameplay';
+import { clientMetricsText } from './client-metrics.js';
 import { MazeGame } from './game.js';
 
 /**
@@ -667,7 +668,9 @@ export function renderMetricsText(game: MazeGame, now = Date.now()): string {
     }
   );
 
-  return `${metrics.map(renderMetric).join('\n')}\n`;
+  // Client-Perf-Telemetrie hängt hinten an: eigenes Modul, eigener Zustand,
+  // aber derselbe Endpunkt – ein Prometheus-Target reicht für beides.
+  return `${metrics.map(renderMetric).join('\n')}\n${clientMetricsText(now)}`;
 }
 
 const environmentFlag = (name: string, fallback: boolean): boolean => {

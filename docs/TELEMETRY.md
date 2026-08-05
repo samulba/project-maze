@@ -157,6 +157,81 @@ rate(maze_tick_overruns_total[5m]) > 1
 Gegenprobe mit echter Last: `npm run loadtest -- --url <ws-url> --clients 40`
 (siehe [`DEPLOYMENT.md`](./DEPLOYMENT.md#lasttest)).
 
+## Client-Perf-Telemetrie
+
+Leitplanke Nr. 1 des Masterplans heißt „läuft auf alten PCs". Damit das
+messbar wird, schickt der Client höchstens **einmal pro Minute** einen winzigen
+anonymen Bericht an `POST /client-metrics`; der Server aggregiert ihn über ein
+gleitendes **15-Minuten-Fenster** und exportiert das Ergebnis über `/metrics`.
+
+```json
+{ "fpsP50": 60, "fpsP95": 45, "frameHangs": 2, "dpr": 2,
+  "viewportW": 1920, "viewportH": 1080,
+  "deviceClass": "high", "quality": "webgl" }
+```
+
+Antwort `204` ohne Inhalt · `400` bei ungültigem Bericht (ohne Begründung –
+ein offener Endpunkt ist kein Schema-Orakel) · `404` bei
+`TELEMETRY_ENABLED=false` · `429` bei zu vielen Berichten je IP.
+
+**`fpsP95` ist der langsame Rand**, nicht der schnelle: die Bildrate bei der
+95-Perzentil-*Framedauer*. Der Wert ist also kleiner als `fpsP50`. Weil sich
+nicht erzwingen lässt, wie herum ein Client zählt, nimmt der Server schlicht
+den kleineren der beiden Werte als Rand und zählt vertauschte Berichte in
+`maze_client_reports_inverted_total` – ein stiller Client-Fehler bleibt so
+sichtbar, ohne dass Daten verloren gehen.
+
+**Zwei Label-Achsen mit festem Vokabular**, mehr entsteht nie:
+
+| Label | Werte |
+| --- | --- |
+| `deviceClass` | `low`, `mid`, `high`, `unknown` |
+| `quality` | `webgl`, `webgl-kompat`, `webgpu`, `unknown` |
+
+`quality` ist der Renderpfad, der im Client tatsächlich hochgekommen ist –
+genau die Labels aus `renderer.ts`. **`webgl-kompat` ist der Software-Pfad und
+damit exakt der „alte PC"**, um den es geht.
+
+### Metriken
+
+```text
+maze_client_fps_p50{deviceClass,quality}           Gauge   Bildrate bei mittlerer Framedauer
+maze_client_fps_p95{deviceClass,quality}           Gauge   Bildrate am langsamen Rand
+maze_client_fps_worst{deviceClass,quality}         Gauge   schlechtester Randwert im Fenster
+maze_client_frame_hangs{deviceClass,quality}       Gauge   Frames über 100 ms je Bericht (Median)
+maze_client_low_fps_ratio{deviceClass,quality}     Gauge   Anteil der Berichte unter 30 fps am Rand
+maze_client_dpr{deviceClass,quality}               Gauge   Pixelverhältnis (Median)
+maze_client_megapixels{deviceClass,quality}        Gauge   Sichtfläche (Median)
+maze_client_bucket_samples{deviceClass,quality}    Gauge   Berichte je Kombination im Fenster
+maze_client_window_samples                         Gauge   Berichte im Fenster insgesamt
+maze_client_reports_total{deviceClass,quality}     Counter angenommene Berichte
+maze_client_frame_hangs_total{deviceClass,quality} Counter summierte Hänger
+maze_client_reports_rejected_total{reason}         Counter verworfene Berichte
+maze_client_reports_inverted_total                 Counter Berichte mit vertauschten Perzentilen
+```
+
+Die eine Zahl, auf die es ankommt:
+
+```promql
+maze_client_low_fps_ratio{quality="webgl-kompat"}
+```
+
+Steigt sie, ruckelt es auf den schwachen Geräten – unabhängig davon, wie flüssig
+es auf dem Entwicklungsrechner aussieht.
+
+### Grenzen
+
+- **Die Quelle ist nicht vertrauenswürdig.** Die Route ist offen und ohne
+  Token; strikte Validierung, Rate-Limit und ein begrenztes Fenster halten den
+  Schaden klein, aber wer die Zahlen bewusst verfälschen will, kann das. Für
+  „wie viele Leute rendern in Software" taugen sie, für Abrechnung oder
+  Balance-Entscheidungen nicht.
+- Es werden **keine IDs, keine IP-Adressen und keine Einzelberichte**
+  gespeichert – nur die Aggregation im Arbeitsspeicher, die bei jedem Deploy
+  bei null startet.
+- `p50` und `p95` sind Mediane **über die gemeldeten Perzentile**, nicht über
+  einzelne Frames. Der Server sieht nie einen einzelnen Frame.
+
 ## Auswertung
 
 Pickrate echter Spieler je Klasse:

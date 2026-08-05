@@ -24,6 +24,12 @@ import { tuneArenaDirector } from './arena-director.js';
 import { tuneArenaEvents } from './arena-events.js';
 import { tuneArenaSystems } from './arena-systems.js';
 import { authStatus, initAuth, verifyAuthToken } from './auth.js';
+import {
+  CLIENT_METRICS_BODY_LIMIT,
+  CLIENT_METRICS_COST,
+  clientMetricsHandler,
+  clientMetricsSummary
+} from './client-metrics.js';
 import { tuneClassMechanics } from './class-mechanics.js';
 import { tuneCombatScaling } from './combat-tuning.js';
 import {
@@ -415,6 +421,7 @@ app.get('/health', (_request: Request, response: Response) => {
     features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED },
     persistence: persistenceStats(game),
     auth: authStatus(),
+    clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),
     abuse: rateLimiter.stats()
   });
 });
@@ -431,6 +438,14 @@ app.post(
   rateLimiter.httpGuard({ cost: PROFILE_WRITE_COST }),
   express.json({ limit: PROFILE_BODY_LIMIT }),
   profileUpdateHandler(game)
+);
+// Anonyme Perf-Berichte des Clients: kein Token, winziger Body, eigenes
+// Kostengewicht im IP-Budget. Höchstens ein Bericht pro Minute und Client.
+app.post(
+  '/client-metrics',
+  rateLimiter.httpGuard({ cost: CLIENT_METRICS_COST }),
+  express.json({ limit: CLIENT_METRICS_BODY_LIMIT }),
+  clientMetricsHandler()
 );
 
 // Single-Service-Deploy: der Server liefert den Client-Build selbst aus
