@@ -248,8 +248,11 @@ https://abcdefghijkl.supabase.co/auth/v1/callback
    - **Nutzertyp:** `Extern` → **Erstellen**
    - **App-Name:** `MAZERS`
    - **Support-E-Mail** und **Kontakt-E-Mail:** deine Adresse
-   - **Autorisierte Domains:** `supabase.co` und deine Spieldomain
-     (`mazers.de`) hinzufügen
+   - **Autorisierte Domains:** die volle Projekt-Domain
+     `<projekt-ref>.supabase.co` (steht in der Project URL) und deine
+     Spieldomain (`mazers.de`) hinzufügen. Das nackte `supabase.co` lehnt
+     Google ab („muss eine private Top-Level-Domain sein") – es steht auf der
+     Public Suffix List und zählt damit wie eine Endung, nicht wie eine Domain.
    - Speichern und weiter, bis der Bildschirm fertig ist.
 4. Im selben Bereich **Zielgruppe** (früher „Veröffentlichungsstatus"):
    Solange die App auf `Testing` steht, können sich **nur die Konten anmelden,
