@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 03
-
-> Kopie von `11-profil-tab.md`. Diese Datei zeigt immer das jüngste
-> fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 11 – K2: Profil-Tab auf dem Startscreen
 
 **Branch:** `claude/project-maze-profil-tab-o2q3n4` · **Basis:** `origin/main` @ `f6b510c` · **Status: OFFEN – wartet auf Merge**
