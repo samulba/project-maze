@@ -25,10 +25,16 @@ export interface TierProfile {
   dodgeChance: number;
 }
 
+/**
+ * Vorhalten ist DER Hebel für Ausweichbarkeit: Ein Bot mit leadFactor nahe 1
+ * trifft rechnerisch immer, egal wie langsam das Projektil fliegt – er zielt
+ * einfach weiter voraus. Erst ein Faktor deutlich unter 1 lässt Querbewegung
+ * tatsächlich Kugeln ins Leere laufen. Deshalb hält selbst Elite nur ~0.78 vor.
+ */
 export const TIER_PROFILES: Record<BotSkillTier, TierProfile> = {
-  rookie: { reactionMs: 430, aimError: 0.17, leadFactor: 0.35, dodgeChance: 0 },
-  veteran: { reactionMs: 300, aimError: 0.1, leadFactor: 0.7, dodgeChance: 0.45 },
-  elite: { reactionMs: 215, aimError: 0.055, leadFactor: 0.95, dodgeChance: 0.75 }
+  rookie: { reactionMs: 430, aimError: 0.19, leadFactor: 0.3, dodgeChance: 0 },
+  veteran: { reactionMs: 330, aimError: 0.13, leadFactor: 0.52, dodgeChance: 0.45 },
+  elite: { reactionMs: 260, aimError: 0.09, leadFactor: 0.78, dodgeChance: 0.75 }
 };
 
 /** 40 % Rookie, 40 % Veteran, 20 % Elite – die Arena bleibt eine faire Mischung. */

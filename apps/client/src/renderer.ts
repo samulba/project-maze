@@ -449,7 +449,15 @@ export class GameRenderer {
       const factor=1-Math.exp(-(view.isSelf?42:24)*delta);
       view.current.x+=(predicted.x-view.current.x)*factor;
       view.current.y+=(predicted.y-view.current.y)*factor;
-      view.angle=angleLerp(view.angle,view.targetAngle,1-Math.exp(-28*delta));
+      if(view.isSelf&&this.showCrosshair){
+        // Der eigene Turm folgt der Maus SOFORT. Auf das Server-Echo zu warten
+        // (halbe Rundlaufzeit + Interpolation) macht das Zielen schwammig –
+        // der Server bleibt trotzdem autoritativ dafür, wohin geschossen wird.
+        const aim=this.screenPointToWorldAim(this.pointer);
+        if(Math.hypot(aim.x,aim.y)>4)view.angle=Math.atan2(aim.y,aim.x);
+      }else{
+        view.angle=angleLerp(view.angle,view.targetAngle,1-Math.exp(-28*delta));
+      }
       view.root.position.set(view.current.x,view.current.y);
       view.rotating.rotation=view.angle;
       view.shield.alpha=view.snapshot.invulnerable?.45+Math.sin(this.time*8)*.16:0;

@@ -76,7 +76,13 @@ interface CombatInternals {
  * verlängerte Lebenszeit hält die Reichweite jeder Waffe exakt konstant.
  * Feinschliff je Klasse folgt in der Telemetrie-Balance-Runde.
  */
-const PROJECTILE_SPEED_SCALE = 0.8;
+const PROJECTILE_SPEED_SCALE = 0.75;
+
+/**
+ * Ausweichen ist Beschleunigung, nicht Höchsttempo: Der Buff macht
+ * Richtungswechsel spürbar direkter, ohne das Kiten (Top-Speed) zu verändern.
+ */
+const ACCELERATION_SCALE = 1.12;
 
 export function tunedStatsFor(player: RuntimePlayer): TunedStats {
   const base = CLASS_DEFINITIONS[player.playerClass];
@@ -84,7 +90,7 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
   return {
     maxHealth: Math.round(base.maxHealth * (1 + player.upgrades.maxHealth * 0.09) * modifier.healthMultiplier),
     regen: base.regen + player.upgrades.regen * 0.5,
-    acceleration: base.acceleration * (1 + player.upgrades.moveSpeed * 0.018) * modifier.moveMultiplier,
+    acceleration: base.acceleration * ACCELERATION_SCALE * (1 + player.upgrades.moveSpeed * 0.018) * modifier.moveMultiplier,
     moveSpeed: base.moveSpeed * (1 + player.upgrades.moveSpeed * 0.03) * modifier.moveMultiplier,
     reload: Math.max(0.09, base.reload * modifier.reloadMultiplier * Math.pow(0.95, player.upgrades.reload)),
     projectileSpeed: base.projectileSpeed * PROJECTILE_SPEED_SCALE * (1 + player.upgrades.projectileSpeed * 0.04) * modifier.projectileSpeedMultiplier,
