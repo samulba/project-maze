@@ -67,6 +67,8 @@ export class GameUI {
   /** Grafikstart endgültig gescheitert – der Play-Button wird zum Neu-laden-Knopf. */
   private failedMode = false;
   private startScreenGone: (() => void) | null = null;
+  /** Sobald der Spieler selbst tippt, wird nichts mehr vorbelegt. */
+  private nameTouched = false;
   private lastDeathCount = 0;
   private lastClassChoicesKey = '';
   private lastLeaderboardKey = '';
@@ -107,6 +109,8 @@ export class GameUI {
               </div>
 
               <p class="start-status" id="join-status" aria-live="polite"></p>
+
+              <div class="start-auth" id="start-auth" hidden></div>
 
               <details class="start-settings" id="start-settings">
                 <summary><span>Sound &amp; Loadout</span><i aria-hidden="true"></i></summary>
@@ -208,6 +212,8 @@ export class GameUI {
     this.respawnCountdown = this.require('#respawn-countdown');
     this.vignette = this.require('#damage-vignette');
 
+    this.require<HTMLInputElement>('#player-name').addEventListener('input', () => { this.nameTouched = true; });
+
     this.require<HTMLFormElement>('#join-form').addEventListener('submit', (event) => {
       event.preventDefault();
       // Nach einem Grafikfehler lädt der Button die Seite neu – eine Sackgasse
@@ -273,6 +279,18 @@ export class GameUI {
    * Startscreen nicht mehr sein soll: eine gleich gewichtete Kiste vor der
    * einen Aktion, um die es geht. Muss nach dem Bau der GameplayUI laufen.
    */
+  /**
+   * Schlägt einen Namen vor (etwa aus dem Google-Profil). Wer schon selbst
+   * getippt hat, behält seine Eingabe – der Vorschlag ist kein Zwang.
+   */
+  prefillPlayerName(name: string): void {
+    if (this.entered || this.nameTouched) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const input = this.require<HTMLInputElement>('#player-name');
+    input.value = trimmed.slice(0, input.maxLength > 0 ? input.maxLength : trimmed.length);
+  }
+
   adoptStartSettings(): void {
     const loadout = this.root.querySelector<HTMLElement>('.core-loadout');
     const body = this.root.querySelector<HTMLElement>('#start-settings-body');

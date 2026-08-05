@@ -13,6 +13,8 @@ import {
 } from '@project-maze/shared';
 import type { GameplayWorldExtension } from '@project-maze/shared/gameplay';
 import { GameAudio } from './audio';
+import { AuthClient, AUTH_TIMEOUT_MS, withTimeout } from './auth';
+import { AuthPanel } from './auth-panel';
 import { BalanceCombatMeter } from './balance-combat-meter';
 import { BalanceLab } from './balance-lab';
 import { enhanceClassChoices } from './class-choice-enhancer';
@@ -39,6 +41,7 @@ import './mobile.css';
 import './killcam.css';
 import './onboarding.css';
 import './achievements.css';
+import './auth.css';
 
 let socket: WebSocket | null = null;
 let joinOptions: JoinOptions | null = null;
@@ -56,6 +59,14 @@ let lastClientErrorToastAt = 0;
 const audio = new GameAudio();
 const renderer = new GameRenderer();
 const hydrator = new SnapshotHydrator();
+
+// Der Login läuft parallel zum Renderer-Start und wird bewusst nirgends
+// abgewartet: Ohne Konfiguration liefert er `null`, und der Startscreen darf
+// sich von einer langsamen Anmeldung nicht aufhalten lassen.
+const authReady: Promise<AuthClient | null> = AuthClient.create().catch((error) => {
+  console.error('Login-Start fehlgeschlagen', error);
+  return null;
+});
 
 function send(message: object): void {
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
@@ -92,6 +103,12 @@ const startBackdrop = new StartBackdrop(document.querySelector<HTMLCanvasElement
 startBackdrop.start();
 ui.onStartScreenGone(() => startBackdrop.stop());
 void new StartLeaderboard(ui.root).load();
+// Ohne konfigurierten Login bleibt der Container leer und versteckt – es gibt
+// dann keinen Knopf, der ins Leere führt.
+void authReady.then((client) => {
+  if (!client) return;
+  new AuthPanel(ui.root, client, (title, message, tone) => ui.toast(title, message, tone), (name) => ui.prefillPlayerName(name));
+});
 const killcam = new KillcamView(ui.root);
 const onboarding = new OnboardingCoach(ui.root);
 const achievements = new AchievementPopups(ui.root);
@@ -171,11 +188,30 @@ function clearReconnectTimer(): void {
   reconnectTimer = null;
 }
 
+/**
+ * Holt bei jedem Join ein frisches Zugriffstoken. Wichtig beim Auto-Reconnect:
+ * Nach einer längeren Unterbrechung ist das alte Token womöglich abgelaufen,
+ * `getSession()` erneuert es. Antwortet der Login nicht rechtzeitig oder ist er
+ * gar nicht eingerichtet, wird als Gast gejoint – blockiert wird nie.
+ */
+async function currentAuthToken(): Promise<string | null> {
+  const client = await withTimeout(authReady, AUTH_TIMEOUT_MS, null);
+  return client ? client.accessToken(AUTH_TIMEOUT_MS) : null;
+}
+
+async function sendJoin(target: WebSocket): Promise<void> {
+  const authToken = await currentAuthToken();
+  // Während des Wartens auf das Token kann die Verbindung schon wieder weg sein.
+  if (target.readyState !== WebSocket.OPEN) return;
+  const message: JoinMessage = { type: 'join', name: joinOptions?.name ?? 'Player' };
+  if (authToken) message.authToken = authToken;
+  target.send(JSON.stringify(message));
+}
+
 function connect(): void {
   if (!joinOptions || socket?.readyState === WebSocket.CONNECTING) return;
   if (socket?.readyState === WebSocket.OPEN) {
-    const message: JoinMessage = { type: 'join', name: joinOptions.name };
-    socket.send(JSON.stringify(message));
+    void sendJoin(socket);
     return;
   }
   clearReconnectTimer();
@@ -191,8 +227,7 @@ function connect(): void {
 
   currentSocket.addEventListener('open', () => {
     reconnectDelay = 1200;
-    const message: JoinMessage = { type: 'join', name: joinOptions?.name ?? 'Player' };
-    currentSocket.send(JSON.stringify(message));
+    void sendJoin(currentSocket);
   });
 
   currentSocket.addEventListener('message', (event) => {
