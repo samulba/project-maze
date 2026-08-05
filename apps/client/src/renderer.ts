@@ -29,7 +29,10 @@ const PALETTES:Record<ClientThemeId,Palette>={
   // Dinge: eigener Tank, Gegner, Drohnen (eigene Mechanik) und Geschosse (muss
   // man sehen). Formen, Wände und Raster sind bewusst fast grau – zweite
   // Stufe nach „Ruhe & Gewicht", auf Sams Wunsch „weg von Neon City".
-  midnight:{background:0x080a11,outside:0x04050a,grid:0x11141c,border:0x2a2f3c,wall:0x191d27,wallEdge:0x2b313d,self:0x6f7ad6,enemy:0xc4626f,barrel:0x9aa1b2,projectile:0xdfe4f0,drone:0x5c8b84,square:0x565f85,triangle:0x877a60,pentagon:0x7d6379,label:0xd6dae6},
+  // Richtungskorrektur (Sam, 2026-08-06): „zu düster" – die Grundtöne sind
+  // gegenüber der Neon-raus-Fassung rund eine Stufe heller. Die Farbwelt
+  // bleibt; nur die Fläche atmet mehr Licht.
+  midnight:{background:0x151a26,outside:0x0d1019,grid:0x202636,border:0x3c4356,wall:0x293040,wallEdge:0x40485c,self:0x6f7ad6,enemy:0xc4626f,barrel:0x9aa1b2,projectile:0xdfe4f0,drone:0x5c8b84,square:0x5a6489,triangle:0x8d8065,pentagon:0x82687e,label:0xd6dae6},
   void:{background:0x030407,outside:0x000000,grid:0x111317,border:0x31343b,wall:0x181b20,wallEdge:0x343942,self:0xb8ff6a,enemy:0xff5c76,barrel:0xdde2e8,projectile:0xffffff,drone:0x65e7c2,square:0x6b7c8f,triangle:0xffb84d,pentagon:0xc77dff,label:0xf1f3f5},
   classic:{background:0xe8ebf0,outside:0xcbd0da,grid:0xd5d9e1,border:0x818a9b,wall:0xaab1bf,wallEdge:0x7e8798,self:0x536dfe,enemy:0xf14e63,barrel:0x727b8d,projectile:0x343a46,drone:0x2ba887,square:0x6f7ee8,triangle:0xe5a044,pentagon:0xbd5c9d,label:0x252a34},
   neon:{background:0x0b0620,outside:0x050210,grid:0x241154,border:0x8a3df0,wall:0x1d1040,wallEdge:0x9b52ff,self:0x35e8ff,enemy:0xff3d9e,barrel:0xd9c2ff,projectile:0xf2fbff,drone:0x7bff7d,square:0x5f6dff,triangle:0xffc247,pentagon:0xc85cff,label:0xf4f0ff}

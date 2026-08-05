@@ -32,3 +32,14 @@ dpr, Viewport, deviceClass, quality = Renderpfad aus renderer.ts).
 3. **N2 Client-Prediction** (docs/CLIENT_PREDICTION.md)
 
 Statusbericht wie gehabt nach `docs/status/chat-03/`.
+
+## NACHTRAG (2026-08-06, vor deinem nächsten Paket lesen)
+
+Sam-Korrektur nach dem Neon-raus-Test: **„Das Game ist noch zu düster/zu
+dunkel – so will ich das gar nicht."** Seine ursprüngliche Dunkel-Ansage war
+ein Irrtum. Neue verbindliche Richtung in MASTERPLAN.md („Design-Richtung"):
+ruhig & minimalistisch JA, düster NEIN. 01 hat die Grundtöne (midnight-Palette
++ CSS-Variablen) bereits eine Stufe angehoben – bitte in deinem nächsten
+Design-Anfass darauf aufbauen und prüfen, wo Panels/Screens noch schwer wirken
+(Death-Screen-Overlay, Start-Backdrop, Sheet-Hintergründe). Kein neues
+Sofort-Paket – einfach ab jetzt gegen „klar & freundlich-technisch" gestalten.
