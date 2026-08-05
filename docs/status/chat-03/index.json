@@ -6,7 +6,7 @@
     "apps/server"
   ],
   "aktualisiert": "2026-08-05",
-  "latest": "08-mobile-r3.md",
+  "latest": "09-neon-raus.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -87,11 +87,21 @@
       "datei": "08-mobile-r3.md",
       "branch": "claude/project-maze-mobile-r3-o2q3n4",
       "basis": "main@f4c76e8",
-      "status": "offen",
+      "status": "in main",
       "tests": "35 Dateien / 414 Tests gruen, Testmatrix im Bericht",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 9,
+      "titel": "Design-Beruhigung II: Neon raus (Startscreen, Glow-Inventur, Farbdisziplin)",
+      "datei": "09-neon-raus.md",
+      "branch": "claude/project-maze-neon-raus-o2q3n4",
+      "basis": "main@a36a0dd",
+      "status": "offen",
+      "tests": "36 Dateien / 449 Tests gruen, Vorher/Nachher-Screenshots im Bericht",
       "braucht_von_01": [
         "Merge",
-        "danach Live-Test von Sam auf echtem iPhone - Safari und Notch sind hier nicht pruefbar"
+        "danach Sams Urteil - 'ruhig genug' ist keine messbare Groesse"
       ]
     }
   ]

@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 03
-
-> Kopie von `09-neon-raus.md`. Diese Datei zeigt immer das jüngste
-> fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 09 – Design-Beruhigung II: „Neon raus"
 
 **Branch:** `claude/project-maze-neon-raus-o2q3n4` · **Basis:** `origin/main` @ `a36a0dd` · **Status: OFFEN – wartet auf Merge**
