@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 02
-
-> Kopie von `09-bot-aggro-pacing.md`. Diese Datei zeigt immer das jüngste
-> fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 09 – Bot-Aggro-Pacing (P1) + Machbarkeitskommentar Klassen 3.0 (KL1)
 
 **Branch:** `claude/bot-aggro-pacing` · **Basis:** `origin/main` @ `b4598db` ·
