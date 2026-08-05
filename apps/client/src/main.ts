@@ -7,7 +7,6 @@ import {
   type PlayerSnapshot,
   type RespawnMessage,
   type ServerMessage,
-  type ThemeId,
   type UpgradeId,
   type UpgradeMessage,
   type WorldSnapshot
@@ -20,13 +19,19 @@ import { enhanceClassChoices } from './class-choice-enhancer';
 import { GameplayEffects } from './gameplay-effects';
 import { GameplayUI } from './gameplay-ui';
 import { InputController } from './input';
+import { KillcamView } from './killcam-view';
+import { OnboardingCoach } from './onboarding-view';
 import { GameRenderer } from './renderer';
+import { DEFAULT_THEME, applyTheme, isClientThemeId, readStoredTheme, storeTheme } from './themes';
 import { GameUI, type JoinOptions } from './ui';
 import './style.css';
 import './stability.css';
 import './balance-lab.css';
 import './class-choice.css';
 import './gameplay-ui.css';
+import './mobile.css';
+import './killcam.css';
+import './onboarding.css';
 
 let socket: WebSocket | null = null;
 let joinOptions: JoinOptions | null = null;
@@ -71,6 +76,8 @@ const ui = new GameUI(
   }
 );
 const gameplayUI = new GameplayUI(ui.root, send);
+const killcam = new KillcamView(ui.root);
+const onboarding = new OnboardingCoach(ui.root);
 new BalanceLab(ui.root, send);
 const balanceCombatMeter = new BalanceCombatMeter(ui.root);
 enhanceClassChoices(ui.root);
@@ -147,6 +154,8 @@ function connect(): void {
     previousProjectileIds.clear();
     previousModuleActiveUntil = 0;
     gameplayUI.onDisconnect();
+    killcam.reset();
+    onboarding.pause();
     if (input?.resetAll()) ui.setAutoFire(false);
     input?.setEnabled(false);
     ui.setConnection('offline', 'VERBINDUNG VERLOREN');
@@ -201,6 +210,8 @@ function updateWorld(snapshot: WorldSnapshot): void {
   balanceCombatMeter.update(snapshot);
   gameplayUI.update(snapshot);
   gameplayEffects.update(snapshot);
+  killcam.update(snapshot);
+  onboarding.update(snapshot, input?.isMoving ?? false);
   const self = snapshot.players.find((player) => player.id === snapshot.selfId) ?? null;
   if (self) {
     playSnapshotAudio(snapshot, self);
@@ -307,15 +318,15 @@ if (volumeSlider) {
   });
 }
 
-const storedTheme = (window.localStorage.getItem('project-maze-theme') as ThemeId | null) ?? 'midnight';
-document.documentElement.dataset.theme = storedTheme;
+const storedTheme = readStoredTheme();
+applyTheme(storedTheme);
 const themeSelect = document.querySelector<HTMLSelectElement>('#theme');
 if (themeSelect) {
   themeSelect.value = storedTheme;
   themeSelect.addEventListener('change', () => {
-    const theme = themeSelect.value as ThemeId;
-    window.localStorage.setItem('project-maze-theme', theme);
-    document.documentElement.dataset.theme = theme;
+    const theme = isClientThemeId(themeSelect.value) ? themeSelect.value : DEFAULT_THEME;
+    storeTheme(theme);
+    applyTheme(theme);
     renderer.setTheme(theme);
   });
 }
