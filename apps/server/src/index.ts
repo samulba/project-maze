@@ -1,4 +1,7 @@
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express, { type Request, type Response } from 'express';
 import WebSocket, { WebSocketServer, type RawData } from 'ws';
@@ -273,4 +276,21 @@ app.get('/health', (_request: Request, response: Response) => response.json({
   snapshotRate: GAME.snapshotRate,
   debugTools: ENABLE_DEV_TOOLS
 }));
+
+// Single-Service-Deploy: der Server liefert den Client-Build selbst aus
+// (eine URL, gleiche Origin für HTTP und WebSocket, kein CORS nötig).
+// CLIENT_DIST überschreibt den Pfad; leerer String deaktiviert das Ausliefern.
+const defaultClientDist = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '../../client/dist');
+const CLIENT_DIST = process.env.CLIENT_DIST !== undefined
+  ? process.env.CLIENT_DIST.trim()
+  : existsSync(path.join(defaultClientDist, 'index.html')) ? defaultClientDist : '';
+if (CLIENT_DIST) {
+  const clientRoot = path.resolve(CLIENT_DIST);
+  app.use(express.static(clientRoot));
+  app.use((request: Request, response: Response, next: () => void) => {
+    if (request.method !== 'GET') return next();
+    response.sendFile(path.join(clientRoot, 'index.html'));
+  });
+}
+
 server.listen(PORT, () => console.log(`Project Maze server listening on http://localhost:${PORT}`));

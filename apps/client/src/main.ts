@@ -99,7 +99,10 @@ function endpoint(): string {
   const configured = import.meta.env.VITE_WS_URL as string | undefined;
   if (configured) return configured;
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${protocol}://${window.location.hostname}:2567`;
+  // Dev: Vite (5173) spricht den lokalen Game-Server auf 2567 an.
+  if (import.meta.env.DEV) return `${protocol}://${window.location.hostname}:2567`;
+  // Produktion (Single-Service): gleiche Origin wie die ausgelieferte Seite.
+  return `${protocol}://${window.location.host}`;
 }
 
 function clearReconnectTimer(): void {

@@ -14,6 +14,7 @@
     "prebalance": "npm run build -w @project-maze/shared",
     "balance": "node scripts/balance-report.mjs",
     "build": "npm run build -w @project-maze/shared && npm run build -w @project-maze/server && npm run build -w @project-maze/client",
+    "start": "node apps/server/dist/index.js",
     "check": "npm run typecheck && npm run test && npm run build"
   },
   "devDependencies": {

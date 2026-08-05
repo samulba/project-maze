@@ -28,7 +28,13 @@ npm run dev
 npm run typecheck
 npm run test
 npm run build
+npm start        # Produktion: ein Prozess liefert Client + Server (siehe docs/DEPLOY.md)
 ```
+
+## Live gehen
+
+Siehe [docs/DEPLOY.md](docs/DEPLOY.md) – Single-Service-Deploy (ein Node-Prozess,
+WebSocket-fähiger Host) und die spätere Supabase-Phase für Leaderboard/Telemetrie.
 
 ## Aktueller Alpha-Stand (1.0)
 
