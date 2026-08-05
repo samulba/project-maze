@@ -6,7 +6,7 @@
     "apps/server"
   ],
   "aktualisiert": "2026-08-05",
-  "latest": "10-signature-perf.md",
+  "latest": "11-profil-tab.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -107,12 +107,20 @@
       "datei": "10-signature-perf.md",
       "branch": "claude/project-maze-signature-perf-o2q3n4",
       "basis": "main@2551d34",
-      "status": "offen",
+      "status": "in main",
       "tests": "17 neu / 517 gesamt, Round-Trip gegen den laufenden Server",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 11,
+      "titel": "K2: Profil-Tab auf dem Startscreen",
+      "datei": "11-profil-tab.md",
+      "branch": "claude/project-maze-profil-tab-o2q3n4",
+      "basis": "main@f6b510c",
+      "status": "offen",
+      "tests": "14 neu / 531 gesamt, vier Zustaende im Browser geprueft",
       "braucht_von_01": [
-        "Merge",
-        "danach kann 02 das Momentum-Flag zuenden - die Anzeige steht",
-        "nach dem Ausrollen: maze_client_low_fps_ratio{quality=\"webgl-kompat\"} beobachten"
+        "Merge - danach ist das Profil ohne Flag da"
       ]
     }
   ]
