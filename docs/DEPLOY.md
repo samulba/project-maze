@@ -36,6 +36,11 @@ Der Server findet `apps/client/dist` automatisch und liefert ihn aus.
 | `ARENA_DIRECTOR_ENABLED` | an | Dynamische Bot-Population nach Spielerzahl; `false` friert sie auf `BOT_COUNT` ein |
 | `SHORT_NET_IDS` | aus | Kurze numerische Entitäts-IDs statt UUIDs im Snapshot; braucht einen passenden Client |
 | `ACHIEVEMENTS_ENABLED` | aus | Achievement-Engine im Server (beobachtend, In-Memory, noch ohne Client-Anzeige) |
+| `RATE_LIMITS_ENABLED` | an | Rate-Limits je IP und Verbindung; `false` schaltet sie ab |
+| `RATE_LIMIT_CONNECTIONS_PER_IP` | `5` | Gleichzeitige Verbindungen je IP – hinter Mobilfunk-NAT ggf. erhöhen |
+| `RATE_LIMIT_JOINS_PER_MINUTE` | `20` | Beitritte je IP und Minute |
+| `RATE_LIMIT_HTTP_PER_MINUTE` | `60` | `/leaderboard` und `/profile` je IP und Minute |
+| `TRUST_PROXY_HOPS` | `1` | Proxys vor dem Server (Railway: 1); bestimmt die vertrauenswürdige Client-IP |
 | `CLIENT_DIST` | auto | Pfad zum Client-Build; leerer String deaktiviert das Ausliefern (getrenntes Client-Hosting) |
 | `VITE_WS_URL` | – | Nur bei getrenntem Client-Hosting: beim **Client-Build** setzen, z. B. `wss://maze-server.example.com` |
 

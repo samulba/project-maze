@@ -86,6 +86,12 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   durch fortlaufende Zahlen ersetzt. Gemessen mit 40 Clients: **231,9 KB/s
   (nur Runden) → 151,3 (Deltas) → 127,4 (beides) je Client, −45 %** bei
   unveränderter Latenz.
+- **Rate-Limits:** Verbindungen und Beitritte je IP, Nachrichten-Budgets je
+  Verbindung (Input 50/s, alles andere deutlich weniger) und Limits auf
+  `/leaderboard` und `/profile`. Bei Überschreitung wird erst gedrosselt, dann
+  getrennt; die Zähler stehen im `abuse`-Block von `/health`. Abschaltbar über
+  `RATE_LIMITS_ENABLED=false`.
+>>>>>>> origin/claude/maze-rate-limits-abuse-dfb335
 - **Redeploy:** Bei `SIGTERM` meldet `/health` sofort `503`, dann werden alle
   WebSockets mit Code 1001 sauber geschlossen – Clients reconnecten umgehend
   statt in einen Timeout zu laufen.

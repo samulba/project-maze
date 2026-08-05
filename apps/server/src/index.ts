@@ -42,6 +42,7 @@ import { tuneDrones } from './drone-tuning.js';
 import { MazeGame } from './game.js';
 import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system.js';
 import { tuneProgression } from './progression-tuning.js';
+import { createRateLimiter, messageKindOf, rateLimitsEnabled } from './rate-limits.js';
 import {
   flushPersistence,
   leaderboardHandler,
@@ -91,6 +92,11 @@ const SHORT_NET_IDS = process.env.SHORT_NET_IDS === 'true';
 // darf nicht kommentarlos in die riskante Richtung „an" fallen.
 const ARENA_DIRECTOR_ENABLED = !['false', '0', 'off']
   .includes((process.env.ARENA_DIRECTOR_ENABLED ?? '').trim().toLowerCase());
+/**
+ * Rate-Limits und Missbrauchsschutz. Standardmäßig an; `false` schaltet sie
+ * vollständig ab (dann verhält sich der Server wie vor dem Modul).
+ */
+const RATE_LIMITS_ENABLED = rateLimitsEnabled();
 const allowedOrigins = ALLOWED_ORIGIN === '*'
   ? null
   : new Set(ALLOWED_ORIGIN.split(',').map((value) => value.trim()).filter(Boolean));
@@ -103,6 +109,8 @@ function originAllowed(origin: string | undefined): boolean {
 // Login-Verifikation vorbereiten. Ohne AUTH_ENABLED=true bleibt sie inaktiv;
 // die Join-Message trägt noch kein Token (siehe docs/SUPABASE.md).
 initAuth();
+
+const rateLimiter = createRateLimiter();
 
 const app = express();
 app.disable('x-powered-by');
@@ -205,35 +213,47 @@ wss.on('connection', (socket, request) => {
     socket.close(1008, 'Origin not allowed');
     return;
   }
+  // Verbindungslimit je IP, bevor irgendetwas anderes passiert.
+  const admission = rateLimiter.accept(request);
+  if (!admission.allowed) {
+    socket.close(1013, admission.reason ?? 'Rate limit');
+    return;
+  }
+  const guard = admission.guard;
 
   socketAlive.set(socket, true);
   let playerId: string | null = null;
-  let messageCount = 0;
-  let malformedCount = 0;
-  let windowStartedAt = Date.now();
 
   socket.on('pong', () => socketAlive.set(socket, true));
   socket.on('message', (raw: RawData) => {
     const now = Date.now();
-    if (now - windowStartedAt >= 1000) {
-      messageCount = 0;
-      windowStartedAt = now;
-    }
-    messageCount += 1;
     const rawSize = Array.isArray(raw) ? raw.reduce((total, part) => total + part.byteLength, 0) : raw.byteLength;
     if (rawSize > 4096) {
       socket.close(1009, 'Message too large');
       return;
     }
-    if (messageCount > 110) return;
 
     try {
       const rawText = Array.isArray(raw) ? Buffer.concat(raw).toString() : raw.toString();
       const message = JSON.parse(rawText) as ClientMessage | GameplayClientMessage | DebugMessage;
+      // Erst drosseln, dann trennen: Eine gedrosselte Nachricht fällt still
+      // weg, erst anhaltender Missbrauch beendet die Verbindung.
+      const verdict = guard.admit(messageKindOf(message), now);
+      if (verdict === 'disconnect') {
+        socket.close(1008, 'Rate limit exceeded');
+        return;
+      }
+      if (verdict === 'throttle') return;
+
       if (message.type === 'join') {
         const parsed = joinSchema.safeParse(message);
         if (!parsed.success || playerId || game.humanCount >= GAME.maxPlayers) {
           send(socket, { type: 'error', message: game.humanCount >= GAME.maxPlayers ? 'Die Arena ist voll.' : 'Beitritt nicht möglich.' });
+          return;
+        }
+        // Join-Versuche je IP begrenzen – auch gescheiterte zählen mit.
+        if (!guard.admitJoin(now)) {
+          send(socket, { type: 'error', message: 'Zu viele Beitritte. Bitte kurz warten.' });
           return;
         }
         playerId = game.addPlayer(parsed.data.name);
@@ -308,8 +328,7 @@ wss.on('connection', (socket, request) => {
         if (parsed.success) send(socket, { type: 'pong', sentAt: parsed.data.sentAt, serverTime: now });
       }
     } catch {
-      malformedCount += 1;
-      if (malformedCount >= 8) socket.close(1008, 'Too many invalid messages');
+      if (!guard.admitMalformed()) socket.close(1008, 'Too many invalid messages');
     }
   });
 
@@ -317,6 +336,7 @@ wss.on('connection', (socket, request) => {
     if (playerId) game.removePlayer(playerId);
     socketPlayerIds.delete(socket);
     socketAlive.delete(socket);
+    guard.release();
   });
   socket.on('error', () => {});
 });
@@ -355,7 +375,10 @@ const gracefulShutdown = createGracefulShutdown({
   timers: [tickTimer, snapshotTimer, heartbeatTimer],
   drainMs: integerEnvironment('SHUTDOWN_DRAIN_MS', 0, 0, 30_000),
   // Gepufferte Runs noch wegschreiben, bevor der Prozess geht.
-  beforeClose: () => flushPersistence(game),
+  beforeClose: async () => {
+    rateLimiter.stop();
+    await flushPersistence(game);
+  },
   log: (message: string) => console.log(`[shutdown] ${message}`)
 });
 installSignalHandlers(gracefulShutdown);
@@ -377,14 +400,18 @@ app.get('/health', (_request: Request, response: Response) => {
     debugTools: ENABLE_DEV_TOOLS,
     // Macht die Feature-Schalter von außen prüfbar – sonst sieht man einer
     // falsch geschriebenen ENV-Variable nie an, dass sie nicht greift.
-    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, arenaDirector: ARENA_DIRECTOR_ENABLED },
+    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED },
     persistence: persistenceStats(game),
-    auth: authStatus()
+    auth: authStatus(),
+    abuse: rateLimiter.stats()
   });
 });
 app.get('/metrics', metricsHandler(game));
-app.get('/leaderboard', leaderboardHandler(game));
-app.get('/profile/:userId', profileHandler(game));
+// Öffentliche Routen: gehen im Zweifel an die Datenbank, deshalb mit Limit.
+// /health bleibt ungebremst – daran hängt der Health-Check der Plattform.
+const publicGuard = rateLimiter.httpGuard();
+app.get('/leaderboard', publicGuard, leaderboardHandler(game));
+app.get('/profile/:userId', publicGuard, profileHandler(game));
 
 // Single-Service-Deploy: der Server liefert den Client-Build selbst aus
 // (eine URL, gleiche Origin für HTTP und WebSocket, kein CORS nötig).
