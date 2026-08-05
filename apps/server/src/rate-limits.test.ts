@@ -304,6 +304,45 @@ describe('http limits', () => {
     expect(guard.stats().rejectedRequests).toBe(1);
   });
 
+  it('lets a write cost more than a read from the same budget', () => {
+    const guard = limiter({ httpRequestsPerMinute: 60 });
+    const write = guard.httpGuard({ cost: 6 });
+    // Burst 15 – zwei Schreibzugriffe kosten 12, der dritte passt nicht mehr.
+    for (let index = 0; index < 2; index += 1) {
+      const call = respond();
+      write(request('198.51.100.7') as never, call.response as never, call.next);
+      expect(call.state.nexts).toBe(1);
+    }
+    const blocked = respond();
+    write(request('198.51.100.7') as never, blocked.response as never, blocked.next);
+    expect(blocked.state.status).toBe(429);
+    // Retry-After skaliert mit den Kosten, nicht mit einer einzelnen Anfrage.
+    expect(Number(blocked.state.headers['Retry-After'])).toBeGreaterThan(1);
+  });
+
+  it('shares one bucket between reads and writes of the same address', () => {
+    const guard = limiter({ httpRequestsPerMinute: 60 });
+    const read = guard.httpGuard();
+    const write = guard.httpGuard({ cost: 6 });
+    for (let index = 0; index < 12; index += 1) {
+      const call = respond();
+      read(request('198.51.100.7') as never, call.response as never, call.next);
+    }
+    // Lesen hat den Vorrat auf 3 Token gedrückt – ein Schreibzugriff (6) passt nicht.
+    const blocked = respond();
+    write(request('198.51.100.7') as never, blocked.response as never, blocked.next);
+    expect(blocked.state.status).toBe(429);
+  });
+
+  it('never lets a cost exceed the whole reserve', () => {
+    const guard = limiter({ httpRequestsPerMinute: 60 });
+    // Absurde Kosten würden sonst jede Anfrage sperren.
+    const write = guard.httpGuard({ cost: 10_000 });
+    const call = respond();
+    write(request('198.51.100.7') as never, call.response as never, call.next);
+    expect(call.state.nexts).toBe(1);
+  });
+
   it('keeps addresses apart', () => {
     const guard = limiter({ httpRequestsPerMinute: 60 });
     const handler = guard.httpGuard();

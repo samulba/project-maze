@@ -23,3 +23,4 @@ macht (`if not exists` / `on conflict do nothing`).
 | 0001 | `applied/0001_runs.sql` | Tabelle `runs` (Leaderboard) | eingespielt 2026-08-05 |
 | 0002 | `applied/0002_profiles.sql` | Tabelle `profiles` + `runs.user_id` | eingespielt 2026-08-05 |
 | 0003 | `applied/0003_achievements.sql` | Tabelle `achievements` + View `profile_stats` | eingespielt 2026-08-05 |
+| 0004 | `0004_profile_favorite_class.sql` | View `profile_favorite_class` + Lieblingsklasse in `profile_stats` | **offen** |

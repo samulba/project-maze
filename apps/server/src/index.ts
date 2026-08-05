@@ -45,11 +45,14 @@ import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-syste
 import { tuneProgression } from './progression-tuning.js';
 import { createRateLimiter, messageKindOf, rateLimitsEnabled } from './rate-limits.js';
 import {
+  PROFILE_BODY_LIMIT,
+  PROFILE_WRITE_COST,
   flushPersistence,
   leaderboardHandler,
   linkPlayerToUser,
   persistenceStats,
   profileHandler,
+  profileUpdateHandler,
   tunePersistence
 } from './persistence.js';
 import { hardenSimulation } from './simulation-hardening.js';
@@ -421,6 +424,14 @@ app.get('/metrics', metricsHandler(game));
 const publicGuard = rateLimiter.httpGuard();
 app.get('/leaderboard', publicGuard, leaderboardHandler(game));
 app.get('/profile/:userId', publicGuard, profileHandler(game));
+// Schreibzugriff: teurer im selben IP-Budget (rund 20/min) und mit engem
+// Body-Limit – ein einzelnes Textfeld braucht nie mehr als ein Kilobyte.
+app.post(
+  '/profile',
+  rateLimiter.httpGuard({ cost: PROFILE_WRITE_COST }),
+  express.json({ limit: PROFILE_BODY_LIMIT }),
+  profileUpdateHandler(game)
+);
 
 // Single-Service-Deploy: der Server liefert den Client-Build selbst aus
 // (eine URL, gleiche Origin für HTTP und WebSocket, kein CORS nötig).

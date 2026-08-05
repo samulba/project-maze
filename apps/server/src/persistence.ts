@@ -1,7 +1,8 @@
 import type { Request, Response } from 'express';
-import type { PlayerClass, PlayerSnapshot } from '@project-maze/shared';
+import { PLAYER_CLASS_IDS, sanitizePlayerName, type PlayerClass, type PlayerSnapshot } from '@project-maze/shared';
 import { ACHIEVEMENT_CATALOG, type AchievementId } from '@project-maze/shared/gameplay';
 import { achievementProgressFor, unlockedAchievementsFor } from './achievements.js';
+import { verifyAuthToken } from './auth.js';
 import { MazeGame } from './game.js';
 
 /**
@@ -36,6 +37,25 @@ const MAX_QUEUE = 500;
 /** So viele Profile bleiben gecacht – begrenzt, weil die Route öffentlich ist. */
 const MAX_PROFILE_CACHE = 200;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+/**
+ * Ein Namenswechsel kostet so viele Token aus dem HTTP-Budget. Bei 60/min und
+ * einem Vorrat von 15 sind das fünf Versuche am Stück und rund zwanzig pro
+ * Minute je IP.
+ *
+ * Bewusst nicht strenger: Gepufferte Namen fallen je Konto zusammen
+ * (`profileQueue` ist eine Map), zwanzig Änderungen in einer Minute erzeugen
+ * also genau *einen* Datenbankschreibvorgang. Teuer ist nur die Token-Prüfung,
+ * und die kostet Mikrosekunden. Gescheiterte Versuche zahlen denselben Preis –
+ * das ist Absicht, sonst wären Token-Rateversuche gratis.
+ */
+export const PROFILE_WRITE_COST = 3;
+/** Größere Bodys sind bei einem einzigen Textfeld immer ein Angriffsversuch. */
+export const PROFILE_BODY_LIMIT = '1kb';
+
+const CLASS_IDS = new Set<string>(PLAYER_CLASS_IDS);
+/** Nimmt nur Klassen an, die der Code auch kennt – die DB hält bloß Text. */
+const knownClass = (value: unknown): PlayerClass | null =>
+  (typeof value === 'string' && CLASS_IDS.has(value) ? value as PlayerClass : null);
 /** Zeilen pro Insert – hält einzelne Requests klein und schnell. */
 const MAX_BATCH = 200;
 /** Fehlermeldungen höchstens einmal pro Minute, damit Logs nutzbar bleiben. */
@@ -74,9 +94,18 @@ export interface ProfileStats {
   bestStreak: number;
   longestRunSeconds: number;
   totalKills: number;
+  /** Gesamtspielzeit über alle Runs dieses Kontos, in Sekunden. */
   totalSeconds: number;
   firstRunAt: string | null;
   lastRunAt: string | null;
+  /**
+   * Meistgespielte **selbst gewählte** Klasse. `core` erscheint nur, wenn nie
+   * eine Klasse gewählt wurde – sonst wäre es bei fast jedem Konto `core`,
+   * weil jeder Lauf dort beginnt (siehe Migration 0004).
+   */
+  favoriteClass: PlayerClass | null;
+  favoriteClassRuns: number;
+  favoriteClassSeconds: number;
 }
 
 /** Rohdaten eines Profils, so wie der Adapter sie liefert. */
@@ -341,7 +370,11 @@ export function createSupabaseClient(config: PersistenceConfig): PersistenceClie
             totalKills: Number(row['total_kills'] ?? 0),
             totalSeconds: Number(row['total_seconds'] ?? 0),
             firstRunAt: row['first_run_at'] ? String(row['first_run_at']) : null,
-            lastRunAt: row['last_run_at'] ? String(row['last_run_at']) : null
+            lastRunAt: row['last_run_at'] ? String(row['last_run_at']) : null,
+            // Spalten aus Migration 0004; vor dem Einspielen fehlen sie einfach.
+            favoriteClass: knownClass(row['favorite_class']),
+            favoriteClassRuns: Number(row['favorite_class_runs'] ?? 0),
+            favoriteClassSeconds: Number(row['favorite_class_seconds'] ?? 0)
           }
           : null,
         achievements: unlocks
@@ -671,7 +704,10 @@ const EMPTY_STATS: ProfileStats = {
   totalKills: 0,
   totalSeconds: 0,
   firstRunAt: null,
-  lastRunAt: null
+  lastRunAt: null,
+  favoriteClass: null,
+  favoriteClassRuns: 0,
+  favoriteClassSeconds: 0
 };
 
 /** Rohdaten in die öffentliche Form bringen und mit Katalogtexten anreichern. */
@@ -734,6 +770,71 @@ export async function profile(game: MazeGame, userId: string): Promise<PublicPro
     .finally(() => { state.profileInFlight.delete(userId); });
   state.profileInFlight.set(userId, request);
   return request;
+}
+
+/**
+ * Setzt den Anzeigenamen eines Kontos. Der Schreibweg ist derselbe wie überall
+ * in diesem Modul: Der Name landet im Puffer und wird vom Flush-Timer
+ * geschrieben – nichts wartet auf die Datenbank.
+ *
+ * Gibt den bereinigten Namen zurück oder `null`, wenn nach dem Bereinigen
+ * nichts Brauchbares übrig bleibt.
+ */
+export function updateDisplayName(game: MazeGame, userId: string, rawName: string): string | null {
+  const state = stateFor(game);
+  if (!state.enabled || !UUID_PATTERN.test(userId)) return null;
+  // Exakt dieselbe Bereinigung wie beim Join: Steuerzeichen raus, 18 Zeichen.
+  const displayName = sanitizePlayerName(rawName);
+  if (!displayName) return null;
+
+  state.profileQueue.set(userId, { userId, displayName });
+  // Der Profil-Cache hielte sonst bis zu 30 Sekunden den alten Namen fest.
+  state.profileCache.delete(userId);
+  return displayName;
+}
+
+/**
+ * Express-Handler für `POST /profile`. Erwartet ein gültiges Supabase-Token im
+ * `Authorization: Bearer …`-Header und `{ "displayName": "…" }` als Body.
+ *
+ * Antwortet mit `202`: Der Name ist angenommen und bereinigt, geschrieben wird
+ * er beim nächsten Flush. Das ist ehrlicher als ein `200`, das eine
+ * abgeschlossene Speicherung behaupten würde.
+ */
+export function profileUpdateHandler(game: MazeGame): (request: Request, response: Response) => void {
+  return (request: Request, response: Response): void => {
+    const state = stateFor(game);
+    if (!state.enabled) {
+      response.status(404).json({ error: 'Profile sind nicht konfiguriert.' });
+      return;
+    }
+    const header = request.headers.authorization;
+    const raw = (request.body as { displayName?: unknown } | undefined)?.displayName;
+    if (typeof raw !== 'string') {
+      response.status(400).json({ error: 'displayName fehlt.' });
+      return;
+    }
+
+    // Ein ungültiges oder fehlendes Token ist 401 – auch dann, wenn der Login
+    // serverseitig ganz abgeschaltet ist. Ohne Konto gibt es kein Profil.
+    void verifyAuthToken(header?.startsWith('Bearer ') ? header.slice(7) : undefined)
+      .then((user) => {
+        if (!user) {
+          response.setHeader('WWW-Authenticate', 'Bearer');
+          response.status(401).json({ error: 'Anmeldung erforderlich.' });
+          return;
+        }
+        const displayName = updateDisplayName(game, user.userId, raw);
+        if (!displayName) {
+          response.status(400).json({ error: 'Name enthält keine verwendbaren Zeichen.' });
+          return;
+        }
+        response.status(202).json({ displayName, pending: true });
+      })
+      .catch(() => {
+        response.status(503).json({ error: 'Profil gerade nicht änderbar.' });
+      });
+  };
 }
 
 /**

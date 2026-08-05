@@ -388,6 +388,40 @@ Verlassen der Arena sowie beim Herunterfahren) den Stand der Engine mit dem
 Gespeicherten und puffert nur die Differenz. Geschrieben wird gebündelt und
 außerhalb der Simulation – exakt wie bei den Runs.
 
+### `POST /profile` – Anzeigenamen ändern
+
+Braucht ein gültiges Supabase-Token im Header. Der Name wird **genau wie beim
+Join** bereinigt (Steuerzeichen raus, Leerraum zusammengefasst, 18 Zeichen).
+
+```http
+POST /profile
+Authorization: Bearer <Supabase-Zugriffstoken>
+Content-Type: application/json
+
+{ "displayName": "Ada Lovelace" }
+```
+
+```json
+202 { "displayName": "Ada Lovelace", "pending": true }
+```
+
+**`202` statt `200` ist Absicht:** Der Name ist angenommen und bereinigt, aber
+noch nicht geschrieben – er liegt im selben Puffer wie die Runs und geht beim
+nächsten Flush mit. Der Client kann den zurückgegebenen Namen sofort anzeigen;
+`GET /profile/:userId` liefert ihn ebenfalls ab sofort, weil der Cache dieses
+Kontos verworfen wird.
+
+| Antwort | Bedeutung |
+| --- | --- |
+| `202` | angenommen, wird geschrieben |
+| `400` | `displayName` fehlt, ist kein Text, oder bleibt nach dem Bereinigen leer |
+| `401` | kein oder ungültiges Token – auch wenn `AUTH_ENABLED` aus ist |
+| `404` | Persistenz ist nicht konfiguriert |
+| `429` | Rate-Limit: fünf Versuche am Stück, danach rund zwanzig pro Minute je IP |
+
+Das Konto kommt **ausschließlich aus dem Token**. Ein `userId`-Feld im Body
+wird ignoriert – niemand kann fremde Profile umbenennen.
+
 ### `GET /profile/:userId`
 
 ```json
@@ -398,7 +432,8 @@ außerhalb der Simulation – exakt wie bei den Runs.
   "stats": {
     "runs": 12, "bestScore": 9000, "bestLevel": 32, "bestKills": 14,
     "bestStreak": 7, "longestRunSeconds": 421.3, "totalKills": 88,
-    "totalSeconds": 3600, "firstRunAt": "…", "lastRunAt": "…"
+    "totalSeconds": 3600, "firstRunAt": "…", "lastRunAt": "…",
+    "favoriteClass": "storm", "favoriteClassRuns": 7, "favoriteClassSeconds": 1800
   },
   "achievements": [
     { "id": "firstStreak5", "name": "Lauf ohne Ende",
@@ -412,6 +447,14 @@ außerhalb der Simulation – exakt wie bei den Runs.
 
 Die Namen und Beschreibungen kommen aus dem gemeinsamen Katalog – der Client
 muss sie nicht doppelt vorhalten.
+
+`totalSeconds` ist die Gesamtspielzeit über alle Runs des Kontos.
+`favoriteClass` ist die meistgespielte **selbst gewählte** Klasse: Jeder Lauf
+beginnt als `core`, deshalb wäre die schlicht häufigste Klasse bei fast jedem
+Konto „Core" und damit wertlos. `core` erscheint nur, wenn nie eine Klasse
+gewählt wurde. Beide Werte kommen aus der View `profile_stats`
+(Migration 0004) – vor dem Einspielen fehlen die Felder einfach und stehen auf
+`null` beziehungsweise `0`.
 
 | Antwort | Bedeutung |
 | --- | --- |
