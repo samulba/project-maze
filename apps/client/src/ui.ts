@@ -59,11 +59,15 @@ export class GameUI {
   private readonly respawnButton: HTMLButtonElement;
   private readonly respawnCountdown: HTMLElement;
   private readonly upgradeButtons = new Map<UpgradeId, HTMLButtonElement>();
+  private readonly vignette: HTMLElement;
   private entered = false;
   private lastDeathCount = 0;
   private lastClassChoicesKey = '';
   private lastLeaderboardKey = '';
   private lastKillfeedKey = '';
+  private lastStreak = 0;
+  private runStartedAt = Date.now();
+  private wasDead = false;
 
   constructor(
     onJoin: (options: JoinOptions) => void,
@@ -79,13 +83,14 @@ export class GameUI {
       <div class="ui-layer">
         <section class="start-screen" id="start-screen">
           <form class="start-card" id="join-form">
-            <div class="eyebrow"><span></span> PLAYABLE ALPHA 0.3.1</div>
+            <div class="eyebrow"><span></span> PLAYABLE ALPHA 1.0</div>
             <h1>PROJECT <b>MAZE</b></h1>
             <p class="intro">Farmen, leveln, spezialisieren und mit deinem Build die Arena kontrollieren. Jeder startet als Core-Tank.</p>
             <label class="field-label" for="player-name">SPIELERNAME</label>
             <input id="player-name" maxlength="18" autocomplete="off" value="Player" />
             <div class="start-options">
               <label><span>THEME</span><select id="theme"><option value="midnight">Midnight</option><option value="void">Void</option><option value="classic">Classic</option></select></label>
+              <label><span>SOUND</span><input type="range" id="volume" min="0" max="100" step="5" /></label>
               <div class="control-preview"><span>WASD</span><span>LINKSKLICK FEUER</span><span>RECHTSKLICK DROHNEN</span></div>
             </div>
             <button class="play-button" id="join-button" type="submit"><span>ARENA BETRETEN</span><b>→</b></button>
@@ -142,6 +147,7 @@ export class GameUI {
         <div class="touch-control move-stick" id="move-stick"><div class="stick-ring"><div class="stick-knob"></div></div></div>
         <div class="touch-control aim-stick" id="aim-stick"><div class="stick-ring"><div class="stick-knob"></div></div></div>
         <div class="rotate-notice">Bitte Gerät drehen</div>
+        <div class="damage-vignette" id="damage-vignette"></div>
         <div class="toasts" id="toasts"></div>
       </div>`;
 
@@ -174,6 +180,7 @@ export class GameUI {
     this.deathStats = this.require('#death-stats');
     this.respawnButton = this.require<HTMLButtonElement>('#respawn-button');
     this.respawnCountdown = this.require('#respawn-countdown');
+    this.vignette = this.require('#damage-vignette');
 
     this.require<HTMLFormElement>('#join-form').addEventListener('submit', (event) => {
       event.preventDefault();
@@ -255,6 +262,17 @@ export class GameUI {
       }
     }
 
+    const healthRatio = self.health / Math.max(1, self.maxHealth);
+    this.vignette.classList.toggle('active', !self.dead && healthRatio < 0.35);
+
+    if (this.wasDead && !self.dead) this.runStartedAt = Date.now();
+    this.wasDead = self.dead;
+
+    if (self.streak > this.lastStreak && [3, 5, 8, 12].includes(self.streak)) {
+      this.toast(`${self.streak}er-Streak!`, 'Du bist nicht zu stoppen – bleib wachsam.', 'success');
+    }
+    this.lastStreak = self.streak;
+
     this.updateClassSelection(self);
     this.updateDeathScreen(snapshot, self);
     this.renderLeaderboard(snapshot);
@@ -304,8 +322,10 @@ export class GameUI {
     this.deathScreen.hidden = !self.dead;
     if (!self.dead) return;
     const remaining = Math.max(0, self.canRespawnAt - snapshot.serverTime);
+    const aliveSeconds = Math.max(0, Math.round((Date.now() - this.runStartedAt) / 1000));
+    const aliveText = aliveSeconds >= 60 ? `${Math.floor(aliveSeconds / 60)}m ${aliveSeconds % 60}s` : `${aliveSeconds}s`;
     this.deathKiller.textContent = `Eliminiert von ${self.killerName || 'Arena'}`;
-    this.deathStats.innerHTML = `<div><span>Erreicht</span><b>Level ${self.deathLevel}</b></div><div><span>Neustart</span><b>Level ${self.respawnLevel}</b></div><div><span>Score</span><b>${self.score.toLocaleString('de-DE')}</b></div><div><span>Kills</span><b>${self.kills}</b></div>`;
+    this.deathStats.innerHTML = `<div><span>Erreicht</span><b>Level ${self.deathLevel}</b></div><div><span>Neustart</span><b>Level ${self.respawnLevel}</b></div><div><span>Score</span><b>${self.score.toLocaleString('de-DE')}</b></div><div><span>Kills</span><b>${self.kills}</b></div><div><span>Überlebt</span><b>${aliveText}</b></div><div><span>Beste Streak</span><b>${self.bestStreak}</b></div>`;
     this.respawnButton.disabled = remaining > 0;
     this.respawnCountdown.textContent = remaining > 0
       ? `Respawn verfügbar in ${(remaining / 1000).toFixed(1)}s`
@@ -354,6 +374,12 @@ export class GameUI {
       action.textContent = 'eliminierte';
       victim.textContent = event.victim;
       row.append(killer, action, victim);
+      if ((event.streak ?? 0) >= 3) {
+        const streak = document.createElement('em');
+        streak.className = 'streak-flame';
+        streak.textContent = `🔥${event.streak}`;
+        row.append(streak);
+      }
       fragment.append(row);
     }
     this.killfeed.replaceChildren(fragment);
@@ -362,6 +388,11 @@ export class GameUI {
   private renderRadar(snapshot: WorldSnapshot, self: PlayerSnapshot): void {
     const context = this.minimap.getContext('2d');
     if (!context) return;
+    const extended = snapshot as WorldSnapshot & {
+      eliteShapeIds?: string[];
+      arenaEvent?: { center: { x: number; y: number }; radius: number; phase: string } | null;
+      bountyTargetId?: string | null;
+    };
     const { width, height } = this.minimap;
     const halfWorldWidth = GAME.visibleWorldWidth * 0.62;
     const halfWorldHeight = GAME.visibleWorldHeight * 0.72;
@@ -381,13 +412,40 @@ export class GameUI {
       const topLeft = toRadar({ x: wall.x, y: wall.y });
       context.fillRect(topLeft.x, topLeft.y, (wall.width / halfWorldWidth) * (width / 2), (wall.height / halfWorldHeight) * (height / 2));
     }
+    const event = extended.arenaEvent;
+    if (event) {
+      const center = toRadar(event.center);
+      context.beginPath();
+      context.strokeStyle = event.phase === 'active' ? 'rgba(233,182,83,.85)' : 'rgba(233,182,83,.4)';
+      context.lineWidth = 1.5;
+      context.arc(center.x, center.y, (event.radius / halfWorldWidth) * (width / 2), 0, Math.PI * 2);
+      context.stroke();
+    }
+    const elites = new Set(extended.eliteShapeIds ?? []);
+    for (const shape of snapshot.shapes) {
+      const elite = elites.has(shape.id);
+      if (!elite && shape.kind !== 'pentagon') continue;
+      const point = toRadar(shape.position);
+      context.beginPath();
+      context.fillStyle = elite ? '#f4c866' : 'rgba(207,110,181,.55)';
+      context.arc(point.x, point.y, elite ? 2.6 : 1.6, 0, Math.PI * 2);
+      context.fill();
+    }
     for (const player of snapshot.players) {
       if (player.dead) continue;
       const point = toRadar(player.position);
+      const bounty = player.id === extended.bountyTargetId;
       context.beginPath();
-      context.fillStyle = player.id === self.id ? '#8c95ff' : '#ef7181';
-      context.arc(point.x, point.y, player.id === self.id ? 3.4 : 2, 0, Math.PI * 2);
+      context.fillStyle = player.id === self.id ? '#8c95ff' : bounty ? '#f3c45f' : '#ef7181';
+      context.arc(point.x, point.y, player.id === self.id ? 3.4 : bounty ? 3 : 2, 0, Math.PI * 2);
       context.fill();
+      if (bounty) {
+        context.beginPath();
+        context.strokeStyle = 'rgba(243,196,95,.8)';
+        context.lineWidth = 1;
+        context.arc(point.x, point.y, 5, 0, Math.PI * 2);
+        context.stroke();
+      }
     }
     context.restore();
     context.strokeStyle = 'rgba(255,255,255,.18)';

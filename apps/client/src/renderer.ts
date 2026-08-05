@@ -26,12 +26,49 @@ const PALETTES:Record<ThemeId,Palette>={
 
 interface PlayerView {
   root:Container; rotating:Container; body:Graphics; barrels:Graphics; detail:Graphics;
-  shield:Graphics; healthBack:Graphics; healthFill:Graphics; name:Text;
+  shield:Graphics; flash:Graphics; healthBack:Graphics; healthFill:Graphics; name:Text;
   current:Vector2; target:Vector2; velocity:Vector2; angle:number; targetAngle:number;
-  snapshot:PlayerSnapshot; snapshotAt:number; classId:PlayerClass; isSelf:boolean;
+  snapshot:PlayerSnapshot; snapshotAt:number; classId:PlayerClass; isSelf:boolean; flashUntil:number;
 }
 interface MotionView<T> {
   current:Vector2; target:Vector2; velocity:Vector2; snapshot:T; snapshotAt:number;
+}
+interface ShockRing { position:Vector2; life:number; maxLife:number; maxRadius:number; color:number; width:number; }
+interface FloatingLabel { text:Text; life:number; maxLife:number; velocityY:number; }
+
+const SHAPE_REWARDS:Record<string,number>={square:18,triangle:45,pentagon:120};
+
+class FloatingNumbers {
+  readonly container=new Container();
+  private readonly active:FloatingLabel[]=[];
+  private readonly pool:Text[]=[];
+  spawn(position:Vector2,value:string,color:number,size=13):void{
+    if(this.active.length>=48)return;
+    const text=this.pool.pop()??new Text({text:'',style:{fill:0xffffff,fontSize:13,fontWeight:'700',fontFamily:'Inter, system-ui, sans-serif',stroke:{color:0x000000,width:3,alpha:.55}}});
+    text.text=value;
+    text.style.fontSize=size;
+    text.style.fill=color;
+    text.anchor.set(.5);
+    text.alpha=1;
+    text.position.set(position.x+(Math.random()-.5)*14,position.y-14);
+    this.container.addChild(text);
+    this.active.push({text,life:.75,maxLife:.75,velocityY:-46});
+  }
+  update(delta:number):void{
+    for(let index=this.active.length-1;index>=0;index-=1){
+      const label=this.active[index];
+      if(!label)continue;
+      label.life-=delta;
+      if(label.life<=0){
+        this.container.removeChild(label.text);
+        if(this.pool.length<48)this.pool.push(label.text);
+        this.active.splice(index,1);
+        continue;
+      }
+      label.text.position.y+=label.velocityY*delta;
+      label.text.alpha=Math.min(1,label.life/(label.maxLife*.55));
+    }
+  }
 }
 
 const clamp=(value:number,min:number,max:number):number=>Math.max(min,Math.min(max,value));
@@ -50,6 +87,10 @@ export class GameRenderer {
   private readonly drones=new Graphics();
   private readonly players=new Container();
   private readonly particles=new ParticleField();
+  private readonly fx=new Graphics();
+  private readonly numbers=new FloatingNumbers();
+  private readonly rings:ShockRing[]=[];
+  private shakeAmplitude=0;
   private readonly viewportMask=new Graphics();
   private readonly viewportFrame=new Graphics();
   private readonly crosshair=new Graphics();
@@ -68,12 +109,13 @@ export class GameRenderer {
   private time=0;
   private wallsSignature='';
   private knownShapes=new Map<string,ShapeSnapshot>();
+  private knownEliteIds=new Set<string>();
   private lastSnapshotAt=performance.now();
 
   async init(root:HTMLElement):Promise<void>{
     await this.app.init({resizeTo:window,antialias:true,background:this.palette.outside,resolution:Math.min(devicePixelRatio||1,2),autoDensity:true,preference:'webgl'});
     root.prepend(this.app.canvas);
-    this.world.addChild(this.background,this.walls,this.shapes,this.projectiles,this.drones,this.particles.graphics,this.players);
+    this.world.addChild(this.background,this.walls,this.shapes,this.projectiles,this.drones,this.particles.graphics,this.players,this.fx,this.numbers.container);
     this.world.mask=this.viewportMask;
     this.app.stage.addChild(this.world,this.viewportMask,this.viewportFrame,this.crosshair);
     this.resizeViewport();
@@ -127,6 +169,17 @@ export class GameRenderer {
         view=this.createPlayerView(player,isSelf,now);
         this.playerViews.set(player.id,view);
         this.players.addChild(view.root);
+      }
+      const previous=view.snapshot;
+      if(!player.dead&&!previous.dead&&player.health<previous.health-.01&&player.deaths===previous.deaths){
+        view.flashUntil=now+130;
+        const amount=Math.round(previous.health-player.health);
+        if(amount>=1)this.numbers.spawn({x:view.current.x,y:view.current.y-26},`-${amount}`,isSelf?0xff8091:0xffe9b0,isSelf?14:12);
+      }
+      if(player.dead&&!previous.dead){
+        const color=this.ownerColor(player.id);
+        this.particles.burst(view.current,color,24,320,.55);
+        this.rings.push({position:{...view.current},life:.5,maxLife:.5,maxRadius:86,color,width:4});
       }
       const displacement=Math.hypot(player.position.x-view.target.x,player.position.y-view.target.y);
       if(displacement>320||(!player.dead&&view.snapshot.dead))view.current={...player.position};
@@ -187,11 +240,20 @@ export class GameRenderer {
   }
 
   private syncShapeEffects(snapshot:WorldSnapshot):void{
+    const extended=snapshot as WorldSnapshot&{eliteShapeIds?:string[]};
+    const previousElites=this.knownEliteIds;
+    this.knownEliteIds=new Set(extended.eliteShapeIds??[]);
     const shapes=new Map(snapshot.shapes.map(shape=>[shape.id,shape] as const));
     for(const[id,previous]of this.knownShapes){
       const current=shapes.get(id);
       if(current&&current.health<previous.health)this.particles.burst(current.position,this.shapeColor(current),3,85,.18);
-      if(!current&&this.distanceToSelf(previous.position)<GAME.viewRadius*.88)this.particles.burst(previous.position,this.shapeColor(previous),10,170,.38);
+      if(!current&&this.distanceToSelf(previous.position)<GAME.viewRadius*.88){
+        const elite=previousElites.has(id);
+        this.particles.burst(previous.position,elite?0xf4c866:this.shapeColor(previous),elite?22:10,elite?260:170,elite?.55:.38);
+        if(elite)this.rings.push({position:{...previous.position},life:.55,maxLife:.55,maxRadius:110,color:0xf4c866,width:4});
+        const reward=SHAPE_REWARDS[previous.kind]??0;
+        if(reward>0)this.numbers.spawn(previous.position,`+${elite?reward+260:reward}`,0xf3c45f,elite?15:12);
+      }
     }
     this.knownShapes=shapes;
   }
@@ -210,19 +272,43 @@ export class GameRenderer {
       view.root.position.set(view.current.x,view.current.y);
       view.rotating.rotation=view.angle;
       view.shield.alpha=view.snapshot.invulnerable?.45+Math.sin(this.time*8)*.16:0;
+      view.flash.alpha=view.flashUntil>now?.62*((view.flashUntil-now)/130):0;
     }
     this.updateMotion(this.projectileViews,delta,now,46,.085);
     this.updateMotion(this.droneViews,delta,now,30,.09);
+    this.shakeAmplitude*=Math.exp(-6.5*delta);
+    if(this.shakeAmplitude<.15)this.shakeAmplitude=0;
     if(self){
       this.scale=this.viewport.height/GAME.visibleWorldHeight;
       this.world.scale.set(this.scale);
-      this.world.position.set(this.viewport.x+this.viewport.width/2,this.viewport.y+this.viewport.height/2);
+      const shakeX=(Math.random()-.5)*2*this.shakeAmplitude;
+      const shakeY=(Math.random()-.5)*2*this.shakeAmplitude;
+      this.world.position.set(this.viewport.x+this.viewport.width/2+shakeX,this.viewport.y+this.viewport.height/2+shakeY);
       this.world.pivot.set(self.current.x,self.current.y);
     }
     this.drawDynamic(now);
     this.particles.update(delta);
     this.particles.draw();
+    this.numbers.update(delta);
+    this.drawRings(delta);
     this.drawCrosshair();
+  }
+
+  /** Kurzer, gedämpfter Kamera-Impuls (eigener Schaden, Kills, Tod). */
+  shake(strength:number):void{this.shakeAmplitude=Math.min(9,Math.max(this.shakeAmplitude,strength))}
+
+  private drawRings(delta:number):void{
+    this.fx.clear();
+    for(let index=this.rings.length-1;index>=0;index-=1){
+      const ring=this.rings[index];
+      if(!ring)continue;
+      ring.life-=delta;
+      if(ring.life<=0){this.rings.splice(index,1);continue;}
+      const progress=1-ring.life/ring.maxLife;
+      const eased=1-Math.pow(1-progress,2.4);
+      this.fx.circle(ring.position.x,ring.position.y,ring.maxRadius*eased)
+        .stroke({color:ring.color,alpha:(1-progress)*.75,width:ring.width*(1-progress*.5)});
+    }
   }
 
   private updateMotion<T>(views:Map<string,MotionView<T>>,delta:number,now:number,response:number,maxAge:number):void{
@@ -250,12 +336,20 @@ export class GameRenderer {
     for(let x=0;x<=GAME.worldWidth;x+=80)this.background.moveTo(x,0).lineTo(x,GAME.worldHeight);
     for(let y=0;y<=GAME.worldHeight;y+=80)this.background.moveTo(0,y).lineTo(GAME.worldWidth,y);
     this.background.stroke({color:this.palette.grid,width:1});
+    for(let x=0;x<=GAME.worldWidth;x+=400)this.background.moveTo(x,0).lineTo(x,GAME.worldHeight);
+    for(let y=0;y<=GAME.worldHeight;y+=400)this.background.moveTo(0,y).lineTo(GAME.worldWidth,y);
+    this.background.stroke({color:this.palette.grid,alpha:.85,width:2});
+    this.background.rect(14,14,GAME.worldWidth-28,GAME.worldHeight-28).stroke({color:this.palette.border,alpha:.3,width:16});
     this.background.rect(0,0,GAME.worldWidth,GAME.worldHeight).stroke({color:this.palette.border,width:7});
   }
 
   private drawWalls(snapshot:WorldSnapshot):void{
     this.walls.clear();
-    for(const wall of snapshot.walls)this.walls.roundRect(wall.x,wall.y,wall.width,wall.height,10).fill(this.palette.wall).stroke({color:this.palette.wallEdge,width:3});
+    for(const wall of snapshot.walls){
+      this.walls.roundRect(wall.x+3,wall.y+4,wall.width,wall.height,10).fill({color:0x000000,alpha:.32});
+      this.walls.roundRect(wall.x,wall.y,wall.width,wall.height,10).fill(this.palette.wall).stroke({color:this.palette.wallEdge,width:3});
+      this.walls.roundRect(wall.x+4,wall.y+4,wall.width-8,Math.max(4,wall.height*.28),8).fill({color:0xffffff,alpha:.045});
+    }
   }
 
   private drawDynamic(now:number):void{
@@ -277,6 +371,12 @@ export class GameRenderer {
     for(const view of this.projectileViews.values()){
       const color=this.ownerColor(view.snapshot.ownerId);
       const outline=view.snapshot.ownerId===this.selfId?0xe9edff:0xffd5db;
+      const speed=Math.hypot(view.velocity.x,view.velocity.y);
+      if(speed>60){
+        const trail=Math.min(30,speed*.032);
+        const tail={x:view.current.x-view.velocity.x/speed*trail,y:view.current.y-view.velocity.y/speed*trail};
+        this.projectiles.moveTo(tail.x,tail.y).lineTo(view.current.x,view.current.y).stroke({color,alpha:.3,width:Math.max(2,view.snapshot.radius*.9)});
+      }
       this.projectiles.circle(view.current.x,view.current.y,view.snapshot.radius+3).fill({color,alpha:.14});
       this.projectiles.circle(view.current.x,view.current.y,view.snapshot.radius).fill(color).stroke({color:outline,alpha:.7,width:1.5});
       this.projectiles.circle(view.current.x-view.snapshot.radius*.22,view.current.y-view.snapshot.radius*.22,Math.max(1.2,view.snapshot.radius*.28)).fill({color:0xffffff,alpha:.48});
@@ -285,16 +385,19 @@ export class GameRenderer {
     for(const view of this.droneViews.values()){
       const color=this.ownerColor(view.snapshot.ownerId);
       const angle=Math.atan2(view.velocity.y,view.velocity.x)||view.snapshot.angle;
+      const speed=Math.hypot(view.velocity.x,view.velocity.y);
+      if(speed>90)this.drones.moveTo(view.current.x-view.velocity.x/speed*16,view.current.y-view.velocity.y/speed*16).lineTo(view.current.x,view.current.y).stroke({color,alpha:.2,width:3});
       this.drones.poly(translated(polygon(3,13,angle),view.current)).fill(color).stroke({color:0xffffff,alpha:.48,width:2});
     }
   }
 
   private createPlayerView(player:PlayerSnapshot,isSelf:boolean,now:number):PlayerView{
-    const root=new Container();const rotating=new Container();const barrels=new Graphics();const body=new Graphics();const detail=new Graphics();const shield=new Graphics();
-    rotating.addChild(barrels,body,detail,shield);root.addChild(rotating);
+    const root=new Container();const rotating=new Container();const barrels=new Graphics();const body=new Graphics();const detail=new Graphics();const shield=new Graphics();const flash=new Graphics();
+    flash.circle(0,0,26).fill(0xffffff);flash.alpha=0;
+    rotating.addChild(barrels,body,detail,flash,shield);root.addChild(rotating);
     const healthBack=new Graphics();const healthFill=new Graphics();root.addChild(healthBack,healthFill);
     const name=new Text({text:'',style:{fill:this.palette.label,fontSize:12,fontWeight:'600',fontFamily:'Inter, system-ui, sans-serif'}});name.anchor.set(.5);name.position.set(0,-42);root.addChild(name);
-    const view:PlayerView={root,rotating,body,barrels,detail,shield,healthBack,healthFill,name,current:{...player.position},target:{...player.position},velocity:{...player.velocity},angle:player.angle,targetAngle:player.angle,snapshot:player,snapshotAt:now,classId:player.playerClass,isSelf};
+    const view:PlayerView={root,rotating,body,barrels,detail,shield,flash,healthBack,healthFill,name,current:{...player.position},target:{...player.position},velocity:{...player.velocity},angle:player.angle,targetAngle:player.angle,snapshot:player,snapshotAt:now,classId:player.playerClass,isSelf,flashUntil:0};
     root.position.set(player.position.x,player.position.y);this.redrawPlayer(view,true);return view;
   }
 
@@ -318,6 +421,18 @@ export class GameRenderer {
     const precision=definition.branch==='precision';
     const impact=definition.branch==='impact';
     const height=precision?12:impact?16:14;
+    if(definition.barrelAngles){
+      for(const angle of definition.barrelAngles){
+        const start=impact?1:4;
+        const corners:[number,number][]=[[start,-height/2],[start+definition.barrelLength,-height/2],[start+definition.barrelLength,height/2],[start,height/2]];
+        const points:number[]=[];
+        for(const[x,y]of corners){
+          points.push(x*Math.cos(angle)-y*Math.sin(angle),x*Math.sin(angle)+y*Math.cos(angle));
+        }
+        graphics.poly(points).fill(this.palette.barrel).stroke({color,alpha:.36,width:2});
+      }
+      return;
+    }
     for(let index=0;index<definition.barrelCount;index+=1){
       const offset=definition.barrelCount===1?0:(index/(definition.barrelCount-1)-.5)*definition.barrelSpread;
       const y=offset*44;
@@ -435,6 +550,48 @@ export class GameRenderer {
         detail.roundRect(-21,-18,42,36,6).stroke({color:0xffffff,alpha:.24,width:2});
         detail.roundRect(14,-19,13,38,3).fill({color:0xffffff,alpha:.3});
         detail.circle(-8,0,6).fill({color:0xffffff,alpha:.16});
+        break;
+      case'flanker':
+        body.circle(0,0,21).fill(color).stroke(outline);
+        detail.poly([14,-7,22,0,14,7]).fill({color:0xffffff,alpha:.2});
+        detail.poly([-14,-7,-22,0,-14,7]).fill({color:0xffffff,alpha:.2});
+        break;
+      case'octo':
+        body.poly(polygon(8,23,Math.PI/8)).fill(color).stroke(outline);
+        detail.circle(0,0,9).stroke({color:0xffffff,alpha:.3,width:2});
+        this.drawNodes(detail,8,16,2.4,color);
+        break;
+      case'arbalest':
+        body.poly(polygon(6,21,Math.PI/6)).fill(color).stroke(outline);
+        detail.rect(-14,-8,26,4).fill({color:0xffffff,alpha:.2});
+        detail.rect(-14,4,26,4).fill({color:0xffffff,alpha:.2});
+        break;
+      case'deadeye':
+        body.poly(polygon(6,21,0)).fill(color).stroke(outline);
+        detail.circle(0,0,10).stroke({color:0xffffff,alpha:.32,width:2});
+        detail.moveTo(-14,0).lineTo(14,0).stroke({color:0xffffff,alpha:.26,width:2});
+        detail.moveTo(0,-14).lineTo(0,14).stroke({color:0xffffff,alpha:.26,width:2});
+        break;
+      case'guardian':
+        body.circle(0,0,22).fill(color).stroke(outline);
+        detail.circle(0,0,15).stroke({color:0xffffff,alpha:.34,width:4});
+        this.drawNodes(detail,5,17,3.2,color);
+        break;
+      case'hive':
+        body.poly(polygon(6,23,Math.PI/6)).fill(color).stroke(outline);
+        this.drawNodes(detail,6,13,3,color);
+        detail.circle(0,0,4).fill({color:0xffffff,alpha:.3});
+        this.drawNodes(detail,10,19,1.8,color);
+        break;
+      case'blitz':
+        body.poly([24,0,-14,-17,-7,0,-14,17]).fill(color).stroke(outline);
+        detail.poly([10,0,-8,-8,-4,0,-8,8]).fill({color:0xffffff,alpha:.22});
+        break;
+      case'comet':
+        body.circle(4,0,19).fill(color).stroke(outline);
+        body.poly([-2,-16,-26,0,-2,16]).fill({color,alpha:.85}).stroke({color:0xffffff,alpha:.2,width:2});
+        detail.circle(8,0,7).fill({color:0xffffff,alpha:.24});
+        detail.poly([-6,-8,-18,0,-6,8]).fill({color:0xffffff,alpha:.14});
         break;
     }
   }

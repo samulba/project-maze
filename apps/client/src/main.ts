@@ -240,11 +240,24 @@ function updateWorld(snapshot: WorldSnapshot): void {
   previousProjectileIds = new Set(snapshot.projectiles.map((projectile) => projectile.id));
 }
 
+let previousArenaPhase: string | null = null;
+let previousBountyId: string | null = null;
+
 function playSnapshotAudio(snapshot: WorldSnapshot, self: PlayerSnapshot): void {
   if (previousSelf) {
-    if (self.health < previousSelf.health - 0.01 && self.deaths === previousSelf.deaths) audio.damage();
-    if (self.kills > previousSelf.kills) audio.kill();
-    if (self.deaths > previousSelf.deaths) audio.death();
+    const healthDrop = previousSelf.health - self.health;
+    if (healthDrop > 0.01 && self.deaths === previousSelf.deaths) {
+      audio.damage(healthDrop / 10);
+      renderer.shake(Math.min(6, 1.5 + healthDrop * 0.12));
+    }
+    if (self.kills > previousSelf.kills) {
+      audio.kill(self.streak);
+      renderer.shake(3);
+    }
+    if (self.deaths > previousSelf.deaths) {
+      audio.death();
+      renderer.shake(9);
+    }
     if (self.level > previousSelf.level) audio.level();
   }
   if (CLASS_DEFINITIONS[self.playerClass].barrelCount > 0) {
@@ -253,6 +266,15 @@ function playSnapshotAudio(snapshot: WorldSnapshot, self: PlayerSnapshot): void 
     );
     if (fired) audio.shot(self.playerClass);
   }
+  const extended = snapshot as WorldSnapshot & Partial<GameplayWorldExtension>;
+  const phase = extended.arenaEvent?.phase ?? null;
+  if ((phase === 'warning' && previousArenaPhase === null) || (phase === 'active' && previousArenaPhase === 'warning')) {
+    audio.eventHorn();
+  }
+  previousArenaPhase = phase;
+  const bountyId = extended.bountyTargetId ?? null;
+  if (bountyId && bountyId !== previousBountyId) audio.bounty();
+  previousBountyId = bountyId;
 }
 
 window.setInterval(() => {
@@ -275,6 +297,15 @@ function reportClientError(error: unknown): void {
 }
 window.addEventListener('error', (event) => reportClientError(event.error ?? event.message));
 window.addEventListener('unhandledrejection', (event) => reportClientError(event.reason));
+
+const volumeSlider = document.querySelector<HTMLInputElement>('#volume');
+if (volumeSlider) {
+  volumeSlider.value = String(Math.round(audio.getVolume() * 100));
+  volumeSlider.addEventListener('input', () => {
+    audio.unlock();
+    audio.setVolume(Number(volumeSlider.value) / 100);
+  });
+}
 
 const storedTheme = (window.localStorage.getItem('project-maze-theme') as ThemeId | null) ?? 'midnight';
 document.documentElement.dataset.theme = storedTheme;
