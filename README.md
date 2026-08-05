@@ -72,6 +72,12 @@ das Spiel nie. Einrichtung für Supabase-Neulinge:
   eine Instanz".
 - **Lasttest:** `npm run loadtest -- --clients 40 --duration 60` simuliert echte
   Clients und berichtet Join-Erfolg, Snapshot-Latenz und Abbrüche.
+- **Snapshot-Bandbreite:** Bei voller Arena ist der Versand der Flaschenhals,
+  nicht die Simulation. Alle Zahlen werden auf darstellbare Genauigkeit gerundet
+  (Positionen 1, Winkel 3 Nachkommastellen); mit `SNAPSHOT_DELTAS=true` fallen
+  zusätzlich alle Felder weg, die sich seit dem letzten Snapshot dieses Clients
+  nicht geändert haben. Gemessen mit 40 Clients: **256,8 → 153,1 KB/s je Client
+  (−40 %)** bei unveränderter Latenz.
 - **Redeploy:** Bei `SIGTERM` meldet `/health` sofort `503`, dann werden alle
   WebSockets mit Code 1001 sauber geschlossen – Clients reconnecten umgehend
   statt in einen Timeout zu laufen.
