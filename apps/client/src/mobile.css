@@ -1,13 +1,18 @@
 /*
- * Touch-Layout und Lesbarkeit auf kleinen Screens.
- * Wird nach style.css und gameplay-ui.css geladen und gewinnt daher bei gleicher
- * Spezifität. Leitidee: Der untere Bildschirmrand gehört den Daumen, alles andere
- * weicht darüber aus – nichts liegt mehr unter den Sticks.
+ * Touch-Layout (MASTERPLAN R3).
+ *
+ * Grundsatz: Auf dem Handy ist das Spielfeld der Star. Dauerhaft sichtbar sind
+ * genau vier Dinge – zwei Sticks, eine schmale Statusleiste oben links und der
+ * Aktions-Stapel neben dem Aim-Stick. Alles andere kommt auf Abruf (Minimap,
+ * Upgrades) oder als eine einzelne, kurze Meldung oben Mitte.
  *
  * Vertikale Zonen im Touch-Layout (von unten):
- *   0 … 190px   Sticks, Fähigkeiten-Cluster, Minimap
- *   190 … 300   Upgrade-Panel
- *   310 …       Klassenwahl
+ *   0 … 200px   Sticks und Aktions-Stapel
+ *   Bottom-Sheet (Upgrades) legt sich bei Bedarf über diese Zone
+ *
+ * Reihenfolge der Abschnitte ist Absicht: Der R3-Block steht NACH dem
+ * Lesbarkeits-Block, damit er auf Touch dessen Panel-Regeln überschreibt.
+ * Auf schmalen Maus-Fenstern greift nur der Lesbarkeits-Block.
  */
 
 /* ------------------------------------------------------------------ *
@@ -15,8 +20,8 @@
  * ------------------------------------------------------------------ */
 .touch-control {
   bottom: max(14px, env(safe-area-inset-bottom));
-  width: 168px;
-  height: 168px;
+  width: 184px;
+  height: 184px;
   -webkit-tap-highlight-color: transparent;
 }
 .move-stick { left: max(12px, env(safe-area-inset-left)); }
@@ -25,9 +30,9 @@
   inset: auto;
   left: 50%;
   top: 50%;
-  width: 122px;
-  height: 122px;
-  margin: -61px 0 0 -61px;
+  width: 132px;
+  height: 132px;
+  margin: -66px 0 0 -66px;
   border-color: color-mix(in srgb, var(--text) 16%, transparent);
   background: color-mix(in srgb, var(--bg) 30%, transparent);
   transition: transform .12s ease-out, border-color .16s, opacity .16s;
@@ -36,9 +41,9 @@
 .touch-control.touching .stick-ring { opacity: 1; transition: border-color .16s, opacity .16s; }
 .aim-stick.engaged .stick-ring { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
 .stick-knob {
-  width: 56px;
-  height: 56px;
-  margin: -28px;
+  width: 60px;
+  height: 60px;
+  margin: -30px;
   border-color: color-mix(in srgb, var(--text) 26%, transparent);
   background: color-mix(in srgb, var(--accent) 30%, transparent);
 }
@@ -48,141 +53,8 @@
 }
 
 /* ------------------------------------------------------------------ *
- * 2. Touch-Layout: alles aus dem Daumenbereich räumen
- * ------------------------------------------------------------------ */
-@media (pointer: coarse) {
-  /* Fähigkeit sitzt innen neben dem Aim-Stick – erreichbar, ohne den Stick zu verlassen. */
-  .core-ability {
-    left: auto;
-    right: calc(max(12px, env(safe-area-inset-right)) + 174px);
-    bottom: calc(max(14px, env(safe-area-inset-bottom)) + 16px);
-    transform: none;
-    width: 84px;
-    height: 84px;
-    border-radius: 50%;
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr auto;
-    justify-items: center;
-    touch-action: none;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .core-ability-key { display: none; }
-  /* Beschriftung muss über dem Ladering liegen. */
-  .core-ability strong,
-  .core-ability small { padding: 0; text-align: center; align-self: center; position: relative; z-index: 1; }
-  .core-ability strong { font-size: 12px; }
-  .core-ability small { font-size: 10px; }
-  /* Ladezustand als Ring statt als 3px-Leiste – auf Armlänge ablesbar. */
-  .core-ability > i {
-    left: 50%;
-    bottom: 50%;
-    width: 100%;
-    height: 100%;
-    translate: -50% 50%;
-    border-radius: 50%;
-    background: conic-gradient(currentColor var(--charge), transparent 0);
-    color: var(--accent);
-    opacity: .2;
-    transition: none;
-    pointer-events: none;
-  }
-  .core-ability[data-module="repulse"] > i { color: #73e3bd; background: conic-gradient(currentColor var(--charge), transparent 0); }
-  .core-ability[data-module="barrier"] > i { color: #81a7ff; background: conic-gradient(currentColor var(--charge), transparent 0); }
-  .core-ability[data-module="repair"] > i { color: #69d79b; background: conic-gradient(currentColor var(--charge), transparent 0); }
-  .core-ability:disabled { opacity: .82; }
-  .core-ability.active { box-shadow: 0 0 0 2px rgba(118,222,192,.45), 0 14px 38px rgba(0,0,0,.34); }
-
-  /* Repel darüber, weiterhin im Daumenbogen. */
-  .secondary-action {
-    display: grid;
-    place-items: center;
-    right: calc(max(12px, env(safe-area-inset-right)) + 186px);
-    bottom: calc(max(14px, env(safe-area-inset-bottom)) + 118px);
-    width: 60px;
-    min-width: 0;
-    height: 60px;
-    padding: 0;
-    border-radius: 50%;
-    font-size: 9px;
-    touch-action: none;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  /* Minimap raus aus dem Aim-Stick, Auto-Fire raus aus dem Daumenbereich. */
-  .minimap {
-    left: 50%;
-    right: auto;
-    bottom: max(12px, env(safe-area-inset-bottom));
-    translate: -50% 0;
-    width: 146px;
-    height: 96px;
-  }
-  .auto-fire {
-    left: 50%;
-    right: auto;
-    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 104px);
-    translate: -50% 0;
-    min-width: 96px;
-    height: 34px;
-    touch-action: manipulation;
-  }
-
-  /* Upgrades als Bogen-Sheet über den Daumen, vier Spalten statt acht Zeilen. */
-  .upgrade-panel {
-    left: 50%;
-    right: auto;
-    bottom: 190px;
-    translate: -50% 0;
-    width: min(460px, calc(100vw - 20px));
-    max-height: calc(100dvh - 210px);
-    overflow: auto;
-  }
-  .upgrade-list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-  .upgrade-list button {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
-    justify-items: center;
-    gap: 4px;
-    min-height: 46px;
-    padding: 7px 4px;
-    text-align: center;
-    touch-action: manipulation;
-  }
-  .upgrade-list button > kbd { display: none; }
-  .upgrade-list button > span { font-size: 10px; line-height: 1.15; }
-
-  /* Klassenwahl darüber, als scrollbare Kartenreihe. */
-  .class-selection {
-    bottom: 310px;
-    width: min(620px, calc(100vw - 20px));
-    max-height: calc(100dvh - 330px);
-    padding: 12px;
-    overflow: auto;
-  }
-  .class-choices {
-    grid-auto-flow: column;
-    grid-auto-columns: 200px;
-    grid-template-columns: none;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    scrollbar-width: thin;
-  }
-  .class-choices button { min-height: 0; padding: 12px; touch-action: manipulation; }
-
-  /* Ränder an Notch/Home-Indicator ausrichten. */
-  .top-left {
-    top: max(12px, env(safe-area-inset-top));
-    left: max(12px, env(safe-area-inset-left));
-  }
-  .leaderboard {
-    top: max(12px, env(safe-area-inset-top));
-    right: max(12px, env(safe-area-inset-right));
-  }
-  .network-pill { top: max(12px, env(safe-area-inset-top)); }
-}
-
-/* ------------------------------------------------------------------ *
- * 3. Lesbarkeit: kleine Screens brauchen mehr Kontrast und mehr Punktgröße
+ * 2. Lesbarkeit: kleine Screens brauchen mehr Kontrast und mehr Punktgröße
+ *    (gilt auch für schmale Maus-Fenster – dort bleibt das Panel-Layout)
  * ------------------------------------------------------------------ */
 @media (pointer: coarse), (max-width: 900px) {
   .player-panel,
@@ -215,6 +87,277 @@
   .death-stats b { font-size: 14px; }
 }
 
+/* ------------------------------------------------------------------ *
+ * 3. R3: das eigentliche Touch-Layout
+ * ------------------------------------------------------------------ */
+@media (pointer: coarse) {
+  /* --- 3a. Statusleiste: Level, Leben, XP. Mehr nicht. -------------- */
+  /* Oben haengt das HUD am Spielfeld (--view-y aus resizeViewport), damit es
+     auf Tablets nicht im schwarzen Letterbox-Balken schwebt. Unten zaehlt
+     dagegen der Schirmrand - dort liegen die Daumen. */
+  .top-left {
+    top: calc(max(10px, env(safe-area-inset-top)) + var(--view-y, 0px));
+    left: max(10px, env(safe-area-inset-left));
+    width: auto;
+  }
+  .player-panel {
+    display: grid;
+    grid-template-columns: auto minmax(80px, 132px) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 4px 9px;
+    /* Obergrenze aus der Spezifikation – die Leiste darf nie höher werden. */
+    height: 44px;
+    padding: 0 11px 0 0;
+    border-radius: 12px;
+    pointer-events: auto;
+  }
+  /* Name, Klasse, K/D, Score stehen im Death-Screen – nicht im Dauer-HUD. */
+  .player-heading > div:first-child,
+  .player-panel .xp-row,
+  #kd { display: none; }
+  .player-heading {
+    grid-row: 1 / 3;
+    align-self: stretch;
+  }
+  /* Nur die Zahl, mit kleinem L davor: „L12" statt „LVL 12" in zwei Zeilen.
+     `font-size: 0` schluckt den Text-Knoten „LVL", den kein Selektor greift. */
+  .level-badge {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 1px;
+    min-width: 44px;
+    height: 100%;
+    padding: 0 9px;
+    border: 0;
+    border-right: 1px solid var(--line);
+    border-radius: 12px 0 0 12px;
+    font-size: 0;
+  }
+  .level-badge::before { color: var(--faint); font-size: 9px; font-weight: 800; content: 'L'; }
+  .level-badge b { margin: 0; font-size: 17px; }
+  .player-panel .health-meter { grid-column: 2; grid-row: 1; height: 9px; margin: 0; }
+  .player-panel .hp-row { grid-column: 3; grid-row: 1; margin: 0; font-size: 10px; }
+  .player-panel .xp-meter { grid-column: 2 / 4; grid-row: 2; height: 3px; margin: 0; }
+
+  /* Punkte-Badge: der einzige Weg zu den Upgrades auf Touch. */
+  .points-badge {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 8px);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 44px;
+    padding: 0 13px;
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    border-radius: 12px;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--accent) 16%, var(--strong));
+    backdrop-filter: blur(16px);
+    pointer-events: auto;
+    touch-action: manipulation;
+    white-space: nowrap;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    animation: points-badge-pulse 2.4s ease-in-out infinite;
+  }
+  .points-badge b { color: var(--accent); font-size: 17px; }
+  @keyframes points-badge-pulse {
+    0%, 100% { border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+    50% { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
+  }
+
+  /* --- 3b. Aktions-Stapel neben dem Aim-Stick ----------------------- */
+  /* Einheitliche Kreise, von unten nach oben nach Häufigkeit sortiert:
+     Modul (ständig), Repel (situativ), Auto (einmal pro Runde). */
+  .core-ability,
+  .secondary-action,
+  .auto-fire {
+    position: fixed;
+    left: auto;
+    right: calc(max(12px, env(safe-area-inset-right)) + 198px);
+    display: grid;
+    place-items: center;
+    width: 58px;
+    min-width: 0;
+    height: 58px;
+    padding: 0;
+    border-radius: 50%;
+    transform: none;
+    translate: none;
+    text-align: center;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .core-ability { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 14px); }
+  .secondary-action { display: grid; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 80px); }
+  .auto-fire { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 146px); touch-action: manipulation; }
+  .auto-fire { font-size: 9px; line-height: 1.15; }
+  .auto-fire b { display: block; }
+  .core-ability { grid-template-columns: 1fr; grid-template-rows: 1fr auto; justify-items: center; }
+  .core-ability-key { display: none; }
+  /* Beschriftung muss über dem Ladering liegen. */
+  .core-ability strong,
+  .core-ability small { padding: 0; text-align: center; align-self: center; position: relative; z-index: 1; }
+  .core-ability strong { font-size: 11px; }
+  .core-ability small { font-size: 9px; }
+  /* Ladezustand als Ring statt als 3px-Leiste – auf Armlänge ablesbar. */
+  .core-ability > i {
+    left: 50%;
+    bottom: 50%;
+    width: 100%;
+    height: 100%;
+    translate: -50% 50%;
+    border-radius: 50%;
+    background: conic-gradient(currentColor var(--charge), transparent 0);
+    color: var(--accent);
+    opacity: .2;
+    transition: none;
+    pointer-events: none;
+  }
+  .core-ability[data-module="repulse"] > i,
+  .core-ability[data-module="repair"] > i { color: var(--success); }
+  .core-ability:disabled { opacity: .82; }
+  .core-ability.active { box-shadow: 0 0 0 2px color-mix(in srgb, var(--success) 45%, transparent); }
+  /* Der Stapel ist die dritte sichtbare Sache – er bleibt voll lesbar. */
+  .auto-fire,
+  .secondary-action { opacity: 1; }
+
+  /* --- 3c. Upgrades als Bottom-Sheet -------------------------------- */
+  .upgrade-panel {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-width: none;
+    max-height: min(60dvh, 320px);
+    padding: 10px 12px calc(12px + max(6px, env(safe-area-inset-bottom)));
+    border-radius: 18px 18px 0 0;
+    translate: none;
+    /* Zu: komplett unter dem Bildrand. Kein `display:none`, damit das
+       Auffahren animiert. */
+    transform: translateY(101%);
+    transition: transform .22s ease;
+    overflow: auto;
+    z-index: 34;
+  }
+  .upgrade-panel.sheet-open { transform: none; }
+  .upgrade-header { align-items: center; padding-bottom: 10px; }
+  .sheet-close {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    margin: -6px -4px -6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    color: var(--muted);
+    background: transparent;
+    pointer-events: auto;
+    touch-action: manipulation;
+    font-size: 13px;
+  }
+  .upgrade-list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+  .upgrade-list button {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    justify-items: center;
+    gap: 5px;
+    min-height: 54px;
+    padding: 9px 4px;
+    text-align: center;
+    touch-action: manipulation;
+  }
+  .upgrade-list button > kbd { display: none; }
+  .upgrade-list button > span { font-size: 10px; line-height: 1.15; }
+
+  /* --- 3d. Auf Abruf statt dauernd ---------------------------------- */
+  /* Bestenliste und Ping-Pille sind auf Touch ganz draußen (style.css),
+     der Killfeed ebenso – Kills stehen im Meldungs-Slot. */
+  .killfeed { display: none; }
+  /* Minimap: Tipp auf die Statusleiste blendet sie oben rechts ein, wo seit
+     dem Wegfall der Bestenliste Platz ist – nicht im Daumenbereich. */
+  .minimap { display: none; }
+  #app.minimap-open .minimap {
+    display: block;
+    top: calc(max(10px, env(safe-area-inset-top)) + var(--view-y, 0px));
+    right: max(10px, env(safe-area-inset-right));
+    bottom: auto;
+    left: auto;
+    translate: none;
+    width: 146px;
+    height: 96px;
+    opacity: .92;
+  }
+
+  /* --- 3e. EIN Meldungs-Slot oben Mitte ----------------------------- */
+  /* Event, Bounty, Achievement und Toast teilen sich eine Stelle, unterhalb
+     der Statusleiste. Sichtbar ist immer nur die wichtigste Meldung. */
+  /* Die Spalten-Logik vom Desktop (gameplay-ui.css) rueckt Banner und Toasts
+     gegeneinander ab und schlaegt hier per :has()-Spezifitaet jede einfache
+     Klassenregel. Statt sie einzeln zu ueberschreiben, bekommt sie einen
+     Schrittabstand von 0: Alle landen im selben Slot, sichtbar ist ohnehin nur
+     eines. */
+  :root {
+    --top-stack: calc(max(10px, env(safe-area-inset-top)) + var(--view-y, 0px) + 52px);
+    --top-step: 0px;
+  }
+  .arena-event-banner,
+  .bounty-banner,
+  .toasts,
+  .achievement-popup {
+    position: fixed;
+    top: var(--top-stack);
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    width: max-content;
+    max-width: min(360px, calc(100vw - 32px));
+    margin: 0;
+    translate: -50% 0;
+    transform: none;
+    z-index: 30;
+  }
+  .arena-event-banner,
+  .bounty-banner {
+    min-width: 0;
+    padding: 7px 13px;
+    border-radius: 999px;
+  }
+  .achievement-popup { padding: 7px 11px 7px 8px; }
+  .achievement-popup small { display: none; }
+  /* Rangfolge: was von selbst wieder verschwindet, geht vor. */
+  :root:has(.toast) .achievement-popup,
+  :root:has(.toast) .bounty-banner,
+  :root:has(.toast) .arena-event-banner,
+  :root:has(.achievement-popup:not([hidden])) .bounty-banner,
+  :root:has(.achievement-popup:not([hidden])) .arena-event-banner,
+  :root:has(.bounty-banner:not([hidden])) .arena-event-banner { display: none; }
+
+  /* --- 3f. Klassenwahl: knapp über den Sticks ----------------------- */
+  .class-selection {
+    left: 50%;
+    bottom: calc(max(14px, env(safe-area-inset-bottom)) + 206px);
+    width: min(620px, calc(100vw - 20px));
+    max-height: calc(100dvh - 260px);
+    padding: 12px;
+    translate: -50% 0;
+    overflow: auto;
+  }
+  .class-choices {
+    grid-auto-flow: column;
+    grid-auto-columns: 200px;
+    grid-template-columns: none;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .class-choices button { min-height: 0; padding: 12px; touch-action: manipulation; }
+}
+
 /* Auf kleinen Screens zählt nur die Spitze der Rangliste. */
 @media (pointer: coarse) and (max-height: 560px) {
   .leaderboard .leader-row:nth-of-type(n + 5) { display: none; }
@@ -223,29 +366,25 @@
 /* ------------------------------------------------------------------ *
  * 4. Sehr flache Landscape-Screens (iPhone SE & Co.)
  * ------------------------------------------------------------------ */
-@media (pointer: coarse) and (max-height: 470px) {
-  .touch-control { width: 148px; height: 148px; }
-  .stick-ring { width: 108px; height: 108px; margin: -54px 0 0 -54px; }
-  .stick-knob { width: 50px; height: 50px; margin: -25px; }
-  .core-ability {
-    right: calc(max(10px, env(safe-area-inset-right)) + 154px);
-    width: 74px;
-    height: 74px;
+@media (pointer: coarse) and (max-height: 430px) {
+  .touch-control { width: 156px; height: 156px; }
+  .stick-ring { width: 116px; height: 116px; margin: -58px 0 0 -58px; }
+  .stick-knob { width: 54px; height: 54px; margin: -27px; }
+  .core-ability,
+  .secondary-action,
+  .auto-fire {
+    right: calc(max(10px, env(safe-area-inset-right)) + 170px);
+    width: 52px;
+    height: 52px;
   }
-  .secondary-action {
-    right: calc(max(10px, env(safe-area-inset-right)) + 164px);
-    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 104px);
-    width: 54px;
-    height: 54px;
-  }
-  .minimap { width: 124px; height: 80px; }
-  .auto-fire { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 88px); height: 30px; }
-  .top-left { width: 194px; }
-  .player-panel { padding: 10px; }
-  .leaderboard { width: 184px; padding: 10px; }
-  .leaderboard .leader-row:nth-of-type(n + 4) { display: none; }
-  .upgrade-panel { bottom: 166px; max-height: calc(100dvh - 184px); }
-  .upgrade-list button { min-height: 40px; }
-  .class-selection { bottom: 262px; max-height: calc(100dvh - 278px); }
+  .core-ability { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 10px); }
+  .secondary-action { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 70px); }
+  .auto-fire { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 130px); }
+  .player-panel { height: 40px; grid-template-columns: auto minmax(72px, 112px) auto; }
+  .level-badge b { font-size: 15px; }
+  .points-badge { height: 40px; padding: 0 11px; }
+  .upgrade-panel { max-height: 74dvh; }
+  .class-selection { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 176px); max-height: calc(100dvh - 220px); }
   .class-choices { grid-auto-columns: 176px; }
+  #app.minimap-open .minimap { width: 124px; height: 82px; }
 }

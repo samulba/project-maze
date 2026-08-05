@@ -117,5 +117,5 @@
   :root.onboarding-active .bounty-banner { display: none; }
   /* Toasts bleiben – sie melden Dinge, die auch Anfänger sehen müssen –,
      rücken aber unter die Karte. */
-  :root.onboarding-active { --top-stack: calc(var(--edge-y) + 110px); }
+  :root.onboarding-active { --top-stack: calc(var(--edge-y) + 130px); }
 }
