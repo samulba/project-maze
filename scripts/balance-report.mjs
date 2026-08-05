@@ -1,5 +1,13 @@
 import { allClassBalanceMetrics } from '../packages/shared/dist/balance.js';
 import { CLASS_DEFINITIONS } from '../packages/shared/dist/index.js';
+// Die Momentum-Zahlen kommen aus der Server-Schicht, nicht aus einer zweiten
+// Konstantenquelle – sonst balanciert der Report an Werten, die im Spiel nicht
+// gelten. Deshalb baut `prebalance` auch den Server.
+import {
+  DEFAULT_MOMENTUM,
+  isRapidClass,
+  momentumFireRate
+} from '../apps/server/dist/signature-rapid.js';
 import {
   ACTIVE_MODULE_DEFINITIONS,
   ACTIVE_MODULE_IDS,
@@ -30,6 +38,30 @@ for (const entry of rows) {
     number(entry.bodyThreat)
   ].join(' '));
 }
+
+console.log(`\nRAPID — SIGNATURE MOMENTUM (SIGNATURE_RAPID_ENABLED, max −${(DEFAULT_MOMENTUM.maxReloadBonus * 100).toFixed(0)} % Nachladezeit)\n`);
+console.log('CLASS          RELOAD    SHOTS/S @0  @50  @100    FWD DPS @0   @100    ZUWACHS');
+console.log('─'.repeat(80));
+for (const entry of rows.filter((row) => isRapidClass(row.id))) {
+  const definition = CLASS_DEFINITIONS[entry.id];
+  const shots = [0, 50, 100].map((momentum) => momentumFireRate(definition.reload, momentum));
+  // FWD DPS skaliert exakt mit der Feuerrate: dieselben Läufe, derselbe Schaden.
+  const dpsFull = entry.forwardProjectileDps * (shots[2] / shots[0]);
+  console.log([
+    definition.label.padEnd(13, ' '),
+    definition.reload.toFixed(3).padStart(7, ' '),
+    shots[0].toFixed(2).padStart(12, ' '),
+    shots[1].toFixed(2).padStart(4, ' '),
+    shots[2].toFixed(2).padStart(5, ' '),
+    number(entry.forwardProjectileDps).padStart(13, ' '),
+    number(dpsFull),
+    percent((dpsFull / Math.max(0.001, entry.forwardProjectileDps) - 1) * 100)
+  ].join(' '));
+}
+console.log(`\nMomentum steigt um ${DEFAULT_MOMENTUM.buildPerSecond}/s beim Feuern in Bewegung, fällt um`
+  + ` ${DEFAULT_MOMENTUM.decayPerSecond}/s im Stand und um ${DEFAULT_MOMENTUM.holdDecayPerSecond}/s in Fahrt ohne Feuer.`);
+console.log('Die @100-Spalte ist die Obergrenze für dauerhaft fahrende Spieler, nicht der Normalfall:');
+console.log('Wer aus der Deckung feuert, steht bei @0 – exakt den Werten der Haupttabelle.');
 
 console.log('\nCORE MODULES\n');
 console.log('MODULE             ROLE        COOLDOWN   ACTIVE');

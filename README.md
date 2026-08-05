@@ -99,6 +99,14 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   alle 5 Sekunden um einen Bot. Bots verschwinden nur tot oder weit außer
   Sichtweite, nie mitten im Kampf; neue starten leicht unter dem Median-Level
   der Menschen. Abschaltbar über `ARENA_DIRECTOR_ENABLED=false`.
+- **Signature „Momentum" (RAPID, Klassen 3.0):** Mit
+  `SIGNATURE_RAPID_ENABLED=true` baut die Rapid-Familie beim Feuern in Bewegung
+  Momentum auf (+30/s), verliert es im Stand (−50/s) und feuert bei
+  Vollausschlag 25 % schneller nach. Der Füllstand steht als `signature` (0–100)
+  im Snapshot; `npm run balance` zeigt die effektive Feuerrate bei 0/50/100.
+  Ohne den Schalter verhält sich der Server exakt wie vorher. Wer aus der
+  Deckung feuert, spielt auf den alten Werten – Spam aus dem Stand ist der
+  schlechtere Weg.
 - **Aggro-Pacing der Bots:** Kämpfe enden auch mal. Nach einem Abschuss lässt
   ein Bot 6 s von Menschen ab, eine erfolglose Jagd bricht er nach 8 s ohne
   eigenen Treffer ab (das Ziel bleibt ihm danach 6 s tabu), und höchstens zwei
@@ -137,6 +145,8 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   (Rapid, Precision, Control, Impact – je drei Endpfade)
 - klassenspezifische Kernmechaniken: Heckläufe, Rundum-Feuer,
   Exekutionsbonus, Defensiv-Orbit, Mikro-Schwarm, Momentum-Rammen u. a.
+- Familien-Signature (Klassen 3.0): Rapid feuert schneller, solange es in
+  Bewegung feuert (`SIGNATURE_RAPID_ENABLED`)
 - Core Modules (Dash, Repulse, Barrier, Repair) und passive Frames
 - Elite Shapes, Bounty-System, Kill-Streaks
 - vier rotierende Arena-Events: Core Surge (mehr Formen), Overcharge
