@@ -44,7 +44,7 @@ docker build -f apps/client/Dockerfile --build-arg VITE_WS_URL=wss://maze.exampl
 | `BOT_COUNT` | `8` | 0–18 | Bots in der Arena. `0` für reine PvP-Server. |
 | `ALLOWED_ORIGIN` | `*` | Liste | Kommagetrennte Browser-Origins. **In Produktion setzen** – `*` erlaubt jede Herkunft. Gilt für CORS *und* den WebSocket-Handshake. |
 | `ENABLE_DEV_TOOLS` | `false` | `true`/`false` | F2-Debug-Werkzeuge (Builds setzen, God-Mode, Dummies). **Muss in Produktion `false` bleiben.** |
-| `TELEMETRY_ENABLED` | `true` | `true`/`false` | Anonyme Balance-Telemetrie inklusive `/metrics`. Bei `false` wird die Schicht gar nicht erst angehängt und `/metrics` antwortet mit 404. |
+| `TELEMETRY_ENABLED` | `true` | `true`/`false` | Anonyme Balance-Telemetrie inklusive `/metrics` **und** der Client-Perf-Berichte auf `POST /client-metrics` (FPS, Hänger, Geräteklasse, Renderpfad – siehe [`TELEMETRY.md`](./TELEMETRY.md#client-perf-telemetrie)). Bei `false` wird die Schicht gar nicht erst angehängt und beide Routen antworten mit 404. |
 | `METRICS_TOKEN` | – | Freitext | Ist die Variable gesetzt, verlangt `/metrics` den Header `Authorization: Bearer <token>` (zeitkonstanter Vergleich). Leer lassen ist nur akzeptabel, solange der Serverport das interne Netz nicht verlässt. |
 | `SUPABASE_URL` | – | URL | Projekt-URL der Supabase-Instanz. Nur zusammen mit dem Service-Role-Key wirksam. |
 | `SUPABASE_SERVICE_ROLE_KEY` | – | Geheimnis | Geheimer Supabase-Schlüssel. Schaltet zusammen mit `SUPABASE_URL` Run-Persistenz und `/leaderboard` frei. Fehlt eine der beiden Variablen, verhält sich der Server exakt wie ohne Persistenz. **Niemals in den Client.** Siehe [`SUPABASE.md`](./SUPABASE.md). |
