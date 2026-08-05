@@ -82,7 +82,7 @@ findet Räume dafür.
 | # | Maßnahme | Wer | Status |
 |---|---|---|---|
 | P0 | **Sofort-Paket:** Population 8/−1/min 3 statt 11/−2/min 4 · Chill-Regeneration (nach 3,5 s ohne Treffer Ramp auf +4 % Max-HP/s) · kein Zwangs-Respawn für Menschen · „ZUM STARTSCREEN"-Knopf im Death-Screen | 01 | ✅ umgesetzt |
-| P1 | **Bot-Aggro-Pacing:** Bots lassen nach einem Kill ab (Disengage-Fenster), Jagd-Timeout (wer entkommt, ist entkommen), maximal N gleichzeitige Angreifer auf denselben Menschen (Anti-Gang-up verschärfen), größerer Farmer-Anteil in der Stil-Verteilung. | 02 | offen |
+| P1 | **Bot-Aggro-Pacing:** Disengage nach Kill, Jagd-Timeout, harter 2-Angreifer-Deckel, Farmer 40 %. Gemessen: Zeit unter Beschuss −35…−69 %, Ruhe nach Respawn 0,4 → 7,8 s. | 02 | ✅ umgesetzt |
 | P2 | **Feintuning mit Telemetrie:** Überlebenszeiten & Kampfdichte aus `/metrics` auswerten, Werte nachziehen. | 02+04 | nach P1 |
 
 ## Handlungsfeld 3 – Lesbarkeit: Fähigkeiten müssen nach Absicht aussehen
@@ -150,7 +150,7 @@ Nie wieder blind wählen.
 | # | Paket | Wer |
 |---|---|---|
 | KL1 | Design-Feinschliff auf Basis dieses Kapitels; 02 liefert Machbarkeits-/Aufwandskommentar je Signature | 01+02 |
-| KL2 | Signature-Mechaniken hinter Flag, **eine Familie nach der anderen** (Rapid → Precision → Impact → Control), jede einzeln live testbar | 02 |
+| KL2 | Signature-Mechaniken hinter Flag, **eine Familie nach der anderen** – Reihenfolge nach 02s Machbarkeitsanalyse (KL1): **Rapid → Impact → Precision (nach N2) → Control**. Gemeinsames Snapshot-Feld `signature` (0–100) liegt in shared. | 02 |
 | KL3 | Rad-UI (Overlay + Startscreen) | 03 |
 | KL4 | Familien-Upgrades (Protokoll/shared 01, Server 02, UI 03) | alle |
 | KL5 | Balance-Runde mit Telemetrie (Pickraten, K/D, Überlebenszeit je Klasse) | 02+04 |

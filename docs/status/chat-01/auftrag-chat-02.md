@@ -1,38 +1,37 @@
 # Auftrag für Chat 02 – Server-Gameplay
 
-**Ausgestellt: 2026-08-05 · Basis: aktueller `origin/main`**
+**Ausgestellt: 2026-08-05 (Nacht) · Basis: aktueller `origin/main`**
 
-Zwei Teile, ein Branch.
+Dein Aggro-Pacing ist gemerged – die Messreihe (Zeit unter Beschuss −35…−69 %)
+ist genau die Beweisführung, die wir wollen. Deine KL1-Analyse ist
+angenommen: **Reihenfolge Rapid → Impact → Precision (nach N2) → Control**
+steht jetzt so im MASTERPLAN, und dein gemeinsames Snapshot-Feld liegt in
+shared: `PlayerSnapshot.signature?: number` (0–100, ganzzahlig).
 
-## Teil 1 – P1: Bot-Aggro-Pacing (MASTERPLAN.md, Handlungsfeld 2)
+## KL2-RAPID: Signature „Momentum" (Klassen 3.0, erste Familie)
 
-Sams Feedback: Dauerbeschuss, nie eine Verschnaufpause. Ziel: Kämpfe enden
-auch mal.
+Hinter Flag **`SIGNATURE_RAPID_ENABLED`** (Default aus; ohne Flag exakt wie
+vorher + Test). Design aus MASTERPLAN Feld 5, deine KL1-Fallen sind Teil des
+Auftrags:
 
-1. **Disengage-Fenster:** Nach einem Kill lässt der Bot ~6 s von Menschen ab
-   (farmt oder repositioniert).
-2. **Jagd-Timeout:** Verfolgt ein Bot einen Menschen > 8 s ohne eigenen
-   Treffer, bricht er ab – wer entkommt, ist entkommen.
-3. **Angreifer-Deckel:** Maximal 2 Bots gleichzeitig im Angriffsmodus auf
-   denselben Menschen (Anti-Gang-up verschärfen); weitere weichen auf Formen
-   oder andere Ziele aus.
-4. **Stil-Verteilung:** Farmer-Anteil erhöhen.
+1. **Mechanik:** Skalar 0–100 je Spieler der Rapid-Familie. Aufbau beim
+   Feuern in Bewegung, Abbau bei Stillstand (Werte als benannte Konstanten).
+   Wirkung: `reload`-Multiplikator, Kappe klar definieren (Vorschlag: bei 100
+   Momentum −25 % reload; Rapid spielt am Feuerratenlimit – lieber
+   konservativ starten, KL5 justiert mit Telemetrie).
+2. **Snapshot:** `signature` nur für Rapid-Klassen und nur bei aktivem Flag
+   setzen (ganzzahlig; Deltas/Kurz-IDs brauchen nichts Neues).
+3. **Bots (deine Falle 4):** Rapid-Bots bekommen eine Bewegungsregel, die
+   Momentum hält – ein stehender Rapid-Bot wäre strikt schlechter.
+4. **Balance-Sichtbarkeit (deine Falle 3):** `npm run balance` braucht eine
+   Momentum-Spalte (effektive Feuerrate bei 0/50/100), sonst rechnet KL5 an
+   der falschen Zahl. Falls dafür etwas in `packages/shared/src/balance.ts`
+   nötig ist: exakter Vorschlag im Statusbericht, ich verdrahte.
+5. **Prediction-Notiz (deine Falle 2):** Abschnitt in
+   `docs/CLIENT_PREDICTION.md`, wie der Client den Momentum-Aufbau spiegeln
+   muss, sobald N2 kommt.
 
-Alle Werte als benannte Konstanten (spätere Telemetrie-Tuning-Runde),
-deterministisch getestet (Teamplan-Regel 8).
+Die HUD-Anzeige (Momentum-Balken) baut 03 als Folgepaket auf dem
+`signature`-Feld – dein Teil endet damit, dass das Feld korrekt gefüllt ist.
 
-## Teil 2 – KL1: Machbarkeits-Kommentar Klassen 3.0
-
-Zu den vier Signature-Mechaniken in MASTERPLAN.md Handlungsfeld 5 (Momentum /
-Ladeschuss / Einheiten-Budget / Wucht): je Familie Aufwandseinschätzung,
-technische Fallen, empfohlene Reihenfolge. Nur Kommentar (in deinen
-Statusbericht), noch keine Umsetzung.
-
-## Kontext seit deinem letzten Stand
-
-- Deine Input-Quittung ist gemerged; `lastProcessedInput` steht in shared –
-  als **optionales** Feld (Abweichung von deinem Vorschlag: Dutzende
-  Test-Fixtures bauen Snapshot-Literale; der Server setzt es trotzdem immer,
-  der Client liest `?? -1`). Einspruch gern über deinen Statusbericht.
-- `ACCELERATION_SCALE` liegt jetzt in `packages/shared` (dein Vorschlag 2).
-- Statusbericht wie gehabt nach `docs/status/chat-02/`.
+Statusbericht wie gehabt nach `docs/status/chat-02/`.

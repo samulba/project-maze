@@ -305,7 +305,16 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
   })
 };
 
-export interface PlayerSnapshot { id:string; name:string; playerClass:PlayerClass; position:Vector2; velocity:Vector2; angle:number; health:number; maxHealth:number; level:number; xp:number; xpForNextLevel:number; availablePoints:number; upgrades:UpgradeLevels; score:number; kills:number; deaths:number; streak:number; bestStreak:number; invulnerable:boolean; isBot:boolean; dead:boolean; deathLevel:number; respawnLevel:number; canRespawnAt:number; autoRespawnAt:number; killerName:string; }
+export interface PlayerSnapshot { id:string; name:string; playerClass:PlayerClass; position:Vector2; velocity:Vector2; angle:number; health:number; maxHealth:number; level:number; xp:number; xpForNextLevel:number; availablePoints:number; upgrades:UpgradeLevels; score:number; kills:number; deaths:number; streak:number; bestStreak:number; invulnerable:boolean; isBot:boolean; dead:boolean; deathLevel:number; respawnLevel:number; canRespawnAt:number; autoRespawnAt:number; killerName:string;
+  /**
+   * Füllstand der Familien-Signature in Prozent (0–100, ganzzahlig) – EIN Feld
+   * für alle vier Spielstile (Klassen 3.0/KL2). Bedeutung ergibt sich aus der
+   * Familie: Rapid = Momentum, Precision = Ladung, Control = freies
+   * Einheiten-Budget, Impact = Wucht. Fehlt, solange die Signature-Mechanik
+   * der Klasse nicht aktiv ist.
+   */
+  signature?: number;
+}
 export interface ProjectileSnapshot { id:string; ownerId:string; position:Vector2; velocity:Vector2; radius:number; integrity:number; maxIntegrity:number; }
 export interface DroneSnapshot { id:string; ownerId:string; position:Vector2; velocity:Vector2; angle:number; health:number; maxHealth:number; }
 export interface Wall { id:string; x:number; y:number; width:number; height:number; }

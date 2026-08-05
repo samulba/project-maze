@@ -1,18 +1,16 @@
 # Integrationsstand – Chat 01 (Zentrale)
 
-**Stand: 2026-08-05, Abend**
+**Stand: 2026-08-05, Nacht**
 
 ## Zuletzt auf main gemerged
 
-- 03 „Ruhe & Gewicht" (Letterbox-Striche-Fix, HUD-Entrümpelung, Rückstoß,
-  **Spectator-Kamera**, Killcam ausgebaut)
-- 02 Input-Quittung (`lastProcessedInput`, Schicht ganz außen)
-- Shared dazu: `WorldSnapshot.lastProcessedInput?` (optional statt Pflicht –
-  Dutzende Test-Fixtures bauen Snapshot-Literale; der Server setzt es immer,
-  der Client liest mit `?? -1`), `ACCELERATION_SCALE` von combat-tuning nach
-  shared verlagert (Prediction spiegelt dieselbe Zahl)
-- davor heute: Masterplan v4 + Phase 0 (Pacing), Mobile-Viewport-Fix
-  (visualViewport/100dvh), Klassen-Balance nach 02s Dämpfer-Analyse
+- 02 Aggro-Pacing (Zeit unter Beschuss −35…−69 %, BOT_PACING_ENABLED default an)
+  + KL1-Machbarkeitsanalyse → Reihenfolge Rapid → Impact → Precision → Control
+- 03 R3 Mobile-Pass (Statusleiste, Aktions-Stapel, Meldungs-Slot, Bottom-Sheet)
+- 04 Client-Perf-Telemetrie (POST /client-metrics + /metrics-Export)
+- Shared: PlayerSnapshot.signature (0–100, ein Feld für alle vier Signatures)
+- davor: Profil-Backend, Ruhe & Gewicht + Spectator-Kamera, Input-Quittung,
+  Masterplan v4 + Phase 0, Mobile-Viewport-Fix
 
 ## Flags live (Railway)
 
