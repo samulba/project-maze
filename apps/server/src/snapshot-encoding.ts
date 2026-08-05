@@ -25,10 +25,15 @@ import { MazeGame } from './game.js';
  *    fast nie; Wände im Sichtfeld, Bestenliste und Killfeed bleiben über viele
  *    Snapshots identisch. Alle kosten trotzdem in jedem Snapshot volle Bytes.
  *
- * Punkt 2 lässt Felder weg und braucht deshalb einen Client, der den letzten
- * Stand puffert. Bis der ausgeliefert ist, hängt er an `SNAPSHOT_DELTAS` und
- * ist standardmäßig aus – ein Server, der Felder weglässt, die der Client noch
- * nicht kennt, zeigt Spieler ohne Namen und eine leere Karte.
+ * 3. **Kurze Netz-IDs** – intern sind alle Entitäten UUIDs. Als JSON kostet eine
+ *    UUID 38 Bytes (`"a1b2c3d4-…"`), und jede Entität trägt mindestens eine,
+ *    Projektile und Drohnen sogar zwei. Auf der Leitung reicht eine fortlaufende
+ *    Zahl.
+ *
+ * Punkt 2 und 3 verändern die Feldform und brauchen deshalb einen Client, der
+ * mitspielt: Punkt 2 muss den letzten Stand puffern, Punkt 3 Zahlen statt
+ * Strings als Schlüssel akzeptieren. Bis das ausgeliefert ist, hängen beide an
+ * eigenen Schaltern (`SNAPSHOT_DELTAS`, `SHORT_NET_IDS`) und sind aus.
  */
 
 /** Weltkoordinaten: Zehntel einer Einheit ist deutlich feiner als ein Pixel. */
@@ -136,18 +141,37 @@ interface ViewerState {
   killfeed: string | null;
 }
 
+/**
+ * UUID → kurze Zahl. Die Zuordnung gilt für die ganze Arena und nicht je
+ * Verbindung: Eine Entität behält damit über alle Clients dieselbe Nummer, was
+ * ein Vierzigstel des Speichers kostet und beim Debuggen erheblich hilft. Je
+ * Verbindung wären die Zahlen nur rund eine Stelle kürzer – der Sprung von 38
+ * Bytes auf eine Handvoll passiert ohnehin schon beim ersten Schritt.
+ */
+interface ShortIdState {
+  next: number;
+  byUuid: Map<string, number>;
+  nextSweepAt: number;
+}
+
 interface EncodingState {
   viewers: Map<string, ViewerState>;
   /** Tick, für den die Bestenlisten-Signatur zuletzt berechnet wurde. */
   tick: number;
   leaderboard: string;
+  shortIds: ShortIdState;
 }
 
 const states = new WeakMap<MazeGame, EncodingState>();
 const stateFor = (game: MazeGame): EncodingState => {
   const existing = states.get(game);
   if (existing) return existing;
-  const created: EncodingState = { viewers: new Map(), tick: -1, leaderboard: '' };
+  const created: EncodingState = {
+    viewers: new Map(),
+    tick: -1,
+    leaderboard: '',
+    shortIds: { next: 1, byUuid: new Map(), nextSweepAt: 0 }
+  };
   states.set(game, created);
   return created;
 };
@@ -206,12 +230,93 @@ function stripWalls(viewer: ViewerState, snapshot: EncodedSnapshot): void {
   snapshot.walls = walls.map(roundedWall);
 }
 
+/** Wie oft aufgeräumt wird: Projektile entstehen und vergehen im Sekundentakt. */
+const SHORT_ID_SWEEP_MS = 5_000;
+
+interface EntityMaps {
+  players: Map<string, unknown>;
+  projectiles: Map<string, unknown>;
+  drones: Map<string, unknown>;
+  shapes: Map<string, unknown>;
+}
+
 /**
- * Verkleinert ausgehende Snapshots. `deltas` schaltet die Felder zu, die einen
- * puffernden Client voraussetzen; das Runden läuft immer.
+ * Vergibt fortlaufende Nummern und gibt sie nie wieder aus. Recycling wäre
+ * verlockend – der Client führt seine Interpolation und seinen Statik-Puffer
+ * aber über genau diese ID, und eine wiederverwendete Nummer ließe ein
+ * Projektil im Bild eines anderen weiterleben. Der Preis ist eine Stelle mehr
+ * nach einigen Stunden; das sind immer noch rund 30 Bytes weniger als eine UUID.
  */
-export function tuneSnapshotEncoding<T extends MazeGame>(game: T, deltas = false): T {
+const shortIdOf = (state: ShortIdState, uuid: string): number => {
+  const existing = state.byUuid.get(uuid);
+  if (existing !== undefined) return existing;
+  const created = state.next++;
+  state.byUuid.set(uuid, created);
+  return created;
+};
+
+/** Wirft die Zuordnung längst verschwundener Entitäten weg, damit nichts wächst. */
+function sweepShortIds(state: ShortIdState, entities: EntityMaps, now: number): void {
+  if (now < state.nextSweepAt) return;
+  state.nextSweepAt = now + SHORT_ID_SWEEP_MS;
+  for (const uuid of state.byUuid.keys()) {
+    if (entities.players.has(uuid) || entities.projectiles.has(uuid)) continue;
+    if (entities.drones.has(uuid) || entities.shapes.has(uuid)) continue;
+    state.byUuid.delete(uuid);
+  }
+}
+
+/**
+ * Ersetzt jede Entitäts-ID im Snapshot durch ihre kurze Nummer. Die Casts sind
+ * hier gebündelt: Auf der Leitung sind diese Felder Zahlen, im geteilten Typ
+ * noch Strings.
+ */
+function applyShortIds(state: ShortIdState, snapshot: EncodedSnapshot): void {
+  const short = (uuid: string): number => shortIdOf(state, uuid);
+  const rewriteId = (entity: { id: string }): void => {
+    (entity as unknown as { id: number }).id = short(entity.id);
+  };
+  const rewriteOwner = (entity: { ownerId: string }): void => {
+    (entity as unknown as { ownerId: number }).ownerId = short(entity.ownerId);
+  };
+  const wire = snapshot as unknown as {
+    selfId: number | null;
+    eliteShapeIds?: number[];
+    bountyTargetId?: number | null;
+    arenaGuardianId?: number | null;
+  };
+
+  if (snapshot.selfId !== null) wire.selfId = short(snapshot.selfId);
+  for (const player of snapshot.players) rewriteId(player);
+  for (const projectile of snapshot.projectiles) {
+    rewriteId(projectile);
+    rewriteOwner(projectile);
+  }
+  for (const drone of snapshot.drones) {
+    rewriteId(drone);
+    rewriteOwner(drone);
+  }
+  for (const shape of snapshot.shapes) rewriteId(shape);
+  // Wände behalten ihre kurzen Namen (`v3`) – da ist nichts zu holen.
+  if (snapshot.leaderboard) for (const entry of snapshot.leaderboard) rewriteId(entry);
+
+  if (snapshot.gameplay) {
+    const remapped: Record<string, (typeof snapshot.gameplay)[string]> = {};
+    for (const [uuid, entry] of Object.entries(snapshot.gameplay)) remapped[short(uuid)] = entry;
+    snapshot.gameplay = remapped;
+  }
+  if (snapshot.eliteShapeIds) wire.eliteShapeIds = snapshot.eliteShapeIds.map(short);
+  if (snapshot.bountyTargetId) wire.bountyTargetId = short(snapshot.bountyTargetId);
+  if (snapshot.arenaGuardianId) wire.arenaGuardianId = short(snapshot.arenaGuardianId);
+}
+
+/**
+ * Verkleinert ausgehende Snapshots. `deltas` und `shortIds` schalten die Teile
+ * zu, die einen mitspielenden Client voraussetzen; das Runden läuft immer.
+ */
+export function tuneSnapshotEncoding<T extends MazeGame>(game: T, deltas = false, shortIds = false): T {
   const state = stateFor(game);
+  const entities = game as unknown as EntityMaps;
   const originalSnapshot = game.snapshot.bind(game);
 
   game.snapshot = ((selfId: string, now = Date.now()): WorldSnapshot => {
@@ -219,6 +324,8 @@ export function tuneSnapshotEncoding<T extends MazeGame>(game: T, deltas = false
     roundSnapshot(snapshot);
     if (!deltas) {
       snapshot.walls = snapshot.walls.map(roundedWall);
+      // Immer zuletzt: Die Delta-Buchhaltung rechnet mit den echten UUIDs.
+      if (shortIds) applyShortIds(state.shortIds, snapshot);
       return snapshot;
     }
 
@@ -238,8 +345,17 @@ export function tuneSnapshotEncoding<T extends MazeGame>(game: T, deltas = false
     if (viewer.killfeed === killfeed) delete (snapshot as Partial<WorldSnapshot>).killfeed;
     else viewer.killfeed = killfeed;
 
+    if (shortIds) applyShortIds(state.shortIds, snapshot);
     return snapshot;
   }) as T['snapshot'];
+
+  if (shortIds) {
+    const originalStep = game.step.bind(game);
+    game.step = ((dt: number, now = Date.now()): void => {
+      originalStep(dt, now);
+      sweepShortIds(state.shortIds, entities, now);
+    }) as T['step'];
+  }
 
   const originalRemovePlayer = game.removePlayer.bind(game);
   game.removePlayer = ((id: string): void => {
@@ -249,6 +365,12 @@ export function tuneSnapshotEncoding<T extends MazeGame>(game: T, deltas = false
   }) as T['removePlayer'];
 
   return game;
+}
+
+/** Aktuelle Zuordnungsgröße – für Tests und Betriebsanzeigen. */
+export function shortIdStats(game: MazeGame): { assigned: number; next: number } {
+  const shortIds = states.get(game)?.shortIds;
+  return { assigned: shortIds?.byUuid.size ?? 0, next: shortIds?.next ?? 1 };
 }
 
 /**
