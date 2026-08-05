@@ -110,17 +110,23 @@ setzen und `ALLOWED_ORIGIN` auf die Client-Domain.
 
 ## Phase 2 (nach dem Go-Live): Supabase
 
-Erst wenn das Spiel live läuft, kommt Persistenz dazu – als eigenes
-Tuning-Modul, ohne den Tick-Loop zu blockieren (nur asynchrone Writes):
+Persistenz liegt als eigenes Tuning-Modul (`apps/server/src/persistence.ts`)
+neben der Simulation und blockiert den Tick-Loop nie – alle Writes laufen
+gepuffert und asynchron.
 
-1. **Telemetrie-Sink:** das Telemetrie-Modul (Chat 04) schreibt aggregierte
-   Kennzahlen (Pickraten, K/D je Klasse, Lebensdauer) periodisch in eine
-   Supabase-Tabelle statt nur in den Speicher.
-2. **Globales Leaderboard:** Top-Runs (Name, Score, Klasse, Datum) per
-   Service-Role-Key vom Server aus persistieren; Client liest über eine
-   kleine Server-Route (`/leaderboard`), nicht direkt von Supabase.
-3. **Optional Accounts/Skins:** Supabase Auth – erst sinnvoll, wenn es etwas
-   zu speichern gibt. Achtung: ändert das „kein Account“-Versprechen im UI.
+1. **Globales Leaderboard – umgesetzt:** Jeder Tod eines echten Spielers legt
+   einen Run (Name, Score, Level, Klasse, Kills, beste Streak, Dauer) in einen
+   Puffer; ein eigener Timer schreibt ihn per Service-Role-Key nach Supabase.
+   Der Client liest über die Server-Route `GET /leaderboard` (Top 50, 30 s
+   gecacht), nie direkt von Supabase.
+   Einrichtung Schritt für Schritt: [`SUPABASE.md`](./SUPABASE.md).
+2. **Telemetrie-Sink – offen:** das Telemetrie-Modul könnte seine Aggregate
+   (Pickraten, K/D je Klasse, Lebensdauer) periodisch mitschreiben, statt sie
+   nur im Speicher zu halten.
+3. **Accounts/Achievements – Etappe 3:** Supabase Auth mit Google-Login.
+   Achtung: ändert das „kein Account“-Versprechen im UI.
 
 Regeln: Keys nur als Server-ENV (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`),
 niemals im Client-Bundle; alle Schreibzugriffe vom Server, nie vom Client.
+Ohne die beiden Variablen verhält sich der Server exakt wie ohne Persistenz –
+das ist kein Sonderfall, sondern der getestete Normalzustand.

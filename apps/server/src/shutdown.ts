@@ -33,6 +33,12 @@ export interface GracefulShutdownOptions {
   graceMs?: number;
   /** Absolute Obergrenze, danach wird hart abgeräumt. */
   hardDeadlineMs?: number;
+  /**
+   * Läuft nach dem Drain, bevor der Listener schließt – hier gehören Puffer
+   * hin, die noch weggeschrieben werden müssen (z. B. offene Runs). Fehler
+   * werden geloggt und halten das Herunterfahren nicht auf.
+   */
+  beforeClose?: () => Promise<void>;
   log?: (message: string) => void;
 }
 
@@ -54,6 +60,7 @@ export function createGracefulShutdown(options: GracefulShutdownOptions): Gracef
     closeCode = GOING_AWAY,
     closeReason = 'Server restart',
     drainMs = 0,
+    beforeClose,
     graceMs = 1_500,
     hardDeadlineMs = 8_000,
     log = (): void => {}
@@ -85,6 +92,14 @@ export function createGracefulShutdown(options: GracefulShutdownOptions): Gracef
       await delay(drainMs);
     }
     for (const timer of timers) clearInterval(timer);
+
+    if (beforeClose) {
+      try {
+        await beforeClose();
+      } catch (error: unknown) {
+        log(`beforeClose fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
 
     // Ab hier keine neuen Verbindungen mehr; offene HTTP-Keep-Alives lösen.
     const closingAt = Date.now();

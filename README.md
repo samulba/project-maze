@@ -54,6 +54,16 @@ IDs oder Adressen gespeichert. Abschaltbar über `TELEMETRY_ENABLED=false`,
 absicherbar über `METRICS_TOKEN`. Details in
 [`docs/TELEMETRY.md`](docs/TELEMETRY.md).
 
+## Globales Leaderboard (optional)
+
+Sind `SUPABASE_URL` und `SUPABASE_SERVICE_ROLE_KEY` gesetzt, speichert der
+Server jeden abgeschlossenen Run echter Spieler (Name, Score, Level, Klasse,
+Kills, beste Streak, Dauer) gepuffert und asynchron in Supabase und liefert die
+Top 50 über `GET /leaderboard` (30 s gecacht). Ohne die beiden Variablen
+verhält sich der Server exakt wie ohne Persistenz; ein Datenbankausfall stoppt
+das Spiel nie. Einrichtung für Supabase-Neulinge:
+[`docs/SUPABASE.md`](docs/SUPABASE.md).
+
 ## Kapazität und Stabilität
 
 - **Tick-Gesundheit:** `/metrics` liefert p50/p95/max der Simulationsdauer über

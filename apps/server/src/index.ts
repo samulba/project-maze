@@ -39,6 +39,12 @@ import { tuneDrones } from './drone-tuning.js';
 import { MazeGame } from './game.js';
 import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system.js';
 import { tuneProgression } from './progression-tuning.js';
+import {
+  flushPersistence,
+  leaderboardHandler,
+  persistenceStats,
+  tunePersistence
+} from './persistence.js';
 import { hardenSimulation } from './simulation-hardening.js';
 import { createGracefulShutdown, installSignalHandlers } from './shutdown.js';
 import { metricsHandler, tuneTelemetry } from './telemetry.js';
@@ -69,17 +75,21 @@ app.disable('x-powered-by');
 app.use(cors({ origin: allowedOrigins ? [...allowedOrigins] : true }));
 const server = createServer(app);
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
-const game = tuneTelemetry(
-  tuneDebugRules(
-    tuneArenaEvents(
-      tuneArenaSystems(
-        tuneLoadoutSystem(
-          tuneProgression(
-            tuneBotBrain(
-              tuneClassMechanics(
-                tuneDrones(
-                  tuneCombatScaling(
-                    hardenSimulation(new MazeGame(BOT_COUNT))
+// Persistenz sitzt ganz außen: Sie beobachtet nur das Endergebnis aller
+// Balance-Schichten und hängt sich ohne Supabase-ENV gar nicht erst ein.
+const game = tunePersistence(
+  tuneTelemetry(
+    tuneDebugRules(
+      tuneArenaEvents(
+        tuneArenaSystems(
+          tuneLoadoutSystem(
+            tuneProgression(
+              tuneBotBrain(
+                tuneClassMechanics(
+                  tuneDrones(
+                    tuneCombatScaling(
+                      hardenSimulation(new MazeGame(BOT_COUNT))
+                    )
                   )
                 )
               )
@@ -283,6 +293,8 @@ const gracefulShutdown = createGracefulShutdown({
   wss,
   timers: [tickTimer, snapshotTimer, heartbeatTimer],
   drainMs: integerEnvironment('SHUTDOWN_DRAIN_MS', 0, 0, 30_000),
+  // Gepufferte Runs noch wegschreiben, bevor der Prozess geht.
+  beforeClose: () => flushPersistence(game),
   log: (message: string) => console.log(`[shutdown] ${message}`)
 });
 installSignalHandlers(gracefulShutdown);
@@ -298,10 +310,12 @@ app.get('/health', (_request: Request, response: Response) => {
     mode: 'maze-alpha',
     version: '1.0.0-alpha',
     snapshotRate: GAME.snapshotRate,
-    debugTools: ENABLE_DEV_TOOLS
+    debugTools: ENABLE_DEV_TOOLS,
+    persistence: persistenceStats(game)
   });
 });
 app.get('/metrics', metricsHandler(game));
+app.get('/leaderboard', leaderboardHandler(game));
 
 // Single-Service-Deploy: der Server liefert den Client-Build selbst aus
 // (eine URL, gleiche Origin für HTTP und WebSocket, kein CORS nötig).
