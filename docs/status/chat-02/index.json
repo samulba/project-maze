@@ -1,9 +1,12 @@
 {
   "chat": "02",
   "revier": "Server-Gameplay (apps/server)",
-  "faesst_nicht_an": ["packages/shared", "apps/client"],
+  "faesst_nicht_an": [
+    "packages/shared",
+    "apps/client"
+  ],
   "aktualisiert": "2026-08-05",
-  "latest": "08-input-ack-prediction.md",
+  "latest": "09-bot-aggro-pacing.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -74,9 +77,7 @@
       "basis": "main@0d822fe",
       "status": "in main",
       "tests": "13 neu / 412 gesamt",
-      "braucht_von_01": [
-        "spectatorTargetId in applyShortIds umschreiben, sobald der Typ als NetId steht (zieht 02 nach)"
-      ]
+      "braucht_von_01": []
     },
     {
       "nr": 8,
@@ -84,12 +85,23 @@
       "datei": "08-input-ack-prediction.md",
       "branch": "claude/input-ack-prediction",
       "basis": "main@0daa9f0",
-      "status": "offen",
+      "status": "in main",
       "tests": "13 neu / 439 gesamt",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 9,
+      "titel": "Bot-Aggro-Pacing (P1) + Machbarkeitskommentar Klassen 3.0 (KL1)",
+      "datei": "09-bot-aggro-pacing.md",
+      "branch": "claude/bot-aggro-pacing",
+      "basis": "main@b4598db",
+      "status": "offen",
+      "tests": "6 neu / 435 gesamt",
       "braucht_von_01": [
-        "lastProcessedInput: number in WorldSnapshot (+ WireWorldSnapshot); nicht in applyShortIds, nicht in die Delta-Logik",
-        "ACCELERATION_SCALE nach packages/shared verlagern (Empfehlung), damit Client-Prediction denselben Faktor nutzt",
-        "Client 03: docs/CLIENT_PREDICTION.md umsetzen, Korrektur weich statt hart"
+        "Fuer Teil 1: nichts – rein serverseitig, keine Shared-Aenderung",
+        "Fuer KL2: ein gemeinsames Feld signature?: number (0-100, ganzzahlig) in PlayerSnapshot – Details in 09-bot-aggro-pacing.md",
+        "Designentscheidung KL1: Auto-Fire (E) x Ladeschuss – volle Ladung oder Schwachschuss?",
+        "Designentscheidung KL1: Eingabekanal fuer das Umschichten der Control-Einheiten"
       ]
     }
   ]
