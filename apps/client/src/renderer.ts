@@ -17,6 +17,8 @@ import type { ArenaEventSnapshot } from '@project-maze/shared/gameplay';
 import { GUARDIAN_COLOR, GUARDIAN_NAME, arenaEventStyle } from './arena-event-style';
 import { ParticleField } from './particles';
 import { type RecoilState, startRecoil, stepRecoil } from './recoil';
+import type { RenderQuality } from './perf-metrics';
+import { signatureLabel, signatureRatio } from './signature';
 import type { ClientThemeId } from './themes';
 
 interface Palette {
@@ -37,7 +39,7 @@ const PALETTES:Record<ClientThemeId,Palette>={
 
 interface PlayerView {
   root:Container; rotating:Container; body:Graphics; barrels:Graphics; detail:Graphics;
-  shield:Graphics; flash:Graphics; healthBack:Graphics; healthFill:Graphics; name:Text;
+  shield:Graphics; flash:Graphics; healthBack:Graphics; healthFill:Graphics; signatureBar:Graphics; name:Text;
   current:Vector2; target:Vector2; velocity:Vector2; angle:number; targetAngle:number;
   snapshot:PlayerSnapshot; snapshotAt:number; classId:PlayerClass; isSelf:boolean; isGuardian:boolean; flashUntil:number;
   /** Rückstoß als Federweg (siehe recoil.ts) plus Richtung des letzten Schusses. */
@@ -153,6 +155,12 @@ export class GameRenderer {
   private hadArenaEvent=false;
   private suppressShapeRewardsUntil=0;
   private initialized=false;
+  /**
+   * Welcher der drei Grafikwege tatsächlich hochgekommen ist. Die Perf-
+   * Telemetrie meldet ihn als `quality`; `webgl-kompat` ist per Definition
+   * der „alte PC".
+   */
+  quality:RenderQuality='unknown';
   private lastSnapshotAt=performance.now();
   private guardianId:string|null=null;
   /** Gesetzt, solange der Server einen Zuschauer-Blick vorgibt (SPECTATOR_ENABLED). */
@@ -207,7 +215,10 @@ export class GameRenderer {
     //    ohne Hardwarebeschleunigung.
     // 3. WebGPU (Chrome/Edge vergeben den teils auch, wenn WebGL blockiert ist).
     const webgl=GameRenderer.webglAvailable();
-    const attempts:{label:string;possible:boolean;options:Partial<ApplicationOptions>}[]=[
+    // `RenderQuality` statt `string`: Die Labels sind zugleich das Vokabular,
+    // das der Telemetrie-Endpunkt akzeptiert – ein Tippfehler fiele sonst erst
+    // in der Server-Statistik auf.
+    const attempts:{label:RenderQuality;possible:boolean;options:Partial<ApplicationOptions>}[]=[
       {label:'webgl',possible:webgl,options:{...base,preference:'webgl',antialias:true,resolution:Math.min(devicePixelRatio||1,2)}},
       {label:'webgl-kompat',possible:webgl,options:{...base,preference:'webgl',antialias:false,resolution:1,failIfMajorPerformanceCaveat:false,powerPreference:'low-power'}},
       {label:'webgpu',possible:'gpu' in navigator,options:{...base,preference:'webgpu',antialias:true,resolution:1}}
@@ -221,6 +232,7 @@ export class GameRenderer {
       try{
         await GameRenderer.withTimeout(boot,6000,'Zeitlimit');
         running=true;
+        this.quality=attempt.label;
         break;
       }catch(error){
         failures.push(`${attempt.label}: ${error instanceof Error&&error.message?error.message:'Fehler'}`);
@@ -754,9 +766,9 @@ export class GameRenderer {
     const root=new Container();const rotating=new Container();const barrels=new Graphics();const body=new Graphics();const detail=new Graphics();const shield=new Graphics();const flash=new Graphics();
     flash.circle(0,0,26).fill(0xffffff);flash.alpha=0;
     rotating.addChild(barrels,body,detail,flash,shield);root.addChild(rotating);
-    const healthBack=new Graphics();const healthFill=new Graphics();root.addChild(healthBack,healthFill);
+    const healthBack=new Graphics();const healthFill=new Graphics();const signatureBar=new Graphics();root.addChild(healthBack,healthFill,signatureBar);
     const name=new Text({text:'',style:{fill:this.palette.label,fontSize:12,fontWeight:'600',fontFamily:'Inter, system-ui, sans-serif'}});name.anchor.set(.5);name.position.set(0,-42);root.addChild(name);
-    const view:PlayerView={root,rotating,body,barrels,detail,shield,flash,healthBack,healthFill,name,current:{...player.position},target:{...player.position},velocity:{...player.velocity},angle:player.angle,targetAngle:player.angle,snapshot:player,snapshotAt:now,classId:player.playerClass,isSelf,isGuardian:player.id===this.guardianId,flashUntil:0,recoil:{offset:0,velocity:0},recoilDirection:{x:1,y:0}};
+    const view:PlayerView={root,rotating,body,barrels,detail,shield,flash,healthBack,healthFill,signatureBar,name,current:{...player.position},target:{...player.position},velocity:{...player.velocity},angle:player.angle,targetAngle:player.angle,snapshot:player,snapshotAt:now,classId:player.playerClass,isSelf,isGuardian:player.id===this.guardianId,flashUntil:0,recoil:{offset:0,velocity:0},recoilDirection:{x:1,y:0}};
     root.position.set(player.position.x,player.position.y);this.redrawPlayer(view,true);return view;
   }
 
@@ -772,6 +784,18 @@ export class GameRenderer {
     }
     view.healthBack.clear().roundRect(-25,31,50,5,3).fill({color:0x000000,alpha:.48});
     view.healthFill.clear().roundRect(-25,31,50*clamp(player.health/Math.max(1,player.maxHealth),0,1),5,3).fill(player.health/player.maxHealth>.35?0x65d39a:0xf05e72);
+    // Signature (Klassen 3.0): eine dünne Linie unter dem Lebensbalken – nur
+    // beim eigenen Tank, und nur wenn der Server die Mechanik überhaupt
+    // meldet. Sie liegt dort, wohin man im Gefecht ohnehin schaut; wie sie
+    // heißt, steht im HUD.
+    // Dieselbe Regel wie im HUD: ohne Familienwort kein Balken – ein namenloser
+    // Füllstand am Tank wäre ein Rätsel statt einer Information.
+    const ratio=view.isSelf&&signatureLabel(player.playerClass)!==null?signatureRatio(player.signature):null;
+    view.signatureBar.clear();
+    if(ratio!==null){
+      view.signatureBar.roundRect(-25,38,50,2,1).fill({color:0x000000,alpha:.42});
+      if(ratio>0)view.signatureBar.roundRect(-25,38,50*ratio,2,1).fill(this.palette.self);
+    }
     view.name.text=view.isGuardian?GUARDIAN_NAME:`${player.name}${player.isBot?' · BOT':''}`;
     view.name.style.fill=view.isGuardian?GUARDIAN_COLOR:view.isSelf?this.palette.label:this.palette.enemy;
     view.name.style.fontSize=view.isGuardian?14:12;

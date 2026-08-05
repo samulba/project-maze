@@ -23,6 +23,7 @@ import { GameplayEffects } from './gameplay-effects';
 import { GameplayUI } from './gameplay-ui';
 import { InputController } from './input';
 import { OnboardingCoach } from './onboarding-view';
+import { startPerfReporting } from './perf-metrics';
 import { GameRenderer } from './renderer';
 import { SnapshotHydrator, isWireSnapshot, type WireServerMessage } from './snapshot-hydrator';
 import { SpectatorBanner } from './spectator';
@@ -172,6 +173,18 @@ renderer.app.ticker.add(() => {
     joined && !currentSelfDead && input.showCrosshair
   );
 });
+
+/**
+ * HTTP-Basis des Servers – dieselbe Herleitung wie beim WebSocket, nur mit
+ * http/https. In der Entwicklung liegt der Server auf 2567, in Produktion auf
+ * derselben Origin wie die Seite.
+ */
+function httpBase(): string {
+  const configured = import.meta.env.VITE_WS_URL as string | undefined;
+  if (configured) return configured.replace(/^ws/, 'http').replace(/\/$/, '');
+  if (import.meta.env.DEV) return `${window.location.protocol}//${window.location.hostname}:2567`;
+  return window.location.origin;
+}
 
 function endpoint(): string {
   const configured = import.meta.env.VITE_WS_URL as string | undefined;
@@ -434,5 +447,13 @@ if (volumeSlider) {
 
 // Vorerst ein einziges, neutrales Erscheinungsbild – die Themes bleiben im Code,
 // die Auswahl kommt erst zurück, wenn jede Variante wirklich gepflegt ist.
+// Perf-Telemetrie (R5): einmal pro Minute, frühestens 60 s nach dem Betreten
+// der Arena. Anonym, ohne Token, Fehler werden verschluckt.
+startPerfReporting({
+  baseUrl: httpBase(),
+  quality: () => renderer.quality,
+  playing: () => enteredGame && joined
+});
+
 applyTheme(DEFAULT_THEME);
 renderer.setTheme(DEFAULT_THEME);
