@@ -60,8 +60,11 @@ const WALL_CULL_MARGIN=140;
 const MAX_WALL_FLASHES=24;
 /** Weg des Rohrs nach hinten in Welteinheiten (Feder: recoil.ts). */
 const RECOIL_BARREL=5;
-/** Der Tank selbst zuckt nur andeutungsweise mit. */
-const RECOIL_BODY=2.2;
+/**
+ * Der Tank selbst bleibt beim Schießen ruhig – nur das Rohr federt.
+ * Ausdrücklicher Spielerwunsch (Sam): Körper-Kickback wirkte wie Wackeln.
+ */
+const RECOIL_BODY=0;
 const MUZZLE_BLIP_SECONDS=.07;
 const MAX_MUZZLE_BLIPS=24;
 

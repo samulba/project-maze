@@ -23,8 +23,19 @@ mit/ohne Leisten, Android Chrome, Tablet, Rotation im Spiel, App-Switcher).
 
 Dein „Ruhe & Gewicht" ist gemerged (Konfliktauflösung: deine Letterbox +
 01s visualViewport-Kopplung koexistieren in `syncSize()`/`resizeViewport()`).
-Danach als eigene Pakete: R1/R2/R4 (Desktop-Fullscreen, Qualitätsstufen),
-dann N2 Client-Prediction (docs/CLIENT_PREDICTION.md von 02 ist dafür
-geschrieben; `lastProcessedInput` liegt in shared, optional → `?? -1`).
+
+**Sam-Feedback nach dem Live-Test dazu (fürs Mobile-Paket gleich
+mitdenken, als eigenes Paket danach ausführen): Das Design ist ihm insgesamt
+noch zu „Neon City" – Ziel ist ruhiger, cleaner, minimalistischer.** Das
+betrifft ausdrücklich auch den STARTSCREEN (Logo-Glow, Verläufe, Ring), nicht
+nur das HUD: Glow-Effekte weitgehend raus, Verläufe durch ruhige Flächen
+ersetzen, Akzentfarbe nur noch funktional (Schaden, Events, eigener Tank).
+Der Körper-Kickback beim Schießen ist auf Sams Wunsch bereits von 01 auf 0
+gesetzt – nur das Rohr federt noch.
+
+Danach als eigene Pakete: Design-Beruhigung II (siehe oben) → R1/R2/R4
+(Desktop-Fullscreen, Qualitätsstufen) → N2 Client-Prediction
+(docs/CLIENT_PREDICTION.md von 02 ist dafür geschrieben;
+`lastProcessedInput` liegt in shared, optional → `?? -1`).
 
 Statusbericht wie gehabt nach `docs/status/chat-03/`.

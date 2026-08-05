@@ -409,7 +409,7 @@ app.get('/health', (_request: Request, response: Response) => {
     debugTools: ENABLE_DEV_TOOLS,
     // Macht die Feature-Schalter von außen prüfbar – sonst sieht man einer
     // falsch geschriebenen ENV-Variable nie an, dass sie nicht greift.
-    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED },
+    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED },
     persistence: persistenceStats(game),
     auth: authStatus(),
     abuse: rateLimiter.stats()
