@@ -160,13 +160,12 @@ acceleration = base.acceleration * ACCELERATION_SCALE
 `frame.moveMultiplier` kommt aus `PASSIVE_MODIFIER_DEFINITIONS` (ebenfalls
 shared, Feld `gameplay[selfId].passiveModifier` im Snapshot).
 
-**`ACCELERATION_SCALE` steht aber nur im Server** (aktuell `1.12`). Wer die
-Vorhersage allein aus `CLASS_DEFINITIONS` baut, liegt bei jedem Tank 12 % neben
-der echten Beschleunigung – konstant, in jedem Tick, in jede Richtung. Damit
-das nicht passiert und nicht bei der nächsten Balance-Runde erneut auseinander
-läuft, gehört der Faktor nach `packages/shared` (Vorschlag im Statusblock von
-02). Bis dahin muss der Wert im Client von Hand gespiegelt werden – und jede
-Änderung an ihm ist eine Änderung an zwei Stellen.
+**`ACCELERATION_SCALE` liegt seit Paket 09 in `packages/shared`** (aktuell
+`1.12`) und wird von dort importiert – im Client genauso wie im Server. Wer die
+Vorhersage allein aus `CLASS_DEFINITIONS` baut und den Faktor vergisst, liegt
+bei jedem Tank 12 % neben der echten Beschleunigung – konstant, in jedem Tick,
+in jede Richtung. **Nicht** von Hand spiegeln: ein zweiter Zahlenwert im Client
+läuft bei der nächsten Balance-Runde still auseinander.
 
 Alle Eingangsgrößen liegen im Snapshot: `players[self].upgrades` (mit
 `SNAPSHOT_DELTAS` nur bei Änderung – Hydrator-Stand verwenden) und
@@ -283,7 +282,7 @@ verschwindet das Feld.
 - [ ] X vor Y, Y mit dem neuen X
 - [ ] blockierte Achse auf 0, auch für die Folge-Substeps
 - [ ] `< r²` strikt, Weltgrenzen mit `radius` als Rand
-- [ ] `ACCELERATION_SCALE` gespiegelt
+- [ ] `ACCELERATION_SCALE` aus shared importiert (nicht abgeschrieben)
 - [ ] Korrektur weich, Hartkorrektur nur über der Schwelle
 - [ ] Momentum (falls aktiv): Aufbau an `primary`, `moving` aus der echten
       Geschwindigkeit, Rechnung ungerundet

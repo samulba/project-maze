@@ -59,3 +59,19 @@ Kommt als Nächstes dazu: `FAMILY_UPGRADES_ENABLED` (02, Default aus).
 - **Sam:** `SIGNATURE_RAPID_ENABLED=true` + `SIGNATURE_IMPACT_ENABLED=true`
   setzen, falls noch nicht; den neuen hellen Look auf www.mazers.de ansehen;
   Momentum, Wucht und Spectator beurteilen
+
+## Notizen der Zentrale (Aufträge ausgegeben, Wartestand)
+
+- **`CLIENT_PREDICTION.md` korrigiert** (Abschnitt 4 + Kurzcheck): Die Doku
+  behauptete noch, `ACCELERATION_SCALE` stehe „nur im Server" und müsse im
+  Client von Hand gespiegelt werden. Seit Paket 09 liegt der Faktor in
+  `packages/shared` (`index.ts`), der Server importiert ihn von dort. 03 baut
+  gerade N2 gegen genau diese Doku – ein handgespiegelter Zweitwert wäre der
+  Anfang einer stillen Divergenz gewesen (N3).
+- **`lastProcessedInput` gegengeprüft:** `tuneInputAck` hängt ohne Flag und als
+  äußerste Schicht (`index.ts:212`), setzt das Feld in jedem Snapshot, Fallback
+  `NO_INPUT_PROCESSED = -1`. Die Zusage an 03 hält.
+- **Baseline grün** auf `2ac1e59`: 43 Testdateien / 566 Tests, Build sauber.
+- **www.mazers.de ist aus dem Container von 01 nicht erreichbar** (Egress-Policy
+  blockt den Host, 403 auf CONNECT). `/health`-Prüfungen und `balance:live`
+  gegen die Live-Instanz kann 01 nicht selbst fahren – das läuft über Sam.
