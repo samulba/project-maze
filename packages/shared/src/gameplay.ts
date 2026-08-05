@@ -1,4 +1,4 @@
-import type { Vector2 } from './index.js';
+import type { NetId, Vector2 } from './index.js';
 
 export const ACTIVE_MODULE_IDS = ['dash', 'repulse', 'barrier', 'repair'] as const;
 export type ActiveModuleId = (typeof ACTIVE_MODULE_IDS)[number];
@@ -151,6 +151,16 @@ export interface GameplayWorldExtension {
   arenaGuardianId: string | null;
   /** Seit dem letzten Snapshot dieses Clients freigeschaltet. Leer = nichts Neues. */
   freshAchievements: AchievementId[];
+}
+
+/** Wire-Variante der Gameplay-Erweiterung: IDs können kurze Zahlen sein. */
+export interface WireGameplayWorldExtension
+  extends Omit<GameplayWorldExtension, 'gameplay' | 'eliteShapeIds' | 'bountyTargetId' | 'arenaGuardianId'> {
+  /** Schlüssel sind die NetIds aus `players` – als String, wie in JSON üblich. */
+  gameplay: Record<string, PlayerGameplaySnapshot>;
+  eliteShapeIds: NetId[];
+  bountyTargetId: NetId | null;
+  arenaGuardianId: NetId | null;
 }
 
 export const DEFAULT_ACTIVE_MODULE: ActiveModuleId = 'dash';

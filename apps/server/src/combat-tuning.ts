@@ -69,6 +69,15 @@ interface CombatInternals {
   safeSpawn(): Vector2;
 }
 
+/**
+ * Globaler Dämpfer auf die Projektilgeschwindigkeit: Die Klassen-Basiswerte
+ * stammen aus einer Zeit ohne echtes Ausweich-Spiel – Kugeln waren praktisch
+ * nicht dodgebar. 0.8 macht sie sichtbar ausweichbar; die im gleichen Maß
+ * verlängerte Lebenszeit hält die Reichweite jeder Waffe exakt konstant.
+ * Feinschliff je Klasse folgt in der Telemetrie-Balance-Runde.
+ */
+const PROJECTILE_SPEED_SCALE = 0.8;
+
 export function tunedStatsFor(player: RuntimePlayer): TunedStats {
   const base = CLASS_DEFINITIONS[player.playerClass];
   const modifier = PASSIVE_MODIFIER_DEFINITIONS[player.passiveModifier ?? 'standard'];
@@ -78,8 +87,8 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
     acceleration: base.acceleration * (1 + player.upgrades.moveSpeed * 0.018) * modifier.moveMultiplier,
     moveSpeed: base.moveSpeed * (1 + player.upgrades.moveSpeed * 0.03) * modifier.moveMultiplier,
     reload: Math.max(0.09, base.reload * modifier.reloadMultiplier * Math.pow(0.95, player.upgrades.reload)),
-    projectileSpeed: base.projectileSpeed * (1 + player.upgrades.projectileSpeed * 0.04) * modifier.projectileSpeedMultiplier,
-    projectileLife: base.projectileLife,
+    projectileSpeed: base.projectileSpeed * PROJECTILE_SPEED_SCALE * (1 + player.upgrades.projectileSpeed * 0.04) * modifier.projectileSpeedMultiplier,
+    projectileLife: base.projectileLife / PROJECTILE_SPEED_SCALE,
     damage: base.damage * (1 + player.upgrades.damage * 0.07),
     projectileRadius: base.projectileRadius,
     penetration: base.penetration * (1 + player.upgrades.penetration * 0.085),

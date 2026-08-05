@@ -12,6 +12,7 @@ import {
   type WireWorldSnapshot,
   type WorldSnapshot
 } from '@project-maze/shared';
+import type { WireGameplayWorldExtension } from '@project-maze/shared/gameplay';
 
 /**
  * Gegenstück zum Delta-Versand des Servers (`SNAPSHOT_DELTAS`).
@@ -97,6 +98,10 @@ export class SnapshotHydrator {
 
   /** Ergänzt einen Wire-Snapshot zu einem vollständigen `WorldSnapshot`. */
   hydrate(wire: WireWorldSnapshot): WorldSnapshot {
+    // Mit SHORT_NET_IDS sind Entitäts-IDs Zahlen. Genau hier – und nirgendwo
+    // sonst – werden sie zu Strings; der gesamte restliche Client arbeitet
+    // unverändert mit String-IDs (Interpolation, Views, Killcam, HUD).
+    normalizeNetIds(wire);
     // Die Wire-Objekte kommen frisch aus JSON.parse und gehören uns allein –
     // sie werden direkt aufgefüllt, statt 30-mal pro Sekunde Kopien zu bauen.
     const players = wire.players as PlayerSnapshot[];
@@ -111,7 +116,7 @@ export class SnapshotHydrator {
     }
 
     if (wire.walls) this.walls = wire.walls;
-    if (wire.leaderboard) this.leaderboard = wire.leaderboard;
+    if (wire.leaderboard) this.leaderboard = wire.leaderboard as LeaderboardEntry[];
     if (wire.killfeed) this.killfeed = wire.killfeed;
 
     const snapshot = wire as unknown as WorldSnapshot;
@@ -122,6 +127,8 @@ export class SnapshotHydrator {
   }
 
   private fillPlayer(player: WirePlayerSnapshot): void {
+    // Nach normalizeNetIds sind IDs garantiert Strings.
+    const id = player.id as string;
     if (
       player.name !== undefined
       && player.playerClass !== undefined
@@ -130,7 +137,7 @@ export class SnapshotHydrator {
     ) {
       // Eingefroren, weil derselbe Upgrade-Stand danach in jedem Snapshot
       // dieses Spielers steckt – eine Mutation würde den Cache vergiften.
-      this.playerStatics.set(player.id, {
+      this.playerStatics.set(id, {
         name: player.name,
         playerClass: player.playerClass,
         isBot: player.isBot,
@@ -138,7 +145,7 @@ export class SnapshotHydrator {
       });
       return;
     }
-    const cached = this.playerStatics.get(player.id);
+    const cached = this.playerStatics.get(id);
     if (!cached) this.missing += 1;
     const statics = cached ?? PLACEHOLDER_PLAYER;
     player.name = statics.name;
@@ -148,11 +155,12 @@ export class SnapshotHydrator {
   }
 
   private fillShape(shape: WireShapeSnapshot): void {
+    const id = shape.id as string;
     if (shape.kind !== undefined && shape.radius !== undefined && shape.maxHealth !== undefined) {
-      this.shapeStatics.set(shape.id, { kind: shape.kind, radius: shape.radius, maxHealth: shape.maxHealth });
+      this.shapeStatics.set(id, { kind: shape.kind, radius: shape.radius, maxHealth: shape.maxHealth });
       return;
     }
-    const cached = this.shapeStatics.get(shape.id);
+    const cached = this.shapeStatics.get(id);
     if (!cached) {
       this.missing += 1;
       // Ohne bekannte Größe wäre die Form unsichtbar oder ein Nullradius-Kreis;
@@ -171,4 +179,37 @@ export class SnapshotHydrator {
 /** Erkennt Snapshot-Nachrichten, bevor sie hydriert werden. */
 export function isWireSnapshot(message: WireServerMessage): message is WireWorldSnapshot {
   return message.type === 'snapshot';
+}
+
+/**
+ * Überführt kurze Zahlen-IDs (SHORT_NET_IDS) in Strings – in place, einmal je
+ * Snapshot. Ohne den Schalter sind alle IDs schon Strings und nichts passiert.
+ */
+function normalizeNetIds(wire: WireWorldSnapshot): void {
+  if (typeof wire.selfId === 'number') wire.selfId = String(wire.selfId);
+  for (const player of wire.players) {
+    if (typeof player.id === 'number') player.id = String(player.id);
+  }
+  for (const projectile of wire.projectiles) {
+    if (typeof projectile.id === 'number') projectile.id = String(projectile.id);
+    if (typeof projectile.ownerId === 'number') projectile.ownerId = String(projectile.ownerId);
+  }
+  for (const drone of wire.drones) {
+    if (typeof drone.id === 'number') drone.id = String(drone.id);
+    if (typeof drone.ownerId === 'number') drone.ownerId = String(drone.ownerId);
+  }
+  for (const shape of wire.shapes) {
+    if (typeof shape.id === 'number') shape.id = String(shape.id);
+  }
+  if (wire.leaderboard) {
+    for (const entry of wire.leaderboard) {
+      if (typeof entry.id === 'number') entry.id = String(entry.id);
+    }
+  }
+  // Die Gameplay-Erweiterung hängt am selben Objekt; ihre `gameplay`-Schlüssel
+  // sind in JSON ohnehin Strings.
+  const extension = wire as unknown as Partial<WireGameplayWorldExtension>;
+  if (Array.isArray(extension.eliteShapeIds)) extension.eliteShapeIds = extension.eliteShapeIds.map(String);
+  if (typeof extension.bountyTargetId === 'number') extension.bountyTargetId = String(extension.bountyTargetId);
+  if (typeof extension.arenaGuardianId === 'number') extension.arenaGuardianId = String(extension.arenaGuardianId);
 }

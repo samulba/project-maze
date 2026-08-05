@@ -262,6 +262,42 @@ describe('hydrated snapshots keep everything else', () => {
     expect(result.gameplay).toEqual({ me: { activeModule: 'dash' } });
   });
 
+  it('überführt kurze Zahlen-IDs (SHORT_NET_IDS) in Strings', () => {
+    const hydrator = new SnapshotHydrator();
+    const wire = {
+      ...full(),
+      selfId: 1,
+      players: [{ ...player('x', { isBot: false }), id: 1 }, { ...player('y'), id: 2 }],
+      projectiles: [{ id: 30, ownerId: 1, position: { x: 5, y: 5 }, velocity: { x: 1, y: 0 }, radius: 6, integrity: 1, maxIntegrity: 1 }],
+      drones: [{ id: 40, ownerId: 2, position: { x: 0, y: 0 }, velocity: { x: 0, y: 0 }, angle: 0, health: 10, maxHealth: 10 }],
+      shapes: [{ ...shape('s'), id: 7 }],
+      leaderboard: [{ id: 1, name: 'Ich', score: 10, level: 5, playerClass: 'railgun', isBot: false }],
+      eliteShapeIds: [7],
+      bountyTargetId: 2,
+      arenaGuardianId: 2
+    } as unknown as WireWorldSnapshot;
+
+    const result = hydrator.hydrate(wire) as WorldSnapshot & Record<string, unknown>;
+    expect(result.selfId).toBe('1');
+    expect(result.players.map((entry) => entry.id)).toEqual(['1', '2']);
+    expect(result.projectiles[0]).toMatchObject({ id: '30', ownerId: '1' });
+    expect(result.drones[0]).toMatchObject({ id: '40', ownerId: '2' });
+    expect(result.shapes[0]?.id).toBe('7');
+    expect(result.leaderboard[0]?.id).toBe('1');
+    expect(result.eliteShapeIds).toEqual(['7']);
+    expect(result.bountyTargetId).toBe('2');
+    expect(result.arenaGuardianId).toBe('2');
+    // Statik-Cache muss unter der String-ID liegen: Folge-Snapshot ohne Statics.
+    const followUp = hydrator.hydrate({
+      ...full(),
+      selfId: 1,
+      players: [{ ...player('x'), id: 1, name: undefined, playerClass: undefined, isBot: undefined, upgrades: undefined }],
+      projectiles: [], drones: [], shapes: []
+    } as unknown as WireWorldSnapshot);
+    expect(followUp.players[0]?.name).toBe('Name-x');
+    expect(hydrator.missingStatics).toBe(0);
+  });
+
   it('leaves projectiles and drones alone', () => {
     const hydrator = new SnapshotHydrator();
     const source = full({

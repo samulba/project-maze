@@ -356,17 +356,36 @@ export const classAvailableAtLevel = (playerClass:PlayerClass, level:number):Pla
 // und Killcam arbeiten weiter mit garantiert vollständigen Daten.
 // ---------------------------------------------------------------------------
 
+/**
+ * Auf der Leitung sind Entitäts-IDs entweder UUID-Strings oder – mit
+ * SHORT_NET_IDS – fortlaufende Zahlen. Der Client normalisiert beim Empfang
+ * alles per String(id); ab dort arbeitet er unverändert mit String-IDs.
+ */
+export type NetId = number | string;
+
 export type WirePlayerSnapshot =
-  Omit<PlayerSnapshot, 'name' | 'playerClass' | 'isBot' | 'upgrades'>
+  Omit<PlayerSnapshot, 'id' | 'name' | 'playerClass' | 'isBot' | 'upgrades'>
+  & { id: NetId }
   & Partial<Pick<PlayerSnapshot, 'name' | 'playerClass' | 'isBot' | 'upgrades'>>;
+export type WireProjectileSnapshot =
+  Omit<ProjectileSnapshot, 'id' | 'ownerId'> & { id: NetId; ownerId: NetId };
+export type WireDroneSnapshot =
+  Omit<DroneSnapshot, 'id' | 'ownerId'> & { id: NetId; ownerId: NetId };
 export type WireShapeSnapshot =
-  Omit<ShapeSnapshot, 'kind' | 'radius' | 'maxHealth'>
+  Omit<ShapeSnapshot, 'id' | 'kind' | 'radius' | 'maxHealth'>
+  & { id: NetId }
   & Partial<Pick<ShapeSnapshot, 'kind' | 'radius' | 'maxHealth'>>;
+export type WireLeaderboardEntry = Omit<LeaderboardEntry, 'id'> & { id: NetId };
 export interface WireWorldSnapshot
-  extends Omit<WorldSnapshot, 'players' | 'shapes' | 'walls' | 'leaderboard' | 'killfeed'> {
+  extends Omit<WorldSnapshot, 'selfId' | 'players' | 'projectiles' | 'drones' | 'shapes' | 'walls' | 'leaderboard' | 'killfeed'> {
+  selfId: NetId | null;
   players: WirePlayerSnapshot[];
+  projectiles: WireProjectileSnapshot[];
+  drones: WireDroneSnapshot[];
   shapes: WireShapeSnapshot[];
+  /** Wand-IDs bleiben kurze Strings (v3, h7, …). */
   walls?: Wall[];
-  leaderboard?: LeaderboardEntry[];
+  leaderboard?: WireLeaderboardEntry[];
+  /** Enthält Namen, keine Entitäts-IDs. */
   killfeed?: KillEvent[];
 }
