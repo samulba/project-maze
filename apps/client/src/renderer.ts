@@ -10,6 +10,8 @@ import {
   type Vector2,
   type WorldSnapshot
 } from '@project-maze/shared';
+import type { ArenaEventSnapshot } from '@project-maze/shared/gameplay';
+import { GUARDIAN_COLOR, GUARDIAN_NAME, arenaEventStyle } from './arena-event-style';
 import { ParticleField } from './particles';
 import type { ClientThemeId } from './themes';
 
@@ -29,7 +31,7 @@ interface PlayerView {
   root:Container; rotating:Container; body:Graphics; barrels:Graphics; detail:Graphics;
   shield:Graphics; flash:Graphics; healthBack:Graphics; healthFill:Graphics; name:Text;
   current:Vector2; target:Vector2; velocity:Vector2; angle:number; targetAngle:number;
-  snapshot:PlayerSnapshot; snapshotAt:number; classId:PlayerClass; isSelf:boolean; flashUntil:number;
+  snapshot:PlayerSnapshot; snapshotAt:number; classId:PlayerClass; isSelf:boolean; isGuardian:boolean; flashUntil:number;
 }
 interface MotionView<T> {
   current:Vector2; target:Vector2; velocity:Vector2; snapshot:T; snapshotAt:number;
@@ -38,6 +40,8 @@ interface ShockRing { position:Vector2; life:number; maxLife:number; maxRadius:n
 interface FloatingLabel { text:Text; life:number; maxLife:number; velocityY:number; }
 
 const SHAPE_REWARDS:Record<string,number>={square:18,triangle:45,pentagon:120};
+/** Obergrenze der Overcharge-Funken pro Sekunde – unabhängig von der Zahl der Geschosse. */
+const OVERCHARGE_SPARKS_PER_SECOND=48;
 
 class FloatingNumbers {
   readonly container=new Container();
@@ -114,6 +118,10 @@ export class GameRenderer {
   private hadArenaEvent=false;
   private suppressShapeRewardsUntil=0;
   private lastSnapshotAt=performance.now();
+  private guardianId:string|null=null;
+  private arenaEvent:ArenaEventSnapshot|null=null;
+  /** Bruchteile eines Funkens, damit die Rate unabhängig von der Bildrate bleibt. */
+  private sparkBudget=0;
 
   async init(root:HTMLElement):Promise<void>{
     await this.app.init({resizeTo:window,antialias:true,background:this.palette.outside,resolution:Math.min(devicePixelRatio||1,2),autoDensity:true,preference:'webgl'});
@@ -134,10 +142,29 @@ export class GameRenderer {
     this.selfId=snapshot.selfId;
     const signature=snapshot.walls.map(wall=>`${wall.id}:${wall.x}:${wall.y}:${wall.width}:${wall.height}`).join('|');
     if(signature!==this.wallsSignature){this.wallsSignature=signature;this.drawWalls(snapshot)}
+    const extended=snapshot as WorldSnapshot&{arenaEvent?:ArenaEventSnapshot|null;arenaGuardianId?:string|null};
+    this.arenaEvent=extended.arenaEvent??null;
+    const guardianId=extended.arenaGuardianId??null;
+    const guardianChanged=guardianId!==this.guardianId;
+    this.guardianId=guardianId;
     this.syncPlayers(snapshot,now);
     this.syncProjectiles(snapshot,now);
     this.syncDrones(snapshot,now);
     this.syncShapeEffects(snapshot);
+    if(guardianChanged&&guardianId)this.announceGuardian(guardianId,snapshot);
+  }
+
+  /** Auftritt des Guardians: doppelter Schockring, goldener Funkenkranz, kurzer Kamera-Stoß. */
+  private announceGuardian(guardianId:string,snapshot:WorldSnapshot):void{
+    const view=this.playerViews.get(guardianId);
+    if(!view)return;
+    const position={...view.current};
+    this.particles.burst(position,GUARDIAN_COLOR,30,340,.7);
+    this.particles.burst(position,0xffe3a0,14,170,.5);
+    this.rings.push({position:{...position},life:.7,maxLife:.7,maxRadius:180,color:GUARDIAN_COLOR,width:5});
+    this.rings.push({position:{...position},life:1,maxLife:1,maxRadius:280,color:0xffe3a0,width:2});
+    const self=snapshot.players.find(player=>player.id===snapshot.selfId);
+    if(self&&this.wellInsideView(position,self.position))this.shake(4);
   }
 
   setInput(pointer:Vector2,primary:boolean,secondary:boolean,showCrosshair:boolean):void{
@@ -191,7 +218,8 @@ export class GameRenderer {
       view.targetAngle=player.angle;
       view.snapshot=player;
       view.snapshotAt=now;
-      if(view.classId!==player.playerClass||view.isSelf!==isSelf){view.classId=player.playerClass;view.isSelf=isSelf;this.redrawPlayer(view,true)}
+      const isGuardian=player.id===this.guardianId;
+      if(view.classId!==player.playerClass||view.isSelf!==isSelf||view.isGuardian!==isGuardian){view.classId=player.playerClass;view.isSelf=isSelf;view.isGuardian=isGuardian;this.redrawPlayer(view,true)}
       else this.redrawPlayer(view,false);
       view.root.visible=!player.dead;
     }
@@ -298,6 +326,7 @@ export class GameRenderer {
       this.world.position.set(this.viewport.x+this.viewport.width/2+shakeX,this.viewport.y+this.viewport.height/2+shakeY);
       this.world.pivot.set(self.current.x,self.current.y);
     }
+    this.emitOverchargeSparks(delta);
     this.drawDynamic(now);
     this.particles.update(delta);
     this.particles.draw();
@@ -308,6 +337,35 @@ export class GameRenderer {
 
   /** Kurzer, gedämpfter Kamera-Impuls (eigener Schaden, Kills, Tod). */
   shake(strength:number):void{this.shakeAmplitude=Math.min(9,Math.max(this.shakeAmplitude,strength))}
+
+  /**
+   * Overcharge fühlbar machen: Geschosse in der aktiven Zone sprühen Funken.
+   * Die Rate ist zeitbasiert gedeckelt, damit der Partikel-Pool auch bei sehr
+   * vielen Projektilen nicht überläuft und die Bildrate stabil bleibt.
+   */
+  private emitOverchargeSparks(delta:number):void{
+    const event=this.arenaEvent;
+    const self=this.selfId?this.playerViews.get(this.selfId):undefined;
+    if(!event||event.kind!=='overcharge'||event.phase!=='active'||!self){this.sparkBudget=0;return}
+    const radiusSquared=event.radius**2;
+    const inZone:Vector2[]=[];
+    for(const view of this.projectileViews.values()){
+      const dx=view.current.x-event.center.x,dy=view.current.y-event.center.y;
+      if(dx*dx+dy*dy>radiusSquared)continue;
+      if(!this.wellInsideView(view.current,self.current))continue;
+      inZone.push(view.current);
+    }
+    if(inZone.length===0){this.sparkBudget=0;return}
+    // Rückstand deckeln, damit ein Frame-Hänger keinen Funken-Schwall auslöst.
+    this.sparkBudget=Math.min(OVERCHARGE_SPARKS_PER_SECOND*.25,this.sparkBudget+delta*OVERCHARGE_SPARKS_PER_SECOND);
+    const style=arenaEventStyle('overcharge');
+    while(this.sparkBudget>=1){
+      this.sparkBudget-=1;
+      const origin=inZone[Math.floor(Math.random()*inZone.length)];
+      if(!origin)break;
+      this.particles.burst(origin,Math.random()<.5?style.ring:style.core,1,70,.16);
+    }
+  }
 
   private drawRings(delta:number):void{
     this.fx.clear();
@@ -409,12 +467,14 @@ export class GameRenderer {
     rotating.addChild(barrels,body,detail,flash,shield);root.addChild(rotating);
     const healthBack=new Graphics();const healthFill=new Graphics();root.addChild(healthBack,healthFill);
     const name=new Text({text:'',style:{fill:this.palette.label,fontSize:12,fontWeight:'600',fontFamily:'Inter, system-ui, sans-serif'}});name.anchor.set(.5);name.position.set(0,-42);root.addChild(name);
-    const view:PlayerView={root,rotating,body,barrels,detail,shield,flash,healthBack,healthFill,name,current:{...player.position},target:{...player.position},velocity:{...player.velocity},angle:player.angle,targetAngle:player.angle,snapshot:player,snapshotAt:now,classId:player.playerClass,isSelf,flashUntil:0};
+    const view:PlayerView={root,rotating,body,barrels,detail,shield,flash,healthBack,healthFill,name,current:{...player.position},target:{...player.position},velocity:{...player.velocity},angle:player.angle,targetAngle:player.angle,snapshot:player,snapshotAt:now,classId:player.playerClass,isSelf,isGuardian:player.id===this.guardianId,flashUntil:0};
     root.position.set(player.position.x,player.position.y);this.redrawPlayer(view,true);return view;
   }
 
   private redrawPlayer(view:PlayerView,geometry:boolean):void{
-    const player=view.snapshot;const color=view.isSelf?this.palette.self:this.palette.enemy;
+    const player=view.snapshot;
+    // Der Guardian ist ein neutraler Boss – er trägt Gold statt Gegnerrot.
+    const color=view.isGuardian?GUARDIAN_COLOR:view.isSelf?this.palette.self:this.palette.enemy;
     if(geometry){
       view.body.clear();view.barrels.clear();view.detail.clear();
       this.drawClassHull(view.body,view.detail,player.playerClass,color);
@@ -423,8 +483,10 @@ export class GameRenderer {
     }
     view.healthBack.clear().roundRect(-25,31,50,5,3).fill({color:0x000000,alpha:.48});
     view.healthFill.clear().roundRect(-25,31,50*clamp(player.health/Math.max(1,player.maxHealth),0,1),5,3).fill(player.health/player.maxHealth>.35?0x65d39a:0xf05e72);
-    view.name.text=`${player.name}${player.isBot?' · BOT':''}`;
-    view.name.style.fill=view.isSelf?this.palette.label:this.palette.enemy;
+    view.name.text=view.isGuardian?GUARDIAN_NAME:`${player.name}${player.isBot?' · BOT':''}`;
+    view.name.style.fill=view.isGuardian?GUARDIAN_COLOR:view.isSelf?this.palette.label:this.palette.enemy;
+    view.name.style.fontSize=view.isGuardian?14:12;
+    view.name.style.fontWeight=view.isGuardian?'800':'600';
   }
 
   private drawClassBarrels(graphics:Graphics,playerClass:PlayerClass,color:number):void{
@@ -626,6 +688,6 @@ export class GameRenderer {
     this.crosshair.circle(x,y,radius).stroke({color,alpha:.55,width:1.5});
   }
 
-  private ownerColor(ownerId:string):number{return ownerId===this.selfId?this.palette.self:this.palette.enemy}
+  private ownerColor(ownerId:string):number{return ownerId===this.guardianId?GUARDIAN_COLOR:ownerId===this.selfId?this.palette.self:this.palette.enemy}
   private shapeColor(shape:ShapeSnapshot):number{return shape.kind==='square'?this.palette.square:shape.kind==='triangle'?this.palette.triangle:this.palette.pentagon}
 }
