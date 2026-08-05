@@ -288,6 +288,10 @@ export function tuneLoadoutSystem<T extends MazeGame>(game: T): T {
         if (loadout.repairEndsAt > 0 && loadout.repairEndsAt <= now) cancelRepair(loadout);
         continue;
       }
+      if (Math.hypot(player.velocity.x, player.velocity.y) > 40) {
+        cancelRepair(loadout);
+        continue;
+      }
       const windupEndsAt = loadout.repairStartedAt + 800;
       if (now <= windupEndsAt) continue;
       const from = Math.max(windupEndsAt, loadout.repairLastTickAt);

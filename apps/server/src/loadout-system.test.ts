@@ -147,6 +147,25 @@ describe('core modules and passive frames', () => {
     expect(snapshot.gameplay[playerId].repairing).toBe(false);
   });
 
+  it('cancels Repair when the tank actually moves, independent of the input path', () => {
+    const game = createGame();
+    const playerId = game.addPlayer('Runner');
+    const internals = game as unknown as Internals;
+    const player = internals.players.get(playerId);
+    equipLoadout(game, playerId, 'repair', 'standard', 1000);
+    player.health = player.maxHealth * 0.4;
+    player.invulnerable = false;
+    player.invulnerableUntil = 0;
+    player.lastDamageAt = 2000;
+    expect(activateModule(game, playerId, 3000)).toBe(true);
+
+    player.velocity = { x: 180, y: 0 };
+    player.position = { x: 2800, y: 2200 };
+    game.step(1 / GAME.tickRate, 4000);
+    const snapshot = game.snapshot(playerId, 4000) as any;
+    expect(snapshot.gameplay[playerId].repairing).toBe(false);
+  });
+
   it('applies passive trade-offs through the central stat calculation', () => {
     const game = createGame();
     const playerId = game.addPlayer('Frames');
