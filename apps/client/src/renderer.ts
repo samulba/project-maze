@@ -176,7 +176,9 @@ export class GameRenderer {
   }
 
   async init(root:HTMLElement):Promise<void>{
-    const base={resizeTo:window,background:this.palette.outside,autoDensity:true};
+    // Kein resizeTo: Die Größe wird selbst verwaltet (syncSize), weil
+    // window.innerHeight auf iOS nicht dem sichtbaren Bereich entspricht.
+    const base={background:this.palette.outside,autoDensity:true};
     // Drei Grafikwege, jeder mit hartem Zeitlimit (PixiJS hängt sonst ohne
     // Rückmeldung, wenn der Browser keinen Kontext hergibt):
     // 1. WebGL in voller Qualität.
@@ -217,8 +219,15 @@ export class GameRenderer {
     this.world.addChild(this.background,this.walls,this.shapes,this.projectiles,this.drones,this.particles.graphics,this.players,this.fx,this.numbers.container);
     this.world.mask=this.viewportMask;
     this.app.stage.addChild(this.world,this.viewportMask,this.viewportFrame,this.crosshair);
-    this.resizeViewport();
-    window.addEventListener('resize',()=>this.resizeViewport());
+    this.syncSize();
+    // iOS meldet neue Maße gern verspätet – deshalb nach jedem Ereignis ein
+    // zweiter Abgleich mit kurzem Abstand.
+    const resync=():void=>{this.syncSize();window.setTimeout(()=>this.syncSize(),350)};
+    window.addEventListener('resize',resync);
+    window.addEventListener('orientationchange',resync);
+    document.addEventListener('fullscreenchange',resync);
+    window.visualViewport?.addEventListener('resize',resync);
+    window.visualViewport?.addEventListener('scroll',resync);
     this.drawBackground();
     this.app.ticker.add(ticker=>this.render(Math.min(.05,ticker.deltaMS/1000)));
   }
@@ -561,6 +570,20 @@ export class GameRenderer {
       view.current.x+=(predicted.x-view.current.x)*factor;
       view.current.y+=(predicted.y-view.current.y)*factor;
     }
+  }
+
+  /**
+   * Koppelt die Canvas-Größe an den WIRKLICH sichtbaren Ausschnitt.
+   * window.innerHeight lügt auf iOS: Mit ein- oder ausgeblendeten
+   * Safari-Leisten meldet es den Layout-Viewport – dann rutscht die
+   * Spielfeldmitte unter den Bildschirmrand. visualViewport ist die Wahrheit.
+   */
+  private syncSize():void{
+    const vv=window.visualViewport;
+    const width=Math.max(1,Math.round(vv?.width??window.innerWidth));
+    const height=Math.max(1,Math.round(vv?.height??window.innerHeight));
+    if(this.app.screen.width!==width||this.app.screen.height!==height)this.app.renderer.resize(width,height);
+    this.resizeViewport();
   }
 
   private resizeViewport():void{

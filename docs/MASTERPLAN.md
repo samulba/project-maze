@@ -37,9 +37,39 @@ Fullscreen rein/raus nahtlos. Drei Qualitätsstufen mit Auto-Erkennung.
 |---|---|---|
 | R1 | **Viewport-Härtung:** auf `fullscreenchange`, `orientationchange`, `visualViewport.resize` und devicePixelRatio-Wechsel reagieren; Renderer-Auflösung/Maske/Letterbox neu rechnen. Ränder-Artefakte beheben. | 03 |
 | R2 | **Letterbox & Skalierung:** feste 16:9-Sicht bleibt (Fairness), aber die Flächen außerhalb werden gestaltete Ruhe statt Striche; HUD skaliert mit `clamp()`-Typo statt fixer Pixel. | 03 |
-| R3 | **Mobile-Pass:** Touch-Layout neu (Sticks, Buttons, Safe-Areas/Notch, Panels), Ziel „ultra clean". | 03 |
+| R3 | **Mobile-Pass** (Detail-Spezifikation unten), Ziel „ultra clean – macht auf dem Handy wirklich Spaß". | 03 |
 | R4 | **Qualitätsstufen:** hoch/mittel/niedrig (Partikelmenge, Glow, Antialias, Auflösungs-Cap). Auto: Start auf „mittel", nach 10 s FPS-Messung hoch- oder runterstufen; manuell im Startscreen wählbar. | 03 |
 | R5 | **Client-Perf-Telemetrie:** anonymes FPS-/Geräteklassen-Sampling an den Server (`/metrics`-Erweiterung), damit wir „läuft auf alten PCs" messen statt glauben. | 04 |
+
+### R3 im Detail – Mobile-Spezifikation
+
+Befund (Sams iPhone-Screenshot, 2026-08-05): Spielfeld lag fast vollständig
+unter dem Bildschirmrand (Viewport-Bug, von 01 behoben: visualViewport +
+100dvh + viewport-fit=cover), darüber stapelten sich acht HUD-Elemente.
+
+**Grundsatz: Auf dem Handy ist das Spielfeld der Star.** Maximal 4 Elemente
+gleichzeitig sichtbar:
+
+1. **Links unten:** Move-Stick · **Rechts unten:** Aim-Stick (beide größer
+   als heute, Daumenzonen-Ergonomie, `env(safe-area-inset-*)`).
+2. **Oben links, EINE kompakte Leiste** statt Panel: Level + HP-Balken +
+   XP-Strich, halbtransparent, max. 44 px hoch. Kein Name, kein K/D, kein
+   Score im Dauer-HUD (steht alles im Death-Screen).
+3. **Rechts über dem Aim-Stick:** Modul-Knopf (DASH/…) + AUTO-Knopf,
+   übereinander, einheitliche Größe. REPEL in den Aim-Stick integrieren
+   (zweiter Finger/Doppeltipp) oder als dritter Knopf im selben Stapel.
+4. **Ereignisse** (Event-Banner, Bounty, Achievements, Killfeed): EIN
+   gemeinsamer Meldungs-Slot oben Mitte, eine Meldung zur Zeit, kurz.
+
+**Gestrichen auf Mobile:** Bestenliste (bereits raus), Ping-Pill (bereits
+raus), Minimap (optional per Tipp auf die Statusleiste einblendbar),
+Dauer-Killfeed. Upgrades: kompaktes Bottom-Sheet statt seitlicher Liste,
+öffnet über Punkte-Badge an der Statusleiste, pausiert nie das Spiel.
+
+**Pflicht-Tests** (gehören in den Report): iPhone Safari quer (mit UND ohne
+eingeblendete Leisten), Android Chrome quer, Tablet; Rotation während des
+Spiels; Rückkehr aus dem App-Switcher. Null überlappende Elemente, Spielfeld
+immer vollständig sichtbar, alle Knöpfe mit dem Daumen erreichbar.
 
 ## Handlungsfeld 2 – Pacing: Stress raus, Kontrolle rein
 
