@@ -25,7 +25,8 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 | # | Paket | Branch | Commit | Tests | Status |
 | --- | --- | --- | --- | --- | --- |
-| [06](./06-rate-limits.md) | Rate-Limits & Missbrauchsschutz | `claude/maze-rate-limits-abuse-dfb335` | `ea2e4ec` | 389 ✔ | **offen** |
+| [07](./07-profil-backend.md) | Profil-Backend: `POST /profile`, Lieblingsklasse | `claude/maze-profile-backend-dfb335` | `b986baf` | 429 ✔ | **offen** |
+| [06](./06-rate-limits.md) | Rate-Limits & Missbrauchsschutz | `claude/maze-rate-limits-abuse-dfb335` | `ea2e4ec` | 389 ✔ | gemerged |
 | [05](./05-achievements-persistenz-profil.md) | Achievement-Persistenz + `/profile` | `claude/maze-achievements-persistence-profile-dfb335` | `77fee92` | 309 ✔ | gemerged |
 | [04](./04-google-login-server.md) | Google-Login Server-Seite | `claude/maze-auth-google-server-dfb335` | `fc5d107` | 255 ✔ | gemerged |
 | [03](./03-supabase-persistenz.md) | Supabase-Persistenz + Leaderboard | `claude/maze-supabase-persistence-dfb335` | `56443bf` | 209 ✔ | gemerged |
@@ -34,13 +35,20 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 ## Offene Punkte für die Zentrale
 
-- **Paket 06 (Rate-Limits) wartet auf Review und Merge.**
+- **Paket 07 (Profil-Backend) wartet auf Review und Merge.**
+- Für Chat 03 nach dem Merge: `GET /profile/:userId` liefert zusätzlich
+  `stats.favoriteClass` / `favoriteClassRuns` / `favoriteClassSeconds`, und
+  `POST /profile` ändert den Anzeigenamen (Token im `Authorization`-Header,
+  Antwort `202` darf optimistisch übernommen werden).
 
 ## Offene Punkte für Sam (Betrieb)
 
 Gesammelt aus allen Berichten – erledigte Punkte werden gestrichen, nicht
 gelöscht.
 
+- [ ] **Migration `0004_profile_favorite_class.sql` in Supabase einspielen**
+      (Paket 07) – ohne sie fehlen Lieblingsklasse und Spielzeit-Felder, sonst
+      passiert nichts
 - [ ] Nach dem Merge von Paket 06: `mazers.de/health` → `abuse`-Block prüfen.
       Steigt `rejectedConnections` ohne Angriff, sitzen echte Spieler hinter
       einem Mobilfunk-NAT → `RATE_LIMIT_CONNECTIONS_PER_IP` erhöhen
@@ -49,7 +57,7 @@ gelöscht.
 
 > Migrationen liegen seit `a7a213a` unter `supabase/migrations/` mit der
 > Ablage-Konvention von 01: noch offene direkt im Ordner, eingespielte in
-> `applied/`. Stand: `0001`–`0003` eingespielt.
+> `applied/`. Stand: `0001`–`0003` eingespielt, `0004` offen.
 
 ## ENV-Variablen aus Chat 04
 
