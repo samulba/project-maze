@@ -25,7 +25,8 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 | # | Paket | Branch | Commit | Tests | Status |
 | --- | --- | --- | --- | --- | --- |
-| [07](./07-profil-backend.md) | Profil-Backend: `POST /profile`, Lieblingsklasse | `claude/maze-profile-backend-dfb335` | `b986baf` | 429 ✔ | **offen** |
+| [08](./08-client-perf-telemetrie.md) | Client-Perf-Telemetrie (Server-Seite) + Spec für 03 | `claude/maze-client-perf-telemetry-dfb335` | `69ade20` | 443 ✔ | **offen** |
+| [07](./07-profil-backend.md) | Profil-Backend: `POST /profile`, Lieblingsklasse | `claude/maze-profile-backend-dfb335` | `b986baf` | 429 ✔ | gemerged |
 | [06](./06-rate-limits.md) | Rate-Limits & Missbrauchsschutz | `claude/maze-rate-limits-abuse-dfb335` | `ea2e4ec` | 389 ✔ | gemerged |
 | [05](./05-achievements-persistenz-profil.md) | Achievement-Persistenz + `/profile` | `claude/maze-achievements-persistence-profile-dfb335` | `77fee92` | 309 ✔ | gemerged |
 | [04](./04-google-login-server.md) | Google-Login Server-Seite | `claude/maze-auth-google-server-dfb335` | `fc5d107` | 255 ✔ | gemerged |
@@ -35,8 +36,12 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 ## Offene Punkte für die Zentrale
 
-- **Paket 07 (Profil-Backend) wartet auf Review und Merge.**
-- Für Chat 03 nach dem Merge: `GET /profile/:userId` liefert zusätzlich
+- **Paket 08 (Client-Perf-Telemetrie) wartet auf Review und Merge.**
+- **Für Chat 03 liegt in Bericht 08 eine vollständige Sender-Spezifikation**
+  (wann sampeln, wie FPS robust messen, wie `deviceClass` und `quality`
+  bestimmen, welche Grenzen der Server erzwingt). Der Server ist fertig und
+  wartet – das Client-Paket kann direkt beauftragt werden.
+- Aus Paket 07, weiterhin für 03: `GET /profile/:userId` liefert
   `stats.favoriteClass` / `favoriteClassRuns` / `favoriteClassSeconds`, und
   `POST /profile` ändert den Anzeigenamen (Token im `Authorization`-Header,
   Antwort `202` darf optimistisch übernommen werden).
@@ -46,9 +51,8 @@ warum etwas so gebaut ist, wie es gebaut ist.
 Gesammelt aus allen Berichten – erledigte Punkte werden gestrichen, nicht
 gelöscht.
 
-- [ ] **Migration `0004_profile_favorite_class.sql` in Supabase einspielen**
-      (Paket 07) – ohne sie fehlen Lieblingsklasse und Spielzeit-Felder, sonst
-      passiert nichts
+- [x] Migration `0004_profile_favorite_class.sql` eingespielt (Paket 07,
+      bestätigt 2026-08-05)
 - [ ] Nach dem Merge von Paket 06: `mazers.de/health` → `abuse`-Block prüfen.
       Steigt `rejectedConnections` ohne Angriff, sitzen echte Spieler hinter
       einem Mobilfunk-NAT → `RATE_LIMIT_CONNECTIONS_PER_IP` erhöhen
@@ -57,7 +61,7 @@ gelöscht.
 
 > Migrationen liegen seit `a7a213a` unter `supabase/migrations/` mit der
 > Ablage-Konvention von 01: noch offene direkt im Ordner, eingespielte in
-> `applied/`. Stand: `0001`–`0003` eingespielt, `0004` offen.
+> `applied/`. Stand: `0001`–`0004` eingespielt.
 
 ## ENV-Variablen aus Chat 04
 
@@ -87,6 +91,7 @@ Standard – ohne sie verhält sich der Server wie vorher:
 | `apps/server/src/auth.ts` | Supabase-JWT-Prüfung ohne Netzwerk-Roundtrip je Join |
 | `apps/server/src/shutdown.ts` | SIGTERM, Close-Code 1001, `beforeClose`-Hook |
 | `apps/server/src/rate-limits.ts` | Limits je IP und Verbindung, `abuse`-Zähler |
+| `apps/server/src/client-metrics.ts` | anonyme FPS-/Geräteberichte, `POST /client-metrics` |
 | `scripts/loadtest.mjs` | N simulierte Clients, Join-Erfolg, Snapshot-Latenz |
 | `supabase/migrations/*` | `runs`, `profiles`, `achievements`, `profile_stats` |
 | `docs/TELEMETRY.md`, `docs/SUPABASE.md`, `docs/DEPLOYMENT.md` | Betriebsdoku |
