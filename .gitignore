@@ -7,3 +7,7 @@ dist/
 .DS_Store
 coverage/
 balance-report.txt
+
+# Wegwerf-Artefakte aus Review- und Debug-Läufen (Prüfskripte, temporäre Tests)
+.probe/
+**/__tmp_*
