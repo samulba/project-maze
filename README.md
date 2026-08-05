@@ -91,7 +91,6 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   `/leaderboard` und `/profile`. Bei Überschreitung wird erst gedrosselt, dann
   getrennt; die Zähler stehen im `abuse`-Block von `/health`. Abschaltbar über
   `RATE_LIMITS_ENABLED=false`.
->>>>>>> origin/claude/maze-rate-limits-abuse-dfb335
 - **Redeploy:** Bei `SIGTERM` meldet `/health` sofort `503`, dann werden alle
   WebSockets mit Code 1001 sauber geschlossen – Clients reconnecten umgehend
   statt in einen Timeout zu laufen.
@@ -100,6 +99,11 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   alle 5 Sekunden um einen Bot. Bots verschwinden nur tot oder weit außer
   Sichtweite, nie mitten im Kampf; neue starten leicht unter dem Median-Level
   der Menschen. Abschaltbar über `ARENA_DIRECTOR_ENABLED=false`.
+- **Zuschauen nach dem Tod:** Mit `SPECTATOR_ENABLED=true` bekommt ein
+  gefallener Spieler bis zum Respawn die Snapshots aus der Perspektive seines
+  Killers – live statt Aufzeichnung. Ist der Killer tot oder weg, bleibt es bei
+  der eigenen Todesposition. Braucht einen Client, der die Kamera auf
+  `spectatorTargetId` zentriert.
 - **Achievements:** `ACHIEVEMENTS_ENABLED=true` hängt eine rein beobachtende
   Engine an (sieben Achievements, Katalog in `apps/server/src/achievements.ts`).
   Der Fortschritt liegt im Arbeitsspeicher und gilt je Verbindung; Persistenz

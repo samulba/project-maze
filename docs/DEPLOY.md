@@ -35,6 +35,7 @@ Der Server findet `apps/client/dist` automatisch und liefert ihn aus.
 | `SNAPSHOT_DELTAS` | aus | Lässt unveränderte Snapshot-Felder weg (~40 % weniger Bytes); braucht einen puffernden Client |
 | `ARENA_DIRECTOR_ENABLED` | an | Dynamische Bot-Population nach Spielerzahl; `false` friert sie auf `BOT_COUNT` ein |
 | `SHORT_NET_IDS` | aus | Kurze numerische Entitäts-IDs statt UUIDs im Snapshot; braucht einen passenden Client |
+| `SPECTATOR_ENABLED` | aus | Nach dem Tod live dem Killer zusehen; braucht einen passenden Client |
 | `ACHIEVEMENTS_ENABLED` | aus | Achievement-Engine im Server (beobachtend, In-Memory, noch ohne Client-Anzeige) |
 | `RATE_LIMITS_ENABLED` | an | Rate-Limits je IP und Verbindung; `false` schaltet sie ab |
 | `RATE_LIMIT_CONNECTIONS_PER_IP` | `5` | Gleichzeitige Verbindungen je IP – hinter Mobilfunk-NAT ggf. erhöhen |

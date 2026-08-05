@@ -147,7 +147,8 @@ function statsFor(player: GamePlayer): RuntimeStats {
   };
 }
 
-function playerSnapshot(player: GamePlayer): PlayerSnapshot {
+/** Netzform eines Spielers ohne Serverinterna. Auch der Spectator baut damit den eigenen Eintrag. */
+export function playerSnapshot(player: GamePlayer): PlayerSnapshot {
   const { move: _move, aim: _aim, primary: _primary, secondary: _secondary, lastInput: _lastInput,
     cooldown: _cooldown, lastDamageAt: _lastDamageAt, invulnerableUntil: _invulnerableUntil,
     bot: _bot, ...snapshot } = player;
