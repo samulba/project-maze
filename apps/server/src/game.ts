@@ -90,7 +90,17 @@ interface GameProjectile extends ProjectileSnapshot { damage: number; life: numb
 interface GameDrone extends DroneSnapshot { slot: number; contactCooldown: number; }
 
 export const BOT_NAMES = ['Vektor', 'Nyx', 'Orbit', 'Kairo', 'Mako', 'Echo', 'Rift', 'Nova', 'Flux', 'Onyx', 'Astra', 'Mira'];
-const BOT_STYLES: BotStyle[] = ['farmer', 'hunter', 'kiter', 'brawler', 'controller'];
+/**
+ * Stil-Verteilung der Bots. Farmer sind die friedlichsten Gegner – sie räumen
+ * Formen ab und suchen nur gelegentlich Streit. Ihr Anteil steigt bewusst von
+ * 20 % auf 40 % (Feedback Sam: Dauerbeschuss ohne Verschnaufpause), zulasten
+ * der beiden Sniper-Stile. Die Reihenfolge ist gemischt, damit schon die ersten
+ * acht Indizes – die übliche Arenagröße – alle fünf Stile enthalten.
+ */
+const BOT_STYLES: BotStyle[] = [
+  'farmer', 'hunter', 'kiter', 'farmer', 'brawler',
+  'controller', 'farmer', 'hunter', 'brawler', 'farmer'
+];
 
 /** Baut den Bot-Zustand für den Index-ten Bot. Auch der Arena-Direktor spawnt darüber. */
 export function botState(index: number): BotState {

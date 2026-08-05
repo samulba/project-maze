@@ -37,7 +37,7 @@ import {
   tuneDebugRules,
   type DebugPreset
 } from './debug-lab.js';
-import { tuneBotBrain } from './bot-brain.js';
+import { DEFAULT_BOT_PACING, tuneBotBrain } from './bot-brain.js';
 import { tuneDrones } from './drone-tuning.js';
 import { MazeGame } from './game.js';
 import { tuneInputAck } from './input-ack.js';
@@ -103,6 +103,13 @@ const SPECTATOR_ENABLED = process.env.SPECTATOR_ENABLED === 'true';
 const ARENA_DIRECTOR_ENABLED = !['false', '0', 'off']
   .includes((process.env.ARENA_DIRECTOR_ENABLED ?? '').trim().toLowerCase());
 /**
+ * Aggro-Pacing der Bots: Verschnaufpause nach einem Abschuss, Jagd-Timeout,
+ * harter Angreifer-Deckel und stilabhängige Angriffslust. Standardmäßig an;
+ * `false` stellt die Zielwahl exakt auf den Stand davor zurück.
+ */
+const BOT_PACING_ENABLED = !['false', '0', 'off']
+  .includes((process.env.BOT_PACING_ENABLED ?? '').trim().toLowerCase());
+/**
  * Rate-Limits und Missbrauchsschutz. Standardmäßig an; `false` schaltet sie
  * vollständig ab (dann verhält sich der Server wie vor dem Modul).
  */
@@ -147,7 +154,8 @@ const encodedGame = tuneSnapshotEncoding(
                             tuneSpectator(hardenSimulation(new MazeGame(BOT_COUNT)), SPECTATOR_ENABLED)
                           )
                         )
-                      )
+                      ),
+                      BOT_PACING_ENABLED ? DEFAULT_BOT_PACING : null
                     ),
                     ARENA_DIRECTOR_ENABLED
                   )

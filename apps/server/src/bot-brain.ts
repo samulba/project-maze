@@ -15,7 +15,7 @@ import { distanceSquared, normalize } from './physics.js';
 import { hasLineOfSight } from './world.js';
 
 export type BotSkillTier = 'rookie' | 'veteran' | 'elite';
-type BotStyle = 'farmer' | 'hunter' | 'kiter' | 'brawler' | 'controller';
+export type BotStyle = 'farmer' | 'hunter' | 'kiter' | 'brawler' | 'controller';
 
 export interface TierProfile {
   reactionMs: number;
@@ -85,6 +85,44 @@ export const BOT_CLASS_PATHS: Record<BotStyle, PlayerClass[][]> = {
 export const ROOKIE_PROTECTION_LEVEL = 8;
 /** Höchstens so viele Bots verfolgen gleichzeitig dasselbe Ziel. */
 export const MAX_ATTACKERS_PER_TARGET = 2;
+/** So lange merkt sich ein Bot, wer ihn zuletzt getroffen hat. */
+export const RETALIATION_MEMORY_MS = 6_000;
+
+/**
+ * Aggro-Pacing – die Regeln, nach denen ein Kampf auch mal endet.
+ *
+ * Der Befund (Sam, MASTERPLAN Handlungsfeld 2): Es wird durchgehend geschossen,
+ * es gibt nie eine Verschnaufpause. Ursache ist nicht die einzelne Bot-Regel,
+ * sondern dass keine davon je eine Jagd *beendet*: Wer im Sichtfeld ist, bleibt
+ * Ziel, bis er tot ist oder außer Reichweite. Drei Zeitfenster und ein harter
+ * Deckel ändern das – und der Farmer-Anteil steigt (`BOT_STYLES` in `game.ts`).
+ *
+ * Alle Werte sind bewusst benannt und über die Konfiguration austauschbar: Die
+ * Telemetrie-Runde (P2) dreht später daran, ohne die Logik anzufassen.
+ */
+export interface BotPacingConfig {
+  /** Nach einem Abschuss lässt der Bot so lange von allen Menschen ab. */
+  readonly killDisengageMs: number;
+  /** So lange darf ein Bot einen Menschen ohne eigenen Treffer verfolgen. */
+  readonly huntTimeoutMs: number;
+  /** Nach dem Abbruch ist genau dieser Mensch für diesen Bot so lange tabu. */
+  readonly huntGiveUpMs: number;
+  /** Harte Obergrenze gleichzeitiger Angreifer auf denselben Menschen. */
+  readonly maxAttackersPerHuman: number;
+  /** Wahrscheinlichkeit je Stil, einen sichtbaren Gegner überhaupt anzugehen. */
+  readonly styleAggression: Readonly<Record<BotStyle, number>>;
+}
+
+export const DEFAULT_BOT_PACING: BotPacingConfig = {
+  killDisengageMs: 6_000,
+  huntTimeoutMs: 8_000,
+  huntGiveUpMs: 6_000,
+  maxAttackersPerHuman: 2,
+  // Hunter und Brawler bleiben bei 1.0 – sie sind per Definition die Gegner,
+  // die kommen. Die Ruhe entsteht bei den anderen drei Stilen und über die
+  // Zeitfenster oben, nicht dadurch, dass jeder Bot zum Farmer wird.
+  styleAggression: { farmer: 0.2, hunter: 1, kiter: 0.45, brawler: 1, controller: 0.4 }
+};
 
 interface BotState {
   style: BotStyle;
@@ -126,6 +164,7 @@ interface BrainInternals {
   drones: Map<string, { ownerId: string; position: Vector2 }>;
   updateBot(player: RuntimePlayer, now: number): void;
   damagePlayer(target: RuntimePlayer, damage: number, attackerId: string | null, now: number): void;
+  killPlayer(target: RuntimePlayer, attackerId: string | null, now: number, environmentName: string): void;
 }
 
 interface BotBrain {
@@ -141,6 +180,14 @@ interface BotBrain {
   detourSign: number;
   nextModuleTryAt: number;
   holdUntil: number;
+  /** Bis dahin sind Menschen nach einem eigenen Abschuss komplett tabu. */
+  calmUntil: number;
+  /** Der Mensch, dem dieser Bot die Flucht zugesteht – und bis wann. */
+  escapedId: string | null;
+  escapedUntil: number;
+  /** Letzter eigener Treffer: gegen wen und wann (stellt den Jagd-Timeout neu). */
+  lastHitTargetId: string | null;
+  lastHitAt: number;
 }
 
 interface GameBrainState {
@@ -168,8 +215,11 @@ const rotate = (vector: Vector2, angle: number): Vector2 => {
  * Vorhalte-Zielen mit Streuung, Skill-Tiers, Wand-Ausweichen, Projektil-Dodge,
  * Modul-/Frame-Nutzung über dieselben Wege wie echte Spieler und eine
  * Zielwahl mit Anfängerschutz und Anti-Gang-up.
+ *
+ * `pacing = null` schaltet ausschließlich die Aggro-Pacing-Regeln ab; die
+ * Zielwahl verhält sich dann exakt wie vor dem Paket (Test dafür vorhanden).
  */
-export function tuneBotBrain<T extends MazeGame>(game: T): T {
+export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfig | null = DEFAULT_BOT_PACING): T {
   const internals = game as unknown as BrainInternals;
   const state = stateFor(game);
 
@@ -195,7 +245,12 @@ export function tuneBotBrain<T extends MazeGame>(game: T): T {
       detourUntil: 0,
       detourSign: 1,
       nextModuleTryAt: 0,
-      holdUntil: 0
+      holdUntil: 0,
+      calmUntil: 0,
+      escapedId: null,
+      escapedUntil: 0,
+      lastHitTargetId: null,
+      lastHitAt: 0
     };
     state.brains.set(player.id, created);
     return created;
@@ -203,14 +258,48 @@ export function tuneBotBrain<T extends MazeGame>(game: T): T {
 
   const originalDamagePlayer = internals.damagePlayer.bind(internals);
   internals.damagePlayer = (target: RuntimePlayer, damage: number, attackerId: string | null, now: number): void => {
+    // Vor dem Schaden merken, ob er überhaupt ankommt: `damagePlayer` steigt bei
+    // toten und unverwundbaren Zielen aus, danach ist `dead` nicht mehr aussagekräftig.
+    const landed = !target.dead && !target.invulnerable;
     originalDamagePlayer(target, damage, attackerId, now);
-    if (!target.bot || !attackerId || attackerId === target.id) return;
-    const brain = state.brains.get(target.id);
-    if (brain) {
-      brain.lastAttackerId = attackerId;
-      brain.lastAttackedAt = now;
-      brain.holdUntil = 0;
+    if (!attackerId || attackerId === target.id) return;
+    if (target.bot) {
+      const brain = state.brains.get(target.id);
+      if (brain) {
+        brain.lastAttackerId = attackerId;
+        brain.lastAttackedAt = now;
+        brain.holdUntil = 0;
+      }
     }
+    // Ein eigener Treffer ist Fortschritt und stellt den Jagd-Timeout neu.
+    const attackerBrain = landed ? state.brains.get(attackerId) : undefined;
+    if (attackerBrain) {
+      attackerBrain.lastHitTargetId = target.id;
+      attackerBrain.lastHitAt = now;
+    }
+  };
+
+  // Verschnaufpause nach einem Abschuss: Der Bot zieht sich von Menschen zurück
+  // und farmt stattdessen. Ohne das startet die nächste Jagd in der Sekunde, in
+  // der das Opfer wieder einsteigt – genau der Dauerdruck aus Sams Feedback.
+  const originalKillPlayer = internals.killPlayer.bind(internals);
+  internals.killPlayer = (
+    target: RuntimePlayer,
+    attackerId: string | null,
+    now: number,
+    environmentName: string
+  ): void => {
+    const alreadyDead = target.dead;
+    originalKillPlayer(target, attackerId, now, environmentName);
+    if (!pacing || alreadyDead || !attackerId || attackerId === target.id) return;
+    const killer = internals.players.get(attackerId);
+    const brain = state.brains.get(attackerId);
+    if (!killer?.bot || !brain) return;
+    brain.calmUntil = now + pacing.killDisengageMs;
+    const quarry = killer.bot.targetId ? internals.players.get(killer.bot.targetId) : undefined;
+    if (quarry && !quarry.isBot) killer.bot.targetId = null;
+    // Sofort neu entscheiden statt bis zum nächsten Reaktionsfenster weiterzuzielen.
+    killer.bot.decisionAt = 0;
   };
 
   const countTargeters = (): Map<string, number> => {
@@ -246,6 +335,24 @@ export function tuneBotBrain<T extends MazeGame>(game: T): T {
       brain.lastMoveCheckAt = now;
     }
 
+    // Jagd-Timeout: Wer einem Menschen zu lange erfolglos hinterherläuft, gibt
+    // auf – wer entkommen ist, ist entkommen. Die Uhr läuft ab dem Zielwechsel
+    // und wird von jedem eigenen Treffer auf genau dieses Ziel neu gestellt.
+    if (pacing && bot.targetId) {
+      const quarry = internals.players.get(bot.targetId);
+      if (quarry && !quarry.isBot) {
+        const lastProgress = brain.lastHitTargetId === quarry.id
+          ? Math.max(brain.targetAcquiredAt, brain.lastHitAt)
+          : brain.targetAcquiredAt;
+        if (now - lastProgress > pacing.huntTimeoutMs) {
+          brain.escapedId = quarry.id;
+          brain.escapedUntil = now + pacing.huntGiveUpMs;
+          bot.targetId = null;
+          bot.decisionAt = 0;
+        }
+      }
+    }
+
     if (now >= bot.decisionAt) {
       const targetCounts = countTargeters();
       const bountyId = bountyTargetIdFor(game);
@@ -255,10 +362,22 @@ export function tuneBotBrain<T extends MazeGame>(game: T): T {
         if (candidate.id === player.id || candidate.dead || candidate.invulnerable) continue;
         const squared = distanceSquared(candidate.position, player.position);
         if (squared > 1050 * 1050 || !hasLineOfSight(player.position, candidate.position)) continue;
-        const attackedMe = brain.lastAttackerId === candidate.id && now - brain.lastAttackedAt < 6_000;
+        const attackedMe = brain.lastAttackerId === candidate.id && now - brain.lastAttackedAt < RETALIATION_MEMORY_MS;
         if (candidate.level < ROOKIE_PROTECTION_LEVEL && !attackedMe) continue;
-        const alreadyHunted = (targetCounts.get(candidate.id) ?? 0) >= MAX_ATTACKERS_PER_TARGET;
-        if (alreadyHunted && bot.targetId !== candidate.id && !attackedMe) continue;
+        if (pacing && !candidate.isBot) {
+          // Drei Sperren, die nur für Menschen gelten – Bots dürfen sich weiter
+          // ungebremst zerlegen, das kostet niemanden Nerven.
+          if (now < brain.calmUntil) continue;
+          if (brain.escapedId === candidate.id && now < brain.escapedUntil) continue;
+          // Angreifer-Deckel, jetzt hart: Auch Vergeltung öffnet keinen dritten
+          // Platz. Das eigene Ziel zählt nicht mit, sonst gäbe ein Bot seinen
+          // bereits belegten Platz bei jeder Entscheidung wieder her.
+          const others = (targetCounts.get(candidate.id) ?? 0) - (bot.targetId === candidate.id ? 1 : 0);
+          if (others >= pacing.maxAttackersPerHuman) continue;
+        } else {
+          const alreadyHunted = (targetCounts.get(candidate.id) ?? 0) >= MAX_ATTACKERS_PER_TARGET;
+          if (alreadyHunted && bot.targetId !== candidate.id && !attackedMe) continue;
+        }
         let score = 900 - Math.sqrt(squared);
         score -= Math.abs(candidate.level - player.level) * 14;
         if (attackedMe) score += 500;
@@ -269,8 +388,13 @@ export function tuneBotBrain<T extends MazeGame>(game: T): T {
         }
       }
 
-      const wasAttacked = brain.lastAttackerId !== null && now - brain.lastAttackedAt < 6_000;
-      const aggressive = bot.style === 'hunter' || bot.style === 'brawler' || wasAttacked || Math.random() > 0.4;
+      const wasAttacked = brain.lastAttackerId !== null && now - brain.lastAttackedAt < RETALIATION_MEMORY_MS;
+      // Stil entscheidet, wie leicht ein Bot vom Farmen ablässt. Vorher galten
+      // pauschal 60 % für alle außer Hunter und Brawler – ein Farmer war damit
+      // nur dem Namen nach friedlich.
+      const aggressive = wasAttacked || (pacing
+        ? Math.random() < pacing.styleAggression[bot.style]
+        : bot.style === 'hunter' || bot.style === 'brawler' || Math.random() > 0.4);
       if (bestEnemy && aggressive) {
         if (bot.targetId !== bestEnemy.id) brain.targetAcquiredAt = now;
         bot.targetId = bestEnemy.id;

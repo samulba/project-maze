@@ -99,6 +99,15 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   alle 5 Sekunden um einen Bot. Bots verschwinden nur tot oder weit außer
   Sichtweite, nie mitten im Kampf; neue starten leicht unter dem Median-Level
   der Menschen. Abschaltbar über `ARENA_DIRECTOR_ENABLED=false`.
+- **Aggro-Pacing der Bots:** Kämpfe enden auch mal. Nach einem Abschuss lässt
+  ein Bot 6 s von Menschen ab, eine erfolglose Jagd bricht er nach 8 s ohne
+  eigenen Treffer ab (das Ziel bleibt ihm danach 6 s tabu), und höchstens zwei
+  Bots greifen denselben Menschen gleichzeitig an – auch Vergeltung öffnet
+  keinen dritten Platz. Dazu farmen mehr Bots, statt zu jagen: Farmer stellen
+  40 % statt 20 % der Population und gehen sichtbare Gegner selten an.
+  Gemessen mit 3 Menschen und 8 Bots über 240 s: **Zeit unter Beschuss
+  −35 bis −69 %**, Ruhe nach dem Wiedereinstieg **0,4 s → 7,8 s**. Abschaltbar
+  über `BOT_PACING_ENABLED=false`.
 - **Zuschauen nach dem Tod:** Mit `SPECTATOR_ENABLED=true` bekommt ein
   gefallener Spieler bis zum Respawn die Snapshots aus der Perspektive seines
   Killers – live statt Aufzeichnung. Ist der Killer tot oder weg, bleibt es bei
@@ -136,7 +145,7 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   brechen temporär auf und öffnen neue Wege und Sichtlinien)
 - Drohnensteuerung mit linker und rechter Maustaste
 - faire Bots mit Skill-Tiers, Vorhalte-Zielen, Anfängerschutz,
-  Anti-Gang-up und eigener Modul-/Frame-Nutzung
+  Anti-Gang-up, Aggro-Pacing und eigener Modul-/Frame-Nutzung
 - Treffer-Feedback: Hit-Flash, Schadenszahlen, Explosionen, Screen-Shake
 - Minimap mit Elite-, Bounty- und Event-Markern
 - Sound mit Lautstärkeregler, Streak-Jingles und Event-Signalen
