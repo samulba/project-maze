@@ -40,6 +40,7 @@ import { MazeGame } from './game.js';
 import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system.js';
 import { tuneProgression } from './progression-tuning.js';
 import { hardenSimulation } from './simulation-hardening.js';
+import { tuneSnapshotEncoding } from './snapshot-encoding.js';
 import { createGracefulShutdown, installSignalHandlers } from './shutdown.js';
 import { metricsHandler, tuneTelemetry } from './telemetry.js';
 
@@ -55,6 +56,12 @@ const HOST = process.env.HOST?.trim() || '0.0.0.0';
 const BOT_COUNT = integerEnvironment('BOT_COUNT', 8, 0, 18);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN?.trim() || '*';
 const ENABLE_DEV_TOOLS = process.env.ENABLE_DEV_TOOLS === 'true';
+/**
+ * Lässt unveränderte Statik- und Wandfelder aus dem Snapshot weg. Setzt einen
+ * Client voraus, der den letzten Stand puffert – bis der ausgeliefert ist,
+ * bleibt der Schalter aus. Das Runden der Zahlen läuft unabhängig davon.
+ */
+const SNAPSHOT_DELTAS = process.env.SNAPSHOT_DELTAS === 'true';
 const allowedOrigins = ALLOWED_ORIGIN === '*'
   ? null
   : new Set(ALLOWED_ORIGIN.split(',').map((value) => value.trim()).filter(Boolean));
@@ -69,17 +76,19 @@ app.disable('x-powered-by');
 app.use(cors({ origin: allowedOrigins ? [...allowedOrigins] : true }));
 const server = createServer(app);
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
-const game = tuneTelemetry(
-  tuneDebugRules(
-    tuneArenaEvents(
-      tuneArenaSystems(
-        tuneLoadoutSystem(
-          tuneProgression(
-            tuneBotBrain(
-              tuneClassMechanics(
-                tuneDrones(
-                  tuneCombatScaling(
-                    hardenSimulation(new MazeGame(BOT_COUNT))
+const game = tuneSnapshotEncoding(
+  tuneTelemetry(
+    tuneDebugRules(
+      tuneArenaEvents(
+        tuneArenaSystems(
+          tuneLoadoutSystem(
+            tuneProgression(
+              tuneBotBrain(
+                tuneClassMechanics(
+                  tuneDrones(
+                    tuneCombatScaling(
+                      hardenSimulation(new MazeGame(BOT_COUNT))
+                    )
                   )
                 )
               )
@@ -88,7 +97,8 @@ const game = tuneTelemetry(
         )
       )
     )
-  )
+  ),
+  SNAPSHOT_DELTAS
 );
 const socketPlayerIds = new WeakMap<WebSocket, string>();
 const socketAlive = new WeakMap<WebSocket, boolean>();
@@ -259,7 +269,12 @@ const tickTimer = setInterval(() => game.step(1 / GAME.tickRate), 1000 / GAME.ti
 const snapshotTimer = setInterval(() => {
   for (const socket of wss.clients) {
     const playerId = socketPlayerIds.get(socket);
-    if (playerId) send(socket, game.snapshot(playerId), true);
+    if (!playerId || socket.readyState !== WebSocket.OPEN) continue;
+    // Backpressure vor dem Bauen prüfen: Ein verworfener Snapshot hätte beim
+    // Delta-Versand Felder mitgenommen, die der Server als übertragen verbucht.
+    // Spart nebenbei die Serialisierung, die ohnehin niemand bekommen hätte.
+    if (socket.bufferedAmount > GAME.snapshotBackpressureBytes) continue;
+    send(socket, game.snapshot(playerId));
   }
 }, 1000 / GAME.snapshotRate);
 const heartbeatTimer = setInterval(() => {
