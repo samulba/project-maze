@@ -81,6 +81,10 @@ das Spiel nie. Einrichtung für Supabase-Neulinge:
 - **Redeploy:** Bei `SIGTERM` meldet `/health` sofort `503`, dann werden alle
   WebSockets mit Code 1001 sauber geschlossen – Clients reconnecten umgehend
   statt in einen Timeout zu laufen.
+- **Achievements:** `ACHIEVEMENTS_ENABLED=true` hängt eine rein beobachtende
+  Engine an (sieben Achievements, Katalog in `apps/server/src/achievements.ts`).
+  Der Fortschritt liegt im Arbeitsspeicher und gilt je Verbindung; Persistenz
+  und Client-Anzeige sind eigene Pakete.
 
 ## Aktueller Alpha-Stand (1.0)
 

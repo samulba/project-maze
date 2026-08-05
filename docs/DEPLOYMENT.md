@@ -52,6 +52,7 @@ docker build -f apps/client/Dockerfile --build-arg VITE_WS_URL=wss://maze.exampl
 | `LEADERBOARD_CACHE_MS` | `30000` | 1000–600000 | Cache-Fenster von `GET /leaderboard`. |
 | `SHUTDOWN_DRAIN_MS` | `0` | 0–30000 | Vorlauf beim Herunterfahren, in dem `/health` bereits `503` meldet, der Listener aber noch offen ist. Railway nimmt die Instanz schon beim Signal aus dem Verkehr und braucht das nicht; hinter einem eigenen Loadbalancer sind 500–2000 ms sinnvoll. |
 | `SNAPSHOT_DELTAS` | `false` | `true`/`false` | Lässt unveränderte Snapshot-Felder (Name, Klasse, Upgrades, Wände, Bestenliste, Killfeed, Formstatik) weg – rund 40 % weniger Bytes je Snapshot. **Setzt einen Client voraus, der den letzten Stand puffert.** Das Runden der Zahlen ist davon unabhängig und immer aktiv. |
+| `ACHIEVEMENTS_ENABLED` | `false` | `true`/`false` | Serverseitige Achievement-Engine. Rein beobachtend, Fortschritt nur im Arbeitsspeicher und nur je Verbindung. Ohne den Schalter wird die Schicht nicht angehängt und der Server verhält sich exakt wie vorher. |
 | `NODE_ENV` | – | `production` | Von Compose gesetzt; schaltet Express in den Produktionsmodus. |
 
 Ungültige Zahlenwerte fallen auf den Standard zurück, statt den Start zu
