@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { tuneArenaSystems } from './arena-systems';
+import { GAME } from '@project-maze/shared';
+import { ARENA_EVENT_ROTATION, tuneArenaSystems } from './arena-systems';
 import { tuneCombatScaling } from './combat-tuning';
 import { MazeGame } from './game';
 import { tuneLoadoutSystem } from './loadout-system';
@@ -12,6 +13,35 @@ interface Internals {
 }
 
 const createGame = (): MazeGame => tuneArenaSystems(tuneLoadoutSystem(tuneCombatScaling(new MazeGame(0))));
+
+/** Läuft die Event-Rotation ab und sammelt die Art jedes neuen Events. */
+function collectEventKinds(game: MazeGame, viewerId: string, count: number, start: number): string[] {
+  const kinds: string[] = [];
+  let lastId = 0;
+  let now = start;
+  for (let index = 0; index < 900 && kinds.length < count; index += 1) {
+    now += 1_000;
+    game.step(1 / 40, now);
+    const event = (game.snapshot(viewerId, now) as any).arenaEvent;
+    if (event && event.id !== lastId) {
+      lastId = event.id;
+      kinds.push(event.kind);
+    }
+  }
+  return kinds;
+}
+
+/** Steppt bis zur aktiven Phase der gesuchten Event-Art. */
+function advanceToEvent(game: MazeGame, viewerId: string, kind: string, start: number): number {
+  let now = start;
+  for (let index = 0; index < 900; index += 1) {
+    now += 1_000;
+    game.step(1 / 40, now);
+    const event = (game.snapshot(viewerId, now) as any).arenaEvent;
+    if (event?.kind === kind && event.phase === 'active') return now;
+  }
+  throw new Error(`Arena-Event "${kind}" wurde nicht aktiv`);
+}
 
 describe('arena systems', () => {
   it('promotes rare elite shapes and grants a bonus when they are destroyed', () => {
@@ -45,6 +75,27 @@ describe('arena systems', () => {
     game.step(1 / 40, warning.arenaEvent.startsAt + 1);
     const active = game.snapshot(playerId, warning.arenaEvent.startsAt + 1) as any;
     expect(active.arenaEvent?.phase).toBe('active');
+  });
+
+  it('rotiert fest durch Core Surge, Overcharge und Hunter Signal', () => {
+    const game = createGame();
+    const viewerId = game.addPlayer('Observer');
+    const kinds = collectEventKinds(game, viewerId, 4, Date.now());
+    expect(kinds).toEqual([...ARENA_EVENT_ROTATION, ARENA_EVENT_ROTATION[0]]);
+  });
+
+  it('flutet nur während Core Surge zusätzliche Formen in die Zone', () => {
+    const game = createGame();
+    const viewerId = game.addPlayer('Observer');
+    let now = advanceToEvent(game, viewerId, 'coreSurge', Date.now());
+    for (let index = 0; index < 20; index += 1) {
+      now += 1_000;
+      game.step(1 / 40, now);
+    }
+    expect(game.entityCounts.shapes).toBeGreaterThan(GAME.shapeTargetCount);
+
+    advanceToEvent(game, viewerId, 'overcharge', now);
+    expect(game.entityCounts.shapes).toBeLessThanOrEqual(GAME.shapeTargetCount);
   });
 
   it('marks a dominant player and awards the bounty only once per claim pair', () => {
