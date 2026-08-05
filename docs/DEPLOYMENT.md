@@ -46,6 +46,10 @@ docker build -f apps/client/Dockerfile --build-arg VITE_WS_URL=wss://maze.exampl
 | `ENABLE_DEV_TOOLS` | `false` | `true`/`false` | F2-Debug-Werkzeuge (Builds setzen, God-Mode, Dummies). **Muss in Produktion `false` bleiben.** |
 | `TELEMETRY_ENABLED` | `true` | `true`/`false` | Anonyme Balance-Telemetrie inklusive `/metrics`. Bei `false` wird die Schicht gar nicht erst angehängt und `/metrics` antwortet mit 404. |
 | `METRICS_TOKEN` | – | Freitext | Ist die Variable gesetzt, verlangt `/metrics` den Header `Authorization: Bearer <token>` (zeitkonstanter Vergleich). Leer lassen ist nur akzeptabel, solange der Serverport das interne Netz nicht verlässt. |
+| `SUPABASE_URL` | – | URL | Projekt-URL der Supabase-Instanz. Nur zusammen mit dem Service-Role-Key wirksam. |
+| `SUPABASE_SERVICE_ROLE_KEY` | – | Geheimnis | Geheimer Supabase-Schlüssel. Schaltet zusammen mit `SUPABASE_URL` Run-Persistenz und `/leaderboard` frei. Fehlt eine der beiden Variablen, verhält sich der Server exakt wie ohne Persistenz. **Niemals in den Client.** Siehe [`SUPABASE.md`](./SUPABASE.md). |
+| `PERSISTENCE_FLUSH_MS` | `5000` | 500–120000 | Abstand, in dem gepufferte Runs geschrieben werden. |
+| `LEADERBOARD_CACHE_MS` | `30000` | 1000–600000 | Cache-Fenster von `GET /leaderboard`. |
 | `SHUTDOWN_DRAIN_MS` | `0` | 0–30000 | Vorlauf beim Herunterfahren, in dem `/health` bereits `503` meldet, der Listener aber noch offen ist. Railway nimmt die Instanz schon beim Signal aus dem Verkehr und braucht das nicht; hinter einem eigenen Loadbalancer sind 500–2000 ms sinnvoll. |
 | `NODE_ENV` | – | `production` | Von Compose gesetzt; schaltet Express in den Produktionsmodus. |
 
