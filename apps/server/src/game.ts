@@ -502,7 +502,11 @@ export class MazeGame {
     target.deathLevel = target.level;
     target.respawnLevel = respawnLevelFrom(target.level);
     target.canRespawnAt = now + GAME.respawnDelayMs;
-    target.autoRespawnAt = now + GAME.autoRespawnDelayMs;
+    // Menschen entscheiden selbst, wann (und ob) sie zurückkommen – der
+    // Zwangs-Respawn nach 7 s gilt nur noch für Bots. Die 10 Minuten sind ein
+    // AFK-Fangnetz, kein Spielelement (und bewusst endlich: JSON kennt kein
+    // Infinity, ein zu großer Wert würde im Snapshot zu null zerfallen).
+    target.autoRespawnAt = now + (target.isBot ? GAME.autoRespawnDelayMs : 600_000);
     target.killerName = attacker?.name ?? environmentName;
     target.invulnerable = false;
     target.streak = 0;

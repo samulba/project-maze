@@ -95,7 +95,7 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   WebSockets mit Code 1001 sauber geschlossen – Clients reconnecten umgehend
   statt in einen Timeout zu laufen.
 - **Arena-Direktor:** Die Bot-Population richtet sich nach der Zahl der
-  Menschen (1 → 11 Bots, je weiterem −2, Minimum 4) und ändert sich höchstens
+  Menschen (1 → 8 Bots, je weiterem −1, Minimum 3) und ändert sich höchstens
   alle 5 Sekunden um einen Bot. Bots verschwinden nur tot oder weit außer
   Sichtweite, nie mitten im Kampf; neue starten leicht unter dem Median-Level
   der Menschen. Abschaltbar über `ARENA_DIRECTOR_ENABLED=false`.

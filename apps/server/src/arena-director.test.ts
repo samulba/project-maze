@@ -69,16 +69,16 @@ function settle(game: MazeGame, start: number, windows = 20): number {
 }
 
 describe('Zielgröße der Population', () => {
-  it('gibt einem Menschen eine volle Arena und nimmt je weiterem zwei Bots weg', () => {
-    expect(targetBotCount(1)).toBe(11);
-    expect(targetBotCount(2)).toBe(9);
-    expect(targetBotCount(3)).toBe(7);
+  it('gibt einem Menschen eine belebte Arena und nimmt je weiterem einen Bot weg', () => {
+    expect(targetBotCount(1)).toBe(8);
+    expect(targetBotCount(2)).toBe(7);
+    expect(targetBotCount(3)).toBe(6);
     expect(targetBotCount(4)).toBe(5);
   });
 
   it('hält die Untergrenze ein, egal wie voll die Arena wird', () => {
-    expect(targetBotCount(5)).toBe(4);
-    expect(targetBotCount(12)).toBe(4);
+    expect(targetBotCount(6)).toBe(3);
+    expect(targetBotCount(12)).toBe(3);
     expect(targetBotCount(GAME.maxPlayers)).toBe(config.minimumBots);
   });
 
@@ -179,14 +179,14 @@ describe('Phasing im laufenden Spiel', () => {
   });
 
   it('baut Bots ab, wenn Menschen dazukommen, und wieder auf, wenn sie gehen', () => {
-    const game = createGame(11);
+    const game = createGame(8);
     let now = settle(game, 1_000_000, 1);
-    expect(botsOf(game)).toHaveLength(11);
+    expect(botsOf(game)).toHaveLength(8);
 
     const humanIds = [game.addPlayer('A'), game.addPlayer('B'), game.addPlayer('C')];
-    expect(targetBotCount(3)).toBe(7);
+    expect(targetBotCount(3)).toBe(6);
     now = settle(game, now);
-    expect(botsOf(game)).toHaveLength(7);
+    expect(botsOf(game)).toHaveLength(6);
 
     for (const id of humanIds) game.removePlayer(id);
     now = settle(game, now);
@@ -196,19 +196,19 @@ describe('Phasing im laufenden Spiel', () => {
   it('braucht für jeden Schritt ein eigenes Fenster', () => {
     const game = createGame(11);
     const start = 1_000_000;
-    settle(game, start, 1);
+    settle(game, start, 1); // ein Fenster: 11 → 10 (Ziel der leeren Arena ist 8)
     game.addPlayer('A');
     game.addPlayer('B');
-    game.addPlayer('C');
+    game.addPlayer('C'); // Ziel jetzt 6 – vier Bots zu viel
 
-    // Vier Bots zu viel: nach zwei Fenstern dürfen erst zwei weg sein.
-    let now = start + config.phaseIntervalMs;
+    // Nach zwei weiteren Fenstern dürfen erst zwei gegangen sein.
+    let now = start + config.phaseIntervalMs * 2;
     for (let index = 0; index < 2; index += 1) {
       park(game);
       game.step(1 / 40, now);
       now += config.phaseIntervalMs;
     }
-    expect(botsOf(game)).toHaveLength(9);
+    expect(botsOf(game)).toHaveLength(8);
   });
 
   it('entfernt keinen Bot, solange alle in Sichtweite eines Menschen sind', () => {
@@ -230,9 +230,10 @@ describe('Phasing im laufenden Spiel', () => {
       now += config.phaseIntervalMs;
       game.step(1 / 40, now);
     }
-    // Zielgröße wäre 11, aber es sind 11 – niemand musste weichen.
-    expect(botsOf(game)).toHaveLength(11);
-    expect(arenaDirectorStatus(game).target).toBe(11);
+    // Zielgröße ist 8 (ein Fenster in settle hat 11 → 10 abgebaut), aber kein
+    // Bot ist unauffällig entfernbar – niemand weicht mitten im Gefecht.
+    expect(botsOf(game)).toHaveLength(10);
+    expect(arenaDirectorStatus(game).target).toBe(8);
   });
 });
 
@@ -275,7 +276,7 @@ describe('Neue Bots im laufenden Spiel', () => {
 
 describe('Fremde Bots', () => {
   it('fasst Spieler ohne Bot-Zustand nicht an (Guardian, Debug-Dummies)', () => {
-    const game = createGame(11);
+    const game = createGame(8);
     const internals = game as unknown as Internals;
     settle(game, 1_000_000, 1);
 
@@ -286,7 +287,7 @@ describe('Fremde Bots', () => {
     guardian.bot = null;
     guardian.position = { x: 5_600, y: 3_600 };
 
-    expect(botsOf(game)).toHaveLength(11);
+    expect(botsOf(game)).toHaveLength(8);
     settle(game, 3_000_000);
     expect(internals.players.has(guardianId)).toBe(true);
     // Der Guardian zählt weder als Mensch noch als Direktor-Bot.

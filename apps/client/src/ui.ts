@@ -165,6 +165,7 @@ export class GameUI {
               <div class="death-stats" id="death-stats"></div>
               <button id="respawn-button" type="button" disabled>RESPAWN</button>
               <span id="respawn-countdown">Respawn verfügbar in 2.5s</span>
+              <button id="exit-to-start" type="button">ZUM STARTSCREEN</button>
             </div>
           </section>
 
@@ -238,6 +239,9 @@ export class GameUI {
     });
     this.autoFire.addEventListener('click', () => this.setAutoFire(onAutoFire()));
     this.respawnButton.addEventListener('click', onRespawn);
+    // Zurück zur Landingpage: Ein sauberer Neuladen ist hier bewusst die ganze
+    // Wahrheit – frischer Startscreen, frische Bestenliste, kein halber Zustand.
+    this.require<HTMLButtonElement>('#exit-to-start').addEventListener('click', () => location.reload());
     this.classChoices.addEventListener('click', (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-class-choice]');
       if (button) onClassChoice(button.dataset.classChoice as PlayerClass);
@@ -420,9 +424,12 @@ export class GameUI {
     this.deathKiller.textContent = `Eliminiert von ${self.killerName || 'Arena'}`;
     this.deathStats.innerHTML = `<div><span>Erreicht</span><b>Level ${self.deathLevel}</b></div><div><span>Neustart</span><b>Level ${self.respawnLevel}</b></div><div><span>Score</span><b>${self.score.toLocaleString('de-DE')}</b></div><div><span>Kills</span><b>${self.kills}</b></div><div><span>Überlebt</span><b>${aliveText}</b></div><div><span>Beste Streak</span><b>${self.bestStreak}</b></div>`;
     this.respawnButton.disabled = remaining > 0;
+    const autoInSeconds = Math.max(0, Math.ceil((self.autoRespawnAt - snapshot.serverTime) / 1000));
+    // Menschen werden nicht mehr zwangs-respawnt (nur das 10-Minuten-AFK-Netz) –
+    // ein Countdown über einer Minute ist also keiner, den man anzeigt.
     this.respawnCountdown.textContent = remaining > 0
       ? `Respawn verfügbar in ${(remaining / 1000).toFixed(1)}s`
-      : `Respawn bereit · automatisch in ${Math.max(0, Math.ceil((self.autoRespawnAt - snapshot.serverTime) / 1000))}s`;
+      : autoInSeconds <= 60 ? `Respawn bereit · automatisch in ${autoInSeconds}s` : 'Respawn bereit';
   }
 
   private renderLeaderboard(snapshot: WorldSnapshot): void {

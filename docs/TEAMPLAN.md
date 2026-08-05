@@ -36,7 +36,11 @@ Stand: Alpha 1.0 live auf https://www.mazers.de (Railway, Auto-Deploy von `main`
 
 ## Roadmap
 
-### Sprint A – „Stabilität & Gesicht" (läuft)
+> **Aktuell gilt der [Ultramasterplan v4](MASTERPLAN.md)** – er ersetzt die
+> Sprints unten (die bleiben als Historie stehen; A1–A5 und Sprint B sind
+> abgeschlossen).
+
+### Sprint A – „Stabilität & Gesicht" (abgeschlossen)
 
 | # | Paket | Wer | Status |
 |---|-------|-----|--------|

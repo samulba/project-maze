@@ -39,9 +39,11 @@ export interface ArenaDirectorConfig {
 }
 
 export const DEFAULT_DIRECTOR_CONFIG: ArenaDirectorConfig = {
-  baseBots: 11,
-  botsPerHuman: 2,
-  minimumBots: 4,
+  // 8 statt 11: Elf Bots hießen Dauerbeschuss ohne Verschnaufpause (Feedback
+  // Sam). Acht halten die Arena lebendig, lassen aber Räume zum Farmen.
+  baseBots: 8,
+  botsPerHuman: 1,
+  minimumBots: 3,
   phaseIntervalMs: 5_000,
   // Deutlich jenseits des festen Sichtfensters (1600 × 900) – niemand kann es sehen.
   despawnDistance: 1_600,

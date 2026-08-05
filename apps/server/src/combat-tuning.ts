@@ -158,7 +158,14 @@ export function tuneCombatScaling<T extends MazeGame>(game: T): T {
     if (Math.hypot(player.aim.x, player.aim.y) > 0.01) player.angle = Math.atan2(player.aim.y, player.aim.x);
     player.cooldown = Math.max(0, player.cooldown - dt);
     if (now - player.lastDamageAt > 3500 && player.health < player.maxHealth) {
-      player.health = Math.min(player.maxHealth, player.health + stats.regen * dt);
+      // Chill-Regeneration: Wer dem Gefecht wirklich entkommt, ist nach rund
+      // 30 Sekunden wieder voll, statt minutenlang angeschlagen zu bleiben.
+      // Der Bonus wächst über 4 s auf +4 % des Max-Lebens pro Sekunde an –
+      // prozentual, damit auch dicke Tanks eine echte Verschnaufpause haben.
+      // Im Gefecht (unter 3,5 s seit dem letzten Treffer) ändert sich nichts.
+      const outOfCombatSeconds = (now - player.lastDamageAt - 3500) / 1000;
+      const chillRegen = Math.min(1, outOfCombatSeconds / 4) * 0.04 * player.maxHealth;
+      player.health = Math.min(player.maxHealth, player.health + (stats.regen + chillRegen) * dt);
     }
     if (stats.droneCount > 0) internals.maintainDrones(player, stats, now);
     else if (player.primary && player.cooldown <= 0) {
