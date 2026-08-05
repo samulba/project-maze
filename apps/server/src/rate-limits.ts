@@ -132,8 +132,12 @@ export interface RateLimiter {
   readonly enabled: boolean;
   /** Entscheidet über eine neue WebSocket-Verbindung. */
   accept(request: IncomingMessage, now?: number): ConnectionDecision;
-  /** Express-Wächter für öffentliche GET-Routen. */
-  httpGuard(): (request: Request, response: Response, next: () => void) => void;
+  /**
+   * Express-Wächter für öffentliche Routen. `cost` zieht mehrere Token je
+   * Anfrage – Schreibzugriffe sind teurer als Lesen und laufen damit früher
+   * ins Limit, ohne dass ein zweiter Zähler nötig wäre.
+   */
+  httpGuard(options?: { cost?: number }): (request: Request, response: Response, next: () => void) => void;
   stats(): AbuseStats;
   /** Stoppt den Aufräum-Timer – für Shutdown und Tests. */
   stop(): void;
@@ -409,7 +413,8 @@ export function createRateLimiter(options: RateLimitOptions = {}): RateLimiter {
       openConnections += 1;
       return { allowed: true, reason: null, guard: createGuard(ip, state) };
     },
-    httpGuard() {
+    httpGuard(options: { cost?: number } = {}) {
+      const cost = Math.max(1, Math.min(httpBurst, Math.round(options.cost ?? 1)));
       return (request: Request, response: Response, next: () => void): void => {
         const now = Date.now();
         const ip = clientIpFrom(request as unknown as IncomingMessage, trustProxyHops) || 'unknown';
@@ -420,13 +425,13 @@ export function createRateLimiter(options: RateLimitOptions = {}): RateLimiter {
           state.httpTokens = Math.min(httpBurst, state.httpTokens + refill);
           state.httpRefilledAt = now;
         }
-        if (state.httpTokens < 1) {
+        if (state.httpTokens < cost) {
           counters.rejectedRequests += 1;
-          response.setHeader('Retry-After', String(Math.ceil(60 / httpPerMinute)));
+          response.setHeader('Retry-After', String(Math.ceil((60 * cost) / httpPerMinute)));
           response.status(429).json({ error: 'Zu viele Anfragen. Bitte kurz warten.' });
           return;
         }
-        state.httpTokens -= 1;
+        state.httpTokens -= cost;
         next();
       };
     },

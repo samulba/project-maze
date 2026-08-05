@@ -3,7 +3,9 @@ import { tuneArenaSystems } from './arena-systems';
 import { tuneCombatScaling } from './combat-tuning';
 import { MazeGame } from './game';
 import { tuneLoadoutSystem } from './loadout-system';
+import { SignJWT } from 'jose';
 import { ACHIEVEMENT_CATALOG } from '@project-maze/shared/gameplay';
+import { initAuth, resetAuth } from './auth';
 import { achievementProgressFor, tuneAchievements } from './achievements';
 import {
   flushPersistence,
@@ -14,6 +16,8 @@ import {
   persistenceStats,
   profile,
   profileHandler,
+  profileUpdateHandler,
+  updateDisplayName,
   stopPersistence,
   tunePersistence,
   type AchievementRecord,
@@ -98,7 +102,10 @@ class FakeClient implements PersistenceClient {
         totalKills: 88,
         totalSeconds: 3_600,
         firstRunAt: '2026-08-01T09:00:00.000Z',
-        lastRunAt: '2026-08-05T10:00:00.000Z'
+        lastRunAt: '2026-08-05T10:00:00.000Z',
+        favoriteClass: 'storm',
+        favoriteClassRuns: 7,
+        favoriteClassSeconds: 1_800
       },
       achievements: await this.achievementsFor(userId)
     };
@@ -151,9 +158,35 @@ const respond = () => {
   return { response, state };
 };
 
+const AUTH_URL = 'https://abcdefghijkl.supabase.co';
+const AUTH_SECRET = 'super-secret-supabase-jwt-secret-value';
+
+/** Schaltet die Token-Prüfung mit lokalem Geheimnis scharf (wie auth.test.ts). */
+const enableAuth = (): void => {
+  initAuth({
+    config: {
+      url: AUTH_URL,
+      issuer: `${AUTH_URL}/auth/v1`,
+      jwksUrl: `${AUTH_URL}/auth/v1/.well-known/jwks.json`,
+      sharedSecret: AUTH_SECRET
+    }
+  });
+};
+
+const tokenFor = (subject: string): Promise<string> => new SignJWT({ role: 'authenticated' })
+  .setProtectedHeader({ alg: 'HS256' })
+  .setIssuer(`${AUTH_URL}/auth/v1`)
+  .setAudience('authenticated')
+  .setSubject(subject)
+  .setExpirationTime('1h')
+  .sign(new TextEncoder().encode(AUTH_SECRET));
+
+const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 10));
+
 afterEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  resetAuth();
   vi.restoreAllMocks();
 });
 
@@ -700,6 +733,181 @@ describe('profile route', () => {
 
     expect(state.headers['Cache-Control']).toBe('public, max-age=30');
     expect((state.body as { cacheSeconds: number }).cacheSeconds).toBe(30);
+    stopPersistence(game);
+  });
+});
+
+describe('profile write (POST /profile)', () => {
+  const USER_ID = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
+
+  const post = (game: MazeGame, body: unknown, authorization?: string) => {
+    const call = respond();
+    profileUpdateHandler(game)(
+      { body, headers: authorization ? { authorization } : {} } as never,
+      call.response as never
+    );
+    return call;
+  };
+
+  it('sanitizes the name exactly like the join message', () => {
+    const client = new FakeClient();
+    const game = withPersistence(client);
+
+    expect(updateDisplayName(game, USER_ID, '  Ada   Lovelace  ')).toBe('Ada Lovelace');
+    expect(updateDisplayName(game, USER_ID, 'Ada<script>')).toBe('Adascript');
+    expect(updateDisplayName(game, USER_ID, 'Eine viel zu lange Anzeige die abgeschnitten wird'))
+      .toHaveLength(18);
+    expect(updateDisplayName(game, USER_ID, '   ')).toBeNull();
+    expect(updateDisplayName(game, USER_ID, '\u0007\u0000')).toBeNull();
+    stopPersistence(game);
+  });
+
+  it('buffers the write instead of waiting for the database', async () => {
+    const client = new FakeClient();
+    const game = withPersistence(client);
+
+    expect(updateDisplayName(game, USER_ID, 'Ada')).toBe('Ada');
+    // Kein Schreibzugriff im Aufruf selbst.
+    expect(client.profileCalls).toBe(0);
+
+    await flushPersistence(game);
+    expect(client.profiles).toEqual([{ userId: USER_ID, displayName: 'Ada' }]);
+    stopPersistence(game);
+  });
+
+  it('drops the cached profile so the new name shows up at once', async () => {
+    const client = new FakeClient();
+    const game = withPersistence(client, { leaderboardCacheMs: 30_000 });
+    await profile(game, USER_ID);
+    expect(client.profileFetches).toBe(1);
+
+    updateDisplayName(game, USER_ID, 'Grace');
+    await profile(game, USER_ID);
+
+    expect(client.profileFetches).toBe(2);
+    stopPersistence(game);
+  });
+
+  it('rejects an unknown account id without touching the queue', () => {
+    const client = new FakeClient();
+    const game = withPersistence(client);
+    expect(updateDisplayName(game, 'nicht-uuid', 'Ada')).toBeNull();
+    expect(persistenceStats(game).queued).toBe(0);
+    stopPersistence(game);
+  });
+
+  it('is a no-op while persistence is switched off', () => {
+    const game = tunePersistence(baseGame());
+    expect(updateDisplayName(game, USER_ID, 'Ada')).toBeNull();
+  });
+
+  it('accepts a signed token and answers 202', async () => {
+    enableAuth();
+    const client = new FakeClient();
+    const game = withPersistence(client);
+
+    const call = post(game, { displayName: 'Ada Lovelace' }, `Bearer ${await tokenFor(USER_ID)}`);
+    await settle();
+
+    expect(call.state.status).toBe(202);
+    expect(call.state.body).toEqual({ displayName: 'Ada Lovelace', pending: true });
+    await flushPersistence(game);
+    expect(client.profiles).toEqual([{ userId: USER_ID, displayName: 'Ada Lovelace' }]);
+    stopPersistence(game);
+  });
+
+  it('writes the name to the account in the token, not to one from the body', async () => {
+    enableAuth();
+    const client = new FakeClient();
+    const game = withPersistence(client);
+    const other = '9c858901-8a57-4791-81fe-4c455b099bc9';
+
+    // Ein untergeschobenes userId-Feld darf keine Wirkung haben.
+    post(game, { displayName: 'Fremd', userId: other }, `Bearer ${await tokenFor(USER_ID)}`);
+    await settle();
+
+    await flushPersistence(game);
+    expect(client.profiles).toEqual([{ userId: USER_ID, displayName: 'Fremd' }]);
+    stopPersistence(game);
+  });
+
+  it('answers 401 without a token, with a broken one and while auth is off', async () => {
+    const client = new FakeClient();
+    const game = withPersistence(client);
+
+    enableAuth();
+    const token = await tokenFor(USER_ID);
+    for (const header of [undefined, 'Bearer kaputt', `Basic ${token}`]) {
+      const call = post(game, { displayName: 'Ada' }, header);
+      await settle();
+      expect(call.state.status).toBe(401);
+    }
+
+    // Ohne aktivierten Login gibt es kein Konto – also auch kein Profil.
+    resetAuth();
+    const offline = post(game, { displayName: 'Ada' }, `Bearer ${token}`);
+    await settle();
+    expect(offline.state.status).toBe(401);
+    expect(client.profiles).toHaveLength(0);
+    stopPersistence(game);
+  });
+
+  it('answers 400 for a missing or unusable name', async () => {
+    enableAuth();
+    const client = new FakeClient();
+    const game = withPersistence(client);
+    const header = `Bearer ${await tokenFor(USER_ID)}`;
+
+    for (const body of [undefined, {}, { displayName: 42 }]) {
+      const call = post(game, body, header);
+      await settle();
+      expect(call.state.status).toBe(400);
+    }
+
+    const blank = post(game, { displayName: '   ' }, header);
+    await settle();
+    expect(blank.state.status).toBe(400);
+    expect(client.profiles).toHaveLength(0);
+    stopPersistence(game);
+  });
+
+  it('answers 404 while persistence is switched off', () => {
+    const game = tunePersistence(baseGame());
+    const call = post(game, { displayName: 'Ada' }, 'Bearer egal');
+    expect(call.state.status).toBe(404);
+  });
+});
+
+describe('favourite class and playtime', () => {
+  const USER_ID = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
+
+  it('reports the favourite class and the total playtime', async () => {
+    const client = new FakeClient();
+    const game = withPersistence(client);
+
+    const found = await profile(game, USER_ID);
+    expect(found?.stats.favoriteClass).toBe('storm');
+    expect(found?.stats.favoriteClassRuns).toBe(7);
+    expect(found?.stats.favoriteClassSeconds).toBe(1_800);
+    expect(found?.stats.totalSeconds).toBe(3_600);
+    stopPersistence(game);
+  });
+
+  it('falls back to empty stats for an account without runs', async () => {
+    const client = new FakeClient();
+    client.profileFor = async (userId: string) => ({
+      userId,
+      displayName: 'Neu',
+      memberSince: '2026-08-05T10:00:00.000Z',
+      stats: null,
+      achievements: []
+    });
+    const game = withPersistence(client);
+
+    const found = await profile(game, USER_ID);
+    expect(found?.stats.favoriteClass).toBeNull();
+    expect(found?.stats.totalSeconds).toBe(0);
+    expect(found?.stats.runs).toBe(0);
     stopPersistence(game);
   });
 });
