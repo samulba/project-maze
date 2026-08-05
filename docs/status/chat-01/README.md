@@ -4,6 +4,10 @@ Hier dokumentiert die Zentrale den Integrationsstand: was zuletzt auf `main`
 gemerged wurde, welche Flags live sind und was von wem als Nächstes erwartet
 wird. `LATEST.md` ist immer der aktuelle Stand.
 
+**Neuer Zentral-Chat?** → [UEBERGABE.md](UEBERGABE.md) erklärt Rolle, Regeln
+und Arbeitsablauf; `LATEST.md` und die drei `auftrag-chat-0X.md` liefern den
+Sachstand.
+
 Die Paket-Berichte der anderen Chats liegen daneben:
 [chat-02](../chat-02/README.md) · [chat-03](../chat-03/README.md) ·
 [chat-04](../chat-04/README.md). Roadmap: [MASTERPLAN.md](../../MASTERPLAN.md).
