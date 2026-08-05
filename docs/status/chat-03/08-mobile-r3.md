@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 03
-
-> Kopie von `08-mobile-r3.md`. Diese Datei zeigt immer das jüngste
-> fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 08 – R3: Mobile-Pass
 
 **Branch:** `claude/project-maze-mobile-r3-o2q3n4` · **Basis:** `origin/main` @ `f4c76e8` · **Status: OFFEN – wartet auf Merge**

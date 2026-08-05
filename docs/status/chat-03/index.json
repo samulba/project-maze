@@ -1,9 +1,12 @@
 {
   "chat": "03",
   "revier": "Client/UX (apps/client)",
-  "faesst_nicht_an": ["packages/shared", "apps/server"],
+  "faesst_nicht_an": [
+    "packages/shared",
+    "apps/server"
+  ],
   "aktualisiert": "2026-08-05",
-  "latest": "07-ruhe-und-gewicht.md",
+  "latest": "08-mobile-r3.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -74,11 +77,21 @@
       "datei": "07-ruhe-und-gewicht.md",
       "branch": "claude/project-maze-calm-and-weight-o2q3n4",
       "basis": "main@0daa9f0",
-      "status": "offen",
+      "status": "in main",
       "tests": "5 neu / 401 gesamt",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 8,
+      "titel": "R3: Mobile-Pass - Statusleiste, Aktions-Stapel, ein Meldungs-Slot",
+      "datei": "08-mobile-r3.md",
+      "branch": "claude/project-maze-mobile-r3-o2q3n4",
+      "basis": "main@f4c76e8",
+      "status": "offen",
+      "tests": "35 Dateien / 414 Tests gruen, Testmatrix im Bericht",
       "braucht_von_01": [
         "Merge",
-        "danach kann Sam SPECTATOR_ENABLED=true setzen - die Client-Seite steht"
+        "danach Live-Test von Sam auf echtem iPhone - Safari und Notch sind hier nicht pruefbar"
       ]
     }
   ]
