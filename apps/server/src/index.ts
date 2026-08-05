@@ -297,6 +297,9 @@ app.get('/health', (_request: Request, response: Response) => {
     ...game.entityCounts,
     mode: 'maze-alpha',
     version: '1.0.0-alpha',
+    // Zeigt, welcher Stand wirklich ausgeliefert wird – Railway setzt die Variable beim Build.
+    commit: (process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT ?? 'unbekannt').slice(0, 7),
+    build: 'mazers-branding+events+join-fix',
     snapshotRate: GAME.snapshotRate,
     debugTools: ENABLE_DEV_TOOLS
   });
