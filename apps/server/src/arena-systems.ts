@@ -11,9 +11,15 @@ import { MazeGame } from './game.js';
 import { distanceSquared } from './physics.js';
 import { createShape, isFree } from './world.js';
 
-/** Der geteilte `ArenaEventKind` deckt inzwischen alle Events ab – Aliase bleiben für die Event-Schicht. */
-export type ServerArenaEventKind = ArenaEventKind;
-export type ServerArenaEvent = ArenaEventSnapshot;
+/**
+ * `fracture` fehlt noch im geteilten `ArenaEventKind`; bis der Shared-Typ
+ * nachzieht, bleibt die Erweiterung serverlokal und wird beim Schreiben in den
+ * Snapshot gecastet. Alle anderen Arten deckt der geteilte Union bereits ab.
+ */
+export type ServerArenaEventKind = ArenaEventKind | 'fracture';
+export interface ServerArenaEvent extends Omit<ArenaEventSnapshot, 'kind'> {
+  kind: ServerArenaEventKind;
+}
 
 interface ArenaEventTiming {
   warningMs: number;
@@ -22,11 +28,12 @@ interface ArenaEventTiming {
 }
 
 /** Die Arena rotiert fest durch alle Events, damit keines dominiert. */
-export const ARENA_EVENT_ROTATION: readonly ServerArenaEventKind[] = ['coreSurge', 'overcharge', 'hunterSignal'];
+export const ARENA_EVENT_ROTATION: readonly ServerArenaEventKind[] = ['coreSurge', 'overcharge', 'hunterSignal', 'fracture'];
 export const ARENA_EVENT_TIMINGS: Record<ServerArenaEventKind, ArenaEventTiming> = {
   coreSurge: { warningMs: 10_000, activeMs: 40_000, radius: 620 },
   overcharge: { warningMs: 8_000, activeMs: 35_000, radius: 560 },
-  hunterSignal: { warningMs: 8_000, activeMs: 45_000, radius: 520 }
+  hunterSignal: { warningMs: 8_000, activeMs: 45_000, radius: 520 },
+  fracture: { warningMs: 8_000, activeMs: 40_000, radius: 620 }
 };
 
 interface RuntimePlayer extends PlayerSnapshot {
@@ -261,7 +268,10 @@ export function tuneArenaSystems<T extends MazeGame>(game: T): T {
   game.snapshot = ((selfId: string, now = Date.now()): WorldSnapshot => {
     const snapshot = originalSnapshot(selfId, now) as WorldSnapshot & Partial<GameplayWorldExtension>;
     snapshot.eliteShapeIds = snapshot.shapes.filter((shape) => state.eliteShapeIds.has(shape.id)).map((shape) => shape.id);
-    snapshot.arenaEvent = state.event ? { ...state.event, center: { ...state.event.center } } : null;
+    // `kind` ist serverseitig um `fracture` erweitert; der geteilte Union-Typ zieht nach.
+    snapshot.arenaEvent = state.event
+      ? ({ ...state.event, center: { ...state.event.center } } as ArenaEventSnapshot)
+      : null;
     snapshot.bountyTargetId = state.bountyTargetId;
     snapshot.bountyValue = state.bountyValue;
     const targetGameplay = state.bountyTargetId && snapshot.gameplay ? snapshot.gameplay[state.bountyTargetId] : undefined;

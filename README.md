@@ -68,9 +68,10 @@ absicherbar über `METRICS_TOKEN`. Details in
   Exekutionsbonus, Defensiv-Orbit, Mikro-Schwarm, Momentum-Rammen u. a.
 - Core Modules (Dash, Repulse, Barrier, Repair) und passive Frames
 - Elite Shapes, Bounty-System, Kill-Streaks
-- drei rotierende Arena-Events: Core Surge (mehr Formen), Overcharge
+- vier rotierende Arena-Events: Core Surge (mehr Formen), Overcharge
   (Geschosse streifen sich statt sich auszulöschen), Hunter Signal
-  (neutraler Elite-Guardian als PvE-Ziel)
+  (neutraler Elite-Guardian als PvE-Ziel), Fracture (einzelne Wandsegmente
+  brechen temporär auf und öffnen neue Wege und Sichtlinien)
 - Drohnensteuerung mit linker und rechter Maustaste
 - faire Bots mit Skill-Tiers, Vorhalte-Zielen, Anfängerschutz,
   Anti-Gang-up und eigener Modul-/Frame-Nutzung

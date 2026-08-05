@@ -77,10 +77,11 @@ describe('arena systems', () => {
     expect(active.arenaEvent?.phase).toBe('active');
   });
 
-  it('rotiert fest durch Core Surge, Overcharge und Hunter Signal', () => {
+  it('rotiert fest durch alle Arena-Events und beginnt danach von vorn', () => {
     const game = createGame();
     const viewerId = game.addPlayer('Observer');
-    const kinds = collectEventKinds(game, viewerId, 4, Date.now());
+    expect(ARENA_EVENT_ROTATION).toEqual(['coreSurge', 'overcharge', 'hunterSignal', 'fracture']);
+    const kinds = collectEventKinds(game, viewerId, ARENA_EVENT_ROTATION.length + 1, Date.now());
     expect(kinds).toEqual([...ARENA_EVENT_ROTATION, ARENA_EVENT_ROTATION[0]]);
   });
 

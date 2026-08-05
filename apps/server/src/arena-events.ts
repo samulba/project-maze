@@ -5,8 +5,10 @@ import {
   type PlayerClass,
   type PlayerSnapshot,
   type ProjectileSnapshot,
+  type ShapeSnapshot,
   type UpgradeLevels,
   type Vector2,
+  type Wall,
   type WorldSnapshot
 } from '@project-maze/shared';
 import type { GameplayWorldExtension, PassiveModifierId } from '@project-maze/shared/gameplay';
@@ -15,7 +17,14 @@ import { ROOKIE_PROTECTION_LEVEL } from './bot-brain.js';
 import { tunedStatsFor } from './combat-tuning.js';
 import { MazeGame } from './game.js';
 import { distanceSquared, normalize } from './physics.js';
-import { hasLineOfSight, isFree } from './world.js';
+import {
+  FRACTURABLE_WALL_IDS,
+  circleHitsWall,
+  hasLineOfSight,
+  isFree,
+  setWallDisabled,
+  wallById
+} from './world.js';
 
 /**
  * Overcharge: Projektile in der Zone tragen einen Überladungspuffer, der bei
@@ -60,6 +69,17 @@ const GUARDIAN_DECISION_MS = 320;
 /** So lange gilt ein Angreifer als Bedrohung (und verliert seinen Anfängerschutz). */
 const GUARDIAN_THREAT_MS = 8_000;
 
+/**
+ * Fracture: Für die Dauer der aktiven Phase brechen einige generierte
+ * Wandsegmente auf. Sie sind passierbar, blocken keine Projektile und keine
+ * Sichtlinien – die Arena bekommt kurzzeitig neue Wege. Feste `l*`-Wände
+ * bleiben immer stehen, damit das Layout wiedererkennbar bleibt.
+ */
+export const FRACTURE_MIN_WALLS = 2;
+export const FRACTURE_MAX_WALLS = 4;
+/** Sicherheitsabstand, ab dem eine Wandfläche als belegt gilt. */
+export const FRACTURE_CLEARANCE = 6;
+
 interface RuntimePlayer extends PlayerSnapshot {
   move: Vector2;
   aim: Vector2;
@@ -77,9 +97,17 @@ interface RuntimeProjectile extends ProjectileSnapshot {
   life: number;
 }
 
+interface RuntimeDrone {
+  id: string;
+  position: Vector2;
+  gameplayRadius?: number;
+}
+
 interface EventInternals {
   players: Map<string, RuntimePlayer>;
   projectiles: Map<string, RuntimeProjectile>;
+  drones: Map<string, RuntimeDrone>;
+  shapes: Map<string, ShapeSnapshot>;
   resolveProjectileCollisions(): void;
   damagePlayer(target: RuntimePlayer, damage: number, attackerId: string | null, now: number): void;
   killPlayer(target: RuntimePlayer, attackerId: string | null, now: number, environmentName: string): void;
@@ -87,12 +115,10 @@ interface EventInternals {
   chooseClass(playerId: string, target: PlayerClass): boolean;
 }
 
-/**
- * Feld, das `GameplayWorldExtension` in `packages/shared` noch fehlt. Der Server
- * schreibt es bereits, damit der Client den neutralen Guardian erkennen kann.
- */
-interface ArenaGuardianExtension {
-  arenaGuardianId: string | null;
+interface FractureState {
+  /** Event-ID, für die bereits aufgebrochen wurde. */
+  openedForEventId: number;
+  openWallIds: Set<string>;
 }
 
 interface EventState {
@@ -102,6 +128,7 @@ interface EventState {
   targetId: string | null;
   decisionAt: number;
   threats: Map<string, number>;
+  fracture: FractureState;
 }
 
 const states = new WeakMap<MazeGame, EventState>();
@@ -113,7 +140,8 @@ const stateFor = (game: MazeGame): EventState => {
     spawnedForEventId: 0,
     targetId: null,
     decisionAt: 0,
-    threats: new Map()
+    threats: new Map(),
+    fracture: { openedForEventId: 0, openWallIds: new Set() }
   };
   states.set(game, created);
   return created;
@@ -285,6 +313,44 @@ function spawnGuardian(
   return id;
 }
 
+/** Steht noch etwas in der Wandfläche, darf die Wand nicht zurückkehren – sonst säßen Entitäten fest. */
+function wallOccupied(internals: EventInternals, wall: Wall): boolean {
+  for (const player of internals.players.values()) {
+    if (player.dead) continue;
+    if (circleHitsWall(player.position, GAME.playerRadius + FRACTURE_CLEARANCE, wall)) return true;
+  }
+  for (const drone of internals.drones.values()) {
+    if (circleHitsWall(drone.position, (drone.gameplayRadius ?? 12) + FRACTURE_CLEARANCE, wall)) return true;
+  }
+  for (const shape of internals.shapes.values()) {
+    if (circleHitsWall(shape.position, shape.radius + FRACTURE_CLEARANCE, wall)) return true;
+  }
+  return false;
+}
+
+/** Bricht 2–4 zufällige generierte Segmente auf. Feste Wände lehnt `setWallDisabled` ab. */
+function openFractureWalls(state: EventState, event: ServerArenaEvent): void {
+  state.fracture.openedForEventId = event.id;
+  // Segmente, die aus dem Vorgänger-Event noch auf freie Fläche warten, nicht doppelt zählen.
+  const pool = FRACTURABLE_WALL_IDS.filter((id) => !state.fracture.openWallIds.has(id));
+  const span = FRACTURE_MAX_WALLS - FRACTURE_MIN_WALLS + 1;
+  const count = FRACTURE_MIN_WALLS + Math.floor(Math.random() * span);
+  for (let index = 0; index < count && pool.length > 0; index += 1) {
+    const [id] = pool.splice(Math.floor(Math.random() * pool.length), 1);
+    if (id && setWallDisabled(id, true)) state.fracture.openWallIds.add(id);
+  }
+}
+
+/** Schließt jede aufgebrochene Wand, sobald ihre Fläche frei ist – belegte Wände bleiben offen. */
+function restoreFractureWalls(internals: EventInternals, state: EventState): void {
+  for (const id of [...state.fracture.openWallIds]) {
+    const wall = wallById(id);
+    if (wall && wallOccupied(internals, wall)) continue;
+    setWallDisabled(id, false);
+    state.fracture.openWallIds.delete(id);
+  }
+}
+
 /**
  * Setzt die beiden regelverändernden Arena-Events um: Overcharge greift
  * ausschließlich in das Projektil-Kollisionsverhalten ein, Hunter Signal stellt
@@ -373,8 +439,12 @@ export function tuneArenaEvents<T extends MazeGame>(game: T): T {
   const originalStep = game.step.bind(game);
   game.step = ((dt: number, now = Date.now()): void => {
     originalStep(dt, now);
-    const hunt = activeEventOfKind(game, 'hunterSignal');
 
+    const fracture = activeEventOfKind(game, 'fracture');
+    if (fracture && state.fracture.openedForEventId !== fracture.id) openFractureWalls(state, fracture);
+    else if (!fracture && state.fracture.openWallIds.size > 0) restoreFractureWalls(internals, state);
+
+    const hunt = activeEventOfKind(game, 'hunterSignal');
     if (state.guardianId) {
       const guardian = internals.players.get(state.guardianId);
       if (!guardian || guardian.dead || !hunt || hunt.id !== state.spawnedForEventId) {
@@ -389,9 +459,7 @@ export function tuneArenaEvents<T extends MazeGame>(game: T): T {
 
   const originalSnapshot = game.snapshot.bind(game);
   game.snapshot = ((selfId: string, now = Date.now()): WorldSnapshot => {
-    const snapshot = originalSnapshot(selfId, now) as WorldSnapshot &
-      Partial<GameplayWorldExtension> &
-      Partial<ArenaGuardianExtension>;
+    const snapshot = originalSnapshot(selfId, now) as WorldSnapshot & Partial<GameplayWorldExtension>;
     const guardianId = state.guardianId;
     snapshot.arenaGuardianId = guardianId;
     if (guardianId) snapshot.leaderboard = snapshot.leaderboard.filter((entry) => entry.id !== guardianId);
@@ -414,4 +482,9 @@ export function tuneArenaEvents<T extends MazeGame>(game: T): T {
 /** Aktueller neutraler Guardian (für Tests und andere Systeme). */
 export function arenaGuardianIdFor(game: MazeGame): string | null {
   return states.get(game)?.guardianId ?? null;
+}
+
+/** Aktuell durch Fracture aufgebrochene Wandsegmente (für Tests und Debug-Anzeigen). */
+export function fracturedWallIdsFor(game: MazeGame): string[] {
+  return [...(states.get(game)?.fracture.openWallIds ?? [])];
 }

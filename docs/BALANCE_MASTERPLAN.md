@@ -11,7 +11,7 @@ Der v2-Ausbau ist in `docs/MASTERPLAN_V2.md` beschrieben und umgesetzt.
 - genau ein aktives Core Module pro Leben
 - genau ein passiver Frame Modifier oder Standard Frame
 - Elite Shapes
-- drei rotierende Arena-Events: Core Surge, Overcharge, Hunter Signal
+- vier rotierende Arena-Events: Core Surge, Overcharge, Hunter Signal, Fracture
 - Bounty-System und Kill-Streaks
 - faire Bots mit Skill-Tiers, Anfängerschutz und Modul-Nutzung
 - Treffer-Feedback (Hit-Flash, Schadenszahlen, Shake) und Audio v2
@@ -194,7 +194,8 @@ Seltene goldene Farmziele erzeugen lokale Konflikte, ohne eine neue Steuerung ei
 
 ## Arena-Events
 
-Die Arena rotiert fest durch drei Events: **Core Surge → Overcharge → Hunter Signal**.
+Die Arena rotiert fest durch vier Events:
+**Core Surge → Overcharge → Hunter Signal → Fracture**.
 Damit dominiert kein Event die Session, und jedes bleibt wiedererkennbar.
 
 Gemeinsame Regeln:
@@ -202,6 +203,7 @@ Gemeinsame Regeln:
 - erstes Event ungefähr 65 Sekunden nach Serverstart
 - sichtbare Vorwarnung vor jeder aktiven Phase
 - markierte Zone im Zentrum, auf Karte und Minimap sichtbar
+  (Ausnahme: Fracture wirkt arenaweit, die Zone ist dort kein Hinweis)
 - nächstes Event frühestens ungefähr zwei Minuten nach dem Ende des vorherigen
 - alle Auswirkungen sind serverautoritativ und enden mit der aktiven Phase
 
@@ -248,11 +250,25 @@ dass jeder gestreifte Schuss vom Ziel abweicht – Overcharge belohnt Winkel, ni
 
 **Rolle:** gemeinsames PvE-Ziel, das PvP-Druck erzeugt, ohne jemanden zu zwingen.
 
+### Fracture
+
+- 8 Sekunden Vorwarnung, 40 Sekunden aktive Phase
+- zwei bis vier zufällige generierte Wandsegmente brechen für die aktive Phase auf
+- aufgebrochene Segmente sind passierbar, blocken keine Projektile und keine
+  Sichtlinien und werden nicht mehr an Clients übertragen
+- die festen `l*`-Wände brechen niemals auf – das Grundlayout bleibt wiedererkennbar
+- Bots profitieren wie Spieler: neue Sichtlinien und neue Wege gelten für alle
+- am Ende kehrt jedes Segment zurück, **aber erst, wenn seine Fläche frei ist**
+  (kein Spieler, keine Drohne, keine Form) – niemand wird eingemauert
+- eine belegte Wand bleibt so lange offen, bis der Bereich geräumt ist
+
+**Rolle:** verändert für kurze Zeit die Topologie statt der Werte. Bekannte
+Fluchtwege und Sichtachsen stimmen plötzlich nicht mehr – ohne dass irgendein
+Tank stärker oder schwächer wird.
+
 ### Spätere Event-Kandidaten
 
-- **Fracture:** temporär veränderte Durchgänge
-
-Fracture bleibt gesperrt, bis die drei bestehenden Events beobachtet wurden.
+Aktuell keine. Neue Events kommen erst, wenn die vier bestehenden beobachtet sind.
 
 ## Bounties
 
@@ -360,6 +376,10 @@ Regressionstests sichern unter anderem:
 - Overcharge: Puffer wird verbraucht, Geschosse bleiben zerstörbar
 - Hunter-Signal-Guardian: Schadensreduktion, Anfängerschutz, Kill-Belohnung, kein Respawn
 - Hunter-Signal-Guardian: kein Score, keine Bestenlisten- und Bounty-Teilnahme
+- Fracture: nur generierte Segmente brechen auf, feste `l*`-Wände nie
+- Fracture: offene Segmente sind passierbar, durchsichtig und nicht im Snapshot
+- Fracture: Reaktivierung wartet auf freie Fläche (Spieler, Drohnen, Formen)
+- Fracture: Event-Ende stellt alle Segmente wieder her
 - Bounty-Auslösung und Anti-Farming
 - Gatling-Spin-up
 - Storm-Projektilintegrität
