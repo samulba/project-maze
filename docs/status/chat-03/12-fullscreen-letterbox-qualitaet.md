@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 03
-
-> Kopie von `12-fullscreen-letterbox-qualitaet.md`. Diese Datei zeigt immer das
-> jüngste fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 12 – R1/R2/R4: Vollbild, Letterbox-Rand, Qualitätsstufen
 
 **Branch:** `claude/project-maze-fullscreen-quality-o2q3n4` · **Basis:** `origin/main` @ `d8568b6` · **Status: OFFEN – wartet auf Merge**
