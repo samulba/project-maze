@@ -332,6 +332,12 @@ export function passiveModifierFor(game: MazeGame, playerId: string): PassiveMod
   return loadoutFor(game, playerId).passiveModifier;
 }
 
+/** Bricht einen laufenden Repair-Zyklus ab (z. B. wenn ein Bot angreift, statt Inputs zu senden). */
+export function cancelRepairFor(game: MazeGame, playerId: string, now = Date.now()): void {
+  const loadout = stateFor(game).players.get(playerId);
+  if (loadout && loadout.repairEndsAt > now) cancelRepair(loadout);
+}
+
 export function modifierDefinition(id: PassiveModifierId) {
   return PASSIVE_MODIFIER_DEFINITIONS[id];
 }

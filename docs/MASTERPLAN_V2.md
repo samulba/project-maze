@@ -90,7 +90,7 @@ Neue Mechaniken:
   (lebender Schild); Hive führt zehn Mikro-Drohnen mit sehr schnellem
   Respawn, einzeln fast harmlos.
 - **Blitz/Comet:** Körperschaden skaliert mit aktueller Geschwindigkeit
-  (0,6× im Stand bis 1,5× bei Vollgas) – Rammen erfordert Anlauf, Camping
+  (0,6× im Stand bis 1,35× bei Vollgas) – Rammen erfordert Anlauf, Camping
   wird schwächer.
 
 ### B. Bots v2 – klüger *und* fairer

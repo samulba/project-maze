@@ -255,7 +255,7 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
   octo: classDef({
     id: 'octo', label: 'Octo', description: 'Acht Läufe decken jede Richtung ab – niemand flankiert dich.', parent: 'flanker',
     unlockLevel: 38, branch: 'rapid', maxHealth: 112, regen: 2.3, acceleration: 1500, moveSpeed: 268,
-    reload: 0.32, projectileSpeed: 855, projectileLife: 1.35, damage: 5.5, projectileRadius: 5.5,
+    reload: 0.3, projectileSpeed: 855, projectileLife: 1.35, damage: 6.5, projectileRadius: 5.5,
     penetration: 12, bodyDamage: 11, barrelCount: 8, barrelSpread: 0, barrelLength: 32,
     barrelAngles: [0, Math.PI / 4, Math.PI / 2, Math.PI * 3 / 4, Math.PI, -Math.PI * 3 / 4, -Math.PI / 2, -Math.PI / 4],
     droneCount: 0, droneRespawn: 0

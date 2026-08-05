@@ -47,7 +47,7 @@ const abilityText: Record<PlayerClass, string> = {
   deadeye: '+25 % Schaden auf Ziele unter 30 % Leben.',
   guardian: 'Fünf zähe Drohnen in engem Verteidigungsorbit.',
   hive: 'Zehn Mikro-Drohnen mit sehr schnellem Nachschub.',
-  blitz: 'Körperschaden wächst mit dem eigenen Tempo (0,6× bis 1,5×).',
+  blitz: 'Körperschaden wächst mit dem eigenen Tempo (0,6× bis 1,35×).',
   comet: 'Schnellster Tank der Arena – Vollgas-Rammen ist verheerend.'
 };
 

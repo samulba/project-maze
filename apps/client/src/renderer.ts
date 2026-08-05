@@ -110,6 +110,8 @@ export class GameRenderer {
   private wallsSignature='';
   private knownShapes=new Map<string,ShapeSnapshot>();
   private knownEliteIds=new Set<string>();
+  private hadArenaEvent=false;
+  private suppressShapeRewardsUntil=0;
   private lastSnapshotAt=performance.now();
 
   async init(root:HTMLElement):Promise<void>{
@@ -240,14 +242,18 @@ export class GameRenderer {
   }
 
   private syncShapeEffects(snapshot:WorldSnapshot):void{
-    const extended=snapshot as WorldSnapshot&{eliteShapeIds?:string[]};
+    const extended=snapshot as WorldSnapshot&{eliteShapeIds?:string[];arenaEvent?:{phase:string}|null};
     const previousElites=this.knownEliteIds;
     this.knownEliteIds=new Set(extended.eliteShapeIds??[]);
+    if(this.hadArenaEvent&&!extended.arenaEvent)this.suppressShapeRewardsUntil=performance.now()+1500;
+    this.hadArenaEvent=Boolean(extended.arenaEvent);
+    const self=snapshot.players.find(player=>player.id===snapshot.selfId);
+    const suppressed=performance.now()<this.suppressShapeRewardsUntil;
     const shapes=new Map(snapshot.shapes.map(shape=>[shape.id,shape] as const));
     for(const[id,previous]of this.knownShapes){
       const current=shapes.get(id);
       if(current&&current.health<previous.health)this.particles.burst(current.position,this.shapeColor(current),3,85,.18);
-      if(!current&&this.distanceToSelf(previous.position)<GAME.viewRadius*.88){
+      if(!current&&!suppressed&&self&&this.wellInsideView(previous.position,self.position)){
         const elite=previousElites.has(id);
         this.particles.burst(previous.position,elite?0xf4c866:this.shapeColor(previous),elite?22:10,elite?260:170,elite?.55:.38);
         if(elite)this.rings.push({position:{...previous.position},life:.55,maxLife:.55,maxRadius:110,color:0xf4c866,width:4});
@@ -256,6 +262,11 @@ export class GameRenderer {
       }
     }
     this.knownShapes=shapes;
+  }
+
+  /** Deutlich innerhalb des Server-Cull-Rechtecks – Despawns an der Sichtkante zählen nicht als Kill. */
+  private wellInsideView(position:Vector2,center:Vector2):boolean{
+    return Math.abs(position.x-center.x)<=GAME.visibleWorldWidth/2-60&&Math.abs(position.y-center.y)<=GAME.visibleWorldHeight/2-60;
   }
 
   private render(delta:number):void{
@@ -616,5 +627,4 @@ export class GameRenderer {
 
   private ownerColor(ownerId:string):number{return ownerId===this.selfId?this.palette.self:this.palette.enemy}
   private shapeColor(shape:ShapeSnapshot):number{return shape.kind==='square'?this.palette.square:shape.kind==='triangle'?this.palette.triangle:this.palette.pentagon}
-  private distanceToSelf(position:Vector2):number{const self=this.selfId?this.playerViews.get(this.selfId):undefined;return self?Math.hypot(position.x-self.current.x,position.y-self.current.y):Infinity}
 }

@@ -10,7 +10,7 @@ import type { ActiveModuleId, PassiveModifierId } from '@project-maze/shared/gam
 import { bountyTargetIdFor } from './arena-systems.js';
 import { tunedStatsFor } from './combat-tuning.js';
 import { MazeGame } from './game.js';
-import { activateModule, equipLoadout } from './loadout-system.js';
+import { activateModule, cancelRepairFor, equipLoadout } from './loadout-system.js';
 import { distanceSquared, normalize } from './physics.js';
 import { hasLineOfSight } from './world.js';
 
@@ -216,7 +216,7 @@ export function tuneBotBrain<T extends MazeGame>(game: T): T {
     return counts;
   };
 
-  internals.updateBot = (player: RuntimePlayer, now: number): void => {
+  const think = (player: RuntimePlayer, now: number): void => {
     const bot = player.bot;
     if (!bot) return;
     const brain = brainFor(player);
@@ -371,6 +371,18 @@ export function tuneBotBrain<T extends MazeGame>(game: T): T {
     const range = Math.min(bot.style === 'kiter' ? 1150 : 900, stats.projectileSpeed * stats.projectileLife * 0.92 + 60);
     const reactionReady = !enemy || now - brain.targetAcquiredAt >= profile.reactionMs * 0.5;
     player.primary = distance < range && reactionReady;
+  };
+
+  internals.updateBot = (player: RuntimePlayer, now: number): void => {
+    if (!player.bot) return;
+    think(player, now);
+    // Dieselben Regeln wie für echte Eingaben: Handeln beendet Spawn-Schutz und Repair.
+    const acting = Math.hypot(player.move.x, player.move.y) > 0.12 || player.primary || player.secondary;
+    if (player.invulnerable && acting) {
+      player.invulnerable = false;
+      player.invulnerableUntil = 0;
+    }
+    if (player.primary || player.secondary) cancelRepairFor(game, player.id, now);
   };
 
   const originalRemovePlayer = game.removePlayer.bind(game);

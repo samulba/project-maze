@@ -67,7 +67,7 @@ describe('simulation hardening', () => {
     const standing = measureRamDamage(0);
     const fullSpeed = measureRamDamage(320);
     expect(standing).toBeGreaterThan(0);
-    expect(fullSpeed / standing).toBeCloseTo(1.5 / 0.6, 1);
+    expect(fullSpeed / standing).toBeCloseTo(1.35 / 0.6, 1);
   });
 
   it('resolves a projectile pair only once', () => {

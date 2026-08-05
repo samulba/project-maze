@@ -36,14 +36,14 @@ const hitSet = (projectile: object): Set<string> => {
   projectileHits.set(projectile, created);
   return created;
 };
-/** Blitz/Comet: Körperschaden skaliert mit dem aktuellen Tempo (0,6× im Stand bis 1,5× bei Vollgas). */
+/** Blitz/Comet: Körperschaden skaliert mit dem aktuellen Tempo (0,6× im Stand bis 1,35× bei Vollgas). */
 const MOMENTUM_CLASSES = new Set(['blitz', 'comet']);
 const momentumMultiplier = (player: RuntimePlayer): number => {
   if (!MOMENTUM_CLASSES.has(player.playerClass)) return 1;
   const definition = CLASS_DEFINITIONS[player.playerClass];
   const speed = Math.hypot(player.velocity.x, player.velocity.y);
   const ratio = Math.min(1, speed / Math.max(1, definition.moveSpeed));
-  return 0.6 + ratio * 0.9;
+  return 0.6 + ratio * 0.75;
 };
 const bodyDamage = (player: RuntimePlayer): number => {
   const definition = CLASS_DEFINITIONS[player.playerClass];

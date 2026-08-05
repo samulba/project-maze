@@ -216,6 +216,7 @@ export class GameUI {
   enterGame(): void {
     if (this.entered) return;
     this.entered = true;
+    this.runStartedAt = Date.now();
     this.root.classList.add('playing');
     this.start.classList.add('leaving');
     window.setTimeout(() => this.start.remove(), 360);

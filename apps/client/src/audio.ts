@@ -13,7 +13,8 @@ export class GameAudio {
   private volume: number;
 
   constructor() {
-    const stored = Number(window.localStorage.getItem(VOLUME_KEY));
+    const raw = window.localStorage.getItem(VOLUME_KEY);
+    const stored = raw === null ? Number.NaN : Number(raw);
     this.volume = Number.isFinite(stored) && stored >= 0 && stored <= 1 ? stored : 0.8;
   }
 
