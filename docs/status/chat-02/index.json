@@ -1,0 +1,96 @@
+{
+  "chat": "02",
+  "revier": "Server-Gameplay (apps/server)",
+  "faesst_nicht_an": ["packages/shared", "apps/client"],
+  "aktualisiert": "2026-08-05",
+  "latest": "08-input-ack-prediction.md",
+  "offene_pakete": 1,
+  "pakete": [
+    {
+      "nr": 1,
+      "titel": "Arena-Events: Overcharge und Hunter Signal",
+      "datei": "01-arena-events-overcharge-hunter.md",
+      "branch": "claude/arena-events-overcharge-hunter-s4sipx",
+      "basis": "claude/app-analysis-masterplan-lxao21@1f7e911",
+      "status": "in main",
+      "tests": "12 neu / 76 gesamt",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 2,
+      "titel": "Arena-Event: Fracture",
+      "datei": "02-fracture-event.md",
+      "branch": "claude/arena-events-overcharge-hunter-s4sipx",
+      "basis": "main@5803ce7",
+      "status": "in main",
+      "tests": "11 neu / 94 gesamt",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 3,
+      "titel": "Snapshot-Bandbreite: Runden und Deltas (-40 %)",
+      "datei": "03-snapshot-encoding.md",
+      "branch": "claude/arena-events-overcharge-hunter-s4sipx",
+      "basis": "main@050b51f",
+      "status": "in main",
+      "tests": "12 neu / 206 gesamt",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 4,
+      "titel": "Achievement-Engine (Sprint B)",
+      "datei": "04-achievement-engine.md",
+      "branch": "claude/achievements-engine-sprint-b",
+      "basis": "main@2e81500",
+      "status": "in main",
+      "tests": "18 neu / 252 gesamt",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 5,
+      "titel": "Arena-Direktor: dynamische Bot-Population",
+      "datei": "05-arena-director.md",
+      "branch": "claude/arena-director-bot-population",
+      "basis": "main@017d7eb",
+      "status": "in main",
+      "tests": "22 neu / 315 gesamt",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 6,
+      "titel": "Kurze Netz-IDs (-45 % gesamt)",
+      "datei": "06-short-net-ids.md",
+      "branch": "claude/short-net-ids",
+      "basis": "main@08e4d91",
+      "status": "in main",
+      "tests": "10 neu / 367 gesamt",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 7,
+      "titel": "Spectator nach dem Tod + Analyse des Projektiltempo-Daempfers",
+      "datei": "07-spectator-und-daempfer-analyse.md",
+      "branch": "claude/spectator-after-death",
+      "basis": "main@0d822fe",
+      "status": "in main",
+      "tests": "13 neu / 412 gesamt",
+      "braucht_von_01": [
+        "spectatorTargetId in applyShortIds umschreiben, sobald der Typ als NetId steht (zieht 02 nach)"
+      ]
+    },
+    {
+      "nr": 8,
+      "titel": "Input-Quittung fuer die Client-Prediction",
+      "datei": "08-input-ack-prediction.md",
+      "branch": "claude/input-ack-prediction",
+      "basis": "main@0daa9f0",
+      "status": "offen",
+      "tests": "13 neu / 439 gesamt",
+      "braucht_von_01": [
+        "lastProcessedInput: number in WorldSnapshot (+ WireWorldSnapshot); nicht in applyShortIds, nicht in die Delta-Logik",
+        "ACCELERATION_SCALE nach packages/shared verlagern (Empfehlung), damit Client-Prediction denselben Faktor nutzt",
+        "Client 03: docs/CLIENT_PREDICTION.md umsetzen, Korrektur weich statt hart"
+      ]
+    }
+  ]
+}
