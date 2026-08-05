@@ -25,6 +25,7 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 | # | Paket | Branch | Commit | Tests | Status |
 | --- | --- | --- | --- | --- | --- |
+| [09](./09-balance-live-auswertung.md) | Balance-Live-Auswertung (`npm run balance:live`) | `claude/maze-balance-live-dfb335` | `263fd5c` | 487 ✔ | **offen** |
 | [08](./08-client-perf-telemetrie.md) | Client-Perf-Telemetrie (Server-Seite) + Spec für 03 | `claude/maze-client-perf-telemetry-dfb335` | `69ade20` | 443 ✔ | **offen** |
 | [07](./07-profil-backend.md) | Profil-Backend: `POST /profile`, Lieblingsklasse | `claude/maze-profile-backend-dfb335` | `b986baf` | 429 ✔ | gemerged |
 | [06](./06-rate-limits.md) | Rate-Limits & Missbrauchsschutz | `claude/maze-rate-limits-abuse-dfb335` | `ea2e4ec` | 389 ✔ | gemerged |
@@ -36,6 +37,12 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 ## Offene Punkte für die Zentrale
 
+- **Paket 09 (Balance-Live-Auswertung) wartet auf Review und Merge.** Erst
+  danach liefert die Live-Instanz `telemetryVersion 3` – also Familie, exakte
+  Lebenszeit und Kills/Minute, die `npm run balance:live` auswertet. Der Ablauf
+  für die KL5-Runde steht in `docs/TELEMETRY.md` → „Balance-Runde fahren in
+  5 Minuten"; der Vorher-Abzug muss **vor** dem Deploy der Änderung entstehen,
+  weil der Redeploy alle Zähler zurücksetzt.
 - **Paket 08 (Client-Perf-Telemetrie) wartet auf Review und Merge.**
 - **Für Chat 03 liegt in Bericht 08 eine vollständige Sender-Spezifikation**
   (wann sampeln, wie FPS robust messen, wie `deviceClass` und `quality`
@@ -93,5 +100,6 @@ Standard – ohne sie verhält sich der Server wie vorher:
 | `apps/server/src/rate-limits.ts` | Limits je IP und Verbindung, `abuse`-Zähler |
 | `apps/server/src/client-metrics.ts` | anonyme FPS-/Geräteberichte, `POST /client-metrics` |
 | `scripts/loadtest.mjs` | N simulierte Clients, Join-Erfolg, Snapshot-Latenz |
+| `scripts/balance-live.mjs` | Live-Balance aus `/metrics`: Tabellen, Watchlist, Zeitvergleich |
 | `supabase/migrations/*` | `runs`, `profiles`, `achievements`, `profile_stats` |
 | `docs/TELEMETRY.md`, `docs/SUPABASE.md`, `docs/DEPLOYMENT.md` | Betriebsdoku |
