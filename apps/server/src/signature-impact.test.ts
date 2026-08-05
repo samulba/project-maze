@@ -22,12 +22,18 @@ const IMPACT_CLASSES = PLAYER_CLASS_IDS.filter((id) => CLASS_DEFINITIONS[id].bra
 
 interface Internals {
   players: Map<string, any>;
+  shapes: Map<string, any>;
   resolvePlayerCollisions(now: number): void;
 }
 
 const setup = (attackerClass: PlayerClass, victimClass: PlayerClass, level: number, enabled = true) => {
   const game = tuneImpactSignature(tuneCombatScaling(new MazeGame(0)), enabled);
   const internals = game as unknown as Internals;
+  // Shapes spawnen zufällig – die Läufe „ohne" und „mit" Wucht sind zwei
+  // verschiedene Welten. Eine Shape am Messpunkt würde dem Opfer zusätzlichen
+  // Körperschaden geben und die Zeit-bis-Tod-Messung vom Zufall abhängig
+  // machen (Teamplan-Regel 8).
+  internals.shapes.clear();
   const attackerId = game.addPlayer('Ramme');
   const victimId = game.addPlayer('Opfer');
   const attacker = internals.players.get(attackerId);

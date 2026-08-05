@@ -4,18 +4,17 @@
 
 ## Zuletzt auf main gemerged
 
-- 02 KL2-RAPID „Momentum" (SIGNATURE_RAPID_ENABLED, Default aus – wartet auf
-  den Balken von 03)
-- 03 „Neon raus" (Startscreen ohne Verläufe/Halo, Glow-Inventur, Palette II)
-- 04 Balance-Live-Auswertung (scripts/balance-live.mjs, --baseline-Vergleich)
-- davor heute: Aggro-Pacing, R3 Mobile, Client-Perf-Telemetrie, Profil-Backend,
-  Ruhe & Gewicht + Spectator, Input-Quittung, Masterplan v4 + Phase 0
+- 02 KL2-IMPACT „Wucht" (SIGNATURE_IMPACT_ENABLED; Anlauf = Rammschaden ×2,5,
+  wird beim Aufprall verbraucht; TTK-Deckel 25 % als Testinvariante)
+- 03 Signature-HUD (Balken am Tank + Wort im Panel, generisch) + Perf-Sender
+- 01 Design: Grundton eine Stufe heller (Sam: „zu düster war ein Irrtum")
+- davor: Momentum, Neon raus, Balance-Live, Aggro-Pacing, R3 Mobile, …
 
 ## Flags live (Railway)
 
 `SNAPSHOT_DELTAS=true` · `SHORT_NET_IDS=true` · `ACHIEVEMENTS_ENABLED=true` ·
 `AUTH_ENABLED=true` · Rate-Limits/Direktor default-an ·
-`SPECTATOR_ENABLED=true` · **`SIGNATURE_RAPID_ENABLED` → erst nach 03s Signature-HUD zünden**
+`SPECTATOR_ENABLED=true` · **`SIGNATURE_RAPID_ENABLED` + `SIGNATURE_IMPACT_ENABLED` → JETZT zündbar (HUD ist da)**
 
 ## Erwartet als Nächstes
 
