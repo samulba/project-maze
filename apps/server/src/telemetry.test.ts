@@ -93,6 +93,52 @@ describe('telemetry', () => {
     expect(core?.averageLifetimeSeconds).toBeLessThan(10);
   });
 
+  it('exports family, exact lifetime and kills per minute for classes, modules and frames', () => {
+    const game = createGame();
+    const hunterId = game.addPlayer('Hunter');
+    const preyId = game.addPlayer('Prey');
+    const internals = game as unknown as Internals;
+    const now = Date.now();
+
+    equipLoadout(game, hunterId, 'repulse', 'lightweight', now);
+    equipLoadout(game, preyId, 'repair', 'reinforced', now);
+    game.snapshot(hunterId, now);
+    game.snapshot(preyId, now);
+    game.step(1 / 40, now);
+
+    internals.killPlayer(internals.players.get(preyId), hunterId, now + 9_000, 'Arena');
+
+    const report = telemetryReport(game);
+    expect(report.telemetryVersion).toBe(3);
+    // Familie je Klasse – ohne sie müsste die Auswertung den Klassenkatalog kennen.
+    expect(report.classes.find((entry) => entry.id === 'core')?.branch).toBe('core');
+    expect(report.classes.find((entry) => entry.id === 'twin')?.branch).toBe('rapid');
+    expect(report.classes.find((entry) => entry.id === 'juggernaut')?.branch).toBe('impact');
+
+    // Exakte Summe statt gerundetem Mittelwert × Leben: Basis jeder Aggregation.
+    const core = report.classes.find((entry) => entry.id === 'core');
+    expect(core?.lifetimeSeconds).toBe(9);
+    expect(core?.killsPerMinute).toBeCloseTo(60 / 9, 1);
+
+    // Das Loadout beim Tod erbt die Lebensspanne – wie schon Deaths.
+    expect(report.modules.find((entry) => entry.id === 'repair')?.lives).toBe(1);
+    expect(report.modules.find((entry) => entry.id === 'repair')?.lifetimeSeconds).toBe(9);
+    expect(report.frames.find((entry) => entry.id === 'reinforced')?.lifetimeSeconds).toBe(9);
+
+    // Der Killer lebt noch: Kills ja, abgeschlossenes Leben nein – und dann
+    // sind Kills/Minute 0 statt einer Division durch null.
+    const repulse = report.modules.find((entry) => entry.id === 'repulse');
+    expect(repulse?.kills).toBe(1);
+    expect(repulse?.lives).toBe(0);
+    expect(repulse?.lifetimeSeconds).toBe(0);
+    expect(repulse?.killsPerMinute).toBe(0);
+
+    const text = renderMetricsText(game);
+    expect(findMetric(text, 'maze_lives_total{class="core"')).toHaveLength(1);
+    expect(findMetric(text, 'maze_module_life_seconds_total{module="repair"')).toHaveLength(1);
+    expect(findMetric(text, 'maze_frame_life_seconds_total{frame="reinforced"')).toHaveLength(1);
+  });
+
   it('never counts a death twice when a dead tank is killed again', () => {
     const game = createGame();
     const preyId = game.addPlayer('Prey');

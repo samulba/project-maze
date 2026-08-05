@@ -29,6 +29,7 @@ npm run typecheck
 npm run test
 npm run build
 npm run balance   # Balance-Report für Klassen, Module und Frames
+npm run balance:live  # Live-Balance einer laufenden Instanz aus /metrics
 npm run loadtest  # N simulierte Clients gegen eine laufende Arena
 npm run check     # Typecheck + Tests + Build
 npm start         # Produktion: ein Prozess liefert Client + Server (siehe docs/DEPLOY.md)
@@ -53,6 +54,13 @@ Kills/Deaths je Klasse, Core Module und Frame – und exportiert sie über
 IDs oder Adressen gespeichert. Abschaltbar über `TELEMETRY_ENABLED=false`,
 absicherbar über `METRICS_TOKEN`. Details in
 [`docs/TELEMETRY.md`](docs/TELEMETRY.md).
+
+`npm run balance:live -- --url <instanz>` macht daraus ohne Umweg über
+Prometheus die Tabellen für eine Balance-Runde: Pickrate, K/D, mittlere
+Lebensdauer und Kills/Minute je Klasse, Familie, Core Module und Frame, dazu
+eine Watchlist aller Ausreißer gegen den Familien-Median. `--json` schreibt
+einen Abzug weg, `--baseline <datei>` wertet später das reine Zeitfenster seit
+diesem Abzug aus – so wird sichtbar, was eine Änderung wirklich bewegt hat.
 
 ## Globales Leaderboard (optional)
 

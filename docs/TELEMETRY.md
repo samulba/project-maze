@@ -95,6 +95,12 @@ maze_frame_deaths_total{frame,subject}       Counter Deaths je Frame
 maze_lives_total{class,subject}              Counter abgeschlossene Leben
 maze_life_seconds_total{class,subject}       Counter summierte Lebensdauer
 maze_life_seconds_max{class,subject}         Gauge   längstes Leben
+maze_module_lives_total{module,subject}      Counter abgeschlossene Leben je Modul
+maze_module_life_seconds_total{module,…}     Counter summierte Lebensdauer je Modul
+maze_module_life_seconds_max{module,…}       Gauge   längstes Leben je Modul
+maze_frame_lives_total{frame,subject}        Counter abgeschlossene Leben je Frame
+maze_frame_life_seconds_total{frame,…}       Counter summierte Lebensdauer je Frame
+maze_frame_life_seconds_max{frame,…}         Gauge   längstes Leben je Frame
 
 maze_tick_duration_seconds{quantile}         Gauge   p50/p95 der Simulation (60-s-Fenster)
 maze_tick_duration_seconds_max               Gauge   langsamster Tick im Fenster
@@ -110,6 +116,153 @@ maze_tick_overruns_total                     Counter Ticks über Budget
 
 Serien ohne Messwert werden weggelassen – frisch gestartete Server liefern eine
 kurze Antwort statt 29 × 2 Nullzeilen.
+
+Modul und Frame erben die Lebensdauer vom Loadout **im Moment des Todes** –
+genauso, wie es die Deaths schon immer tun. Wer mitten im Leben das Modul
+wechselt, schreibt die ganze Lebensspanne dem zuletzt getragenen zu.
+
+### JSON-Bericht
+
+`?format=json` liefert dieselben Zahlen als fertigen Bericht. Jeder Eintrag
+unter `classes`, `modules` und `frames` trägt neben `picks`, `pickRate`,
+`kills`, `deaths` und `killsPerDeath` auch:
+
+| Feld | Bedeutung |
+| --- | --- |
+| `lives` | abgeschlossene Leben |
+| `lifetimeSeconds` | **exakte** Summe aller Lebensspannen – die Basis jeder Aggregation |
+| `averageLifetimeSeconds` | mittlere Lebensdauer |
+| `longestLifetimeSeconds` | längstes Leben |
+| `killsPerMinute` | Kills je gelebter Minute |
+
+Klasseneinträge tragen zusätzlich `tier` und `branch` (`core`, `rapid`,
+`precision`, `control`, `impact`). Damit kann eine Auswertung nach Familien
+gruppieren, ohne den Klassenkatalog zu kennen – wichtig, wenn sie gegen eine
+Instanz läuft, deren Stand von der eigenen Arbeitskopie abweicht.
+
+`telemetryVersion` zählt die Struktur des Berichts mit: **v3** ist der erste
+Stand mit `branch`, `lifetimeSeconds`, `killsPerMinute` und den Lebensdauern je
+Modul und Frame.
+
+## Balance-Runde fahren in 5 Minuten
+
+`npm run balance` rechnet die Klassen auf dem Papier durch. `npm run balance:live`
+holt daneben, was in der echten Arena passiert ist – dieselben Klassen, aber mit
+Pickrate, K/D, mittlerer Lebensdauer und Kills/Minute aus dem laufenden Betrieb,
+zusätzlich je Familie und je Core Module / Frame.
+
+### Minute 1 – Abzug holen
+
+```bash
+npm run balance:live -- --url https://mazers.de
+```
+
+Ist `/metrics` mit einem Token geschützt, kommt es aus `METRICS_TOKEN` (ENV) oder
+`--token <token>`; die URL selbst geht auch über `METRICS_URL`. Ohne Schema wird
+`https` angenommen, nur lokale Adressen bleiben `http` – ein Token soll nicht
+versehentlich im Klartext rausgehen. Das Skript braucht nichts weiter: keinen
+gebauten Workspace, keine Datenbank, keinen Klassenkatalog. Familie, Tier und
+Beschriftungen kommen aus dem Export, deshalb stimmt die Auswertung auch gegen
+eine Instanz, die einen anderen Stand fährt als die eigene Arbeitskopie.
+
+Voreingestellt ist `subject=human` – Bots sollen die Balance-Sicht nicht
+verwässern. `--subject all` oder `--subject bot` zeigt die andere Seite.
+
+### Minute 2 – Watchlist lesen
+
+Unter jeder Tabelle steht die **Watchlist**: alles, was mehr als das 1,5-fache
+oder weniger als das 0,67-fache seines Vergleichsmedians erreicht.
+
+```text
+WATCHLIST
+
+  ▼ Standard Frame   Kills/min        0.50  gegen      1.75  ×0.29  (Gruppen-Median)
+  ▲ Precision        K/D              2.20  gegen      0.67  ×3.30  (Gruppen-Median)
+  ▲ Dash             Pickrate       61.5 %  gegen    23.1 %  ×2.67  (Gruppen-Median)
+```
+
+Drei Dinge sind dabei absichtlich so gebaut:
+
+- **Klassen vergleichen sich mit ihrer Familie**, nicht mit dem ganzen Feld –
+  ein Impact-Tank soll nicht daran gemessen werden, dass Rapid mehr Kills macht.
+  `--peer tier` schaltet auf den Vergleich innerhalb derselben Stufe um; das ist
+  die ehrlichere Frage, wenn ein Tier-3-Endpfad auffällig aussieht, weil in
+  seiner Familie auch die schwächeren Vorstufen im Median hängen.
+- **Dünne Stichproben werden mit `·` markiert statt bewertet.** Wer die
+  Mindest-Stichprobe (`--min-samples`, Default 5) nicht erreicht, geht weder in
+  den Median ein noch auf die Watchlist. Ebenso braucht eine Vergleichsgruppe
+  mindestens drei taugliche Zeilen, sonst ist ihr Median Zufall und kein Maß.
+- **Jede Kennzahl hat ihre eigene Stichprobe**: Pickrate zählt Picks, K/D zählt
+  Deaths, Lebensdauer und Kills/Minute zählen abgeschlossene Leben.
+
+Grenzen verstellbar über `--outlier-high` / `--outlier-low`, sortieren über
+`--sort pickRate|killsPerDeath|averageLifetimeSeconds|killsPerMinute|picks|kills|deaths|lives|id`
+und `--asc`.
+
+### Minute 3 – Abzug sichern
+
+**Vor** jeder Balance-Änderung einen Abzug wegschreiben:
+
+```bash
+npm run balance:live -- --url https://mazers.de --json > docs/balance/2026-08-05-vorher.json
+```
+
+Das ist dasselbe JSON, das `--baseline` später erwartet. Es enthält die
+Rohzähler, nicht nur die fertigen Quoten – nur so lässt sich hinterher ein
+sauberes Zeitfenster rechnen.
+
+### Minute 4 – ändern und laufen lassen
+
+Änderung deployen, die Arena ein paar Stunden laufen lassen. Wichtig: die
+Zähler leben im Prozessspeicher und starten bei jedem Deploy bei null. Der
+Abzug aus Minute 3 muss also **vor** dem Deploy entstehen, wenn er eine echte
+Vorher-Sicht sein soll.
+
+### Minute 5 – Zeitvergleich
+
+```bash
+npm run balance:live -- --url https://mazers.de --baseline docs/balance/2026-08-05-vorher.json
+```
+
+Sind die Zähler seit dem Abzug nur gewachsen, rechnet das Skript das **reine
+Zeitfenster** (`aktuell − Baseline`) und zeigt genau, was *seit* der Änderung
+passiert ist – nicht den verwaschenen Gesamtdurchschnitt:
+
+```text
+ZEITFENSTER seit 2026-08-05T20:52:07.357Z  (3 h 10 min)
+
+  GRÖSSTE BEWEGUNGEN (Pickrate)
+
+  Klasse           Pickrate         Δ    K/D       Δ  ⌀ Leben        Δ  K/min       Δ
+  ───────────────────────────────────────────────────────────────────────────────────
+  Rapid              12.5 %  −30.4 pp   0.00   −1.00   40.5 s  +40.5 s   0.00   +0.00
+  Controller         25.0 %  +10.7 pp   1.00   +0.00  106.1 s +106.1 s   0.57   +0.57
+```
+
+Ist ein Zähler unterwegs kleiner geworden – oder die Laufzeit gesunken –, wurde
+der Server zwischendurch neu gestartet. Dann ist kein Fenster rekonstruierbar,
+und das Skript sagt das ausdrücklich, statt zwei unvergleichbare Stände
+nebeneinanderzustellen:
+
+```text
+VERGLEICH mit 2026-08-05T18:00:00.000Z
+
+  ! Die Zähler sind seit dem Abzug nicht durchgehend gewachsen – der Server
+    wurde zwischendurch neu gestartet.
+```
+
+Zeilen, die sich im Fenster nicht bewegt haben, werden ausgeblendet (`--all`
+zeigt alle), und `--top` steuert die Länge der Bewegungsliste.
+
+### Was am Ende in die Balance-Runde geht
+
+Die Watchlist ist der Vorschlag, nicht das Urteil. Ein `▲` heißt „das fällt
+statistisch aus der Familie", nicht „das ist zu stark": Eine hohe Pickrate kann
+auch heißen, dass die Klasse früh im Baum liegt, und eine hohe Lebensdauer, dass
+niemand sie angreift. Der Abgleich mit `npm run balance` – der rechnerischen
+Sicht auf dieselben Klassen – trennt beides: Ein Fund, den beide Seiten zeigen,
+ist ein Balance-Problem; einer, den nur die Live-Zahlen zeigen, ist meistens
+eine Frage der Spielweise.
 
 ## Tick-Gesundheit – die Kapazitätskennzahl
 
@@ -258,6 +411,10 @@ Zusammen mit `npm run balance` – der rechnerischen Sicht auf dieselben Klassen
 lässt sich prüfen, ob die theoretischen Korridore im echten Spiel halten. Eine
 Klasse mit sauberen Report-Werten, aber halbierter Lebensdauer und einstelliger
 Pickrate ist ein Balance-Fund, den kein Testlauf liefert.
+
+Wer kein Prometheus davorstehen hat, bekommt dieselbe Auswertung fertig
+gerechnet über `npm run balance:live` – siehe
+[Balance-Runde fahren in 5 Minuten](#balance-runde-fahren-in-5-minuten).
 
 ## Grenzen
 
