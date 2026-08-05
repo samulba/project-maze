@@ -228,6 +228,21 @@ Danach gibt es die Tabelle `profiles` und in `runs` die neue Spalte `user_id`.
 Beide bleiben leer beziehungsweise `NULL`, bis der Login wirklich läuft – die
 Migration allein ändert am Spiel nichts.
 
+## Schritt 6b – Migration 0003 einspielen (Achievements und Profile)
+
+Gleicher Ablauf mit der dritten Datei:
+[`supabase/migrations/20260805140000_0003_achievements.sql`](../supabase/migrations/20260805140000_0003_achievements.sql).
+
+Sie legt an:
+
+- die Tabelle `achievements` (Konto + Achievement-ID, zusammengesetzter
+  Primärschlüssel – ein Konto kann jedes Achievement genau einmal besitzen)
+- die View `profile_stats`, die die Bestleistungen je Konto direkt in der
+  Datenbank aggregiert, damit `GET /profile/:userId` mit einer Abfrage auskommt
+
+Auch hier gilt: RLS an, keine erlaubende Policy, nur der Service-Role-Key
+kommt heran. Ohne Login bleibt beides leer.
+
 ## Schritt 7 – Google-Zugangsdaten in der Google Cloud Console
 
 Das ist der längste Teil, weil Google viele Menüpunkte hat. Halte die
@@ -350,6 +365,65 @@ oben. Steigt nur `rejected`, verrät `lastRejectionReason` den Grund:
 - Fehlt das Token oder ist es ungültig, spielt die Person als Gast weiter. Ein
   kaputter Login sperrt niemanden aus.
 
+## Achievements und Profil
+
+Sobald ein Spieler über den Login einem Konto zugeordnet ist, speichert der
+Server dessen freigeschaltete Achievements dauerhaft. Drei Bedingungen müssen
+dafür zusammenkommen – fehlt eine, passiert schlicht nichts:
+
+1. Supabase ist konfiguriert (`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`)
+2. der Login läuft (`AUTH_ENABLED=true`) und der Spieler ist angemeldet
+3. die Achievement-Engine läuft (`ACHIEVEMENTS_ENABLED=true`)
+
+**Beim Join** holt der Server die bereits gespeicherten Achievements des Kontos
+und spiegelt sie in die laufende Engine. Damit schaltet ein wiederkehrender
+Spieler nichts doppelt frei – weder als Popup noch als neue Datenbankzeile.
+Der Join wartet nie darauf; das Vorladen läuft im Hintergrund.
+
+**Während des Spiels** vergleicht der Server alle fünf Sekunden (und beim
+Verlassen der Arena sowie beim Herunterfahren) den Stand der Engine mit dem
+Gespeicherten und puffert nur die Differenz. Geschrieben wird gebündelt und
+außerhalb der Simulation – exakt wie bei den Runs.
+
+### `GET /profile/:userId`
+
+```json
+{
+  "userId": "3f2504e0-…",
+  "displayName": "Ada Lovelace",
+  "memberSince": "2026-08-01T09:00:00.000Z",
+  "stats": {
+    "runs": 12, "bestScore": 9000, "bestLevel": 32, "bestKills": 14,
+    "bestStreak": 7, "longestRunSeconds": 421.3, "totalKills": 88,
+    "totalSeconds": 3600, "firstRunAt": "…", "lastRunAt": "…"
+  },
+  "achievements": [
+    { "id": "firstStreak5", "name": "Lauf ohne Ende",
+      "description": "Erreiche eine Serie von fünf Abschüssen, ohne zu sterben.",
+      "unlockedAt": "2026-08-05T10:00:00.000Z" }
+  ],
+  "cachedAt": "2026-08-05T10:00:12.000Z",
+  "cacheSeconds": 30
+}
+```
+
+Die Namen und Beschreibungen kommen aus dem gemeinsamen Katalog – der Client
+muss sie nicht doppelt vorhalten.
+
+| Antwort | Bedeutung |
+| --- | --- |
+| `200` | Profil gefunden (30 s gecacht, wie `/leaderboard`) |
+| `400` | Die ID ist keine gültige UUID – kostet keine Datenbankabfrage |
+| `404` | Persistenz aus, oder das Konto hat weder Runs noch Achievements |
+| `503` | Supabase antwortet nicht und es liegt nichts im Cache |
+
+Die Route ist öffentlich. Deshalb werden ungültige IDs sofort abgewiesen, und
+auch ein „kenne ich nicht" wird gecacht: Wer zufällige UUIDs durchprobiert,
+trifft die Datenbank nur beim ersten Mal. Der Cache fasst 200 Konten.
+
+`/health` zeigt unter `persistence` zusätzlich `achievementsQueued` und
+`achievementsWritten`.
+
 ## Konten und Datenschutz
 
 - Gespeichert wird nur, was das Spiel anzeigt: Konto-ID und Anzeigename in
@@ -358,8 +432,8 @@ oben. Steigt nur `rejected`, verrät `lastRejectionReason` den Grund:
 - `runs.user_id` ist `NULL` bei allen Gast-Runs; das ist und bleibt der
   Normalfall.
 - Löscht jemand sein Konto (Supabase → **Authentication → Users** → Nutzer →
-  **Delete user**), verschwinden Profil und zugeordnete Runs mit. Gast-Runs
-  bleiben, weil sie keiner Person zugeordnet sind.
+  **Delete user**), verschwinden Profil, Achievements und zugeordnete Runs mit.
+  Gast-Runs bleiben, weil sie keiner Person zugeordnet sind.
 - Auch für `profiles` gilt Row Level Security ohne erlaubende Policy: Selbst
   mit gültigem Google-Login kommt aus dem Browser nichts direkt an die Tabelle.
 

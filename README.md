@@ -64,6 +64,12 @@ verhält sich der Server exakt wie ohne Persistenz; ein Datenbankausfall stoppt
 das Spiel nie. Einrichtung für Supabase-Neulinge:
 [`docs/SUPABASE.md`](docs/SUPABASE.md).
 
+Kommt der Google-Login dazu (`AUTH_ENABLED=true`), werden Runs und
+freigeschaltete Achievements zusätzlich dem Konto zugeordnet, und
+`GET /profile/:userId` liefert Bestleistungen samt Achievement-Liste (ebenfalls
+30 s gecacht). Beim Join lädt der Server bereits gespeicherte Achievements vor,
+damit ein wiederkehrendes Konto nichts doppelt freischaltet.
+
 ## Kapazität und Stabilität
 
 - **Tick-Gesundheit:** `/metrics` liefert p50/p95/max der Simulationsdauer über

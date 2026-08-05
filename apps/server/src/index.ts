@@ -46,6 +46,7 @@ import {
   leaderboardHandler,
   linkPlayerToUser,
   persistenceStats,
+  profileHandler,
   tunePersistence
 } from './persistence.js';
 import { hardenSimulation } from './simulation-hardening.js';
@@ -362,6 +363,7 @@ app.get('/health', (_request: Request, response: Response) => {
 });
 app.get('/metrics', metricsHandler(game));
 app.get('/leaderboard', leaderboardHandler(game));
+app.get('/profile/:userId', profileHandler(game));
 
 // Single-Service-Deploy: der Server liefert den Client-Build selbst aus
 // (eine URL, gleiche Origin für HTTP und WebSocket, kein CORS nötig).

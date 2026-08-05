@@ -71,4 +71,6 @@ Stand: Alpha 1.0 live auf https://www.mazers.de (Railway, Auto-Deploy von `main`
 - [ ] Railway Variables: `METRICS_TOKEN` (beliebiges langes Geheimnis)
 - [ ] Railway Variables: `ALLOWED_ORIGIN=https://www.mazers.de`
 - [ ] Nach jedem großen Merge: `mazers.de/health` → `build`-Feld prüfen
-- [ ] Supabase-Tabelle `runs` liegt an (Migration `20260805120000_create_runs.sql`)
+- [ ] Supabase-Migrationen eingespielt: `20260805120000_create_runs.sql`,
+      `20260805130000_0002_profiles_and_run_user.sql`,
+      `20260805140000_0003_achievements.sql`
