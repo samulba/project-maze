@@ -269,7 +269,7 @@ app.get('/health', (_request: Request, response: Response) => response.json({
   humans: game.humanCount,
   ...game.entityCounts,
   mode: 'maze-alpha',
-  version: '0.9.0',
+  version: '1.0.0-alpha',
   snapshotRate: GAME.snapshotRate,
   debugTools: ENABLE_DEV_TOOLS
 }));

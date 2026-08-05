@@ -30,7 +30,7 @@ npm run test
 npm run build
 ```
 
-## Aktueller Alpha-Stand
+## Aktueller Alpha-Stand (1.0)
 
 - feste 16:9-Sichtweite ohne Zoom-Vorteil
 - eigener Spieler bleibt exakt in der Bildschirmmitte
@@ -39,10 +39,19 @@ npm run build
 - Kugeln kollidieren mit gegnerischen Kugeln
 - Farmobjekte mit XP, Leben, Body-Damage und Respawns
 - Level 1–45 und acht Upgrade-Werte
-- dreistufiger Klassenbaum mit Rapid-, Precision-, Control- und Impact-Pfad
+- dreistufiger Klassenbaum mit 29 Tanks in vier Familien
+  (Rapid, Precision, Control, Impact – je drei Endpfade)
+- klassenspezifische Kernmechaniken: Heckläufe, Rundum-Feuer,
+  Exekutionsbonus, Defensiv-Orbit, Mikro-Schwarm, Momentum-Rammen u. a.
+- Core Modules (Dash, Repulse, Barrier, Repair) und passive Frames
+- Elite Shapes, Core-Surge-Event, Bounty-System, Kill-Streaks
 - Drohnensteuerung mit linker und rechter Maustaste
-- unterschiedliche Bot-Profile und Spielstile
-- Death-Screen und Respawn mit 50 % des vorherigen Levels
+- faire Bots mit Skill-Tiers, Vorhalte-Zielen, Anfängerschutz,
+  Anti-Gang-up und eigener Modul-/Frame-Nutzung
+- Treffer-Feedback: Hit-Flash, Schadenszahlen, Explosionen, Screen-Shake
+- Minimap mit Elite-, Bounty- und Event-Markern
+- Sound mit Lautstärkeregler, Streak-Jingles und Event-Signalen
+- Death-Screen mit Run-Statistik und Respawn mit 50 % des vorherigen Levels
 - Desktop- und Mobile-Landscape-Steuerung
 - Area-of-Interest-Filter für dynamische Entitäten
 

@@ -12,8 +12,8 @@ const percent = (value) => `${value >= 0 ? '+' : ''}${value.toFixed(0)}%`.padSta
 const rows = allClassBalanceMetrics().sort((a, b) => a.tier - b.tier || a.id.localeCompare(b.id));
 
 console.log('\nPROJECT MAZE — CLASS BALANCE REPORT\n');
-console.log('T  CLASS         ROLE        DPS   BURST   RANGE     EHP     MOVE   DRONES   BODY');
-console.log('─'.repeat(88));
+console.log('T  CLASS         ROLE        DPS     FWD   BURST   RANGE     EHP     MOVE   DRONES   BODY');
+console.log('─'.repeat(96));
 for (const entry of rows) {
   const definition = CLASS_DEFINITIONS[entry.id];
   console.log([
@@ -21,6 +21,7 @@ for (const entry of rows) {
     definition.label.padEnd(13, ' '),
     definition.branch.padEnd(10, ' '),
     number(entry.projectileDps),
+    number(entry.forwardProjectileDps),
     number(entry.burstDamage),
     number(entry.projectileRange),
     number(entry.effectiveDurability),
@@ -58,5 +59,5 @@ for (const id of PASSIVE_MODIFIER_IDS) {
   ].join(' '));
 }
 
-console.log('\nDPS is sustained projectile damage. Drone and Impact classes are judged mainly by DRONES/BODY.');
+console.log('\nDPS is sustained projectile damage, FWD counts only forward-facing barrels. Drone and Impact classes are judged mainly by DRONES/BODY.');
 console.log('Every non-standard frame must contain at least one benefit and one real cost.\n');

@@ -1,25 +1,28 @@
 # Project Maze – Gameplay-, Balance- und Klassen-Masterplan
 
-## Status – Alpha 0.9
+## Status – Alpha 1.0
+
+Der v2-Ausbau ist in `docs/MASTERPLAN_V2.md` beschrieben und umgesetzt.
 
 ### Spielbar umgesetzt
 
-- 21 Tanks in vier klaren Klassenfamilien
+- 29 Tanks in vier klaren Klassenfamilien (je drei Endpfade)
 - acht klassische Stat-Upgrades
 - genau ein aktives Core Module pro Leben
 - genau ein passiver Frame Modifier oder Standard Frame
 - Elite Shapes
 - Core-Surge-Arena-Event
-- Bounty-System
+- Bounty-System und Kill-Streaks
+- faire Bots mit Skill-Tiers, Anfängerschutz und Modul-Nutzung
+- Treffer-Feedback (Hit-Flash, Schadenszahlen, Shake) und Audio v2
 - lokale F2-Balance- und DPS-Werkzeuge
-- mehrere klassenspezifische Kernmechaniken
+- klassenspezifische Kernmechaniken in allen vier Familien
 
 ### Bewusst noch offen
 
 - reale Online-Telemetrie
 - datenbasierte Feinbalance
 - weitere Events und Module
-- weitere visuelle und akustische Verfeinerung nach dem ersten vollständigen Test
 
 Neue Inhalte werden erst ergänzt, wenn die aktuellen Systeme verständlich und balanciert sind.
 
@@ -62,16 +65,20 @@ Es gibt keine mehrteilige Hotbar, kein Kampfinventar und keine fünf gleichzeiti
 Core
 ├── Rapid
 │   ├── Twin → Storm
-│   └── Repeater → Gatling
+│   ├── Repeater → Gatling
+│   └── Flanker → Octo
 ├── Sniper
 │   ├── Railgun → Lancer
-│   └── Hunter → Phantom
+│   ├── Hunter → Phantom
+│   └── Arbalest → Deadeye
 ├── Controller
 │   ├── Warden → Overseer
-│   └── Factory → Carrier
+│   ├── Factory → Carrier
+│   └── Guardian → Hive
 └── Impact
     ├── Crusher → Juggernaut
-    └── Bulwark → Fortress
+    ├── Bulwark → Fortress
+    └── Blitz → Comet
 ```
 
 Klassenentscheidungen erfolgen aktuell auf Level 10, 24 und 38.

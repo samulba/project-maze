@@ -37,6 +37,32 @@ describe('class balance metrics', () => {
     expect(classBalanceMetrics('twin').forwardProjectileDps).toBe(classBalanceMetrics('twin').projectileDps);
   });
 
+  it('keeps every specialised class inside its role corridor', () => {
+    for (const id of PLAYER_CLASS_IDS) {
+      const tank = CLASS_DEFINITIONS[id];
+      const metrics = classBalanceMetrics(id);
+      expect(tank.moveSpeed).toBeGreaterThanOrEqual(220);
+      expect(tank.moveSpeed).toBeLessThanOrEqual(345);
+      if (metrics.tier < 3) continue;
+      if (tank.branch === 'rapid' || tank.branch === 'precision') {
+        expect(metrics.forwardProjectileDps).toBeGreaterThanOrEqual(40);
+        expect(metrics.forwardProjectileDps).toBeLessThanOrEqual(100);
+      }
+      if (tank.branch === 'control') {
+        expect(metrics.dronePressure).toBeGreaterThanOrEqual(70);
+        expect(metrics.dronePressure).toBeLessThanOrEqual(170);
+      }
+      if (tank.branch === 'impact') {
+        expect(metrics.bodyThreat).toBeGreaterThanOrEqual(80);
+        expect(metrics.bodyThreat).toBeLessThanOrEqual(160);
+        expect(metrics.effectiveDurability).toBeGreaterThanOrEqual(150);
+        expect(metrics.effectiveDurability).toBeLessThanOrEqual(310);
+      }
+      if (tank.branch === 'precision') expect(metrics.projectileRange).toBeGreaterThanOrEqual(1900);
+      if (tank.branch !== 'precision' && tank.barrelCount > 0) expect(metrics.projectileRange).toBeLessThanOrEqual(1300);
+    }
+  });
+
   it('keeps final impact classes meaningfully distinct', () => {
     const juggernaut = classBalanceMetrics('juggernaut');
     const fortress = classBalanceMetrics('fortress');
