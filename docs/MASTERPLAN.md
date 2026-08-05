@@ -27,13 +27,27 @@ Klasse verändert wirklich, WIE man spielt – nicht nur Zahlen.
 
 ## Design-Richtung (verbindlich, Stand 2026-08-06)
 
-Sams Korrektur nach „Neon raus": **„Zu düster – so will ich das gar nicht."**
-Die frühere Ansage „dunkler/ruhiger" war ein Irrtum in der Richtung, nicht im
-Ziel. Es gilt: **ruhig und minimalistisch JA, düster NEIN.** Der Grundton ist
-ein helles Dunkelgrau-Blau mit Luft (01 hat die Basis am 06.08. eine Stufe
-angehoben), Flächen wirken offen statt schwer, Akzentfarbe bleibt funktional.
-Jedes Design-Paket prüft ab jetzt gegen „klar & freundlich-technisch", nicht
-gegen „dark & moody".
+Sams Entscheid nach zwei Screenshot-Runden (12 Varianten): **Startbasis ist
+der Look, der Diep.io am nächsten kommt.** Konkret (Standard-Theme
+`midnight`, umgesetzt von 01 am 06.08.):
+
+- **Arena:** helles Grau `0xcdcdcd` mit dezentem Gitter, Außenbereich eine
+  Stufe dunkler. Wände grau mit dunklerer Kontur.
+- **Konturen:** alles Spielrelevante (Hüllen, Rohre, Formen, Projektile,
+  Drohnen, Wände) trägt eine 3px-Kontur in **abgedunkelter Füllfarbe**
+  (`darken()`, Faktor 0.72) – das prägende Diep-Merkmal. Gesteuert über den
+  `STYLE`-Block in `renderer.ts` (floor/outline/wall3d/shadows).
+- **Farben:** selbst `0x00b2e1` (Diep-Blau), Gegner `0xf14e54`, Quadrate gelb
+  `0xffe869`, Dreiecke rot `0xfc7677`, Fünfecke blauviolett `0x768dfc`.
+- **UI:** `:root` ist hell (`color-scheme:light`, weiße Karten, dunkle
+  Schrift); die Wahl-Themes void/neon/classic bleiben unangetastet.
+
+Frühere Historie: „Neon raus" → „zu düster – so will ich das gar nicht"
+(Richtungsumkehr) → Paletten- und Stilrunden → Diep-Entscheid. Es gilt
+weiterhin: **ruhig und minimalistisch JA, düster NEIN.** Jedes Design-Paket
+prüft gegen „klar & freundlich-technisch" und gegen die Referenz-Screenshots
+der Diep-Basis, nicht gegen „dark & moody". Design-Änderungen am Grundlook
+nur nach Screenshot-Freigabe durch Sam.
 
 ## Handlungsfeld 1 – Überall sauber: Responsive & Performance
 

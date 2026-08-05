@@ -34,7 +34,7 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 /* Die aufgeklappte Liste erbt unter Linux/Windows die Farben des Elements. */
-.core-loadout-fields option { color: var(--text); background: #0d101a; }
+.core-loadout-fields option { color: var(--text); background: var(--strong); }
 
 /*
  * Eigener Pfeil auf dem Label statt des Systemdreiecks. Die Mitte des 42px

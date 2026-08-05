@@ -31,7 +31,20 @@ MASTERPLAN Feld 1, die verbliebenen Punkte (R3 Mobile ist durch):
 – das größte verbleibende Feel-Paket. Bei Fragen zur Bewegungsintegration ist
 02s Doku maßgeblich, nicht der Code-Augenschein.
 
-Design-Richtung gilt weiter: ruhig & minimalistisch JA, düster NEIN
-(MASTERPLAN „Design-Richtung", Grundton wurde von 01 angehoben).
+## Nachtrag 06.08. – Design-Basis ist jetzt der Diep-Look
+
+Sam hat nach zwei Screenshot-Runden entschieden: **Startbasis = so nah wie
+möglich an Diep.io.** 01 hat das umgesetzt (auf main): Standard-Theme hell
+(`:root` mit `color-scheme:light`, Arena `0xcdcdcd` + Gitter), Konturen in
+abgedunkelter Füllfarbe über den neuen `STYLE`-Block + `darken()` in
+`renderer.ts`. Details im MASTERPLAN („Design-Richtung"). Für dich heißt das:
+
+- R2-Letterbox-Balken gegen den HELLEN Grundton gestalten (Außenfarbe ist
+  `outside`/`#b7b7b7`), nicht mehr gegen Dunkelblau.
+- Neue UI-Flächen immer über die CSS-Variablen (`--surface`, `--text`, …),
+  keine hartkodierten Hell-auf-Dunkel-Farben – das Standard-Theme ist jetzt
+  light, die Wahl-Themes void/neon/classic bleiben dunkel.
+- Grundlook-Änderungen (Palette, Konturen, Boden) nur nach
+  Screenshot-Freigabe durch Sam über 01.
 
 Statusbericht wie gehabt nach `docs/status/chat-03/`.

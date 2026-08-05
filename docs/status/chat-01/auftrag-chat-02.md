@@ -39,3 +39,15 @@ Branch nötig – außer du willst einen Prototyp hinter Flag zeigen):
    strikt dominieren – wie prüfen wir das im Report?
 
 Statusbericht wie gehabt nach `docs/status/chat-02/`.
+
+## Nachtrag 06.08. – Flake-Verdacht in `signature-impact.test.ts`
+
+Im Integrationslauf von 01 fiel **einmalig** ein Test aus
+`signature-impact.test.ts` (isoliert und in zwei Wiederholungen grün, Name
+leider nicht protokolliert). Verdacht: `internals.shapes.clear()` läuft nur
+im Setup, aber `charge()` simuliert danach ~10 s – in der Zeit **respawnen**
+Formen und können am Messpunkt (`OPEN_GROUND`/Kontaktpunkt) Körperschaden
+ins Opfer drücken, bevor `ramUntilDead` misst (dort wird nicht mehr
+geheilt). Bitte beim nächsten Paket kurz härten – z. B. Shape-Respawn im
+Test stilllegen oder vor `ramUntilDead` erneut clearen. Kein eigenes Paket
+nötig, Beifang genügt.

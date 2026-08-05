@@ -6,8 +6,8 @@
  * deutet die Arena an, und Sound/Loadout verschwinden hinter einem Aufklapper.
  */
 .start-screen {
-  --brand: #6b3ff5;
-  --brand-soft: #9a78ff;
+  --brand: var(--accent);
+  --brand-soft: color-mix(in srgb, var(--accent) 82%, #000);
   display: grid;
   place-items: center;
   padding: clamp(14px, 3vw, 32px);
@@ -15,7 +15,7 @@
   /* Ruhige Fläche ohne Verläufe – die violetten Radien waren der Hauptgrund,
      warum der Screen „Neon City" wirkte. Der Grundton folgt seit dem 06.08.
      den angehobenen Basistönen: ruhig ja, düster nein. */
-  background: linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg) 74%, #000));
+  background: linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg) 88%, #000));
 }
 .start-backdrop {
   position: absolute;
@@ -30,7 +30,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(78% 62% at 50% 45%, transparent 46%, color-mix(in srgb, var(--bg) 55%, #000) 100%);
+  background: radial-gradient(78% 62% at 50% 45%, transparent 46%, color-mix(in srgb, var(--bg) 82%, #000) 100%);
 }
 .start-stage {
   position: relative;
@@ -86,21 +86,21 @@
   border-radius: 26%;
   /* Nur Tiefe, keine Farbe: ein Schatten sagt „liegt oben", ein farbiger
      Schein sagt „leuchtet". Gewollt ist Ersteres. */
-  box-shadow: 0 14px 30px rgba(0, 0, 0, .45), 0 0 0 1px rgba(255, 255, 255, .07);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, .22), 0 0 0 1px rgba(0, 0, 0, .08);
 }
 .start-card h1 {
   margin: 0;
-  color: #fff;
+  color: var(--text);
   font-size: clamp(46px, 11vw, 84px);
   line-height: .86;
   letter-spacing: -.06em;
   font-weight: 900;
 }
 /* Eine Farbe statt Verlauf – der Verlauf las sich als Leuchtschrift. */
-.start-card h1 b { color: var(--brand-soft); }
+.start-card h1 b { color: var(--brand); }
 .start-tagline {
   margin: clamp(8px, 1.6vw, 14px) 0 clamp(18px, 3vw, 30px);
-  color: #a7adc4;
+  color: var(--muted);
   font-size: clamp(12px, 1.5vw, 15px);
   font-weight: 600;
   letter-spacing: .01em;
@@ -112,7 +112,7 @@
 .start-primary { display: grid; gap: 9px; }
 .start-primary .field-label {
   margin: 0;
-  color: #7d859b;
+  color: var(--faint);
   text-align: left;
   font-size: 10px;
   letter-spacing: .18em;
@@ -121,9 +121,9 @@
   width: 100%;
   height: clamp(52px, 7vw, 58px);
   padding: 0 18px;
-  border: 1px solid rgba(255, 255, 255, .12);
+  border: 1px solid var(--line-strong);
   border-radius: 14px;
-  color: #fff;
+  color: var(--text);
   background: color-mix(in srgb, var(--strong) 88%, transparent);
   font-size: 16px;
   font-weight: 700;
@@ -145,8 +145,8 @@
   letter-spacing: .14em;
   transition: background .18s, transform .18s;
 }
-.play-button:hover:not(:disabled) { transform: translateY(-1px); background: #7b52f7; }
-.play-button:active:not(:disabled) { transform: none; background: #5f36dd; }
+.play-button:hover:not(:disabled) { transform: translateY(-1px); background: color-mix(in srgb, var(--brand) 88%, #fff); }
+.play-button:active:not(:disabled) { transform: none; background: color-mix(in srgb, var(--brand) 84%, #000); }
 .play-button b { background: rgba(255, 255, 255, .16); }
 
 .start-status { margin: 12px 0 0; min-height: 15px; font-size: 11px; }
@@ -167,7 +167,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 12px 14px;
-  color: #7d859b;
+  color: var(--faint);
   cursor: pointer;
   list-style: none;
   font-size: 10px;
@@ -176,7 +176,7 @@
   text-transform: uppercase;
 }
 .start-settings > summary::-webkit-details-marker { display: none; }
-.start-settings > summary:hover { color: #cfd4e4; }
+.start-settings > summary:hover { color: var(--text); }
 /* Eigener Pfeil, damit die Zeile in beiden Zuständen gleich ruhig wirkt. */
 .start-settings > summary i {
   width: 8px;
@@ -194,19 +194,19 @@
   grid-template-columns: 1fr auto;
   align-items: baseline;
   gap: 8px 10px;
-  color: #7d859b;
+  color: var(--faint);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: .12em;
 }
-.start-sound > b { color: #cfd4e4; font-size: 10px; font-variant-numeric: tabular-nums; }
+.start-sound > b { color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
 .start-sound > input { grid-column: 1 / -1; }
 /* Das Loadout wird hier hineingezogen – ohne eigenen Rahmen, es ist schon drin. */
 .start-settings-body .core-loadout {
   margin: 12px 0 0;
   padding: 0;
   border: 0;
-  border-top: 1px solid rgba(255, 255, 255, .07);
+  border-top: 1px solid var(--line);
   border-radius: 0;
   padding-top: 12px;
   background: none;
@@ -221,10 +221,10 @@
 }
 .start-note span {
   padding: 5px 9px;
-  border: 1px solid rgba(255, 255, 255, .07);
+  border: 1px solid var(--line);
   border-radius: 999px;
-  color: #6d748a;
-  background: rgba(255, 255, 255, .022);
+  color: var(--faint);
+  background: rgba(0, 0, 0, .028);
   font-size: 9px;
   font-weight: 750;
   letter-spacing: .08em;
@@ -254,8 +254,8 @@
   list-style: none;
 }
 .start-board > summary::-webkit-details-marker { display: none; }
-.start-board > summary strong { color: #cfd4e4; font-size: 10px; font-weight: 850; letter-spacing: .16em; }
-.start-board > summary small { color: #6d748a; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+.start-board > summary strong { color: var(--muted); font-size: 10px; font-weight: 850; letter-spacing: .16em; }
+.start-board > summary small { color: var(--faint); font-size: 9px; font-weight: 800; letter-spacing: .1em; }
 .start-board-list {
   max-height: 268px;
   margin: 0;
@@ -278,11 +278,11 @@
   padding: 7px 8px;
   border-radius: 9px;
 }
-.start-board-list li:nth-child(odd) { background: rgba(255, 255, 255, .022); }
-.start-board-list b { color: #6d748a; font-size: 11px; font-weight: 800; text-align: center; }
+.start-board-list li:nth-child(odd) { background: rgba(0, 0, 0, .028); }
+.start-board-list b { color: var(--faint); font-size: 11px; font-weight: 800; text-align: center; }
 .start-board-list span {
   overflow: hidden;
-  color: #e7eaf5;
+  color: var(--text);
   font-size: 12px;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -292,13 +292,13 @@
   grid-row: 1 / 3;
   grid-column: 3;
   align-self: center;
-  color: #fff;
+  color: var(--text);
   font-size: 12px;
   font-weight: 800;
 }
-.start-board-list small { grid-column: 2; color: #6d748a; font-size: 9px; }
+.start-board-list small { grid-column: 2; color: var(--faint); font-size: 9px; }
 /* Die ersten drei bekommen einen Hauch Gold – mehr braucht es nicht. */
-.start-board-list li:nth-child(-n + 3) b { color: #f0c265; }
+.start-board-list li:nth-child(-n + 3) b { color: var(--flame); }
 
 /* ------------------------------------------------------------------ *
  * Breit: Bestenliste neben die Bühne

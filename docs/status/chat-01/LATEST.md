@@ -1,12 +1,17 @@
 # Integrationsstand – Chat 01 (Zentrale)
 
-**Stand: 2026-08-05, Nacht**
+**Stand: 2026-08-06**
 
 ## Zuletzt auf main gemerged
 
+- 01 **Design-Entscheid „Diep-Basis"**: Standard-Theme hell (Arena `0xcdcdcd`
+  + Gitter, Konturen in abgedunkelter Füllfarbe via `STYLE`/`darken()` in
+  `renderer.ts`, UI `color-scheme:light`). Verbindlich im MASTERPLAN
+  („Design-Richtung") verankert – Grundlook-Änderungen nur nach
+  Screenshot-Freigabe durch Sam. Wahl-Themes void/neon/classic unverändert.
 - 03 K2 Profil-Tab (Profilkarte, Namensänderung, Achievements-Galerie über
   den ganzen Katalog; ohne Login-Konfiguration existiert das Panel nicht)
-- 02 KL2-IMPACT „Wucht" + 03 Signature-HUD + 01 Heller-Grundton
+- 02 KL2-IMPACT „Wucht" + 03 Signature-HUD
 - davor: Momentum, Neon raus, Balance-Live, Aggro-Pacing, R3 Mobile, …
 
 ## Flags live (Railway)
@@ -17,7 +22,12 @@
 
 ## Erwartet als Nächstes
 
-- 02: P1 Bot-Aggro-Pacing + KL1-Machbarkeitskommentar (MASTERPLAN Feld 5)
-- 03: R3 Mobile-Paket (Spez. im MASTERPLAN) → danach R1/R2/R4 → N2 Prediction
-- 04: K1 Profil-Backend → R5 Client-Perf-Telemetrie
-- Sam: `SPECTATOR_ENABLED=true` setzen, Mobile + Pacing live testen
+- 02: KL4-Konzept Familien-Upgrades (Auftrag vom 06.08.); dazu neu:
+  Flake-Verdacht in `signature-impact.test.ts` (Details im Auftrag)
+- 03: R1/R2/R4 (Fullscreen, Letterbox, Qualitätsstufen) → danach N2
+  Prediction; Design-Basis ist ab jetzt der Diep-Look (MASTERPLAN)
+- 04: Lastprobe „alle Schalter an" + Balance-Baseline
+  `docs/balance/2026-08-06-baseline.json`
+- Sam: `SIGNATURE_RAPID_ENABLED=true` + `SIGNATURE_IMPACT_ENABLED=true`
+  setzen; Momentum/Wucht/Spectator live beurteilen; neuen Diep-Look auf
+  www.mazers.de ansehen

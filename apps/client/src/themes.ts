@@ -18,7 +18,7 @@ export const CLIENT_THEME_LABELS: Record<ClientThemeId, string> = {
 
 /** Browser-UI-Farbe (Adressleiste auf Mobilgeräten) je Theme. */
 export const CLIENT_THEME_BROWSER_COLORS: Record<ClientThemeId, string> = {
-  midnight: '#070910',
+  midnight: '#cdcdcd',
   void: '#030407',
   classic: '#e8ebf0',
   neon: '#08041a'
