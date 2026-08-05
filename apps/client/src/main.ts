@@ -16,12 +16,14 @@ import { GameAudio } from './audio';
 import { BalanceCombatMeter } from './balance-combat-meter';
 import { BalanceLab } from './balance-lab';
 import { enhanceClassChoices } from './class-choice-enhancer';
+import { AchievementPopups } from './achievement-popups';
 import { GameplayEffects } from './gameplay-effects';
 import { GameplayUI } from './gameplay-ui';
 import { InputController } from './input';
 import { KillcamView } from './killcam-view';
 import { OnboardingCoach } from './onboarding-view';
 import { GameRenderer } from './renderer';
+import { SnapshotHydrator, isWireSnapshot, type WireServerMessage } from './snapshot-hydrator';
 import { StartBackdrop } from './start-backdrop';
 import { StartLeaderboard } from './start-leaderboard';
 import { DEFAULT_THEME, applyTheme } from './themes';
@@ -36,6 +38,7 @@ import './gameplay-ui.css';
 import './mobile.css';
 import './killcam.css';
 import './onboarding.css';
+import './achievements.css';
 
 let socket: WebSocket | null = null;
 let joinOptions: JoinOptions | null = null;
@@ -52,6 +55,7 @@ let lastClientErrorToastAt = 0;
 
 const audio = new GameAudio();
 const renderer = new GameRenderer();
+const hydrator = new SnapshotHydrator();
 
 function send(message: object): void {
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
@@ -90,6 +94,7 @@ ui.onStartScreenGone(() => startBackdrop.stop());
 void new StartLeaderboard(ui.root).load();
 const killcam = new KillcamView(ui.root);
 const onboarding = new OnboardingCoach(ui.root);
+const achievements = new AchievementPopups(ui.root);
 new BalanceLab(ui.root, send);
 const balanceCombatMeter = new BalanceCombatMeter(ui.root);
 enhanceClassChoices(ui.root);
@@ -156,6 +161,9 @@ function connect(): void {
     return;
   }
   clearReconnectTimer();
+  // Neue Verbindung heißt neue Spieler-ID und damit eine frische Buchführung
+  // auf Serverseite – der alte Cache passt dann zu nichts mehr.
+  hydrator.reset();
   ui.setConnection('connecting');
   joined = false;
   input?.setEnabled(false);
@@ -171,7 +179,10 @@ function connect(): void {
 
   currentSocket.addEventListener('message', (event) => {
     try {
-      handleServerMessage(JSON.parse(String(event.data)) as ServerMessage);
+      // Der Hydrator sitzt bewusst genau hier: Ab der nächsten Zeile sieht
+      // niemand mehr einen unvollständigen Snapshot.
+      const message = JSON.parse(String(event.data)) as WireServerMessage;
+      handleServerMessage(isWireSnapshot(message) ? hydrator.hydrate(message) : message);
     } catch (error) {
       console.error('Invalid server message', error);
       ui.toast('Netzwerkfehler', 'Der Server hat ungültige Daten gesendet.', 'danger');
@@ -188,6 +199,7 @@ function connect(): void {
     previousModuleActiveUntil = 0;
     gameplayUI.onDisconnect();
     killcam.reset();
+    achievements.reset();
     onboarding.pause();
     if (input?.resetAll()) ui.setAutoFire(false);
     input?.setEnabled(false);
@@ -212,6 +224,9 @@ function handleServerMessage(message: ServerMessage): void {
   if (message.type === 'welcome') {
     joined = true;
     currentSelfDead = false;
+    // Deckt auch den Rejoin über einen bereits offenen Socket ab: Der Server
+    // vergibt dabei eine neue Spieler-ID und sendet wieder volle Snapshots.
+    hydrator.reset();
     previousSelf = null;
     previousProjectileIds.clear();
     previousModuleActiveUntil = 0;
@@ -244,6 +259,7 @@ function updateWorld(snapshot: WorldSnapshot): void {
   gameplayUI.update(snapshot);
   gameplayEffects.update(snapshot);
   killcam.update(snapshot);
+  achievements.update(snapshot);
   onboarding.update(snapshot, input?.isMoving ?? false);
   const self = snapshot.players.find((player) => player.id === snapshot.selfId) ?? null;
   if (self) {
