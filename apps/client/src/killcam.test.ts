@@ -6,6 +6,7 @@ import {
   KillcamRecorder,
   buildReplay,
   resolveKillerId,
+  sameWalls,
   type KillcamFrame
 } from './killcam';
 import { framing, lastKnownActor, sampleFrame } from './killcam-view';
@@ -45,7 +46,12 @@ function player(id: string, x: number, y: number, overrides: Partial<PlayerSnaps
   };
 }
 
-function snapshot(time: number, players: PlayerSnapshot[], projectiles: WorldSnapshot['projectiles'] = []): WorldSnapshot {
+function snapshot(
+  time: number,
+  players: PlayerSnapshot[],
+  projectiles: WorldSnapshot['projectiles'] = [],
+  walls: WorldSnapshot['walls'] = [{ id: 'w1', x: 0, y: 0, width: 40, height: 200 }]
+): WorldSnapshot {
   return {
     type: 'snapshot',
     selfId: 'me',
@@ -55,13 +61,13 @@ function snapshot(time: number, players: PlayerSnapshot[], projectiles: WorldSna
     projectiles,
     drones: [],
     shapes: [],
-    walls: [{ id: 'w1', x: 0, y: 0, width: 40, height: 200 }],
+    walls,
     leaderboard: [],
     killfeed: []
   };
 }
 
-const frame = (time: number, actors: KillcamFrame['actors']): KillcamFrame => ({ time, actors, shots: [] });
+const frame = (time: number, actors: KillcamFrame['actors']): KillcamFrame => ({ time, actors, shots: [], walls: [] });
 const actor = (id: string, x: number, y: number, name = id): KillcamFrame['actors'][number] => ({
   id, name, x, y, angle: 0, radius: GAME.playerRadius, dead: false, health: 100, maxHealth: 100
 });
@@ -102,12 +108,52 @@ describe('KillcamRecorder', () => {
     expect(recorder.frameCount).toBe(0);
   });
 
-  it('keeps the walls of the last snapshot as a backdrop', () => {
+  it('stores the walls that belonged to each frame', () => {
+    const near = [{ id: 'a', x: 0, y: 0, width: 40, height: 200 }];
+    const far = [{ id: 'b', x: 900, y: 0, width: 40, height: 200 }];
     const recorder = new KillcamRecorder();
-    recorder.record(snapshot(1000, [player('me', 0, 0)]));
-    expect(recorder.takeWalls()).toHaveLength(1);
-    recorder.clear();
-    expect(recorder.takeWalls()).toHaveLength(0);
+    recorder.record(snapshot(1000, [player('me', 0, 0)], [], near));
+    recorder.record(snapshot(1100, [player('me', 800, 0)], [], far));
+    const frames = recorder.takeFrames();
+    expect(frames[0]?.walls.map((wall) => wall.id)).toEqual(['a']);
+    expect(frames[1]?.walls.map((wall) => wall.id)).toEqual(['b']);
+  });
+
+  it('shares one wall list while the walls do not change', () => {
+    const recorder = new KillcamRecorder();
+    // Snapshots kommen als frische Objekte an – trotzdem darf der Puffer nur
+    // eine Instanz halten, solange sich inhaltlich nichts ändert.
+    recorder.record(snapshot(1000, [player('me', 0, 0)], [], [{ id: 'a', x: 0, y: 0, width: 40, height: 200 }]));
+    recorder.record(snapshot(1100, [player('me', 0, 0)], [], [{ id: 'a', x: 0, y: 0, width: 40, height: 200 }]));
+    const frames = recorder.takeFrames();
+    expect(frames[0]?.walls).toBe(frames[1]?.walls);
+  });
+});
+
+describe('sameWalls', () => {
+  const walls = [{ id: 'a', x: 1, y: 2, width: 3, height: 4 }];
+
+  it('accepts identical content in separate objects', () => {
+    expect(sameWalls(walls, [{ id: 'a', x: 1, y: 2, width: 3, height: 4 }])).toBe(true);
+  });
+
+  it('is true for the very same array', () => {
+    expect(sameWalls(walls, walls)).toBe(true);
+    expect(sameWalls([], [])).toBe(true);
+  });
+
+  it('detects a different count', () => {
+    expect(sameWalls(walls, [...walls, { id: 'b', x: 0, y: 0, width: 1, height: 1 }])).toBe(false);
+    expect(sameWalls(walls, [])).toBe(false);
+  });
+
+  it('detects a moved or resized wall', () => {
+    expect(sameWalls(walls, [{ id: 'a', x: 99, y: 2, width: 3, height: 4 }])).toBe(false);
+    expect(sameWalls(walls, [{ id: 'a', x: 1, y: 2, width: 3, height: 99 }])).toBe(false);
+  });
+
+  it('detects a different wall at the same slot', () => {
+    expect(sameWalls(walls, [{ id: 'z', x: 1, y: 2, width: 3, height: 4 }])).toBe(false);
   });
 });
 

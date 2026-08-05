@@ -9,6 +9,8 @@ import {
   type UpgradeId,
   type WorldSnapshot
 } from '@project-maze/shared';
+import type { ArenaEventKind } from '@project-maze/shared/gameplay';
+import { arenaEventStyle, cssColor } from './arena-event-style';
 import {
   CLIENT_THEME_IDS,
   CLIENT_THEME_LABELS,
@@ -400,7 +402,7 @@ export class GameUI {
     if (!context) return;
     const extended = snapshot as WorldSnapshot & {
       eliteShapeIds?: string[];
-      arenaEvent?: { center: { x: number; y: number }; radius: number; phase: string } | null;
+      arenaEvent?: { center: { x: number; y: number }; radius: number; phase: string; kind?: ArenaEventKind } | null;
       bountyTargetId?: string | null;
       arenaGuardianId?: string | null;
     };
@@ -427,7 +429,8 @@ export class GameUI {
     if (event) {
       const center = toRadar(event.center);
       context.beginPath();
-      context.strokeStyle = event.phase === 'active' ? 'rgba(233,182,83,.85)' : 'rgba(233,182,83,.4)';
+      // Gleiche Farbsprache wie die Zone im Spielfeld.
+      context.strokeStyle = cssColor(arenaEventStyle(event.kind).ring, event.phase === 'active' ? 0.85 : 0.4);
       context.lineWidth = 1.5;
       context.arc(center.x, center.y, (event.radius / halfWorldWidth) * (width / 2), 0, Math.PI * 2);
       context.stroke();

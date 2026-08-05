@@ -1,4 +1,4 @@
-import { GAME, type PlayerSnapshot, type Vector2, type WorldSnapshot } from '@project-maze/shared';
+import { GAME, type PlayerSnapshot, type Vector2, type Wall, type WorldSnapshot } from '@project-maze/shared';
 
 /**
  * Killcam: rein clientseitiger Rückblick auf die letzten Sekunden vor dem eigenen Tod.
@@ -30,6 +30,13 @@ export interface KillcamFrame {
   time: number;
   actors: KillcamActor[];
   shots: KillcamShot[];
+  /**
+   * Wände dieses Frames. Der Server schneidet die Wandliste am Sichtfeld zu –
+   * wer sich im Aufzeichnungsfenster bewegt, hätte mit einem einzigen
+   * Endstand eine Kulisse, die zum Anfang der Aufnahme nicht passt.
+   * Unveränderte Listen teilen sich eine Instanz, das kostet also fast nichts.
+   */
+  walls: readonly Wall[];
 }
 
 /** Aufgezeichnetes Fenster in Millisekunden. */
@@ -46,19 +53,42 @@ const RECORD_RADIUS = Math.max(GAME.visibleWorldWidth, GAME.visibleWorldHeight) 
 const distanceSquared = (a: Vector2, b: Vector2): number => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 
 /**
+ * Strukturvergleich zweier Wandlisten. Snapshots kommen frisch aus `JSON.parse`,
+ * ein Referenzvergleich würde also immer „verschieden“ melden.
+ */
+export function sameWalls(a: readonly Wall[], b: readonly Wall[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index += 1) {
+    const left = a[index];
+    const right = b[index];
+    if (!left || !right) return false;
+    if (
+      left.id !== right.id ||
+      left.x !== right.x ||
+      left.y !== right.y ||
+      left.width !== right.width ||
+      left.height !== right.height
+    ) return false;
+  }
+  return true;
+}
+
+/**
  * Ringpuffer der letzten Sekunden. Speichert nur, was in der Nähe des Spielers
  * passiert ist – der Rest ist für einen Rückblick ohnehin nicht sichtbar.
  */
 export class KillcamRecorder {
   private frames: KillcamFrame[] = [];
-  private walls: WorldSnapshot['walls'] = [];
+  /** Zuletzt gespeicherte Wandliste – wird geteilt, solange sie unverändert bleibt. */
+  private walls: readonly Wall[] = [];
 
   record(snapshot: WorldSnapshot): void {
     const self = snapshot.players.find((player) => player.id === snapshot.selfId);
     if (!self) return;
-    // Wände ändern sich im Aufzeichnungsfenster kaum – ein Verweis auf den
-    // letzten Stand reicht als Kulisse und kostet nichts.
-    this.walls = snapshot.walls;
+    // Jeder Frame bekommt seine eigene Kulisse. Unveränderte Listen zeigen auf
+    // dieselbe Instanz, damit der Puffer nicht dutzendfach dasselbe hält.
+    if (!sameWalls(this.walls, snapshot.walls)) this.walls = snapshot.walls;
 
     const actors = snapshot.players
       .filter((player) => player.id === self.id || distanceSquared(player.position, self.position) <= RECORD_RADIUS ** 2)
@@ -77,7 +107,7 @@ export class KillcamRecorder {
         ownerId: projectile.ownerId
       }));
 
-    this.frames.push({ time: snapshot.serverTime, actors, shots });
+    this.frames.push({ time: snapshot.serverTime, actors, shots, walls: this.walls });
     this.trim(snapshot.serverTime);
   }
 
@@ -94,10 +124,6 @@ export class KillcamRecorder {
   /** Kopie des Puffers – der Recorder läuft während der Wiedergabe weiter. */
   takeFrames(): KillcamFrame[] {
     return this.frames.slice();
-  }
-
-  takeWalls(): WorldSnapshot['walls'] {
-    return this.walls;
   }
 
   get frameCount(): number {

@@ -1,6 +1,7 @@
 import { Application, Container, Graphics } from 'pixi.js';
 import { GAME, type PlayerSnapshot, type Vector2, type WorldSnapshot } from '@project-maze/shared';
 import type { GameplayWorldExtension } from '@project-maze/shared/gameplay';
+import { GUARDIAN_COLOR, arenaEventStyle } from './arena-event-style';
 
 type ExtendedSnapshot = WorldSnapshot & Partial<GameplayWorldExtension>;
 
@@ -69,14 +70,18 @@ export class GameplayEffects {
 
     const event = snapshot.arenaEvent;
     if (event) {
+      const style = arenaEventStyle(event.kind);
+      const active = event.phase === 'active';
       const center = this.toScreen(event.center, self, viewport);
       const radius = event.radius * viewport.scale;
       const pulse = 0.72 + Math.sin(this.time * 3.2) * 0.12;
       this.graphics.circle(center.x, center.y, radius)
-        .fill({ color: 0xe9b653, alpha: event.phase === 'active' ? 0.045 : 0.02 })
-        .stroke({ color: 0xe9b653, alpha: pulse, width: event.phase === 'active' ? 3 : 2 });
+        .fill({ color: style.ring, alpha: active ? 0.045 : 0.02 })
+        .stroke({ color: style.ring, alpha: pulse, width: active ? 3 : 2 });
       this.graphics.circle(center.x, center.y, Math.max(8, radius * 0.08))
-        .fill({ color: 0xf2c86f, alpha: 0.16 + Math.sin(this.time * 4) * 0.05 });
+        .fill({ color: style.core, alpha: 0.16 + Math.sin(this.time * 4) * 0.05 });
+      if (event.kind === 'overcharge') this.drawChargedRim(center, radius, active);
+      if (event.kind === 'hunterSignal') this.drawHunterRim(center, radius, active);
     }
 
     const eliteIds = new Set(snapshot.eliteShapeIds ?? []);
@@ -102,15 +107,15 @@ export class GameplayEffects {
         const pulse = 1 + Math.sin(this.time * 2.6) * 0.05;
         const radius = (GAME.playerRadius + 18) * viewport.scale * pulse;
         this.graphics.circle(position.x, position.y, radius)
-          .fill({ color: 0xf4c866, alpha: 0.05 })
-          .stroke({ color: 0xf4c866, alpha: 0.95, width: 4 });
+          .fill({ color: GUARDIAN_COLOR, alpha: 0.05 })
+          .stroke({ color: GUARDIAN_COLOR, alpha: 0.95, width: 4 });
         this.graphics.circle(position.x, position.y, radius + 7 * viewport.scale)
           .stroke({ color: 0xffe3a0, alpha: 0.35, width: 1.5 });
         const healthRatio = player.maxHealth > 0 ? Math.max(0, Math.min(1, player.health / player.maxHealth)) : 0;
         const barWidth = 110 * viewport.scale;
         const barY = position.y - (GAME.playerRadius + 34) * viewport.scale;
         this.graphics.roundRect(position.x - barWidth / 2, barY, barWidth, 6, 3).fill({ color: 0x000000, alpha: 0.55 });
-        this.graphics.roundRect(position.x - barWidth / 2, barY, barWidth * healthRatio, 6, 3).fill({ color: 0xf4c866, alpha: 0.95 });
+        this.graphics.roundRect(position.x - barWidth / 2, barY, barWidth * healthRatio, 6, 3).fill({ color: GUARDIAN_COLOR, alpha: 0.95 });
       }
 
       if (player.id === snapshot.bountyTargetId) {
@@ -153,6 +158,42 @@ export class GameplayEffects {
           .stroke({ color, alpha: 0.58, width: 3 });
       }
     }
+  }
+
+  /**
+   * Overcharge: kurze Speichen am Zonenrand, die im Takt wandern – liest sich
+   * als Spannung, ohne den Blick auf die Arena zu stören.
+   */
+  private drawChargedRim(center: Vector2, radius: number, active: boolean): void {
+    const spokes = 18;
+    const drift = this.time * (active ? 0.9 : 0.35);
+    const length = radius * (active ? 0.075 : 0.045);
+    for (let index = 0; index < spokes; index += 1) {
+      const angle = drift + (index / spokes) * Math.PI * 2;
+      const flicker = 0.35 + Math.abs(Math.sin(this.time * 7 + index)) * 0.5;
+      const inner = radius - length;
+      this.graphics
+        .moveTo(center.x + Math.cos(angle) * inner, center.y + Math.sin(angle) * inner)
+        .lineTo(center.x + Math.cos(angle) * (radius + length * 0.5), center.y + Math.sin(angle) * (radius + length * 0.5))
+        .stroke({ color: 0x9ce4ff, alpha: (active ? 0.7 : 0.3) * flicker, width: 2 });
+    }
+  }
+
+  /** Hunter Signal: langsam rotierendes Fadenkreuz auf der Zone. */
+  private drawHunterRim(center: Vector2, radius: number, active: boolean): void {
+    const alpha = active ? 0.72 : 0.32;
+    const sweep = this.time * 0.55;
+    for (let index = 0; index < 4; index += 1) {
+      const angle = sweep + (index / 4) * Math.PI * 2;
+      const inner = radius * 0.82;
+      const outer = radius * 1.04;
+      this.graphics
+        .moveTo(center.x + Math.cos(angle) * inner, center.y + Math.sin(angle) * inner)
+        .lineTo(center.x + Math.cos(angle) * outer, center.y + Math.sin(angle) * outer)
+        .stroke({ color: 0xf7c766, alpha, width: 2.5 });
+    }
+    this.graphics.circle(center.x, center.y, radius * 0.82)
+      .stroke({ color: 0xff6b4a, alpha: alpha * 0.5, width: 1.5 });
   }
 
   private drawArc(
