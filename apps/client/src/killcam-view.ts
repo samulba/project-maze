@@ -1,4 +1,4 @@
-import type { Wall, WorldSnapshot } from '@project-maze/shared';
+import type { WorldSnapshot } from '@project-maze/shared';
 import {
   KILLCAM_WINDOW_MS,
   KillcamRecorder,
@@ -19,7 +19,6 @@ const FRAME_PADDING = 190;
 
 interface ReplayState {
   frames: KillcamFrame[];
-  walls: Wall[];
   victimId: string;
   killerId: string | null;
   killerName: string;
@@ -114,7 +113,6 @@ export class KillcamView {
     const killerId = resolveKillerId(frames, victimId, killerName);
     this.replay = {
       frames,
-      walls: this.recorder.takeWalls().slice(),
       victimId,
       killerId,
       killerName: killerName.trim(),
@@ -186,7 +184,7 @@ export class KillcamView {
 
     // Kulisse: Wände als ruhige Flächen, damit die Szene verortbar bleibt.
     context.fillStyle = 'rgba(255,255,255,.07)';
-    for (const wall of replay.walls) {
+    for (const wall of frame.walls) {
       const [x, y] = toScreen(wall.x, wall.y);
       context.fillRect(x, y, wall.width * view.scale, wall.height * view.scale);
     }
@@ -315,7 +313,8 @@ export function sampleFrame(frames: KillcamFrame[], time: number): KillcamFrame 
         dead: alpha > 0.5 ? target.dead : actor.dead
       };
     }),
-    shots: alpha < 0.5 ? current.shots : next.shots
+    shots: alpha < 0.5 ? current.shots : next.shots,
+    walls: alpha < 0.5 ? current.walls : next.walls
   };
 }
 
