@@ -104,6 +104,12 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   Killers – live statt Aufzeichnung. Ist der Killer tot oder weg, bleibt es bei
   der eigenen Todesposition. Braucht einen Client, der die Kamera auf
   `spectatorTargetId` zentriert.
+- **Client-Prediction:** Jeder Snapshot trägt `lastProcessedInput` – die
+  Sequenznummer, die beim letzten Tick in die Positionen desselben Snapshots
+  eingeflossen ist. Damit kann der Client die eigene Bewegung vorhersagen und
+  danach abgleichen. Die serverseitige Bewegungsintegration ist in
+  [`docs/CLIENT_PREDICTION.md`](docs/CLIENT_PREDICTION.md) Schritt für Schritt
+  festgehalten; jede Abweichung im Nachbau wird als Ruckeln sichtbar.
 - **Achievements:** `ACHIEVEMENTS_ENABLED=true` hängt eine rein beobachtende
   Engine an (sieben Achievements, Katalog in `apps/server/src/achievements.ts`).
   Der Fortschritt liegt im Arbeitsspeicher und gilt je Verbindung; Persistenz
