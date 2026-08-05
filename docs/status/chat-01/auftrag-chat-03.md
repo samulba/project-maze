@@ -1,50 +1,59 @@
 # Auftrag für Chat 03 – Client/UX
 
-**Ausgestellt: 2026-08-06 · Basis: aktueller `origin/main`**
+**Ausgestellt: 2026-08-06 (2. Fassung) · Basis: aktueller `origin/main`**
 
-Profil-Tab ist gemerged – die Galerie-Entscheidung (ganzer Katalog statt nur
-Freigeschaltetes) und die vier Zustände ohne Fehlertext sind genau richtig.
+R1/R2/R4 ist gemerged – Handlungsfeld 1 ist damit client-seitig durch. Der
+eigentliche Fund deines Pakets war nicht der Vollbild-Knopf, sondern dass die
+Renderauflösung auf dem Startwert klebte: ein Zoom- oder Monitorwechsel ändert
+nur `devicePixelRatio` und löst kein `resize`. Der Sekundenvergleich als Netz
+unter der Medienabfrage ist genau die richtige Antwort auf „sauber, aber nicht
+überall zuverlässig".
 
-## R1/R2/R4: Desktop-Fullscreen, Letterbox-Feinschliff, Qualitätsstufen
+**Merge-Hinweis:** Dein Branch saß auf dem Commit *vor* dem Design-Umbau. Die
+Konflikte lagen in `start.css` und `controls.css` – deine neuen Elemente
+(Grafikstufe, Vollbild, Dropdown-Optionen) trugen noch Dunkel-Festwerte
+(`#141926`, `#7d859b`, `#cfd4e4`) und nutzen jetzt die Theme-Variablen. Dein
+Letterbox-Rand zeichnet mit `palette.outside` und passte sich von selbst an –
+das war gut gebaut. Bitte ab jetzt konsequent über die Variablen gehen, das
+Standard-Theme ist hell.
 
-MASTERPLAN Feld 1, die verbliebenen Punkte (R3 Mobile ist durch):
+## Design-Basis hat sich geändert (bitte zuerst lesen)
 
-1. **R1 Fullscreen-Härtung Desktop:** Vollbild rein/raus (F11 UND
-   Fullscreen-API), Fenstergrößen-Wechsel, Monitor-Wechsel mit anderem
-   devicePixelRatio, Browser-Zoom. Die syncSize-Grundlage liegt im Renderer;
-   dein Paket ist der Nachweis über eine Testmatrix wie bei R3 plus Fixes für
-   das, was dabei auffällt.
-2. **R2 Letterbox & HUD-Skalierung:** Balken auf Ultrawide/4:3 als gestaltete
-   Ruhe (Design-Richtung beachten: hell, nicht düster!), HUD-Typo mit clamp()
-   auf großen Bildschirmen.
-3. **R4 Qualitätsstufen:** hoch/mittel/niedrig (Partikelmenge, Glow-Effekte im
-   Canvas, Antialias, Auflösungs-Cap). Auto-Einstufung: Start „mittel", nach
-   10 s FPS-Messung (die Infrastruktur aus deinem Perf-Sender kann die Messung
-   liefern) hoch- oder runterstufen; manuelle Wahl im Startscreen unter
-   Sound & Loadout. `quality` im Perf-Report entsprechend erweitern
-   (Renderpfad + Stufe – mit 04 kurz über die Label-Kardinalität abstimmen,
-   deren /metrics-Export ist auf 4×4 ausgelegt; Vorschlag im Statusbericht).
+Sam hat entschieden: **Startbasis ist der Look, der Diep.io am nächsten
+kommt.** Umgesetzt auf main, verbindlich im MASTERPLAN („Design-Richtung"):
+heller Arena-Boden `0xcdcdcd` mit Gitter, Konturen in abgedunkelter Füllfarbe
+(`STYLE`-Block + `darken()` in `renderer.ts`), selbst Cyan `0x00b2e1`, Gegner
+Rot `0xf14e54`, UI in `color-scheme:light`. Grundlook-Änderungen nur nach
+Screenshot-Freigabe durch Sam über 01.
 
-## Danach
+## Das Paket: N2 Client-Prediction
 
-**N2 Client-Prediction** (docs/CLIENT_PREDICTION.md; `lastProcessedInput ?? -1`)
-– das größte verbleibende Feel-Paket. Bei Fragen zur Bewegungsintegration ist
-02s Doku maßgeblich, nicht der Code-Augenschein.
+Das größte verbleibende Feel-Paket (`docs/CLIENT_PREDICTION.md`;
+`lastProcessedInput ?? -1`). Der Server setzt das Feld bereits immer.
+Bei Fragen zur Bewegungsintegration ist 02s Doku maßgeblich, nicht der
+Code-Augenschein – `ACCELERATION_SCALE` liegt in `packages/shared` und die
+Vorhersage muss ihn spiegeln, sonst driftet sie systematisch.
 
-## Nachtrag 06.08. – Design-Basis ist jetzt der Diep-Look
+## Zwei kleine Zulieferungen, die mit ins Paket können
 
-Sam hat nach zwei Screenshot-Runden entschieden: **Startbasis = so nah wie
-möglich an Diep.io.** 01 hat das umgesetzt (auf main): Standard-Theme hell
-(`:root` mit `color-scheme:light`, Arena `0xcdcdcd` + Gitter), Konturen in
-abgedunkelter Füllfarbe über den neuen `STYLE`-Block + `darken()` in
-`renderer.ts`. Details im MASTERPLAN („Design-Richtung"). Für dich heißt das:
+1. **Deinen `tier`-Vorschlag nehme ich an:** Die Qualitätsstufe läuft als
+   eigenes Feld (`{"quality":"webgl","tier":"mid"}`), nicht als kombiniertes
+   Label – deine Begründung mit der Kardinalität (4 → 12) ist richtig, und der
+   bestehende `/metrics`-Export ist auf 4×4 ausgelegt. **04 erweitert die
+   erlaubten Felder serverseitig** (steht in deren Auftrag). Deine zwei Zeilen
+   im Client kannst du danach nachziehen; solange der Server `tier` noch mit
+   400 ablehnt, bleibt das Feld ungesendet – dass du es nicht auf Verdacht
+   eingebaut hast, war richtig.
+2. **KL4-UI (klein, aber blockierend für 02):** `Digit0` in `input.ts` auf
+   Index 9 abbilden – heute liefert die Taste `-1` und ist tot. Dazu die zwei
+   neuen Upgrade-Knöpfe familienabhängig beschriften (RAPID: Momentum-Aufbau /
+   Momentum-Maximum · IMPACT: Wucht-Skalierung / Aufprall-Erholung · Precision
+   und Control bekommen ihre Wörter, wenn deren Signatures stehen) und die
+   Core-Sperre sichtbar machen. 02 baut die Server-Seite hinter
+   `FAMILY_UPGRADES_ENABLED` – ohne Flag ändert sich nichts, ihr könnt also
+   unabhängig voneinander fertig werden.
 
-- R2-Letterbox-Balken gegen den HELLEN Grundton gestalten (Außenfarbe ist
-  `outside`/`#b7b7b7`), nicht mehr gegen Dunkelblau.
-- Neue UI-Flächen immer über die CSS-Variablen (`--surface`, `--text`, …),
-  keine hartkodierten Hell-auf-Dunkel-Farben – das Standard-Theme ist jetzt
-  light, die Wahl-Themes void/neon/classic bleiben dunkel.
-- Grundlook-Änderungen (Palette, Konturen, Boden) nur nach
-  Screenshot-Freigabe durch Sam über 01.
+Wenn N2 dadurch zu groß wird: N2 zuerst, die zwei Zulieferungen im Paket
+danach. Sag im Statusbericht, wie du geschnitten hast.
 
 Statusbericht wie gehabt nach `docs/status/chat-03/`.
