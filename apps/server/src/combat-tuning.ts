@@ -1,4 +1,5 @@
 import {
+  ACCELERATION_SCALE,
   CLASS_DEFINITIONS,
   EMPTY_UPGRADES,
   GAME,
@@ -78,11 +79,8 @@ interface CombatInternals {
  */
 const projectileSpeedScaleFor = (branch: string): number => (branch === 'precision' ? 0.9 : 0.75);
 
-/**
- * Ausweichen ist Beschleunigung, nicht Höchsttempo: Der Buff macht
- * Richtungswechsel spürbar direkter, ohne das Kiten (Top-Speed) zu verändern.
- */
-const ACCELERATION_SCALE = 1.12;
+// ACCELERATION_SCALE kommt aus shared: Die Client-Prediction muss exakt
+// dieselbe Beschleunigung rechnen wie der Server (siehe CLIENT_PREDICTION.md).
 
 export function tunedStatsFor(player: RuntimePlayer): TunedStats {
   const base = CLASS_DEFINITIONS[player.playerClass];

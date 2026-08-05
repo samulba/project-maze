@@ -312,7 +312,16 @@ export interface Wall { id:string; x:number; y:number; width:number; height:numb
 export interface ShapeSnapshot { id:string; kind:ShapeKind; position:Vector2; velocity:Vector2; radius:number; rotation:number; health:number; maxHealth:number; }
 export interface KillEvent { id:number; killer:string; victim:string; at:number; streak:number; }
 export interface LeaderboardEntry { id:string; name:string; score:number; level:number; playerClass:PlayerClass; isBot:boolean; }
-export interface WorldSnapshot { type:'snapshot'; selfId:string|null; tick:number; serverTime:number; players:PlayerSnapshot[]; projectiles:ProjectileSnapshot[]; drones:DroneSnapshot[]; shapes:ShapeSnapshot[]; walls:Wall[]; leaderboard:LeaderboardEntry[]; killfeed:KillEvent[]; }
+export interface WorldSnapshot { type:'snapshot'; selfId:string|null; tick:number; serverTime:number; players:PlayerSnapshot[]; projectiles:ProjectileSnapshot[]; drones:DroneSnapshot[]; shapes:ShapeSnapshot[]; walls:Wall[]; leaderboard:LeaderboardEntry[]; killfeed:KillEvent[];
+  /**
+   * Sequenznummer der zuletzt in einen Tick eingeflossenen Eingabe dieses
+   * Empfängers. `-1` = noch nichts verarbeitet. Der Client verwirft alle
+   * gepufferten Eingaben bis einschließlich dieser Nummer und rechnet den Rest
+   * auf der Serverposition nach. Wird von der äußersten Server-Schicht gesetzt
+   * und weder kurz-ID-umgeschrieben noch delta-gestrippt.
+   */
+  lastProcessedInput?: number;
+}
 export interface WelcomeMessage { type:'welcome'; selfId:string; }
 export interface ErrorMessage { type:'error'; message:string; }
 export interface PongMessage { type:'pong'; sentAt:number; serverTime:number; }
@@ -345,6 +354,13 @@ export const xpThresholdForLevel = (level:number):number => { const clamped = Ma
 export const xpAtLevelStart = (level:number):number => level <= 1 ? 0 : xpThresholdForLevel(level - 1);
 export const upgradePointsAtLevel = (level:number):number => Math.max(0, Math.min(GAME.maxLevel, Math.floor(level)) - 1);
 export const respawnLevelFrom = (level:number):number => Math.max(1, Math.floor(level * 0.5));
+/**
+ * Serverseitige Skalierung der Klassen-Beschleunigung (Ausweich-Buff).
+ * Lebt in shared, weil die Client-Prediction exakt dieselbe Zahl spiegeln
+ * muss – eine Abweichung von 12 % wäre in jedem Tick sichtbares Ruckeln.
+ */
+export const ACCELERATION_SCALE = 1.12;
+
 export const availableClassChoices = (current:PlayerClass, level:number):PlayerClass[] => PLAYER_CLASS_IDS.filter((id) => { const definition = CLASS_DEFINITIONS[id]; return definition.parent === current && definition.unlockLevel <= level; });
 export const isValidClassChoice = (current:PlayerClass, target:PlayerClass, level:number):boolean => availableClassChoices(current, level).includes(target);
 export const classAvailableAtLevel = (playerClass:PlayerClass, level:number):PlayerClass => { let current = CLASS_DEFINITIONS[playerClass]; const visited = new Set<PlayerClass>(); while (current.unlockLevel > level && current.parent) { if (visited.has(current.id)) return 'core'; visited.add(current.id); current = CLASS_DEFINITIONS[current.parent]; } return current.id; };
