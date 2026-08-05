@@ -127,14 +127,21 @@ export class GameRenderer {
   /** Erst true, wenn PixiJS fertig initialisiert ist – vorher darf nichts auf app.renderer zugreifen. */
   get ready():boolean{return this.initialized}
 
-  async init(root:HTMLElement):Promise<void>{
-    const options={resizeTo:window,antialias:true,background:this.palette.outside,resolution:Math.min(devicePixelRatio||1,2),autoDensity:true};
+  /** Schneller Vorabtest: Bekommt die Seite überhaupt einen WebGL-Kontext? */
+  static webglAvailable():boolean{
     try{
-      await this.app.init({...options,preference:'webgl'});
+      const canvas=document.createElement('canvas');
+      return Boolean(canvas.getContext('webgl2')||canvas.getContext('webgl'));
     }catch{
-      // Ältere Geräte ohne WebGL-Kontext: zweiter Versuch ohne Präferenz.
-      await this.app.init(options);
+      return false;
     }
+  }
+
+  async init(root:HTMLElement):Promise<void>{
+    // PixiJS hängt sonst ohne Rückmeldung, wenn der Browser keinen Kontext mehr
+    // vergibt (Hardwarebeschleunigung aus, zu viele offene WebGL-Tabs).
+    if(!GameRenderer.webglAvailable())throw new Error('WEBGL_UNAVAILABLE');
+    await this.app.init({resizeTo:window,antialias:true,background:this.palette.outside,resolution:Math.min(devicePixelRatio||1,2),autoDensity:true,preference:'webgl'});
     this.initialized=true;
     root.prepend(this.app.canvas);
     this.world.addChild(this.background,this.walls,this.shapes,this.projectiles,this.drones,this.particles.graphics,this.players,this.fx,this.numbers.container);

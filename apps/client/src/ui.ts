@@ -11,14 +11,7 @@ import {
 } from '@project-maze/shared';
 import type { ArenaEventKind } from '@project-maze/shared/gameplay';
 import { arenaEventStyle, cssColor } from './arena-event-style';
-import {
-  CLIENT_THEME_IDS,
-  CLIENT_THEME_LABELS,
-  DEFAULT_THEME,
-  applyTheme,
-  isClientThemeId,
-  type ClientThemeId
-} from './themes';
+import { DEFAULT_THEME, applyTheme, type ClientThemeId } from './themes';
 
 export interface JoinOptions {
   name: string;
@@ -99,7 +92,6 @@ export class GameUI {
             <label class="field-label" for="player-name">SPIELERNAME</label>
             <input id="player-name" maxlength="18" autocomplete="off" value="Player" />
             <div class="start-options">
-              <label><span>THEME</span><select id="theme">${CLIENT_THEME_IDS.map((id) => `<option value="${id}">${CLIENT_THEME_LABELS[id]}</option>`).join('')}</select></label>
               <label><span>SOUND</span><input type="range" id="volume" min="0" max="100" step="5" /></label>
               <div class="control-preview"><span>WASD</span><span>LINKSKLICK FEUER</span><span>RECHTSKLICK DROHNEN</span></div>
             </div>
@@ -196,8 +188,9 @@ export class GameUI {
       event.preventDefault();
       if (this.joinButton.disabled) return;
       const name = this.require<HTMLInputElement>('#player-name').value.trim() || 'Player';
-      const selected = this.require<HTMLSelectElement>('#theme').value;
-      const theme: ClientThemeId = isClientThemeId(selected) ? selected : DEFAULT_THEME;
+      // Vorerst genau ein neutrales Theme – die Auswahl kommt zurück, wenn das
+      // Spiel steht und die Varianten wirklich gepflegt sind.
+      const theme = DEFAULT_THEME;
       applyTheme(theme);
       onJoin({ name, theme });
     });

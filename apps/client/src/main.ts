@@ -22,7 +22,7 @@ import { InputController } from './input';
 import { KillcamView } from './killcam-view';
 import { OnboardingCoach } from './onboarding-view';
 import { GameRenderer } from './renderer';
-import { DEFAULT_THEME, applyTheme, isClientThemeId, readStoredTheme, storeTheme } from './themes';
+import { DEFAULT_THEME, applyTheme } from './themes';
 import { GameUI, type JoinOptions } from './ui';
 import './style.css';
 import './stability.css';
@@ -84,19 +84,20 @@ enhanceClassChoices(ui.root);
 
 // Der Startscreen bleibt gesperrt, bis der Renderer wirklich läuft: PixiJS lädt seine
 // Renderer-Chunks dynamisch nach, und ein Klick davor hätte keinen Renderer zum Zeichnen.
+const GRAPHICS_HELP = 'Grafik konnte nicht gestartet werden. Das liegt fast immer am Browser: Hardwarebeschleunigung einschalten (Einstellungen → System) oder ein paar Tabs schließen – Browser vergeben nur eine begrenzte Zahl an WebGL-Fenstern. Danach Seite neu laden.';
+
 ui.setJoinPending(true, 'Grafik wird geladen …');
 const rendererReady = renderer.init(ui.root);
-const slowRendererNotice = window.setTimeout(() => {
-  ui.setJoinPending(true, 'Die Grafik braucht ungewöhnlich lange. Prüfe, ob die Hardwarebeschleunigung deines Browsers aktiv ist.');
-}, 15000);
+// Hängt PixiJS trotz vorhandenem Kontext, bleibt der Spieler sonst ohne Erklärung sitzen.
+const stuckNotice = window.setTimeout(() => ui.setJoinPending(true, GRAPHICS_HELP), 8000);
 try {
   await rendererReady;
-  window.clearTimeout(slowRendererNotice);
+  window.clearTimeout(stuckNotice);
   ui.setJoinPending(false);
 } catch (error) {
-  window.clearTimeout(slowRendererNotice);
+  window.clearTimeout(stuckNotice);
   console.error('Renderer-Init fehlgeschlagen', error);
-  ui.setJoinPending(true, 'Grafik konnte nicht gestartet werden. Bitte lade die Seite neu – hilft das nicht, aktiviere die Hardwarebeschleunigung im Browser.');
+  ui.setJoinPending(true, GRAPHICS_HELP);
   throw error;
 }
 const gameplayEffects = new GameplayEffects(renderer.app);
@@ -337,16 +338,7 @@ if (volumeSlider) {
   });
 }
 
-const storedTheme = readStoredTheme();
-applyTheme(storedTheme);
-const themeSelect = document.querySelector<HTMLSelectElement>('#theme');
-if (themeSelect) {
-  themeSelect.value = storedTheme;
-  themeSelect.addEventListener('change', () => {
-    const theme = isClientThemeId(themeSelect.value) ? themeSelect.value : DEFAULT_THEME;
-    storeTheme(theme);
-    applyTheme(theme);
-    renderer.setTheme(theme);
-  });
-}
-renderer.setTheme(storedTheme);
+// Vorerst ein einziges, neutrales Erscheinungsbild – die Themes bleiben im Code,
+// die Auswahl kommt erst zurück, wenn jede Variante wirklich gepflegt ist.
+applyTheme(DEFAULT_THEME);
+renderer.setTheme(DEFAULT_THEME);
