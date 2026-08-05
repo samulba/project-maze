@@ -1,0 +1,158 @@
+/*
+ * Profil-Panel auf dem Startscreen (K2).
+ *
+ * Gleiche Formensprache wie die Bestenliste daneben – aufklappbar, dieselben
+ * Kanten, dieselbe Kopfzeile. Flächen sind bewusst offen statt schwer
+ * (Design-Richtung „klar & freundlich-technisch", MASTERPLAN 06.08.).
+ */
+.start-profile {
+  width: min(430px, 100%);
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  backdrop-filter: blur(14px);
+}
+.start-profile[hidden] { display: none; }
+.start-profile > summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 15px;
+  cursor: pointer;
+  list-style: none;
+}
+.start-profile > summary::-webkit-details-marker { display: none; }
+.start-profile > summary strong { color: var(--text); font-size: 10px; font-weight: 850; letter-spacing: .16em; }
+.start-profile > summary small { color: var(--faint); font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+.start-profile-body { padding: 0 15px 15px; }
+
+.profile-guest,
+.profile-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------------------ *
+ * Karte: Name ändern, darunter die zwei Sätze über das Konto
+ * ------------------------------------------------------------------ */
+.profile-name {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 8px;
+}
+.profile-name .field-label { grid-column: 1 / -1; margin: 0; text-align: left; }
+#profile-name-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  outline: 0;
+  color: var(--text);
+  background: color-mix(in srgb, var(--strong) 80%, transparent);
+  font-size: 13px;
+  font-weight: 650;
+  transition: border-color .18s, box-shadow .18s;
+}
+#profile-name-input:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.profile-save {
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  transition: background .16s, border-color .16s;
+}
+.profile-save:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.profile-save:disabled { cursor: default; opacity: .5; }
+.profile-meta {
+  margin: 9px 0 0;
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .04em;
+}
+
+/* ------------------------------------------------------------------ *
+ * Bestwerte
+ * ------------------------------------------------------------------ */
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 13px;
+}
+.profile-stats div {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+}
+.profile-stats span,
+.profile-stats b { display: block; }
+.profile-stats span { color: var(--faint); font-size: 9px; letter-spacing: .05em; }
+.profile-stats b { margin-top: 3px; color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------ *
+ * Achievements-Galerie: der ganze Katalog, Offenes bleibt sichtbar
+ * ------------------------------------------------------------------ */
+.profile-section {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 16px 0 8px;
+}
+.profile-section span { color: var(--faint); font-size: 9px; font-weight: 850; letter-spacing: .14em; }
+.profile-section small { color: var(--muted); font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.profile-badges { display: grid; gap: 5px; }
+.profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--faint);
+  background: color-mix(in srgb, var(--text) 2.5%, transparent);
+  font-size: 11px;
+}
+.profile-badge i {
+  width: 14px;
+  color: var(--faint);
+  text-align: center;
+  font-style: normal;
+}
+/* Freigeschaltet ist die Ausnahme, nicht der Normalfall – deshalb trägt nur
+   dieser Zustand Farbe. */
+.profile-badge.unlocked {
+  border-color: color-mix(in srgb, #e0b464 34%, var(--line));
+  color: var(--text);
+  background: color-mix(in srgb, #e0b464 9%, transparent);
+}
+.profile-badge.unlocked i { color: #e0b464; }
+
+@media (max-width: 900px) {
+  .profile-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 901px) {
+  .start-profile { width: 100%; }
+  .start-profile > summary { cursor: default; }
+}

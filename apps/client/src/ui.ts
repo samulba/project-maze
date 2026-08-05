@@ -130,10 +130,17 @@ export class GameUI {
               <p class="start-note"><span>WASD</span><span>LINKS FEUER</span><span>RECHTS DROHNEN</span><span>ALPHA 1.0</span></p>
             </form>
 
-            <details class="start-board" id="start-board" hidden>
-              <summary><strong>BESTENLISTE</strong><small data-board-meta></small></summary>
-              <ol class="start-board-list" data-board-list></ol>
-            </details>
+            <div class="start-side">
+              <details class="start-profile" id="start-profile" hidden>
+                <summary><strong>PROFIL</strong><small data-profile-hint>GAST</small></summary>
+                <div class="start-profile-body" data-profile-body></div>
+              </details>
+
+              <details class="start-board" id="start-board" hidden>
+                <summary><strong>BESTENLISTE</strong><small data-board-meta></small></summary>
+                <ol class="start-board-list" data-board-list></ol>
+              </details>
+            </div>
           </div>
         </section>
 
