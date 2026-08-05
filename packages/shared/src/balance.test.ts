@@ -20,14 +20,21 @@ describe('class balance metrics', () => {
     for (const id of PLAYER_CLASS_IDS) {
       const tank = CLASS_DEFINITIONS[id];
       if (tank.branch === 'impact' || tank.barrelCount === 0) continue;
-      expect(classBalanceMetrics(id).projectileDps).toBeLessThanOrEqual(100);
+      expect(classBalanceMetrics(id).forwardProjectileDps).toBeLessThanOrEqual(100);
+      expect(classBalanceMetrics(id).projectileDps).toBeLessThanOrEqual(180);
     }
   });
 
   it('keeps drone pressure below the hard safety ceiling', () => {
-    for (const id of ['drone', 'warden', 'factory', 'overseer', 'carrier'] as const) {
+    for (const id of ['drone', 'warden', 'factory', 'overseer', 'carrier', 'guardian', 'hive'] as const) {
       expect(classBalanceMetrics(id).dronePressure).toBeLessThanOrEqual(170);
     }
+  });
+
+  it('counts only forward barrels for rear-covering layouts', () => {
+    expect(classBalanceMetrics('flanker').forwardProjectileDps).toBeLessThan(classBalanceMetrics('flanker').projectileDps);
+    expect(classBalanceMetrics('octo').forwardProjectileDps).toBeLessThan(classBalanceMetrics('octo').projectileDps);
+    expect(classBalanceMetrics('twin').forwardProjectileDps).toBe(classBalanceMetrics('twin').projectileDps);
   });
 
   it('keeps final impact classes meaningfully distinct', () => {

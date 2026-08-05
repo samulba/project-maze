@@ -19,7 +19,15 @@ export const PLAYER_CLASS_IDS = [
   'overseer',
   'carrier',
   'juggernaut',
-  'fortress'
+  'fortress',
+  'flanker',
+  'octo',
+  'arbalest',
+  'deadeye',
+  'guardian',
+  'hive',
+  'blitz',
+  'comet'
 ] as const;
 
 export type PlayerClass = (typeof PLAYER_CLASS_IDS)[number];
@@ -81,6 +89,8 @@ export interface ClassDefinition {
   barrelCount: number;
   barrelSpread: number;
   barrelLength: number;
+  /** Feste Laufwinkel relativ zur Zielrichtung (z. B. Heckläufe). Ersetzt das Spread-Layout. */
+  barrelAngles?: number[];
   droneCount: number;
   droneRespawn: number;
 }
@@ -234,15 +244,72 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     reload: 0.75, projectileSpeed: 600, projectileLife: 1.5, damage: 16, projectileRadius: 11,
     penetration: 28, bodyDamage: 45, barrelCount: 1, barrelSpread: 0, barrelLength: 20,
     droneCount: 0, droneRespawn: 0
+  }),
+  flanker: classDef({
+    id: 'flanker', label: 'Flanker', description: 'Ein Lauf nach vorn, einer nach hinten – Druck und Rückendeckung zugleich.', parent: 'rapid',
+    unlockLevel: 24, branch: 'rapid', maxHealth: 103, regen: 2.05, acceleration: 1620, moveSpeed: 288,
+    reload: 0.24, projectileSpeed: 845, projectileLife: 1.45, damage: 11, projectileRadius: 6,
+    penetration: 15, bodyDamage: 10, barrelCount: 2, barrelSpread: 0, barrelLength: 34,
+    barrelAngles: [0, Math.PI], droneCount: 0, droneRespawn: 0
+  }),
+  octo: classDef({
+    id: 'octo', label: 'Octo', description: 'Acht Läufe decken jede Richtung ab – niemand flankiert dich.', parent: 'flanker',
+    unlockLevel: 38, branch: 'rapid', maxHealth: 112, regen: 2.3, acceleration: 1500, moveSpeed: 268,
+    reload: 0.32, projectileSpeed: 855, projectileLife: 1.35, damage: 5.5, projectileRadius: 5.5,
+    penetration: 12, bodyDamage: 11, barrelCount: 8, barrelSpread: 0, barrelLength: 32,
+    barrelAngles: [0, Math.PI / 4, Math.PI / 2, Math.PI * 3 / 4, Math.PI, -Math.PI * 3 / 4, -Math.PI / 2, -Math.PI / 4],
+    droneCount: 0, droneRespawn: 0
+  }),
+  arbalest: classDef({
+    id: 'arbalest', label: 'Arbalest', description: 'Zwei parallele Präzisionsläufe für doppelten Druck auf Distanz.', parent: 'sniper',
+    unlockLevel: 24, branch: 'precision', maxHealth: 96, regen: 1.8, acceleration: 1380, moveSpeed: 246,
+    reload: 0.75, projectileSpeed: 1150, projectileLife: 1.9, damage: 26, projectileRadius: 7,
+    penetration: 40, bodyDamage: 9, barrelCount: 2, barrelSpread: 0.09, barrelLength: 50,
+    droneCount: 0, droneRespawn: 0
+  }),
+  deadeye: classDef({
+    id: 'deadeye', label: 'Deadeye', description: 'Vollstrecker: Doppelläufe mit Bonusschaden auf schwer verwundete Ziele.', parent: 'arbalest',
+    unlockLevel: 38, branch: 'precision', maxHealth: 92, regen: 1.6, acceleration: 1320, moveSpeed: 240,
+    reload: 0.8, projectileSpeed: 1350, projectileLife: 2.1, damage: 34, projectileRadius: 8,
+    penetration: 60, bodyDamage: 8, barrelCount: 2, barrelSpread: 0.07, barrelLength: 56,
+    droneCount: 0, droneRespawn: 0
+  }),
+  guardian: classDef({
+    id: 'guardian', label: 'Guardian', description: 'Fünf zähe Schildwächter-Drohnen in engem Verteidigungsorbit.', parent: 'drone',
+    unlockLevel: 24, branch: 'control', maxHealth: 126, regen: 2.8, acceleration: 1300, moveSpeed: 250,
+    reload: 0.7, projectileSpeed: 0, projectileLife: 0, damage: 11, projectileRadius: 0,
+    penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
+    droneCount: 5, droneRespawn: 1.3
+  }),
+  hive: classDef({
+    id: 'hive', label: 'Hive', description: 'Zehn Mikro-Drohnen mit blitzschnellem Nachschub überfluten das Feld.', parent: 'guardian',
+    unlockLevel: 38, branch: 'control', maxHealth: 132, regen: 3.1, acceleration: 1280, moveSpeed: 242,
+    reload: 0.55, projectileSpeed: 0, projectileLife: 0, damage: 6.5, projectileRadius: 0,
+    penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
+    droneCount: 10, droneRespawn: 0.55
+  }),
+  blitz: classDef({
+    id: 'blitz', label: 'Blitz', description: 'Leichter Sturm-Rammer: Körperschaden wächst mit deinem Tempo.', parent: 'rammer',
+    unlockLevel: 24, branch: 'impact', maxHealth: 150, regen: 3, acceleration: 1850, moveSpeed: 320,
+    reload: 0.5, projectileSpeed: 680, projectileLife: 1.1, damage: 8, projectileRadius: 7,
+    penetration: 12, bodyDamage: 30, barrelCount: 1, barrelSpread: 0, barrelLength: 25,
+    droneCount: 0, droneRespawn: 0
+  }),
+  comet: classDef({
+    id: 'comet', label: 'Comet', description: 'Der schnellste Tank der Arena – bei Vollgas verheerender Aufprall.', parent: 'blitz',
+    unlockLevel: 38, branch: 'impact', maxHealth: 175, regen: 3.6, acceleration: 1950, moveSpeed: 340,
+    reload: 0.55, projectileSpeed: 660, projectileLife: 1, damage: 7.5, projectileRadius: 8,
+    penetration: 12, bodyDamage: 44, barrelCount: 1, barrelSpread: 0, barrelLength: 22,
+    droneCount: 0, droneRespawn: 0
   })
 };
 
-export interface PlayerSnapshot { id:string; name:string; playerClass:PlayerClass; position:Vector2; velocity:Vector2; angle:number; health:number; maxHealth:number; level:number; xp:number; xpForNextLevel:number; availablePoints:number; upgrades:UpgradeLevels; score:number; kills:number; deaths:number; invulnerable:boolean; isBot:boolean; dead:boolean; deathLevel:number; respawnLevel:number; canRespawnAt:number; autoRespawnAt:number; killerName:string; }
+export interface PlayerSnapshot { id:string; name:string; playerClass:PlayerClass; position:Vector2; velocity:Vector2; angle:number; health:number; maxHealth:number; level:number; xp:number; xpForNextLevel:number; availablePoints:number; upgrades:UpgradeLevels; score:number; kills:number; deaths:number; streak:number; bestStreak:number; invulnerable:boolean; isBot:boolean; dead:boolean; deathLevel:number; respawnLevel:number; canRespawnAt:number; autoRespawnAt:number; killerName:string; }
 export interface ProjectileSnapshot { id:string; ownerId:string; position:Vector2; velocity:Vector2; radius:number; integrity:number; maxIntegrity:number; }
 export interface DroneSnapshot { id:string; ownerId:string; position:Vector2; velocity:Vector2; angle:number; health:number; maxHealth:number; }
 export interface Wall { id:string; x:number; y:number; width:number; height:number; }
 export interface ShapeSnapshot { id:string; kind:ShapeKind; position:Vector2; velocity:Vector2; radius:number; rotation:number; health:number; maxHealth:number; }
-export interface KillEvent { id:number; killer:string; victim:string; at:number; }
+export interface KillEvent { id:number; killer:string; victim:string; at:number; streak:number; }
 export interface LeaderboardEntry { id:string; name:string; score:number; level:number; playerClass:PlayerClass; isBot:boolean; }
 export interface WorldSnapshot { type:'snapshot'; selfId:string|null; tick:number; serverTime:number; players:PlayerSnapshot[]; projectiles:ProjectileSnapshot[]; drones:DroneSnapshot[]; shapes:ShapeSnapshot[]; walls:Wall[]; leaderboard:LeaderboardEntry[]; killfeed:KillEvent[]; }
 export interface WelcomeMessage { type:'welcome'; selfId:string; }

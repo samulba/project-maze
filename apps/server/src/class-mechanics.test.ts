@@ -96,6 +96,59 @@ describe('class mechanics', () => {
     }
   });
 
+  it('fires Flanker barrels forward and backward', () => {
+    const game = createGame();
+    const playerId = game.addPlayer('Flanker');
+    const internals = game as unknown as Internals;
+    const player = preparePlayer(game, playerId, 'flanker', 24);
+    player.position = { x: 3000, y: 2000 };
+    player.aim = { x: 600, y: 0 };
+
+    internals.fire(player, tunedStatsFor(player));
+    const projectiles = [...internals.projectiles.values()];
+    expect(projectiles).toHaveLength(2);
+    const directions = projectiles.map((projectile) => Math.sign(projectile.velocity.x)).sort();
+    expect(directions).toEqual([-1, 1]);
+  });
+
+  it('covers every direction with Octo barrels', () => {
+    const game = createGame();
+    const playerId = game.addPlayer('Octo');
+    const internals = game as unknown as Internals;
+    const player = preparePlayer(game, playerId, 'octo', 38);
+    player.position = { x: 3000, y: 2000 };
+    player.aim = { x: 600, y: 0 };
+
+    internals.fire(player, tunedStatsFor(player));
+    const projectiles = [...internals.projectiles.values()];
+    expect(projectiles).toHaveLength(8);
+    const angles = projectiles.map((projectile) => Math.atan2(projectile.velocity.y, projectile.velocity.x));
+    for (let quadrant = 0; quadrant < 4; quadrant += 1) {
+      const from = -Math.PI + quadrant * Math.PI / 2;
+      expect(angles.some((angle) => angle >= from - 0.01 && angle <= from + Math.PI / 2 + 0.01)).toBe(true);
+    }
+  });
+
+  it('grants Deadeye bonus damage only against heavily wounded targets', () => {
+    const game = createGame();
+    const attackerId = game.addPlayer('Deadeye');
+    const targetId = game.addPlayer('Target');
+    const internals = game as unknown as Internals;
+    const attacker = preparePlayer(game, attackerId, 'deadeye', 38);
+    const target = preparePlayer(game, targetId, 'core', 10);
+    attacker.position = { x: 2900, y: 2000 };
+    target.position = { x: 3000, y: 2000 };
+
+    target.health = target.maxHealth;
+    internals.damagePlayer(target, 10, attackerId, Date.now());
+    expect(target.maxHealth - target.health).toBeCloseTo(10, 4);
+
+    target.health = target.maxHealth * 0.2;
+    const before = target.health;
+    internals.damagePlayer(target, 10, attackerId, Date.now() + 1);
+    expect(before - target.health).toBeCloseTo(12.5, 4);
+  });
+
   it('keeps all class mechanic numbers finite', () => {
     const game = createGame();
     const attackerId = game.addPlayer('Attacker');

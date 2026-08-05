@@ -29,7 +29,9 @@ const DRONE_ARCHETYPES: Partial<Record<PlayerClass, DroneArchetype>> = {
   warden: { health: 32, speed: 480, acceleration: 1650, radius: 10.5, orbitRadius: 88 },
   factory: { health: 54, speed: 390, acceleration: 1250, radius: 13.5, orbitRadius: 86 },
   overseer: { health: 28, speed: 510, acceleration: 1780, radius: 9.5, orbitRadius: 94 },
-  carrier: { health: 72, speed: 350, acceleration: 1050, radius: 15.5, orbitRadius: 92 }
+  carrier: { health: 72, speed: 350, acceleration: 1050, radius: 15.5, orbitRadius: 92 },
+  guardian: { health: 62, speed: 380, acceleration: 1200, radius: 13, orbitRadius: 62 },
+  hive: { health: 18, speed: 530, acceleration: 1900, radius: 7.5, orbitRadius: 100 }
 };
 
 interface RuntimePlayer extends PlayerSnapshot {

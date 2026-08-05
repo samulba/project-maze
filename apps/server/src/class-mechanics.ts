@@ -33,8 +33,14 @@ const PRECISION_RECOIL: Partial<Record<PlayerClass, number>> = {
   hunter: 16,
   railgun: 34,
   phantom: 26,
-  lancer: 52
+  lancer: 52,
+  arbalest: 18,
+  deadeye: 24
 };
+
+/** Deadeye: Bonusschaden gegen schwer verwundete Ziele (Exekution). */
+const EXECUTION_THRESHOLD = 0.3;
+const EXECUTION_BONUS = 1.25;
 
 const FIRE_RECOIL: Partial<Record<PlayerClass, number>> = {
   core: 3,
@@ -48,11 +54,17 @@ const FIRE_RECOIL: Partial<Record<PlayerClass, number>> = {
   railgun: 14,
   phantom: 10,
   lancer: 20,
+  arbalest: 9,
+  deadeye: 12,
   rammer: 2,
   crusher: 2,
   bulwark: 4,
   juggernaut: 2,
-  fortress: 5
+  fortress: 5,
+  flanker: 2.5,
+  octo: 3,
+  blitz: 2,
+  comet: 2
 };
 
 interface GatlingState {
@@ -92,6 +104,10 @@ export function tuneClassMechanics<T extends MazeGame>(game: T): T {
       if (frontDot > 0.25) adjustedDamage *= 1 - armor;
     }
     if (target.playerClass === 'juggernaut') adjustedDamage *= 0.92;
+    if (
+      attacker?.playerClass === 'deadeye' &&
+      target.health <= target.maxHealth * EXECUTION_THRESHOLD
+    ) adjustedDamage *= EXECUTION_BONUS;
 
     const healthBefore = target.health;
     originalDamagePlayer(target, adjustedDamage, attackerId, now);

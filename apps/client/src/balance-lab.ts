@@ -40,7 +40,15 @@ const abilityText: Record<PlayerClass, string> = {
   crusher: 'Mehr Haltbarkeit und schwere Nahkampftreffer.',
   bulwark: 'Frontale Treffer verursachen 26 % weniger Schaden.',
   juggernaut: '8 % allgemeine Schadensreduktion und maximaler Body-Damage.',
-  fortress: 'Frontale Treffer verursachen 38 % weniger Schaden.'
+  fortress: 'Frontale Treffer verursachen 38 % weniger Schaden.',
+  flanker: 'Ein Lauf feuert nach vorn, einer nach hinten.',
+  octo: 'Acht Läufe decken alle Richtungen gleichzeitig ab.',
+  arbalest: 'Zwei parallele Präzisionsläufe pro Schuss.',
+  deadeye: '+25 % Schaden auf Ziele unter 30 % Leben.',
+  guardian: 'Fünf zähe Drohnen in engem Verteidigungsorbit.',
+  hive: 'Zehn Mikro-Drohnen mit sehr schnellem Nachschub.',
+  blitz: 'Körperschaden wächst mit dem eigenen Tempo (0,6× bis 1,5×).',
+  comet: 'Schnellster Tank der Arena – Vollgas-Rammen ist verheerend.'
 };
 
 const clampPercent = (value: number): number => Math.max(4, Math.min(100, Math.round(value)));

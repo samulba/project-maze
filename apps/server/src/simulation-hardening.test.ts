@@ -8,6 +8,7 @@ type MutableGame = {
   projectiles: Map<string, any>;
   resolveProjectileCollisions(): void;
   stepProjectiles(dt: number, now: number): void;
+  resolvePlayerCollisions(now: number): void;
 };
 
 describe('simulation hardening', () => {
@@ -42,6 +43,31 @@ describe('simulation hardening', () => {
     internals.stepProjectiles(1 / GAME.tickRate, Date.now());
     internals.stepProjectiles(1 / GAME.tickRate, Date.now() + 25);
     expect(target.health).toBe(initialHealth - 10);
+  });
+
+  it('scales Blitz body damage with momentum', () => {
+    const measureRamDamage = (velocityX: number): number => {
+      const game = hardenSimulation(new MazeGame(0));
+      const ramId = game.addPlayer('Blitz');
+      const targetId = game.addPlayer('Target');
+      const internals = game as unknown as MutableGame;
+      const rammer = internals.players.get(ramId);
+      const target = internals.players.get(targetId);
+      rammer.playerClass = 'blitz';
+      rammer.position = { x: 2800, y: 2200 };
+      rammer.velocity = { x: velocityX, y: 0 };
+      rammer.invulnerable = false;
+      target.position = { x: 2800 + GAME.playerRadius * 2 - 4, y: 2200 };
+      target.invulnerable = false;
+      const before = target.health;
+      internals.resolvePlayerCollisions(Date.now());
+      return before - target.health;
+    };
+
+    const standing = measureRamDamage(0);
+    const fullSpeed = measureRamDamage(320);
+    expect(standing).toBeGreaterThan(0);
+    expect(fullSpeed / standing).toBeCloseTo(1.5 / 0.6, 1);
   });
 
   it('resolves a projectile pair only once', () => {

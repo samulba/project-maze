@@ -56,6 +56,7 @@ interface RuntimeStats {
   barrelCount: number;
   barrelSpread: number;
   barrelLength: number;
+  barrelAngles?: number[] | undefined;
   droneCount: number;
   droneRespawn: number;
 }
@@ -139,6 +140,7 @@ function statsFor(player: GamePlayer): RuntimeStats {
     barrelCount: base.barrelCount,
     barrelSpread: base.barrelSpread,
     barrelLength: base.barrelLength,
+    barrelAngles: base.barrelAngles,
     droneCount: base.droneCount,
     droneRespawn: Math.max(0.35, base.droneRespawn * Math.pow(0.94, player.upgrades.reload))
   };
@@ -269,7 +271,7 @@ export class MazeGame {
     const player: GamePlayer = {
       id, name, playerClass: 'core', position: this.safeSpawn(), velocity: { x: 0, y: 0 }, angle: 0,
       health: base.maxHealth, maxHealth: base.maxHealth, level: 1, xp: 0, xpForNextLevel: xpThresholdForLevel(1),
-      availablePoints: 0, upgrades: EMPTY_UPGRADES(), score: 0, kills: 0, deaths: 0, invulnerable: true,
+      availablePoints: 0, upgrades: EMPTY_UPGRADES(), score: 0, kills: 0, deaths: 0, streak: 0, bestStreak: 0, invulnerable: true,
       isBot, dead: false, deathLevel: 1, respawnLevel: 1, canRespawnAt: 0, autoRespawnAt: 0, killerName: '',
       move: { x: 0, y: 0 }, aim: { x: GAME.maxAimDistance, y: 0 }, primary: false, secondary: false,
       lastInput: -1, cooldown: 0, lastDamageAt: Date.now(), invulnerableUntil: Date.now() + GAME.respawnInvulnerabilityMs, bot
@@ -312,7 +314,9 @@ export class MazeGame {
   private fire(player: GamePlayer, stats: RuntimeStats): void {
     const baseAngle = Math.atan2(player.aim.y, player.aim.x);
     for (let barrel = 0; barrel < stats.barrelCount; barrel += 1) {
-      const offset = stats.barrelCount === 1 ? 0 : (barrel / (stats.barrelCount - 1) - 0.5) * stats.barrelSpread;
+      const offset = stats.barrelAngles
+        ? stats.barrelAngles[barrel] ?? 0
+        : stats.barrelCount === 1 ? 0 : (barrel / (stats.barrelCount - 1) - 0.5) * stats.barrelSpread;
       const angle = baseAngle + offset;
       const direction = { x: Math.cos(angle), y: Math.sin(angle) };
       const position = { x: player.position.x + direction.x * (GAME.playerRadius + stats.barrelLength), y: player.position.y + direction.y * (GAME.playerRadius + stats.barrelLength) };
@@ -499,12 +503,15 @@ export class MazeGame {
     target.autoRespawnAt = now + GAME.autoRespawnDelayMs;
     target.killerName = attacker?.name ?? environmentName;
     target.invulnerable = false;
+    target.streak = 0;
     this.removeOwnerDrones(target.id);
     for (const [id, projectile] of this.projectiles) if (projectile.ownerId === target.id) this.projectiles.delete(id);
     if (attacker && attacker.id !== target.id) {
       attacker.kills += 1;
+      attacker.streak += 1;
+      attacker.bestStreak = Math.max(attacker.bestStreak, attacker.streak);
       this.awardXp(attacker, 130 + target.level * 18);
-      this.killfeed.push({ id: ++this.eventId, killer: attacker.name, victim: target.name, at: now });
+      this.killfeed.push({ id: ++this.eventId, killer: attacker.name, victim: target.name, at: now, streak: attacker.streak });
       if (this.killfeed.length > 12) this.killfeed.shift();
     }
   }
@@ -520,6 +527,8 @@ export class MazeGame {
     player.availablePoints = upgradePointsAtLevel(retainedLevel);
     player.upgrades = EMPTY_UPGRADES();
     player.score = Math.floor(player.score * 0.45);
+    player.streak = 0;
+    player.bestStreak = 0;
     player.dead = false;
     player.health = statsFor(player).maxHealth;
     player.maxHealth = player.health;

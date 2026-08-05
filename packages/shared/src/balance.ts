@@ -6,6 +6,7 @@ export interface ClassBalanceMetrics {
   id: PlayerClass;
   tier: ClassTier;
   projectileDps: number;
+  forwardProjectileDps: number;
   burstDamage: number;
   projectileRange: number;
   effectiveDurability: number;
@@ -22,14 +23,30 @@ export function classTier(playerClass: PlayerClass): ClassTier {
   return 1;
 }
 
+const normalizeAngle = (angle: number): number => {
+  let result = angle % (Math.PI * 2);
+  if (result > Math.PI) result -= Math.PI * 2;
+  if (result < -Math.PI) result += Math.PI * 2;
+  return result;
+};
+
+/** Läufe, die grob nach vorn zeigen (±60°); ohne barrelAngles zählen alle Läufe. */
+export function forwardBarrelCount(playerClass: PlayerClass): number {
+  const tank = CLASS_DEFINITIONS[playerClass];
+  if (!tank.barrelAngles) return tank.barrelCount;
+  return tank.barrelAngles.filter((angle) => Math.abs(normalizeAngle(angle)) <= Math.PI / 3).length;
+}
+
 export function classBalanceMetrics(playerClass: PlayerClass): ClassBalanceMetrics {
   const tank = CLASS_DEFINITIONS[playerClass];
   const projectileDps = tank.barrelCount > 0 ? tank.barrelCount * tank.damage / Math.max(0.001, tank.reload) : 0;
+  const forwardProjectileDps = tank.barrelCount > 0 ? forwardBarrelCount(playerClass) * tank.damage / Math.max(0.001, tank.reload) : 0;
   const dronePressure = tank.droneCount > 0 ? tank.droneCount * tank.damage / Math.max(0.001, tank.reload) : 0;
   return {
     id: playerClass,
     tier: classTier(playerClass),
     projectileDps,
+    forwardProjectileDps,
     burstDamage: tank.damage * Math.max(1, tank.barrelCount),
     projectileRange: tank.projectileSpeed * tank.projectileLife,
     effectiveDurability: tank.maxHealth + tank.regen * 10,

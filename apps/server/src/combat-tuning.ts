@@ -36,6 +36,7 @@ interface TunedStats {
   barrelCount: number;
   barrelSpread: number;
   barrelLength: number;
+  barrelAngles?: number[] | undefined;
   droneCount: number;
   droneRespawn: number;
 }
@@ -86,6 +87,7 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
     barrelCount: base.barrelCount,
     barrelSpread: base.barrelSpread,
     barrelLength: base.barrelLength,
+    barrelAngles: base.barrelAngles,
     droneCount: base.droneCount,
     droneRespawn: Math.max(0.4, base.droneRespawn * Math.pow(0.96, player.upgrades.reload))
   };
@@ -160,6 +162,8 @@ export function tuneCombatScaling<T extends MazeGame>(game: T): T {
     player.availablePoints = upgradePointsAtLevel(retainedLevel);
     player.upgrades = EMPTY_UPGRADES();
     player.score = Math.floor(player.score * 0.5);
+    player.streak = 0;
+    player.bestStreak = 0;
     player.dead = false;
     player.health = tunedStatsFor(player).maxHealth;
     player.maxHealth = player.health;

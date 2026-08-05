@@ -19,24 +19,57 @@ describe('progression and input rules', () => {
   it('unlocks all intended direct children at the tier levels', () => {
     expect(availableClassChoices('core', 9)).toEqual([]);
     expect(availableClassChoices('core', 10)).toEqual(['rapid', 'sniper', 'drone', 'rammer']);
-    expect(availableClassChoices('rapid', 24)).toEqual(['twin', 'repeater']);
-    expect(availableClassChoices('sniper', 24)).toEqual(['railgun', 'hunter']);
-    expect(availableClassChoices('drone', 24)).toEqual(['warden', 'factory']);
-    expect(availableClassChoices('rammer', 24)).toEqual(['crusher', 'bulwark']);
+    expect(availableClassChoices('rapid', 24)).toEqual(['twin', 'repeater', 'flanker']);
+    expect(availableClassChoices('sniper', 24)).toEqual(['railgun', 'hunter', 'arbalest']);
+    expect(availableClassChoices('drone', 24)).toEqual(['warden', 'factory', 'guardian']);
+    expect(availableClassChoices('rammer', 24)).toEqual(['crusher', 'bulwark', 'blitz']);
     expect(availableClassChoices('twin', 38)).toEqual(['storm']);
     expect(availableClassChoices('repeater', 38)).toEqual(['gatling']);
+    expect(availableClassChoices('flanker', 38)).toEqual(['octo']);
     expect(availableClassChoices('railgun', 38)).toEqual(['lancer']);
     expect(availableClassChoices('hunter', 38)).toEqual(['phantom']);
+    expect(availableClassChoices('arbalest', 38)).toEqual(['deadeye']);
     expect(availableClassChoices('warden', 38)).toEqual(['overseer']);
     expect(availableClassChoices('factory', 38)).toEqual(['carrier']);
+    expect(availableClassChoices('guardian', 38)).toEqual(['hive']);
     expect(availableClassChoices('crusher', 38)).toEqual(['juggernaut']);
     expect(availableClassChoices('bulwark', 38)).toEqual(['fortress']);
+    expect(availableClassChoices('blitz', 38)).toEqual(['comet']);
   });
 
-  it('contains exactly 21 unique class definitions', () => {
-    expect(PLAYER_CLASS_IDS).toHaveLength(21);
-    expect(new Set(PLAYER_CLASS_IDS).size).toBe(21);
-    expect(Object.keys(CLASS_DEFINITIONS)).toHaveLength(21);
+  it('contains exactly 29 unique class definitions', () => {
+    expect(PLAYER_CLASS_IDS).toHaveLength(29);
+    expect(new Set(PLAYER_CLASS_IDS).size).toBe(29);
+    expect(Object.keys(CLASS_DEFINITIONS)).toHaveLength(29);
+  });
+
+  it('keeps the class tree structurally valid', () => {
+    for (const id of PLAYER_CLASS_IDS) {
+      const definition = CLASS_DEFINITIONS[id];
+      expect(definition.id).toBe(id);
+      if (id === 'core') {
+        expect(definition.parent).toBeNull();
+        expect(definition.unlockLevel).toBe(1);
+        continue;
+      }
+      expect(definition.parent).not.toBeNull();
+      expect(PLAYER_CLASS_IDS).toContain(definition.parent);
+      const parent = CLASS_DEFINITIONS[definition.parent!];
+      expect(definition.unlockLevel).toBeGreaterThan(parent.unlockLevel);
+      expect([10, 24, 38]).toContain(definition.unlockLevel);
+      if (parent.id !== 'core') expect(definition.branch).toBe(parent.branch);
+      if (definition.barrelAngles) expect(definition.barrelAngles).toHaveLength(definition.barrelCount);
+      expect(definition.droneCount === 0 || definition.barrelCount === 0).toBe(true);
+    }
+    const finalsPerBranch = new Map<string, number>();
+    for (const id of PLAYER_CLASS_IDS) {
+      const definition = CLASS_DEFINITIONS[id];
+      if (definition.unlockLevel !== 38) continue;
+      finalsPerBranch.set(definition.branch, (finalsPerBranch.get(definition.branch) ?? 0) + 1);
+    }
+    for (const branch of ['rapid', 'precision', 'control', 'impact']) {
+      expect(finalsPerBranch.get(branch) ?? 0).toBeGreaterThanOrEqual(3);
+    }
   });
 
   it('falls back to a legal ancestor after respawn', () => {

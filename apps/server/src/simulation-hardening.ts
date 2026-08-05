@@ -11,7 +11,7 @@ import { MazeGame } from './game.js';
 import { SpatialHash, distanceSquared, projectileSubstepCount, resolveProjectilePair } from './physics.js';
 import { SHAPE_CONFIG, isFree } from './world.js';
 
-type RuntimePlayer = PlayerSnapshot & { bot?: unknown };
+type RuntimePlayer = PlayerSnapshot & { bot?: unknown; velocity: Vector2 };
 type RuntimeProjectile = ProjectileSnapshot & { damage: number; life: number };
 type RuntimeShape = ShapeSnapshot;
 interface GameInternals {
@@ -36,9 +36,18 @@ const hitSet = (projectile: object): Set<string> => {
   projectileHits.set(projectile, created);
   return created;
 };
+/** Blitz/Comet: Körperschaden skaliert mit dem aktuellen Tempo (0,6× im Stand bis 1,5× bei Vollgas). */
+const MOMENTUM_CLASSES = new Set(['blitz', 'comet']);
+const momentumMultiplier = (player: RuntimePlayer): number => {
+  if (!MOMENTUM_CLASSES.has(player.playerClass)) return 1;
+  const definition = CLASS_DEFINITIONS[player.playerClass];
+  const speed = Math.hypot(player.velocity.x, player.velocity.y);
+  const ratio = Math.min(1, speed / Math.max(1, definition.moveSpeed));
+  return 0.6 + ratio * 0.9;
+};
 const bodyDamage = (player: RuntimePlayer): number => {
   const definition = CLASS_DEFINITIONS[player.playerClass];
-  return definition.bodyDamage * (1 + player.upgrades.bodyDamage * 0.1);
+  return definition.bodyDamage * (1 + player.upgrades.bodyDamage * 0.1) * momentumMultiplier(player);
 };
 const inFixedView = (position: Vector2, center: Vector2, padding = 0): boolean =>
   Math.abs(position.x - center.x) <= GAME.visibleWorldWidth / 2 + padding &&
