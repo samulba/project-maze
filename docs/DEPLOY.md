@@ -33,6 +33,7 @@ Der Server findet `apps/client/dist` automatisch und liefert ihn aus.
 | `ALLOWED_ORIGIN` | `*` | Kommagetrennte erlaubte Origins; bei Single-Service auf die eigene Domain setzen, z. B. `https://maze.example.com` |
 | `ENABLE_DEV_TOOLS` | aus | NIEMALS in Produktion auf `true` (Balance-Lab/Debug) |
 | `SNAPSHOT_DELTAS` | aus | Lässt unveränderte Snapshot-Felder weg (~40 % weniger Bytes); braucht einen puffernden Client |
+| `ARENA_DIRECTOR_ENABLED` | an | Dynamische Bot-Population nach Spielerzahl; `false` friert sie auf `BOT_COUNT` ein |
 | `ACHIEVEMENTS_ENABLED` | aus | Achievement-Engine im Server (beobachtend, In-Memory, noch ohne Client-Anzeige) |
 | `CLIENT_DIST` | auto | Pfad zum Client-Build; leerer String deaktiviert das Ausliefern (getrenntes Client-Hosting) |
 | `VITE_WS_URL` | – | Nur bei getrenntem Client-Hosting: beim **Client-Build** setzen, z. B. `wss://maze-server.example.com` |

@@ -81,6 +81,11 @@ das Spiel nie. Einrichtung für Supabase-Neulinge:
 - **Redeploy:** Bei `SIGTERM` meldet `/health` sofort `503`, dann werden alle
   WebSockets mit Code 1001 sauber geschlossen – Clients reconnecten umgehend
   statt in einen Timeout zu laufen.
+- **Arena-Direktor:** Die Bot-Population richtet sich nach der Zahl der
+  Menschen (1 → 11 Bots, je weiterem −2, Minimum 4) und ändert sich höchstens
+  alle 5 Sekunden um einen Bot. Bots verschwinden nur tot oder weit außer
+  Sichtweite, nie mitten im Kampf; neue starten leicht unter dem Median-Level
+  der Menschen. Abschaltbar über `ARENA_DIRECTOR_ENABLED=false`.
 - **Achievements:** `ACHIEVEMENTS_ENABLED=true` hängt eine rein beobachtende
   Engine an (sieben Achievements, Katalog in `apps/server/src/achievements.ts`).
   Der Fortschritt liegt im Arbeitsspeicher und gilt je Verbindung; Persistenz
