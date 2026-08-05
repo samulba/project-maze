@@ -11,6 +11,7 @@ import {
   type GameplayWorldExtension,
   type PassiveModifierId
 } from '@project-maze/shared/gameplay';
+import { vibrate } from './input';
 
 type ExtendedSnapshot = WorldSnapshot & Partial<GameplayWorldExtension>;
 type SendMessage = (message: object) => void;
@@ -97,6 +98,7 @@ export class GameplayUI {
     this.abilityButton = document.createElement('button');
     this.abilityButton.type = 'button';
     this.abilityButton.className = 'core-ability';
+    this.abilityButton.setAttribute('aria-label', 'Fähigkeit auslösen');
     this.abilityButton.innerHTML = `
       <span class="core-ability-key">SPACE</span>
       <strong data-ability-label>DASH</strong>
@@ -120,7 +122,20 @@ export class GameplayUI {
     this.bountyBanner.hidden = true;
     hud.append(this.bountyBanner);
 
-    this.abilityButton.addEventListener('click', () => this.activate());
+    // Auf Touch zählt der Moment des Aufsetzens: Warten auf `click` (Press *und* Release
+    // am selben Punkt) kostet in einem Gefecht spürbar Zeit.
+    let lastTouchActivation = 0;
+    this.abilityButton.addEventListener('pointerdown', (event) => {
+      if (event.pointerType !== 'touch') return;
+      event.preventDefault();
+      lastTouchActivation = performance.now();
+      if (this.activate()) vibrate(14);
+    });
+    this.abilityButton.addEventListener('click', () => {
+      // Der synthetische Klick nach einer Touch-Auslösung darf nicht doppelt zünden.
+      if (performance.now() - lastTouchActivation < 600) return;
+      this.activate();
+    });
     window.addEventListener('keydown', (event) => {
       if (event.repeat || editableTarget(event.target)) return;
       if (event.code !== 'Space' && event.code !== 'ShiftLeft' && event.code !== 'ShiftRight') return;
@@ -205,9 +220,11 @@ export class GameplayUI {
     this.modifierSelect.disabled = !canChange;
   }
 
-  private activate(): void {
-    if (!this.connected || !this.self || this.self.dead || this.abilityButton.disabled) return;
+  /** Gibt zurück, ob die Fähigkeit tatsächlich ausgelöst wurde (für Haptik-Feedback). */
+  private activate(): boolean {
+    if (!this.connected || !this.self || this.self.dead || this.abilityButton.disabled) return false;
     this.send({ type: 'activateModule' });
+    return true;
   }
 
   private sendLoadout(): void {
