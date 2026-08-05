@@ -195,7 +195,53 @@ Alle Eingangsgrößen liegen im Snapshot: `players[self].upgrades` (mit
   (`snapshot-encoding.ts`). Ein Restfehler von 0,05 Einheiten ist normal und
   darf keine Korrektur auslösen.
 
-## 6. Kurzcheck für den Nachbau
+## 6. Momentum (RAPID) – was der Client spiegeln muss
+
+Gilt nur mit `SIGNATURE_RAPID_ENABLED=true` und nur für Klassen der
+Rapid-Familie (`CLASS_DEFINITIONS[playerClass].branch === 'rapid'`). Ohne den
+Schalter trägt kein Snapshot ein `signature`-Feld, und dieser Abschnitt ist
+gegenstandslos.
+
+**Was der Server rechnet** (`apps/server/src/signature-rapid.ts`), einmal je
+Tick, *nach* der Bewegungsintegration aus Abschnitt 3:
+
+```
+speed    = |velocity|                          // die Geschwindigkeit NACH dem Tick
+moving   = speed >= 0.45 * stats.moveSpeed     // moveThreshold
+rate     = !moving          ? -50              // decayPerSecond
+         : primary          ? +30              // buildPerSecond
+         :                    -10              // holdDecayPerSecond
+momentum = clamp(momentum + rate * dt, 0, 100)
+```
+
+Der Schuss dieses Ticks nutzt noch das Momentum **vom Tick davor**: Zuerst wird
+der Nachladewert skaliert, dann das Momentum fortgeschrieben.
+
+```
+reload_effektiv = reload * (1 - 0.25 * momentum / 100)     // maxReloadBonus
+```
+
+**Drei Fallen für den Nachbau:**
+
+1. **Der Aufbau hängt an `primary`, nicht am Schuss.** Gebaut wird, solange die
+   Feuertaste gehalten wird – auch in den Ticks, in denen der Nachladewert noch
+   läuft. Wer nur bei tatsächlichen Schüssen aufbaut, lädt bei einer Gatling
+   (0,28 s) fünfmal langsamer als bei einer Rapid (0,19 s).
+2. **`moving` misst die tatsächliche Geschwindigkeit, nicht die Eingabe.** Wer
+   gegen eine Wand drückt, hat volle Eingabe und `speed = 0` – die blockierte
+   Achse wird genullt (Abschnitt 3). Der Server baut in diesem Fall ab, und der
+   Client muss das genauso sehen, sonst zeigt der Balken dauerhaft zu viel.
+   `stats.moveSpeed` ist der **getunte** Wert inklusive Bewegungs-Upgrades und
+   Frame-Multiplikator, nicht `CLASS_DEFINITIONS[...].moveSpeed`.
+3. **Der Balken ist gerundet, die Rechnung nicht.** Im Snapshot steht
+   `Math.round(momentum)`. Wer den gerundeten Wert weiterakkumuliert, driftet
+   weg – der Client rechnet mit seinem eigenen ungerundeten Wert und übernimmt
+   den Serverwert bei jeder Korrektur (`lastProcessedInput`, Abschnitt 1).
+
+**Zurücksetzen:** Beim Tod auf 0, beim Verlassen der Familie (Respawn unter
+Level 10 macht aus einem Storm wieder einen Core) verschwindet das Feld ganz.
+
+## 7. Kurzcheck für den Nachbau
 
 - [ ] `dt` ist exakt `1/40`, nicht die Framezeit
 - [ ] `clampMagnitude` statt Normieren
@@ -206,3 +252,5 @@ Alle Eingangsgrößen liegen im Snapshot: `players[self].upgrades` (mit
 - [ ] `< r²` strikt, Weltgrenzen mit `radius` als Rand
 - [ ] `ACCELERATION_SCALE` gespiegelt
 - [ ] Korrektur weich, Hartkorrektur nur über der Schwelle
+- [ ] Momentum (falls aktiv): Aufbau an `primary`, `moving` aus der echten
+      Geschwindigkeit, Rechnung ungerundet

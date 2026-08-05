@@ -61,6 +61,7 @@ import {
   profileUpdateHandler,
   tunePersistence
 } from './persistence.js';
+import { tuneRapidBots, tuneRapidSignature } from './signature-rapid.js';
 import { hardenSimulation } from './simulation-hardening.js';
 import { tuneSpectator } from './spectator.js';
 import { tuneSnapshotEncoding } from './snapshot-encoding.js';
@@ -116,6 +117,13 @@ const ARENA_DIRECTOR_ENABLED = !['false', '0', 'off']
 const BOT_PACING_ENABLED = !['false', '0', 'off']
   .includes((process.env.BOT_PACING_ENABLED ?? '').trim().toLowerCase());
 /**
+ * Klassen 3.0, erste Familie: Momentum für RAPID. Standardmäßig aus – ohne den
+ * Schalter wird die Schicht gar nicht erst angehängt, `signature` taucht in
+ * keinem Snapshot auf und die Nachladezeiten sind exakt die alten. An, sobald
+ * der Momentum-Balken im Client steht.
+ */
+const SIGNATURE_RAPID_ENABLED = process.env.SIGNATURE_RAPID_ENABLED === 'true';
+/**
  * Rate-Limits und Missbrauchsschutz. Standardmäßig an; `false` schaltet sie
  * vollständig ab (dann verhält sich der Server wie vor dem Modul).
  */
@@ -153,15 +161,25 @@ const encodedGame = tuneSnapshotEncoding(
               tuneLoadoutSystem(
                 tuneProgression(
                   tuneArenaDirector(
-                    tuneBotBrain(
-                      tuneClassMechanics(
-                        tuneDrones(
-                          tuneCombatScaling(
-                            tuneSpectator(hardenSimulation(new MazeGame(BOT_COUNT)), SPECTATOR_ENABLED)
+                    // Bewegungsregel für Rapid-Bots von außen: `tuneBotBrain`
+                    // ersetzt `updateBot` komplett, innen ginge sie verloren.
+                    tuneRapidBots(
+                      tuneBotBrain(
+                        tuneClassMechanics(
+                          tuneDrones(
+                            // Momentum direkt um das Kampf-Tuning: Dort entsteht
+                            // der Cooldown, den die Signature verkürzt.
+                            tuneRapidSignature(
+                              tuneCombatScaling(
+                                tuneSpectator(hardenSimulation(new MazeGame(BOT_COUNT)), SPECTATOR_ENABLED)
+                              ),
+                              SIGNATURE_RAPID_ENABLED
+                            )
                           )
-                        )
+                        ),
+                        BOT_PACING_ENABLED ? DEFAULT_BOT_PACING : null
                       ),
-                      BOT_PACING_ENABLED ? DEFAULT_BOT_PACING : null
+                      SIGNATURE_RAPID_ENABLED
                     ),
                     ARENA_DIRECTOR_ENABLED
                   )
