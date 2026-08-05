@@ -1,41 +1,45 @@
 # Auftrag für Chat 03 – Client/UX
 
-**Ausgestellt: 2026-08-05 · Basis: aktueller `origin/main` · HOHE PRIORITÄT**
+**Ausgestellt: 2026-08-05 (Nacht) · Basis: aktueller `origin/main`**
 
-## R3: Mobile-Erlebnis (MASTERPLAN.md, Handlungsfeld 1, „R3 im Detail")
+Dein R3-Mobile-Paket ist gemerged – die Testmatrix mit dem automatischen
+Überlappungs-Check ist genau der Standard, den wir halten wollen.
 
-Direktes Sam-Feedback mit iPhone-Screenshot: Spielfeld unsichtbar, HUD-Chaos.
-Der Viewport-Bug ist von 01 bereits behoben (visualViewport-Kopplung, 100dvh,
-viewport-fit=cover; Bestenliste/Ping auf Touch übergangsweise ausgeblendet).
-Dein Paket ist das eigentliche Redesign nach der Spezifikation im MASTERPLAN:
+## Design-Beruhigung II: „Neon raus" (Sams direktes Feedback)
 
-1. Kompakte Statusleiste oben links (Level + HP + XP, max. 44 px) statt
-   Player-Panel; Name/K/D/Score nur im Death-Screen.
-2. Aktions-Stapel über dem Aim-Stick (Modul + AUTO; REPEL in den Stick oder
-   in den Stapel), einheitliche Größen, Daumen-Ergonomie, Safe-Areas.
-3. EIN Meldungs-Slot oben Mitte für Events/Bounty/Achievements/Kills –
-   eine Meldung zur Zeit.
-4. Upgrades als Bottom-Sheet über Punkte-Badge an der Statusleiste.
-5. Sticks größer; Minimap nur auf Abruf.
+Sam nach dem Live-Test: Das Gesamtbild ist ihm trotz „Ruhe & Gewicht" noch zu
+„Neon City" – Ziel ist **ruhiger, cleaner, minimalistischer**. Das betrifft
+ausdrücklich auch den **Startscreen**, nicht nur das HUD:
 
-**Pflicht-Testmatrix aus dem MASTERPLAN in den Report** (iPhone Safari quer
-mit/ohne Leisten, Android Chrome, Tablet, Rotation im Spiel, App-Switcher).
+1. **Startscreen entschärfen:** Logo-Glow, pulsierender Ring, Radial-Verläufe
+   und Akzent-Schatten deutlich reduzieren oder streichen. Ruhige dunkle
+   Fläche, klare Typo, EIN Akzent.
+2. **Glow-Inventur im ganzen Client:** jede `box-shadow`/`text-shadow` mit
+   Leuchtwirkung begründen oder entfernen (`--accent`-Glows, Badge-Schatten,
+   Button-Schein). Verläufe nur noch, wo sie Funktion haben (HP/XP-Balken).
+3. **Farbdisziplin im Spielfeld:** Die Palette aus „Ruhe & Gewicht" war die
+   richtige Richtung – eine Stufe weiter: Formen/Wände noch zurückhaltender,
+   Sättigung nur für Bedeutung (Schaden, Events, eigener Tank, Gegner).
+4. **Death-Screen und Panels:** gleiche Behandlung (Verlauf-Buttons → ruhige
+   Flächen mit klarer Hover-Reaktion).
 
-Dein „Ruhe & Gewicht" ist gemerged (Konfliktauflösung: deine Letterbox +
-01s visualViewport-Kopplung koexistieren in `syncSize()`/`resizeViewport()`).
+Der Körper-Kickback beim Schießen ist bereits von 01 auf 0 gesetzt (nur das
+Rohr federt) – Sams Wunsch, nicht rückgängig machen.
 
-**Sam-Feedback nach dem Live-Test dazu (fürs Mobile-Paket gleich
-mitdenken, als eigenes Paket danach ausführen): Das Design ist ihm insgesamt
-noch zu „Neon City" – Ziel ist ruhiger, cleaner, minimalistischer.** Das
-betrifft ausdrücklich auch den STARTSCREEN (Logo-Glow, Verläufe, Ring), nicht
-nur das HUD: Glow-Effekte weitgehend raus, Verläufe durch ruhige Flächen
-ersetzen, Akzentfarbe nur noch funktional (Schaden, Events, eigener Tank).
-Der Körper-Kickback beim Schießen ist auf Sams Wunsch bereits von 01 auf 0
-gesetzt – nur das Rohr federt noch.
+Vorher/Nachher-Screenshots (Startscreen + HUD) in den Statusbericht.
 
-Danach als eigene Pakete: Design-Beruhigung II (siehe oben) → R1/R2/R4
-(Desktop-Fullscreen, Qualitätsstufen) → N2 Client-Prediction
-(docs/CLIENT_PREDICTION.md von 02 ist dafür geschrieben;
-`lastProcessedInput` liegt in shared, optional → `?? -1`).
+## Danach in dieser Reihenfolge (je ein Paket)
+
+1. **K2 Profil-Tab** – Backend ist live: `GET /profile/:userId` liefert
+   displayName, memberSince, Bestwerte, `favoriteClass(+Runs/Seconds)`,
+   `totalSeconds`, Achievements mit Katalogtexten; `POST /profile` ändert den
+   Anzeigenamen (Supabase-Token im Authorization-Header, 202 = angenommen).
+   Startscreen-Tab mit Profilkarte + Achievements-Galerie; Gast sieht einen
+   dezenten Login-Hinweis.
+2. **Mini-Paket Perf-Sender** – Spezifikation von 04 in
+   `docs/status/chat-04/08-client-perf-telemetrie.md` (POST /client-metrics,
+   einmal pro Minute, fpsP50/fpsP95-Konvention beachten: P95 = langsamer Rand).
+3. **R1/R2/R4** Desktop-Fullscreen-Härtung + Qualitätsstufen.
+4. **N2 Client-Prediction** (docs/CLIENT_PREDICTION.md).
 
 Statusbericht wie gehabt nach `docs/status/chat-03/`.
