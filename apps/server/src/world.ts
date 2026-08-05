@@ -25,10 +25,47 @@ function generateWalls(): Wall[] {
   return walls.filter((candidate) => candidate.x >= 120 && candidate.y >= 120 && candidate.x + candidate.width <= GAME.worldWidth - 120 && candidate.y + candidate.height <= GAME.worldHeight - 120);
 }
 export const WALLS: Wall[] = generateWalls();
+
+/**
+ * Vom Fracture-Event temporär deaktivierte Wandsegmente. Eine deaktivierte Wand
+ * blockiert weder Bewegung noch Projektile noch Sichtlinien und wird nicht mehr
+ * an Clients übertragen – sie existiert für die Simulation schlicht nicht.
+ *
+ * Der Zustand ist wie `WALLS` prozessweit: Ein Serverprozess betreibt genau eine
+ * Arena. Tests setzen ihn über `resetDisabledWalls()` zurück.
+ */
+const disabledWallIds = new Set<string>();
+/** Nur generierte Segmente dürfen aufbrechen; die festen `l*`-Wände nie. */
+export const FRACTURABLE_WALL_IDS: readonly string[] = WALLS
+  .filter((candidate) => candidate.id.startsWith('v') || candidate.id.startsWith('h'))
+  .map((candidate) => candidate.id);
+const fracturable = new Set(FRACTURABLE_WALL_IDS);
+const wallsById = new Map(WALLS.map((candidate) => [candidate.id, candidate] as const));
+/** Zwischenspeicher, damit der Normalfall ohne Fracture keine zusätzliche Prüfung kostet. */
+let activeWalls: Wall[] = WALLS;
+const refreshActiveWalls = (): void => {
+  activeWalls = disabledWallIds.size === 0 ? WALLS : WALLS.filter((candidate) => !disabledWallIds.has(candidate.id));
+};
+
+export const wallById = (id: string): Wall | undefined => wallsById.get(id);
+export const isWallDisabled = (id: string): boolean => disabledWallIds.has(id);
+/** Gibt zurück, ob der Zustand übernommen wurde – feste Wände lassen sich nicht deaktivieren. */
+export function setWallDisabled(id: string, disabled: boolean): boolean {
+  if (disabled && !fracturable.has(id)) return false;
+  if (disabled) disabledWallIds.add(id);
+  else disabledWallIds.delete(id);
+  refreshActiveWalls();
+  return true;
+}
+export function resetDisabledWalls(): void {
+  disabledWallIds.clear();
+  refreshActiveWalls();
+}
+
 const SPAWNS: Vector2[] = [{ x: 240, y: 240 }, { x: GAME.worldWidth - 240, y: 240 }, { x: 240, y: GAME.worldHeight - 240 }, { x: GAME.worldWidth - 240, y: GAME.worldHeight - 240 }, { x: GAME.worldWidth / 2, y: 250 }, { x: GAME.worldWidth / 2, y: GAME.worldHeight - 250 }, { x: 250, y: GAME.worldHeight / 2 }, { x: GAME.worldWidth - 250, y: GAME.worldHeight / 2 }, { x: GAME.worldWidth * 0.25, y: GAME.worldHeight * 0.5 }, { x: GAME.worldWidth * 0.75, y: GAME.worldHeight * 0.5 }];
 export function circleHitsWall(position: Vector2, radius: number, candidate: Wall): boolean { const nearestX = clamp(position.x, candidate.x, candidate.x + candidate.width); const nearestY = clamp(position.y, candidate.y, candidate.y + candidate.height); const dx = position.x - nearestX; const dy = position.y - nearestY; return dx * dx + dy * dy < radius * radius; }
 export function isInsideWorld(position: Vector2, radius: number): boolean { return position.x >= radius && position.y >= radius && position.x <= GAME.worldWidth - radius && position.y <= GAME.worldHeight - radius; }
-export function nearbyWalls(position: Vector2, radius: number): Wall[] { return WALLS.filter((candidate) => candidate.x <= position.x + radius && candidate.x + candidate.width >= position.x - radius && candidate.y <= position.y + radius && candidate.y + candidate.height >= position.y - radius); }
+export function nearbyWalls(position: Vector2, radius: number): Wall[] { return activeWalls.filter((candidate) => candidate.x <= position.x + radius && candidate.x + candidate.width >= position.x - radius && candidate.y <= position.y + radius && candidate.y + candidate.height >= position.y - radius); }
 export function isFree(position: Vector2, radius: number): boolean { return isInsideWorld(position, radius) && !nearbyWalls(position, radius + 12).some((candidate) => circleHitsWall(position, radius, candidate)); }
 export function moveCircle(position: Vector2, velocity: Vector2, dt: number, radius: number): { position: Vector2; velocity: Vector2; collided: boolean } {
   const distance = Math.hypot(velocity.x, velocity.y) * dt; const steps = Math.max(1, Math.ceil(distance / Math.max(8, radius * 0.55))); const stepDt = dt / steps; const next = { ...position }; const resolvedVelocity = { ...velocity }; let collided = false;
@@ -53,4 +90,4 @@ export function createShape(id: string, random = Math.random): ShapeSnapshot {
 export function stepShape(shape: ShapeSnapshot, dt: number): void { shape.rotation += (shape.kind === 'triangle' ? -0.55 : shape.kind === 'pentagon' ? 0.22 : 0.38) * dt; const result = moveCircle(shape.position, shape.velocity, dt, shape.radius); shape.position = result.position; if (result.collided) { const direction = normalize({ x: -shape.velocity.x + (Math.random() - 0.5) * 18, y: -shape.velocity.y + (Math.random() - 0.5) * 18 }); const speed = Math.max(6, Math.hypot(shape.velocity.x, shape.velocity.y)); shape.velocity = { x: direction.x * speed, y: direction.y * speed }; } }
 function segmentIntersectsWall(start: Vector2, end: Vector2, candidate: Wall): boolean { const dx = end.x - start.x; const dy = end.y - start.y; let tMin = 0; let tMax = 1; const checks: Array<[number, number]> = [[-dx, start.x - candidate.x], [dx, candidate.x + candidate.width - start.x], [-dy, start.y - candidate.y], [dy, candidate.y + candidate.height - start.y]]; for (const [p, q] of checks) { if (Math.abs(p) < 0.00001) { if (q < 0) return false; continue; } const ratio = q / p; if (p < 0) tMin = Math.max(tMin, ratio); else tMax = Math.min(tMax, ratio); if (tMin > tMax) return false; } return true; }
 export function hasLineOfSight(start: Vector2, end: Vector2): boolean { const center = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }; const radius = Math.hypot(end.x - start.x, end.y - start.y) / 2 + 20; return !nearbyWalls(center, radius).some((candidate) => segmentIntersectsWall(start, end, candidate)); }
-export function wallsInView(position: Vector2): Wall[] { const halfWidth = GAME.visibleWorldWidth * 0.62; const halfHeight = GAME.visibleWorldHeight * 0.72; return WALLS.filter((candidate) => candidate.x <= position.x + halfWidth && candidate.x + candidate.width >= position.x - halfWidth && candidate.y <= position.y + halfHeight && candidate.y + candidate.height >= position.y - halfHeight); }
+export function wallsInView(position: Vector2): Wall[] { const halfWidth = GAME.visibleWorldWidth * 0.62; const halfHeight = GAME.visibleWorldHeight * 0.72; return activeWalls.filter((candidate) => candidate.x <= position.x + halfWidth && candidate.x + candidate.width >= position.x - halfWidth && candidate.y <= position.y + halfHeight && candidate.y + candidate.height >= position.y - halfHeight); }

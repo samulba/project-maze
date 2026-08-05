@@ -1,11 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import { GAME, type Vector2 } from '@project-maze/shared';
+import { afterEach, describe, expect, it } from 'vitest';
+import { GAME, type Vector2, type Wall } from '@project-maze/shared';
 import {
+  FRACTURE_MAX_WALLS,
+  FRACTURE_MIN_WALLS,
   GUARDIAN_DAMAGE_TAKEN,
   GUARDIAN_NAME,
   GUARDIAN_REWARD,
   OVERCHARGE_SPEED_RETENTION,
   arenaGuardianIdFor,
+  fracturedWallIdsFor,
   tuneArenaEvents
 } from './arena-events';
 import { tuneArenaSystems } from './arena-systems';
@@ -17,7 +20,15 @@ import { MazeGame } from './game';
 import { tuneLoadoutSystem } from './loadout-system';
 import { tuneProgression } from './progression-tuning';
 import { hardenSimulation } from './simulation-hardening';
-import { isFree } from './world';
+import {
+  WALLS,
+  circleHitsWall,
+  hasLineOfSight,
+  isFree,
+  isWallDisabled,
+  resetDisabledWalls,
+  setWallDisabled
+} from './world';
 
 interface Internals {
   players: Map<string, any>;
@@ -27,7 +38,11 @@ interface Internals {
   stepProjectiles(dt: number, now: number): void;
   damagePlayer(target: any, damage: number, attackerId: string | null, now: number): void;
   awardXp(player: any, amount: number): void;
+  updateBot(player: any, now: number): void;
+  drones: Map<string, any>;
 }
+
+afterEach(resetDisabledWalls);
 
 const createGame = (botCount = 0): MazeGame =>
   tuneArenaEvents(
@@ -220,6 +235,173 @@ describe('overcharge event', () => {
     }
     expect(internals.projectiles.has('survivor')).toBe(false);
     expect(clashes).toBeGreaterThan(2);
+  });
+});
+
+describe('fracture event', () => {
+  const wallOf = (id: string): Wall => {
+    const wall = WALLS.find((candidate) => candidate.id === id);
+    expect(wall).toBeDefined();
+    return wall!;
+  };
+  const wallCenter = (wall: Wall): Vector2 => ({ x: wall.x + wall.width / 2, y: wall.y + wall.height / 2 });
+  const clearShapesIn = (internals: Internals, wall: Wall): void => {
+    for (const [id, shape] of internals.shapes) {
+      if (circleHitsWall(shape.position, shape.radius + 40, wall)) internals.shapes.delete(id);
+    }
+  };
+  /** Steppt, bis alle Segmente zurück sind – oder bricht nach dem Zeitfenster ab. */
+  const runUntilRestored = (game: MazeGame, from: number, steps = 800): number => {
+    let now = from;
+    for (let index = 0; index < steps && fracturedWallIdsFor(game).length > 0; index += 1) {
+      now += 80;
+      game.step(0.08, now);
+    }
+    return now;
+  };
+
+  it('bricht während der aktiven Phase 2–4 generierte Segmente auf', () => {
+    const game = createGame();
+    const viewerId = game.addPlayer('Observer');
+    advanceToEvent(game, viewerId, 'fracture', Date.now());
+
+    const opened = fracturedWallIdsFor(game);
+    expect(opened.length).toBeGreaterThanOrEqual(FRACTURE_MIN_WALLS);
+    expect(opened.length).toBeLessThanOrEqual(FRACTURE_MAX_WALLS);
+    for (const id of opened) {
+      expect(id.startsWith('l')).toBe(false);
+      expect(isWallDisabled(id)).toBe(true);
+      // Die Fläche ist begehbar und wird nicht mehr an Clients gesendet.
+      expect(isFree(wallCenter(wallOf(id)), 22)).toBe(true);
+      expect(game.snapshot(viewerId).walls.some((wall) => wall.id === id)).toBe(false);
+    }
+  });
+
+  it('stellt nach dem Event alle Segmente wieder her', () => {
+    const game = createGame();
+    const viewerId = game.addPlayer('Observer');
+    const { event } = advanceToEvent(game, viewerId, 'fracture', Date.now());
+    const opened = fracturedWallIdsFor(game);
+    expect(opened.length).toBeGreaterThan(0);
+
+    game.step(1 / 40, event.endsAt + 1);
+    runUntilRestored(game, event.endsAt + 1);
+
+    expect(fracturedWallIdsFor(game)).toHaveLength(0);
+    for (const id of opened) {
+      expect(isWallDisabled(id)).toBe(false);
+      expect(isFree(wallCenter(wallOf(id)), 22)).toBe(false);
+    }
+  });
+
+  it('verzögert die Reaktivierung, solange ein Spieler in der Fläche steht', () => {
+    const game = createGame();
+    const viewerId = game.addPlayer('Observer');
+    const internals = game as unknown as Internals;
+    const { event } = advanceToEvent(game, viewerId, 'fracture', Date.now());
+    const wall = wallOf(fracturedWallIdsFor(game)[0]!);
+
+    // Nur der Spieler soll die Fläche belegen – sonst bewiese der Test nichts.
+    clearShapesIn(internals, wall);
+    const blockerId = game.addPlayer('Blocker');
+    const blocker = internals.players.get(blockerId);
+    blocker.position = wallCenter(wall);
+    blocker.level = 20;
+
+    game.step(1 / 40, event.endsAt + 1);
+    expect(isWallDisabled(wall.id)).toBe(true);
+    expect(fracturedWallIdsFor(game)).toContain(wall.id);
+
+    // Auch nach mehreren Sekunden bleibt die Wand offen – niemand wird eingemauert.
+    let now = event.endsAt + 1;
+    for (let index = 0; index < 40; index += 1) {
+      now += 80;
+      blocker.position = wallCenter(wall);
+      game.step(0.08, now);
+    }
+    expect(isWallDisabled(wall.id)).toBe(true);
+
+    blocker.position = { x: 240, y: 240 };
+    clearShapesIn(internals, wall);
+    game.step(1 / 40, now + 25);
+    expect(isWallDisabled(wall.id)).toBe(false);
+  });
+
+  it('verzögert die Reaktivierung auch für Drohnen und Formen', () => {
+    const game = createGame();
+    const viewerId = game.addPlayer('Observer');
+    const internals = game as unknown as Internals;
+    const { event } = advanceToEvent(game, viewerId, 'fracture', Date.now());
+    const wall = wallOf(fracturedWallIdsFor(game)[0]!);
+    const center = wallCenter(wall);
+
+    clearShapesIn(internals, wall);
+    const shape = [...internals.shapes.values()][0];
+    shape.position = { ...center };
+    shape.velocity = { x: 0, y: 0 };
+    game.step(1 / 40, event.endsAt + 1);
+    expect(isWallDisabled(wall.id)).toBe(true);
+
+    shape.position = { x: 240, y: 240 };
+    internals.drones.set('parked-drone', {
+      id: 'parked-drone',
+      ownerId: viewerId,
+      position: { ...center },
+      velocity: { x: 0, y: 0 },
+      angle: 0,
+      health: 100,
+      maxHealth: 100,
+      slot: 0,
+      contactCooldown: 5,
+      gameplayRadius: 12
+    });
+    game.step(1 / 40, event.endsAt + 50);
+    expect(isWallDisabled(wall.id)).toBe(true);
+
+    internals.drones.delete('parked-drone');
+    game.step(1 / 40, event.endsAt + 100);
+    expect(isWallDisabled(wall.id)).toBe(false);
+  });
+
+  it('öffnet Sichtlinien und Wege, sodass Bots die neue Route nutzen', () => {
+    const game = createGame(6);
+    const internals = game as unknown as Internals;
+    const wall = WALLS.find((candidate) => {
+      if (!candidate.id.startsWith('v')) return false;
+      const y = candidate.y + candidate.height / 2;
+      return isFree({ x: candidate.x - 60, y }, 22) && isFree({ x: candidate.x + candidate.width + 60, y }, 22);
+    });
+    expect(wall).toBeDefined();
+    if (!wall) return;
+
+    const y = wall.y + wall.height / 2;
+    const left = { x: wall.x - 60, y };
+    const right = { x: wall.x + wall.width + 60, y };
+
+    const hunter = [...internals.players.values()].find((player) => player.bot?.style === 'hunter');
+    expect(hunter).toBeDefined();
+    const targetId = game.addPlayer('Beute');
+    const target = internals.players.get(targetId);
+    for (const player of internals.players.values()) {
+      if (player !== hunter && player !== target) player.position = { x: 240, y: 240 };
+    }
+    hunter.position = { ...left };
+    target.position = { ...right };
+    target.level = 20;
+    target.invulnerable = false;
+    target.invulnerableUntil = 0;
+
+    // Geschlossene Wand: keine Sichtlinie, kein Ziel, kein Durchkommen.
+    expect(hasLineOfSight(left, right)).toBe(false);
+    hunter.bot.decisionAt = 0;
+    internals.updateBot(hunter, 10_000);
+    expect(hunter.bot.targetId).toBeNull();
+
+    setWallDisabled(wall.id, true);
+    expect(hasLineOfSight(left, right)).toBe(true);
+    hunter.bot.decisionAt = 0;
+    internals.updateBot(hunter, 11_000);
+    expect(hunter.bot.targetId).toBe(targetId);
   });
 });
 
