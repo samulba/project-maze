@@ -89,5 +89,17 @@ export function createShape(id: string, random = Math.random): ShapeSnapshot {
 }
 export function stepShape(shape: ShapeSnapshot, dt: number): void { shape.rotation += (shape.kind === 'triangle' ? -0.55 : shape.kind === 'pentagon' ? 0.22 : 0.38) * dt; const result = moveCircle(shape.position, shape.velocity, dt, shape.radius); shape.position = result.position; if (result.collided) { const direction = normalize({ x: -shape.velocity.x + (Math.random() - 0.5) * 18, y: -shape.velocity.y + (Math.random() - 0.5) * 18 }); const speed = Math.max(6, Math.hypot(shape.velocity.x, shape.velocity.y)); shape.velocity = { x: direction.x * speed, y: direction.y * speed }; } }
 function segmentIntersectsWall(start: Vector2, end: Vector2, candidate: Wall): boolean { const dx = end.x - start.x; const dy = end.y - start.y; let tMin = 0; let tMax = 1; const checks: Array<[number, number]> = [[-dx, start.x - candidate.x], [dx, candidate.x + candidate.width - start.x], [-dy, start.y - candidate.y], [dy, candidate.y + candidate.height - start.y]]; for (const [p, q] of checks) { if (Math.abs(p) < 0.00001) { if (q < 0) return false; continue; } const ratio = q / p; if (p < 0) tMin = Math.max(tMin, ratio); else tMax = Math.min(tMax, ratio); if (tMin > tMax) return false; } return true; }
+/**
+ * Kreuzt die Strecke eines der genannten Wandsegmente? Anders als
+ * `hasLineOfSight` zählen hier auch deaktivierte Segmente – nur so lässt sich
+ * feststellen, ob ein Schuss durch eine von Fracture geöffnete Bresche ging.
+ */
+export function segmentCrossesWalls(start: Vector2, end: Vector2, ids: Iterable<string>): boolean {
+  for (const id of ids) {
+    const candidate = wallsById.get(id);
+    if (candidate && segmentIntersectsWall(start, end, candidate)) return true;
+  }
+  return false;
+}
 export function hasLineOfSight(start: Vector2, end: Vector2): boolean { const center = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }; const radius = Math.hypot(end.x - start.x, end.y - start.y) / 2 + 20; return !nearbyWalls(center, radius).some((candidate) => segmentIntersectsWall(start, end, candidate)); }
 export function wallsInView(position: Vector2): Wall[] { const halfWidth = GAME.visibleWorldWidth * 0.62; const halfHeight = GAME.visibleWorldHeight * 0.72; return activeWalls.filter((candidate) => candidate.x <= position.x + halfWidth && candidate.x + candidate.width >= position.x - halfWidth && candidate.y <= position.y + halfHeight && candidate.y + candidate.height >= position.y - halfHeight); }

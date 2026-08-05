@@ -19,6 +19,7 @@ import {
   PASSIVE_MODIFIER_IDS,
   type GameplayClientMessage
 } from '@project-maze/shared/gameplay';
+import { tuneAchievements } from './achievements.js';
 import { tuneArenaEvents } from './arena-events.js';
 import { tuneArenaSystems } from './arena-systems.js';
 import { tuneClassMechanics } from './class-mechanics.js';
@@ -68,6 +69,11 @@ const ENABLE_DEV_TOOLS = process.env.ENABLE_DEV_TOOLS === 'true';
  * bleibt der Schalter aus. Das Runden der Zahlen läuft unabhängig davon.
  */
 const SNAPSHOT_DELTAS = process.env.SNAPSHOT_DELTAS === 'true';
+/**
+ * Serverseitige Achievement-Engine. Rein beobachtend und nur im Arbeitsspeicher;
+ * ohne den Schalter wird die Schicht gar nicht erst angehängt.
+ */
+const ACHIEVEMENTS_ENABLED = process.env.ACHIEVEMENTS_ENABLED === 'true';
 const allowedOrigins = ALLOWED_ORIGIN === '*'
   ? null
   : new Set(ALLOWED_ORIGIN.split(',').map((value) => value.trim()).filter(Boolean));
@@ -89,22 +95,25 @@ const game = tuneSnapshotEncoding(
   tunePersistence(
     tuneTelemetry(
       tuneDebugRules(
-        tuneArenaEvents(
-          tuneArenaSystems(
-            tuneLoadoutSystem(
-              tuneProgression(
-                tuneBotBrain(
-                  tuneClassMechanics(
-                    tuneDrones(
-                      tuneCombatScaling(
-                        hardenSimulation(new MazeGame(BOT_COUNT))
+        tuneAchievements(
+          tuneArenaEvents(
+            tuneArenaSystems(
+              tuneLoadoutSystem(
+                tuneProgression(
+                  tuneBotBrain(
+                    tuneClassMechanics(
+                      tuneDrones(
+                        tuneCombatScaling(
+                          hardenSimulation(new MazeGame(BOT_COUNT))
+                        )
                       )
                     )
                   )
                 )
               )
             )
-          )
+          ),
+          ACHIEVEMENTS_ENABLED
         )
       )
     )
