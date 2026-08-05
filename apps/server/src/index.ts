@@ -40,6 +40,7 @@ import {
 import { tuneBotBrain } from './bot-brain.js';
 import { tuneDrones } from './drone-tuning.js';
 import { MazeGame } from './game.js';
+import { tuneInputAck } from './input-ack.js';
 import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system.js';
 import { tuneProgression } from './progression-tuning.js';
 import { createRateLimiter, messageKindOf, rateLimitsEnabled } from './rate-limits.js';
@@ -161,7 +162,9 @@ const encodedGame = tuneSnapshotEncoding(
 );
 // Achievement-Drain als äußerste Schicht: nur echte, an Clients gehende
 // Snapshots leeren die Warteschlange (Telemetrie-Round-Robin bleibt außen vor).
-const game = ACHIEVEMENTS_ENABLED ? attachAchievementSnapshots(encodedGame) : encodedGame;
+// Input-Quittung ganz außen: Dort ist `selfId` garantiert der Empfänger, auch
+// wenn der Snapshot inhaltlich aus der Perspektive des Killers gebaut wurde.
+const game = tuneInputAck(ACHIEVEMENTS_ENABLED ? attachAchievementSnapshots(encodedGame) : encodedGame);
 const socketPlayerIds = new WeakMap<WebSocket, string>();
 const socketAlive = new WeakMap<WebSocket, boolean>();
 
