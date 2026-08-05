@@ -40,6 +40,7 @@ import { MazeGame } from './game.js';
 import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system.js';
 import { tuneProgression } from './progression-tuning.js';
 import { hardenSimulation } from './simulation-hardening.js';
+import { createGracefulShutdown, installSignalHandlers } from './shutdown.js';
 import { metricsHandler, tuneTelemetry } from './telemetry.js';
 
 function integerEnvironment(name: string, fallback: number, minimum: number, maximum: number): number {
@@ -275,15 +276,31 @@ tickTimer.unref();
 snapshotTimer.unref();
 heartbeatTimer.unref();
 
-app.get('/health', (_request: Request, response: Response) => response.json({
-  ok: true,
-  humans: game.humanCount,
-  ...game.entityCounts,
-  mode: 'maze-alpha',
-  version: '1.0.0-alpha',
-  snapshotRate: GAME.snapshotRate,
-  debugTools: ENABLE_DEV_TOOLS
-}));
+// Railway schickt bei jedem Redeploy SIGTERM: Clients bekommen einen sauberen
+// Close-Frame und reconnecten sofort, statt in einen Timeout zu laufen.
+const gracefulShutdown = createGracefulShutdown({
+  server,
+  wss,
+  timers: [tickTimer, snapshotTimer, heartbeatTimer],
+  drainMs: integerEnvironment('SHUTDOWN_DRAIN_MS', 0, 0, 30_000),
+  log: (message: string) => console.log(`[shutdown] ${message}`)
+});
+installSignalHandlers(gracefulShutdown);
+
+app.get('/health', (_request: Request, response: Response) => {
+  const draining = gracefulShutdown.isShuttingDown();
+  // Während des Drainens 503, damit der Loadbalancer keinen Traffic mehr schickt.
+  return response.status(draining ? 503 : 200).json({
+    ok: !draining,
+    draining,
+    humans: game.humanCount,
+    ...game.entityCounts,
+    mode: 'maze-alpha',
+    version: '1.0.0-alpha',
+    snapshotRate: GAME.snapshotRate,
+    debugTools: ENABLE_DEV_TOOLS
+  });
+});
 app.get('/metrics', metricsHandler(game));
 
 // Single-Service-Deploy: der Server liefert den Client-Build selbst aus

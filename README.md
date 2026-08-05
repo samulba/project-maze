@@ -29,6 +29,7 @@ npm run typecheck
 npm run test
 npm run build
 npm run balance   # Balance-Report für Klassen, Module und Frames
+npm run loadtest  # N simulierte Clients gegen eine laufende Arena
 npm run check     # Typecheck + Tests + Build
 npm start         # Produktion: ein Prozess liefert Client + Server (siehe docs/DEPLOY.md)
 ```
@@ -52,6 +53,18 @@ Kills/Deaths je Klasse, Core Module und Frame – und exportiert sie über
 IDs oder Adressen gespeichert. Abschaltbar über `TELEMETRY_ENABLED=false`,
 absicherbar über `METRICS_TOKEN`. Details in
 [`docs/TELEMETRY.md`](docs/TELEMETRY.md).
+
+## Kapazität und Stabilität
+
+- **Tick-Gesundheit:** `/metrics` liefert p50/p95/max der Simulationsdauer über
+  ein 60-Sekunden-Fenster. `maze_tick_budget_ratio` unter 1.0 heißt, der Tick
+  bleibt im 25-ms-Zeitplan – das ist die Kennzahl für „wie viele Spieler trägt
+  eine Instanz".
+- **Lasttest:** `npm run loadtest -- --clients 40 --duration 60` simuliert echte
+  Clients und berichtet Join-Erfolg, Snapshot-Latenz und Abbrüche.
+- **Redeploy:** Bei `SIGTERM` meldet `/health` sofort `503`, dann werden alle
+  WebSockets mit Code 1001 sauber geschlossen – Clients reconnecten umgehend
+  statt in einen Timeout zu laufen.
 
 ## Aktueller Alpha-Stand (1.0)
 

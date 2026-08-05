@@ -3,7 +3,7 @@ import { tuneArenaSystems } from './arena-systems';
 import { tuneCombatScaling } from './combat-tuning';
 import { MazeGame } from './game';
 import { equipLoadout, tuneLoadoutSystem } from './loadout-system';
-import { renderMetricsText, telemetryReport, tuneTelemetry } from './telemetry';
+import { renderMetricsText, telemetryReport, telemetryTickHealth, tuneTelemetry } from './telemetry';
 
 interface Internals {
   players: Map<string, any>;
@@ -180,6 +180,58 @@ describe('telemetry', () => {
     expect(findMetric(text, 'maze_class_picks_total{')).toEqual(['maze_class_picks_total{class="rapid",subject="human"} 1']);
     expect(text).toContain('maze_players{subject="human"} 1');
     expect(text.endsWith('\n')).toBe(true);
+  });
+
+  it('measures every tick and keeps the budget in reach on an idle arena', () => {
+    const game = createGame();
+    const now = Date.now();
+    for (let tick = 0; tick < 40; tick += 1) game.step(1 / 40, now + tick * 25);
+
+    const health = telemetryTickHealth(game);
+    expect(health.ticksTotal).toBe(40);
+    expect(health.samples).toBe(40);
+    expect(health.budgetMs).toBe(25);
+    expect(health.p50Ms).toBeGreaterThan(0);
+    expect(health.p95Ms).toBeGreaterThanOrEqual(health.p50Ms);
+    expect(health.maxMs).toBeGreaterThanOrEqual(health.p95Ms);
+    expect(health.budgetRatio).toBeLessThan(1);
+    expect(health.overrunsTotal).toBe(0);
+  });
+
+  it('drops tick samples that fall out of the 60 second window', () => {
+    const game = createGame();
+    const now = Date.now();
+    for (let tick = 0; tick < 10; tick += 1) game.step(1 / 40, now + tick * 25);
+
+    expect(telemetryTickHealth(game).samples).toBe(10);
+    // Ein Blick 61 Sekunden später sieht kein einziges dieser Ticks mehr.
+    const later = telemetryTickHealth(game, performance.now() + 61_000);
+    expect(later.samples).toBe(0);
+    expect(later.p95Ms).toBe(0);
+    expect(later.ticksTotal).toBe(10);
+  });
+
+  it('publishes tick health through /metrics', () => {
+    const game = createGame();
+    const now = Date.now();
+    for (let tick = 0; tick < 20; tick += 1) game.step(1 / 40, now + tick * 25);
+
+    const text = renderMetricsText(game, now);
+    expect(text).toContain('maze_tick_budget_seconds 0.025');
+    expect(text).toContain('maze_ticks_total 20');
+    expect(text).toContain('maze_tick_duration_seconds{quantile="0.5"}');
+    expect(text).toContain('maze_tick_duration_seconds{quantile="0.95"}');
+    expect(text).toContain('# TYPE maze_tick_overruns_total counter');
+    expect(text).toMatch(/maze_tick_interval_seconds\{quantile="0\.95"\} [\d.]+/);
+    expect(telemetryReport(game).tick.ticksTotal).toBe(20);
+  });
+
+  it('omits quantiles while no tick has been measured yet', () => {
+    const game = createGame();
+    const text = renderMetricsText(game, Date.now());
+    expect(text).toContain('maze_tick_window_samples 0');
+    expect(text).not.toContain('maze_tick_duration_seconds{');
+    expect(text).not.toContain('maze_tick_budget_ratio ');
   });
 
   it('leaves the game untouched when telemetry is disabled', () => {

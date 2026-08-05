@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import type { Request, Response } from 'express';
 import {
   CLASS_DEFINITIONS,
+  GAME,
   PLAYER_CLASS_IDS,
   type PlayerClass,
   type PlayerSnapshot,
@@ -30,11 +31,17 @@ import { MazeGame } from './game.js';
  * und verlassen den Prozess nie.
  */
 
-const TELEMETRY_VERSION = 1;
+const TELEMETRY_VERSION = 2;
 const SERVER_MODE = 'maze-alpha';
 const SERVER_VERSION = '1.0.0-alpha';
 /** Round-Robin-Abstand für die Loadout-Erhebung (ein Spieler pro Intervall). */
 const LOADOUT_SAMPLE_INTERVAL_MS = 250;
+/** Gleitendes Fenster der Tick-Gesundheit. */
+const TICK_WINDOW_SECONDS = 60;
+/** Zeitbudget eines Ticks in Millisekunden – bei 40 Hz also 25 ms. */
+const TICK_BUDGET_MS = 1000 / GAME.tickRate;
+/** Ringpuffer mit Reserve, damit ein volles Fenster nie überschrieben wird. */
+const TICK_CAPACITY = Math.ceil(TICK_WINDOW_SECONDS * GAME.tickRate * 1.25);
 
 export type TelemetrySubject = 'human' | 'bot';
 export type TelemetrySubjectFilter = TelemetrySubject | 'all';
@@ -63,6 +70,24 @@ interface LifeStat {
 
 type Counter = Map<string, number>;
 
+/**
+ * Ringpuffer der Tick-Messungen. `at` ist der Startzeitpunkt aus
+ * `performance.now()` (monoton, unabhängig von der Systemuhr), `interval` der
+ * Abstand zum vorherigen Tick – daran zeigt sich Sättigung auch dann, wenn sie
+ * außerhalb der Simulation entsteht (Snapshot-Versand, GC, Nachbarprozesse).
+ */
+interface TickWindow {
+  at: Float64Array;
+  duration: Float64Array;
+  interval: Float64Array;
+  index: number;
+  size: number;
+  lastAt: number;
+  ticks: number;
+  totalMs: number;
+  overruns: number;
+}
+
 interface TelemetryState {
   startedAt: number;
   classPicks: Counter;
@@ -80,6 +105,7 @@ interface TelemetryState {
   lifeStartedAt: Map<string, number>;
   lastSampleAt: number;
   sampleCursor: number;
+  tick: TickWindow;
 }
 
 const states = new WeakMap<MazeGame, TelemetryState>();
@@ -99,7 +125,18 @@ const createState = (now: number): TelemetryState => ({
   loadouts: new Map(),
   lifeStartedAt: new Map(),
   lastSampleAt: 0,
-  sampleCursor: -1
+  sampleCursor: -1,
+  tick: {
+    at: new Float64Array(TICK_CAPACITY),
+    duration: new Float64Array(TICK_CAPACITY),
+    interval: new Float64Array(TICK_CAPACITY).fill(-1),
+    index: 0,
+    size: 0,
+    lastAt: -1,
+    ticks: 0,
+    totalMs: 0,
+    overruns: 0
+  }
 });
 
 const stateFor = (game: MazeGame, now = Date.now()): TelemetryState => {
@@ -208,6 +245,90 @@ function syncLives(state: TelemetryState, internals: TelemetryInternals, now: nu
   for (const id of state.loadouts.keys()) if (!internals.players.has(id)) state.loadouts.delete(id);
 }
 
+/** Trägt eine Tick-Messung in den Ringpuffer ein – allokationsfrei. */
+function recordTick(tick: TickWindow, startedAt: number, durationMs: number): void {
+  tick.at[tick.index] = startedAt;
+  tick.duration[tick.index] = durationMs;
+  tick.interval[tick.index] = tick.lastAt >= 0 ? startedAt - tick.lastAt : -1;
+  tick.lastAt = startedAt;
+  tick.index = (tick.index + 1) % TICK_CAPACITY;
+  if (tick.size < TICK_CAPACITY) tick.size += 1;
+  tick.ticks += 1;
+  tick.totalMs += durationMs;
+  if (durationMs > TICK_BUDGET_MS) tick.overruns += 1;
+}
+
+/** Nearest-Rank-Quantil über eine bereits aufsteigend sortierte Liste. */
+const quantile = (sorted: number[], q: number): number => {
+  if (sorted.length === 0) return 0;
+  const rank = Math.min(sorted.length - 1, Math.max(0, Math.ceil(q * sorted.length) - 1));
+  return sorted[rank] ?? 0;
+};
+
+export interface TelemetryTickHealth {
+  windowSeconds: number;
+  samples: number;
+  budgetMs: number;
+  p50Ms: number;
+  p95Ms: number;
+  maxMs: number;
+  averageMs: number;
+  intervalP95Ms: number;
+  intervalMaxMs: number;
+  /** p95 der Tick-Dauer geteilt durch das Budget – ab 1.0 reicht die Zeit nicht mehr. */
+  budgetRatio: number;
+  /** Mittlere Auslastung des Tick-Budgets im Fenster. */
+  busyRatio: number;
+  overrunsTotal: number;
+  ticksTotal: number;
+}
+
+function tickHealth(state: TelemetryState, nowMs: number): TelemetryTickHealth {
+  const tick = state.tick;
+  const cutoff = nowMs - TICK_WINDOW_SECONDS * 1000;
+  const durations: number[] = [];
+  const intervals: number[] = [];
+  let total = 0;
+  for (let index = 0; index < tick.size; index += 1) {
+    const at = tick.at[index] ?? 0;
+    if (at < cutoff) continue;
+    const duration = tick.duration[index] ?? 0;
+    durations.push(duration);
+    total += duration;
+    const interval = tick.interval[index] ?? -1;
+    if (interval >= 0) intervals.push(interval);
+  }
+  durations.sort((a, b) => a - b);
+  intervals.sort((a, b) => a - b);
+
+  const average = durations.length > 0 ? total / durations.length : 0;
+  const p95 = quantile(durations, 0.95);
+  return {
+    windowSeconds: TICK_WINDOW_SECONDS,
+    samples: durations.length,
+    budgetMs: round(TICK_BUDGET_MS, 3),
+    p50Ms: round(quantile(durations, 0.5), 3),
+    p95Ms: round(p95, 3),
+    maxMs: round(durations[durations.length - 1] ?? 0, 3),
+    averageMs: round(average, 3),
+    intervalP95Ms: round(quantile(intervals, 0.95), 3),
+    intervalMaxMs: round(intervals[intervals.length - 1] ?? 0, 3),
+    budgetRatio: round(p95 / TICK_BUDGET_MS, 3),
+    busyRatio: round(average / TICK_BUDGET_MS, 3),
+    overrunsTotal: tick.overruns,
+    ticksTotal: tick.ticks
+  };
+}
+
+/**
+ * Tick-Gesundheit des laufenden Servers: p50/p95/max der Simulationsdauer über
+ * ein 60-Sekunden-Fenster. Die Kennzahl beantwortet, wie viele Spieler eine
+ * Instanz trägt – `budgetRatio` unter 1.0 heißt, der Tick bleibt im Zeitplan.
+ */
+export function telemetryTickHealth(game: MazeGame, nowMs = performance.now()): TelemetryTickHealth {
+  return tickHealth(stateFor(game), nowMs);
+}
+
 function commitLife(
   state: TelemetryState,
   playerId: string,
@@ -251,6 +372,7 @@ export interface TelemetryReport {
   subject: TelemetrySubjectFilter;
   uptimeSeconds: number;
   population: { humans: number; bots: number; entities: Record<string, number> };
+  tick: TelemetryTickHealth;
   totals: {
     classPicks: number;
     modulePicks: number;
@@ -350,6 +472,7 @@ export function telemetryReport(
       bots: Math.max(0, (game.entityCounts.players ?? humans) - humans),
       entities: { ...game.entityCounts }
     },
+    tick: tickHealth(state, performance.now()),
     totals: {
       classPicks: classPickTotal,
       modulePicks: modulePickTotal,
@@ -419,6 +542,78 @@ export function renderMetricsText(game: MazeGame, now = Date.now()): string {
       samples: Object.entries(entities).map(([kind, value]) => ({ labels: { kind }, value }))
     }
   ];
+
+  const tick = tickHealth(state, performance.now());
+  const seconds = (milliseconds: number): number => round(milliseconds / 1000, 6);
+  metrics.push(
+    {
+      name: 'maze_tick_budget_seconds',
+      help: 'Zeitbudget eines Simulationsticks.',
+      type: 'gauge',
+      samples: [{ labels: {}, value: seconds(tick.budgetMs) }]
+    },
+    {
+      name: 'maze_ticks_total',
+      help: 'Simulierte Ticks seit Serverstart.',
+      type: 'counter',
+      samples: [{ labels: {}, value: tick.ticksTotal }]
+    },
+    {
+      name: 'maze_tick_overruns_total',
+      help: 'Ticks, deren Simulation länger als das Budget gedauert hat.',
+      type: 'counter',
+      samples: [{ labels: {}, value: tick.overrunsTotal }]
+    },
+    {
+      name: 'maze_tick_window_samples',
+      help: `Messwerte im gleitenden ${TICK_WINDOW_SECONDS}-Sekunden-Fenster.`,
+      type: 'gauge',
+      samples: [{ labels: {}, value: tick.samples }]
+    }
+  );
+  if (tick.samples > 0) {
+    metrics.push(
+      {
+        name: 'maze_tick_duration_seconds',
+        help: `Dauer eines Simulationsticks über ${TICK_WINDOW_SECONDS} Sekunden.`,
+        type: 'gauge',
+        samples: [
+          { labels: { quantile: '0.5' }, value: seconds(tick.p50Ms) },
+          { labels: { quantile: '0.95' }, value: seconds(tick.p95Ms) }
+        ]
+      },
+      {
+        name: 'maze_tick_duration_seconds_max',
+        help: 'Langsamster Tick im Fenster.',
+        type: 'gauge',
+        samples: [{ labels: {}, value: seconds(tick.maxMs) }]
+      },
+      {
+        name: 'maze_tick_interval_seconds',
+        help: 'Tatsächlicher Abstand zwischen zwei Ticks – zeigt Sättigung außerhalb der Simulation.',
+        type: 'gauge',
+        samples: [{ labels: { quantile: '0.95' }, value: seconds(tick.intervalP95Ms) }]
+      },
+      {
+        name: 'maze_tick_interval_seconds_max',
+        help: 'Größter Tick-Abstand im Fenster.',
+        type: 'gauge',
+        samples: [{ labels: {}, value: seconds(tick.intervalMaxMs) }]
+      },
+      {
+        name: 'maze_tick_budget_ratio',
+        help: 'p95 der Tick-Dauer geteilt durch das Budget. Ab 1.0 reicht die Zeit nicht mehr.',
+        type: 'gauge',
+        samples: [{ labels: {}, value: tick.budgetRatio }]
+      },
+      {
+        name: 'maze_tick_busy_ratio',
+        help: 'Mittlere Auslastung des Tick-Budgets im Fenster.',
+        type: 'gauge',
+        samples: [{ labels: {}, value: tick.busyRatio }]
+      }
+    );
+  }
 
   const counterMetric = (
     name: string,
@@ -575,7 +770,12 @@ export function tuneTelemetry<T extends MazeGame>(game: T): T {
   const originalStep = game.step.bind(game);
   const originalSnapshot = game.snapshot.bind(game);
   game.step = ((dt: number, now = Date.now()): void => {
+    // Gemessen wird die Simulation selbst; die Buchhaltung darunter läuft
+    // bewusst außerhalb der Messung, damit die Round-Robin-Erhebung alle
+    // 250 ms das p95 nicht verzerrt.
+    const startedAt = performance.now();
     originalStep(dt, now);
+    recordTick(state.tick, startedAt, performance.now() - startedAt);
     syncLives(state, internals, now);
     sampleLoadouts(state, internals, originalSnapshot, now);
   }) as T['step'];
