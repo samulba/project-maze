@@ -64,6 +64,7 @@ export class GameUI {
   private readonly vignette: HTMLElement;
   private entered = false;
   private wasBooting = false;
+  private startScreenGone: (() => void) | null = null;
   private lastDeathCount = 0;
   private lastClassChoicesKey = '';
   private lastLeaderboardKey = '';
@@ -85,24 +86,41 @@ export class GameUI {
     root.innerHTML = `
       <div class="ui-layer">
         <section class="start-screen" id="start-screen">
-          <form class="start-card" id="join-form">
-            <div class="start-logo-wrap">
-              <img class="start-logo" src="/logo.png" alt="Mazers-Logo" width="76" height="76" />
-              <span class="start-logo-ring" aria-hidden="true"></span>
-            </div>
-            <div class="eyebrow"><span></span> PLAYABLE ALPHA 1.0</div>
-            <h1>MAZE<b>RS</b></h1>
-            <p class="intro">Farmen, leveln, spezialisieren und mit deinem Build die Arena kontrollieren. Jeder startet als Core-Tank.</p>
-            <label class="field-label" for="player-name">SPIELERNAME</label>
-            <input id="player-name" maxlength="18" autocomplete="off" value="Player" />
-            <div class="start-options">
-              <label><span>SOUND</span><input type="range" id="volume" min="0" max="100" step="5" /></label>
-              <div class="control-preview"><span>WASD</span><span>LINKSKLICK FEUER</span><span>RECHTSKLICK DROHNEN</span></div>
-            </div>
-            <button class="play-button" id="join-button" type="submit"><span>ARENA BETRETEN</span><b>→</b></button>
-            <p class="start-status" id="join-status" aria-live="polite"></p>
-            <p class="start-note">Feste Sichtweite · kein Account · kein Pay-to-win</p>
-          </form>
+          <canvas class="start-backdrop" id="start-backdrop" aria-hidden="true"></canvas>
+          <div class="start-stage">
+            <form class="start-card" id="join-form">
+              <div class="start-brand">
+                <div class="start-logo-wrap">
+                  <img class="start-logo" src="/logo.png" alt="" width="112" height="112" />
+                  <span class="start-logo-ring" aria-hidden="true"></span>
+                </div>
+                <h1>MAZE<b>RS</b></h1>
+                <p class="start-tagline">Farmen. Leveln. Die Arena übernehmen.</p>
+              </div>
+
+              <div class="start-primary">
+                <label class="field-label" for="player-name">DEIN NAME</label>
+                <input id="player-name" maxlength="18" autocomplete="off" value="Player" />
+                <button class="play-button" id="join-button" type="submit"><span>ARENA BETRETEN</span><b>→</b></button>
+              </div>
+
+              <p class="start-status" id="join-status" aria-live="polite"></p>
+
+              <details class="start-settings" id="start-settings">
+                <summary><span>Sound &amp; Loadout</span><i aria-hidden="true"></i></summary>
+                <div class="start-settings-body" id="start-settings-body">
+                  <label class="start-sound"><span>SOUND</span><input type="range" id="volume" min="0" max="100" step="5" /></label>
+                </div>
+              </details>
+
+              <p class="start-note"><span>WASD</span><span>LINKS FEUER</span><span>RECHTS DROHNEN</span><span>ALPHA 1.0</span></p>
+            </form>
+
+            <details class="start-board" id="start-board" hidden>
+              <summary><strong>BESTENLISTE</strong><small data-board-meta></small></summary>
+              <ol class="start-board-list" data-board-list></ol>
+            </details>
+          </div>
         </section>
 
         <section class="hud" id="hud" hidden>
@@ -240,13 +258,33 @@ export class GameUI {
     this.wasBooting = booting;
   }
 
+  /**
+   * Holt das Loadout-Panel in die eingeklappten Einstellungen. Die GameplayUI
+   * hängt es selbst vor den Play-Button – dort wäre es genau das, was der
+   * Startscreen nicht mehr sein soll: eine gleich gewichtete Kiste vor der
+   * einen Aktion, um die es geht. Muss nach dem Bau der GameplayUI laufen.
+   */
+  adoptStartSettings(): void {
+    const loadout = this.root.querySelector<HTMLElement>('.core-loadout');
+    const body = this.root.querySelector<HTMLElement>('#start-settings-body');
+    if (loadout && body && loadout.parentElement !== body) body.append(loadout);
+  }
+
+  /** Callback, um den Hintergrund zu stoppen, sobald der Startscreen verschwindet. */
+  onStartScreenGone(handler: () => void): void {
+    this.startScreenGone = handler;
+  }
+
   enterGame(): void {
     if (this.entered) return;
     this.entered = true;
     this.runStartedAt = Date.now();
     this.root.classList.add('playing');
     this.start.classList.add('leaving');
-    window.setTimeout(() => this.start.remove(), 360);
+    window.setTimeout(() => {
+      this.start.remove();
+      this.startScreenGone?.();
+    }, 360);
     this.hud.hidden = false;
   }
 

@@ -1,0 +1,338 @@
+/*
+ * Startscreen (Sprint A2).
+ *
+ * Leitgedanke: Es gibt genau zwei Dinge, die zählen – Name und ARENA BETRETEN.
+ * Alles andere ordnet sich unter. Das Logo trägt die Marke, der Hintergrund
+ * deutet die Arena an, und Sound/Loadout verschwinden hinter einem Aufklapper.
+ */
+.start-screen {
+  --brand: #6b3ff5;
+  --brand-soft: #9a78ff;
+  display: grid;
+  place-items: center;
+  padding: clamp(14px, 3vw, 32px);
+  overflow: hidden;
+  background:
+    radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--brand) 26%, transparent), transparent 62%),
+    radial-gradient(90% 60% at 50% 108%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 70%),
+    linear-gradient(180deg, #090b14, #05060b);
+}
+.start-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+/* Vignette: hält den Blick in der Mitte, ohne dass der Hintergrund kippt. */
+.start-screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(70% 55% at 50% 45%, transparent 40%, rgba(3, 4, 9, .72) 100%);
+}
+.start-stage {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  /* Zentriert die Spalten selbst – ohne das klebt die Bühne links, sobald die
+     Bestenliste fehlt und nur eine Spalte übrig bleibt. */
+  justify-content: center;
+  justify-items: center;
+  gap: clamp(14px, 2.5vw, 30px);
+  width: min(1180px, 100%);
+  max-height: 100%;
+}
+
+/*
+ * Der Drehen-Hinweis gehört ins Spiel, nicht auf den Startscreen: Namen tippen
+ * geht im Hochformat problemlos, und bisher lag seine Meldung sichtbar hinter
+ * der Startkarte.
+ */
+#app:not(.playing) .rotate-notice { display: none; }
+
+/* ------------------------------------------------------------------ *
+ * Karte: kein Kasten mehr, sondern eine Bühne
+ * ------------------------------------------------------------------ */
+.start-card {
+  width: min(430px, 100%);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  text-align: center;
+}
+.start-brand { display: grid; justify-items: center; }
+.start-logo-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(84px, 15vw, 116px);
+  height: clamp(84px, 15vw, 116px);
+  margin: 0 0 clamp(10px, 2vw, 18px);
+}
+/* Der Halo gibt dem Logo Präsenz, ohne es zu überstrahlen. */
+.start-logo-wrap::before {
+  content: '';
+  position: absolute;
+  inset: -46%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand) 55%, transparent), transparent 68%);
+  filter: blur(6px);
+}
+.start-logo {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 26%;
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, .55),
+    0 0 0 1px color-mix(in srgb, var(--brand-soft) 40%, transparent),
+    0 0 34px color-mix(in srgb, var(--brand) 42%, transparent);
+}
+.start-card h1 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(46px, 11vw, 84px);
+  line-height: .86;
+  letter-spacing: -.06em;
+  font-weight: 900;
+}
+.start-card h1 b {
+  color: transparent;
+  background: linear-gradient(120deg, var(--brand-soft), var(--brand) 70%);
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+.start-tagline {
+  margin: clamp(8px, 1.6vw, 14px) 0 clamp(18px, 3vw, 30px);
+  color: #a7adc4;
+  font-size: clamp(12px, 1.5vw, 15px);
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+
+/* ------------------------------------------------------------------ *
+ * Primäraktion: Name und Start – alles andere ist kleiner
+ * ------------------------------------------------------------------ */
+.start-primary { display: grid; gap: 9px; }
+.start-primary .field-label {
+  margin: 0;
+  color: #7d859b;
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: .18em;
+}
+#player-name {
+  width: 100%;
+  height: clamp(52px, 7vw, 58px);
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 14px;
+  color: #fff;
+  background: rgba(12, 14, 25, .86);
+  font-size: 16px;
+  font-weight: 700;
+}
+#player-name:focus {
+  border-color: color-mix(in srgb, var(--brand-soft) 75%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+.play-button {
+  height: clamp(56px, 7.5vw, 64px);
+  margin-top: 5px;
+  border-radius: 15px;
+  background: linear-gradient(120deg, var(--brand), #8b5cff 55%, #a97bff);
+  box-shadow:
+    0 16px 40px color-mix(in srgb, var(--brand) 42%, transparent),
+    inset 0 1px rgba(255, 255, 255, .22);
+  font-size: 13px;
+  letter-spacing: .14em;
+}
+.play-button:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.07); }
+.play-button b { background: rgba(255, 255, 255, .18); }
+
+.start-status { margin: 12px 0 0; min-height: 15px; font-size: 11px; }
+
+/* ------------------------------------------------------------------ *
+ * Sekundäres: eingeklappt, leise
+ * ------------------------------------------------------------------ */
+.start-settings {
+  margin-top: clamp(12px, 2vw, 18px);
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 13px;
+  background: rgba(11, 13, 22, .6);
+  text-align: left;
+}
+.start-settings > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  color: #7d859b;
+  cursor: pointer;
+  list-style: none;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.start-settings > summary::-webkit-details-marker { display: none; }
+.start-settings > summary:hover { color: #cfd4e4; }
+/* Eigener Pfeil, damit die Zeile in beiden Zuständen gleich ruhig wirkt. */
+.start-settings > summary i {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  rotate: 45deg;
+  translate: 0 -2px;
+  transition: rotate .2s ease;
+}
+.start-settings[open] > summary i { rotate: 225deg; translate: 0 2px; }
+.start-settings-body { padding: 0 14px 14px; }
+.start-sound { display: grid; gap: 6px; color: #7d859b; font-size: 9px; font-weight: 800; letter-spacing: .12em; }
+/* Das Loadout wird hier hineingezogen – ohne eigenen Rahmen, es ist schon drin. */
+.start-settings-body .core-loadout {
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 0;
+  padding-top: 12px;
+  background: none;
+}
+
+.start-note {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: clamp(14px, 2.4vw, 22px) 0 0;
+}
+.start-note span {
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 999px;
+  color: #6d748a;
+  background: rgba(255, 255, 255, .022);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .08em;
+}
+
+/* ------------------------------------------------------------------ *
+ * Bestenliste (A4) – nur sichtbar, wenn der Server sie liefert
+ * ------------------------------------------------------------------ */
+.start-board {
+  width: min(430px, 100%);
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 16px;
+  background: rgba(10, 12, 20, .72);
+  backdrop-filter: blur(14px);
+}
+.start-board[hidden] { display: none; }
+.start-board > summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 15px;
+  cursor: pointer;
+  list-style: none;
+}
+.start-board > summary::-webkit-details-marker { display: none; }
+.start-board > summary strong { color: #cfd4e4; font-size: 10px; font-weight: 850; letter-spacing: .16em; }
+.start-board > summary small { color: #6d748a; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+.start-board-list {
+  max-height: 268px;
+  margin: 0;
+  padding: 0 8px 10px;
+  overflow: auto;
+  list-style: none;
+  scrollbar-width: thin;
+}
+/* Weicher Abriss statt halb abgeschnittener Zeile – zeigt zugleich, dass die
+   Liste weitergeht. Nur aktiv, wenn tatsächlich mehr da ist. */
+.start-board.is-scrollable .start-board-list {
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 30px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 30px), transparent);
+}
+.start-board-list li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 9px;
+  padding: 7px 8px;
+  border-radius: 9px;
+}
+.start-board-list li:nth-child(odd) { background: rgba(255, 255, 255, .022); }
+.start-board-list b { color: #6d748a; font-size: 11px; font-weight: 800; text-align: center; }
+.start-board-list span {
+  overflow: hidden;
+  color: #e7eaf5;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.start-board-list strong {
+  grid-row: 1 / 3;
+  grid-column: 3;
+  align-self: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+.start-board-list small { grid-column: 2; color: #6d748a; font-size: 9px; }
+/* Die ersten drei bekommen einen Hauch Gold – mehr braucht es nicht. */
+.start-board-list li:nth-child(-n + 3) b { color: #f0c265; }
+
+/* ------------------------------------------------------------------ *
+ * Breit: Bestenliste neben die Bühne
+ * ------------------------------------------------------------------ */
+@media (min-width: 901px) {
+  .start-stage {
+    grid-template-columns: minmax(0, 430px) minmax(0, 330px);
+    justify-items: stretch;
+    gap: clamp(28px, 5vw, 64px);
+  }
+  /* Ohne Bestenliste bleibt die Bühne mittig statt links zu kleben. */
+  .start-stage:not(:has(.start-board:not([hidden]))) { grid-template-columns: minmax(0, 430px); }
+  .start-board { width: 100%; }
+  .start-board > summary { cursor: default; }
+}
+
+/* ------------------------------------------------------------------ *
+ * Schmal und flach: alles eine Spur enger, nichts scrollt
+ * ------------------------------------------------------------------ */
+@media (max-width: 900px) {
+  .start-stage { width: min(430px, 100%); }
+  .start-board { margin-top: 2px; }
+  .start-board-list { max-height: 180px; }
+}
+@media (max-height: 760px) {
+  .start-logo-wrap { width: 74px; height: 74px; margin-bottom: 8px; }
+  .start-card h1 { font-size: clamp(38px, 9vw, 58px); }
+  .start-tagline { margin: 6px 0 16px; }
+  .start-note { margin-top: 12px; }
+  .start-board-list { max-height: 150px; }
+}
+@media (max-height: 620px) {
+  .start-logo-wrap { width: 58px; height: 58px; }
+  .start-tagline { display: none; }
+  .start-note { display: none; }
+  .start-status { margin-top: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play-button:hover:not(:disabled) { transform: none; }
+  .start-settings > summary i { transition: none; }
+}

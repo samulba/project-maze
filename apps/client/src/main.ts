@@ -22,11 +22,14 @@ import { InputController } from './input';
 import { KillcamView } from './killcam-view';
 import { OnboardingCoach } from './onboarding-view';
 import { GameRenderer } from './renderer';
+import { StartBackdrop } from './start-backdrop';
+import { StartLeaderboard } from './start-leaderboard';
 import { DEFAULT_THEME, applyTheme } from './themes';
 import { GameUI, type JoinOptions } from './ui';
 import './style.css';
 import './stability.css';
 import './boot.css';
+import './start.css';
 import './balance-lab.css';
 import './class-choice.css';
 import './gameplay-ui.css';
@@ -77,6 +80,14 @@ const ui = new GameUI(
   }
 );
 const gameplayUI = new GameplayUI(ui.root, send);
+// Muss direkt nach der GameplayUI laufen: sie hängt das Loadout-Panel vor den
+// Play-Button, der Startscreen will es eingeklappt bei den Einstellungen.
+ui.adoptStartSettings();
+
+const startBackdrop = new StartBackdrop(document.querySelector<HTMLCanvasElement>('#start-backdrop')!);
+startBackdrop.start();
+ui.onStartScreenGone(() => startBackdrop.stop());
+void new StartLeaderboard(ui.root).load();
 const killcam = new KillcamView(ui.root);
 const onboarding = new OnboardingCoach(ui.root);
 new BalanceLab(ui.root, send);

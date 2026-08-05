@@ -4,14 +4,8 @@
  * das Logo in einem laufenden Ring – ein Prozentbalken wäre gelogen, weil es
  * keinen meldbaren Fortschritt gibt.
  */
-.start-logo-wrap {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 76px;
-  height: 76px;
-  margin: 0 0 16px;
-}
+/* Größe und Rahmen des Logos gehören zum Design (start.css) – hier steht nur,
+   was der Ladezustand daraus macht. */
 .start-logo-wrap .start-logo { margin: 0; }
 .start-logo-ring {
   position: absolute;
