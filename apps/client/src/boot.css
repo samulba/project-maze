@@ -16,8 +16,8 @@
   background: conic-gradient(
     from 0deg,
     transparent 0 58%,
-    color-mix(in srgb, var(--accent) 80%, transparent) 76%,
-    color-mix(in srgb, var(--accent2) 92%, transparent) 90%,
+    color-mix(in srgb, var(--accent) 55%, transparent) 76%,
+    color-mix(in srgb, var(--accent) 75%, transparent) 90%,
     transparent 100%
   );
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
