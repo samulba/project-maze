@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Text } from 'pixi.js';
+import { Application, Container, Graphics, Text, type ApplicationOptions } from 'pixi.js';
 import {
   CLASS_DEFINITIONS,
   GAME,
@@ -166,20 +166,42 @@ export class GameRenderer {
   }
 
   async init(root:HTMLElement):Promise<void>{
-    const options={resizeTo:window,antialias:true,background:this.palette.outside,resolution:Math.min(devicePixelRatio||1,2),autoDensity:true};
-    // Zwei Grafikwege: erst WebGL, sonst WebGPU (Chrome/Edge vergeben den auch
-    // dann noch, wenn alle WebGL-Kontexte belegt sind). Beide mit Zeitlimit,
-    // weil PixiJS ohne Rückmeldung hängt, wenn der Browser keinen Kontext mehr
-    // hergibt (Hardwarebeschleunigung aus, zu viele offene WebGL-Tabs).
-    try{
-      if(!GameRenderer.webglAvailable())throw new Error('WEBGL_UNAVAILABLE');
-      await GameRenderer.withTimeout(this.app.init({...options,preference:'webgl'}),6000,'WEBGL_INIT_TIMEOUT');
-    }catch(webglError){
-      if(!('gpu' in navigator))throw webglError instanceof Error?webglError:new Error('GRAPHICS_UNAVAILABLE');
-      console.warn('WebGL-Start fehlgeschlagen, versuche WebGPU', webglError);
-      this.app=new Application();
-      await GameRenderer.withTimeout(this.app.init({...options,preference:'webgpu'}),6000,'GRAPHICS_UNAVAILABLE');
+    const base={resizeTo:window,background:this.palette.outside,autoDensity:true};
+    // Drei Grafikwege, jeder mit hartem Zeitlimit (PixiJS hängt sonst ohne
+    // Rückmeldung, wenn der Browser keinen Kontext hergibt):
+    // 1. WebGL in voller Qualität.
+    // 2. WebGL im Kompatibilitätsmodus: ohne Antialiasing, Auflösung 1 und mit
+    //    ausdrücklich erlaubtem Software-Rendering – langsamer, läuft aber auch
+    //    ohne Hardwarebeschleunigung.
+    // 3. WebGPU (Chrome/Edge vergeben den teils auch, wenn WebGL blockiert ist).
+    const webgl=GameRenderer.webglAvailable();
+    const attempts:{label:string;possible:boolean;options:Partial<ApplicationOptions>}[]=[
+      {label:'webgl',possible:webgl,options:{...base,preference:'webgl',antialias:true,resolution:Math.min(devicePixelRatio||1,2)}},
+      {label:'webgl-kompat',possible:webgl,options:{...base,preference:'webgl',antialias:false,resolution:1,failIfMajorPerformanceCaveat:false,powerPreference:'low-power'}},
+      {label:'webgpu',possible:'gpu' in navigator,options:{...base,preference:'webgpu',antialias:true,resolution:1}}
+    ];
+    const failures:string[]=[];
+    let running=false;
+    for(const attempt of attempts){
+      if(!attempt.possible){failures.push(`${attempt.label}: vom Browser blockiert`);continue;}
+      const candidate=this.app;
+      const boot=candidate.init(attempt.options);
+      try{
+        await GameRenderer.withTimeout(boot,6000,'Zeitlimit');
+        running=true;
+        break;
+      }catch(error){
+        failures.push(`${attempt.label}: ${error instanceof Error&&error.message?error.message:'Fehler'}`);
+        console.warn(`Grafikweg ${attempt.label} fehlgeschlagen`,error);
+        // Läuft der abgebrochene Init später doch noch zu Ende, hinterließe er
+        // einen unsichtbaren Renderer samt Ticker und GPU-Kontext – deshalb
+        // wird er beim Eintreffen sofort entsorgt. Eine halb initialisierte
+        // Application lässt sich ohnehin nicht neu starten.
+        void boot.then(()=>candidate.destroy(true),()=>{});
+        this.app=new Application();
+      }
     }
+    if(!running)throw new Error(failures.join(' · '));
     this.initialized=true;
     root.prepend(this.app.canvas);
     this.world.addChild(this.background,this.walls,this.shapes,this.projectiles,this.drones,this.particles.graphics,this.players,this.fx,this.numbers.container);

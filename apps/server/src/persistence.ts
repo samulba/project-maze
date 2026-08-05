@@ -179,6 +179,8 @@ interface PersistenceState {
   lastErrorAt: number | null;
   lastErrorLoggedAt: number;
   flushing: boolean;
+  /** Laufender Flush – wer flush() ruft, bekommt ihn statt eines No-ops. */
+  flushPromise: Promise<void> | null;
   timer: NodeJS.Timeout | null;
   leaderboardCacheMs: number;
   cache: { entries: LeaderboardEntry[]; fetchedAt: number } | null;
@@ -208,6 +210,7 @@ const createState = (): PersistenceState => ({
   lastErrorAt: null,
   lastErrorLoggedAt: 0,
   flushing: false,
+  flushPromise: null,
   timer: null,
   leaderboardCacheMs: DEFAULT_LEADERBOARD_CACHE_MS,
   cache: null,
@@ -403,7 +406,9 @@ function collectAchievementUnlocks(game: MazeGame, state: PersistenceState): voi
       if (known.has(achievementId)) continue;
       known.add(achievementId);
       if (state.achievementQueue.length >= MAX_QUEUE) {
-        state.achievementQueue.shift();
+        const evicted = state.achievementQueue.shift();
+        // Verdrängtes gilt wieder als unbekannt – sonst würde es nie nachgeholt.
+        if (evicted) state.knownAchievements.get(evicted.userId)?.delete(evicted.achievementId);
         state.dropped += 1;
       }
       state.achievementQueue.push({ userId, achievementId });
@@ -487,11 +492,14 @@ async function flushAchievements(state: PersistenceState, client: PersistenceCli
     noteError(state, 'Achievement-Insert fehlgeschlagen', error);
     const room = Math.max(0, MAX_QUEUE - state.achievementQueue.length);
     const kept = batch.slice(Math.max(0, batch.length - room));
-    state.dropped += batch.length - kept.length;
+    const discarded = batch.slice(0, batch.length - kept.length);
+    state.dropped += discarded.length;
     state.achievementQueue.unshift(...kept);
-    // Was nicht geschrieben wurde, darf nicht als „bekannt" gelten – sonst
-    // versucht es der Sammler nie wieder.
-    for (const unlock of kept) state.knownAchievements.get(unlock.userId)?.delete(unlock.achievementId);
+    // Nur wirklich Verworfenes gilt wieder als unbekannt, damit der Sammler es
+    // irgendwann nachholt. Die behaltenen Einträge liegen noch in der
+    // Warteschlange – sie zu de-registrieren hieße, dass der Sammler sie im
+    // nächsten Intervall ein zweites Mal hineinlegt.
+    for (const unlock of discarded) state.knownAchievements.get(unlock.userId)?.delete(unlock.achievementId);
   }
 }
 
@@ -517,17 +525,25 @@ async function flushRuns(state: PersistenceState, client: PersistenceClient): Pr
  * Warteschlangen scheitert für sich, damit ein Fehler die anderen nicht
  * mitreißt.
  */
-async function flush(state: PersistenceState): Promise<void> {
-  if (!state.enabled || !state.client || state.flushing || !pending(state)) return;
+function flush(state: PersistenceState): Promise<void> {
+  if (!state.enabled || !state.client) return Promise.resolve();
+  // Ein laufender Flush wird zurückgegeben statt übersprungen – nur so kann
+  // der Shutdown wirklich auf ihn warten, statt in ein No-op zu laufen.
+  if (state.flushPromise) return state.flushPromise;
+  if (!pending(state)) return Promise.resolve();
   const client = state.client;
   state.flushing = true;
-  try {
-    await flushProfiles(state, client);
-    await flushAchievements(state, client);
-    await flushRuns(state, client);
-  } finally {
-    state.flushing = false;
-  }
+  state.flushPromise = (async () => {
+    try {
+      await flushProfiles(state, client);
+      await flushAchievements(state, client);
+      await flushRuns(state, client);
+    } finally {
+      state.flushing = false;
+      state.flushPromise = null;
+    }
+  })();
+  return state.flushPromise;
 }
 
 /** Leert die Puffer sofort – für den geordneten Shutdown. */
@@ -558,6 +574,11 @@ export function linkPlayerToUser(
 ): void {
   const state = stateFor(game);
   if (!state.enabled) return;
+  // Kommt die Token-Prüfung erst nach dem Disconnect zurück, gibt es den
+  // Spieler nicht mehr. Dann darf hier auch keine Verknüpfung mehr entstehen –
+  // removePlayer für diese ID läuft nie wieder, der Eintrag bliebe für immer.
+  const players = (game as unknown as { players: Map<string, unknown> }).players;
+  if (!players.has(playerId)) return;
   if (!user) {
     state.accounts.delete(playerId);
     return;

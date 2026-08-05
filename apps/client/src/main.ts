@@ -105,17 +105,35 @@ const GRAPHICS_HELP = 'Grafik konnte nicht gestartet werden. Das liegt fast imme
 
 ui.setJoinPending(true, 'Grafik wird geladen …', 'booting');
 const rendererReady = renderer.init(ui.root);
-// Sicherheitsnetz hinter den Init-Zeitlimits (2 Versuche à 6 s): Sollte trotzdem
+// Sicherheitsnetz hinter den Init-Zeitlimits (3 Versuche à 6 s): Sollte trotzdem
 // etwas hängen, bleibt der Spieler nicht ohne Erklärung sitzen.
-const stuckNotice = window.setTimeout(() => ui.setJoinPending(true, GRAPHICS_HELP, 'failed'), 15_000);
+const stuckNotice = window.setTimeout(() => ui.setJoinPending(true, GRAPHICS_HELP, 'failed'), 20_000);
+const GFX_RETRY_KEY = 'mazersGfxAutoRetry';
 try {
   await rendererReady;
   window.clearTimeout(stuckNotice);
+  try { sessionStorage.removeItem(GFX_RETRY_KEY); } catch { /* Storage blockiert – egal */ }
   ui.setJoinPending(false);
 } catch (error) {
   window.clearTimeout(stuckNotice);
   console.error('Renderer-Init fehlgeschlagen', error);
-  ui.setJoinPending(true, GRAPHICS_HELP, 'failed');
+  // Hängengebliebene Kontexte anderer Tabs verschwinden oft schon durch ein
+  // Neuladen – ein Versuch passiert deshalb automatisch, aber nur einer. Neu
+  // geladen wird nur, wenn die Sperre nachweislich gespeichert wurde: Ein
+  // Browser ohne sessionStorage (strikter Privatmodus) würde sonst endlos laden.
+  let autoRetry = false;
+  try {
+    if (!sessionStorage.getItem(GFX_RETRY_KEY)) {
+      sessionStorage.setItem(GFX_RETRY_KEY, '1');
+      autoRetry = sessionStorage.getItem(GFX_RETRY_KEY) === '1';
+    }
+  } catch { autoRetry = false; }
+  if (autoRetry) {
+    location.reload();
+    throw error;
+  }
+  const detail = error instanceof Error && error.message ? ` — Diagnose: ${error.message}` : '';
+  ui.setJoinPending(true, GRAPHICS_HELP + detail, 'failed');
   throw error;
 }
 const gameplayEffects = new GameplayEffects(renderer.app);

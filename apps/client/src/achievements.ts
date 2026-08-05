@@ -66,6 +66,17 @@ export class AchievementQueue {
     this.pending.length = 0;
   }
 
+  /**
+   * Alles verwerfen, auch das gerade Sichtbare – `seen` bleibt bewusst stehen,
+   * damit ein Reconnect dieselbe Freischaltung nicht erneut feiert.
+   */
+  reset(): void {
+    this.pending.length = 0;
+    this.current = null;
+    this.currentUntil = 0;
+    this.nextAllowedAt = 0;
+  }
+
   get pendingCount(): number {
     return this.pending.length;
   }

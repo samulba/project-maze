@@ -44,7 +44,9 @@ export class AchievementPopups {
 
   /** Verbindung weg: Wartendes verwerfen, Sichtbares sofort schließen. */
   reset(): void {
-    this.queue.clearPending();
+    // queue.reset() statt clearPending(): Sonst überlebt `current` in der
+    // Warteschlange und das alte Popup taucht nach schnellem Reconnect wieder auf.
+    this.queue.reset();
     this.hide();
   }
 

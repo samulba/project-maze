@@ -82,7 +82,10 @@ const ACHIEVEMENTS_ENABLED = process.env.ACHIEVEMENTS_ENABLED === 'true';
  * Arena-Direktor: hält die Bot-Population passend zur Zahl der Menschen.
  * Standardmäßig an; `false` friert die Population auf `BOT_COUNT` ein.
  */
-const ARENA_DIRECTOR_ENABLED = process.env.ARENA_DIRECTOR_ENABLED !== 'false';
+// Opt-out-Flag: Auch 'FALSE', '0' und 'off' müssen abschalten – ein Tippfehler
+// darf nicht kommentarlos in die riskante Richtung „an" fallen.
+const ARENA_DIRECTOR_ENABLED = !['false', '0', 'off']
+  .includes((process.env.ARENA_DIRECTOR_ENABLED ?? '').trim().toLowerCase());
 const allowedOrigins = ALLOWED_ORIGIN === '*'
   ? null
   : new Set(ALLOWED_ORIGIN.split(',').map((value) => value.trim()).filter(Boolean));
@@ -368,7 +371,7 @@ app.get('/health', (_request: Request, response: Response) => {
     debugTools: ENABLE_DEV_TOOLS,
     // Macht die Feature-Schalter von außen prüfbar – sonst sieht man einer
     // falsch geschriebenen ENV-Variable nie an, dass sie nicht greift.
-    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS },
+    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, arenaDirector: ARENA_DIRECTOR_ENABLED },
     persistence: persistenceStats(game),
     auth: authStatus()
   });

@@ -142,7 +142,9 @@ export function pickDespawnCandidate(
   now: number,
   config: ArenaDirectorConfig = DEFAULT_DIRECTOR_CONFIG
 ): RuntimePlayer | null {
-  const dead = bots.find((bot) => bot.dead);
+  // Ein frisch Gefallener bleibt kurz liegen: Abschuss, Killfeed und Explosion
+  // sollen sichtbar zu Ende gehen, bevor der Direktor die Leiche aufräumt.
+  const dead = bots.find((bot) => bot.dead && now - bot.lastDamageAt >= config.combatMs);
   if (dead) return dead;
 
   let best: RuntimePlayer | null = null;
