@@ -4,19 +4,18 @@
 
 ## Zuletzt auf main gemerged
 
-- 02 Aggro-Pacing (Zeit unter Beschuss −35…−69 %, BOT_PACING_ENABLED default an)
-  + KL1-Machbarkeitsanalyse → Reihenfolge Rapid → Impact → Precision → Control
-- 03 R3 Mobile-Pass (Statusleiste, Aktions-Stapel, Meldungs-Slot, Bottom-Sheet)
-- 04 Client-Perf-Telemetrie (POST /client-metrics + /metrics-Export)
-- Shared: PlayerSnapshot.signature (0–100, ein Feld für alle vier Signatures)
-- davor: Profil-Backend, Ruhe & Gewicht + Spectator-Kamera, Input-Quittung,
-  Masterplan v4 + Phase 0, Mobile-Viewport-Fix
+- 02 KL2-RAPID „Momentum" (SIGNATURE_RAPID_ENABLED, Default aus – wartet auf
+  den Balken von 03)
+- 03 „Neon raus" (Startscreen ohne Verläufe/Halo, Glow-Inventur, Palette II)
+- 04 Balance-Live-Auswertung (scripts/balance-live.mjs, --baseline-Vergleich)
+- davor heute: Aggro-Pacing, R3 Mobile, Client-Perf-Telemetrie, Profil-Backend,
+  Ruhe & Gewicht + Spectator, Input-Quittung, Masterplan v4 + Phase 0
 
 ## Flags live (Railway)
 
 `SNAPSHOT_DELTAS=true` · `SHORT_NET_IDS=true` · `ACHIEVEMENTS_ENABLED=true` ·
 `AUTH_ENABLED=true` · Rate-Limits/Direktor default-an ·
-**`SPECTATOR_ENABLED` → kann jetzt auf `true`** (Client-Kamera ist gemerged)
+`SPECTATOR_ENABLED=true` · **`SIGNATURE_RAPID_ENABLED` → erst nach 03s Signature-HUD zünden**
 
 ## Erwartet als Nächstes
 

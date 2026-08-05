@@ -1,30 +1,26 @@
 # Auftrag für Chat 04 – Infra/Betrieb
 
-**Ausgestellt: 2026-08-05 (Nacht) · Basis: aktueller `origin/main`**
+**Ausgestellt: 2026-08-06 · Basis: aktueller `origin/main`**
 
-Deine Client-Perf-Telemetrie (R5) ist gemerged. Die fpsP95-Klarstellung
-(langsamer Rand statt bestes Fünftel) und `quality` = Renderpfad waren genau
-die richtigen Entscheidungen – der Sender-Spec liegt jetzt in 03s Warteschlange.
+Balance-Live ist gemerged. Jetzt bekommt das Werkzeug seinen ersten echten
+Einsatz – als Messfundament für die Klassen-3.0-Runde.
 
-## Balance-Live-Auswertung (Vorbereitung Klassen 3.0 / KL5)
+## Lastprobe „alle Schalter an" + Balance-Baseline
 
-Phase 2 des Masterplans (Klassen 3.0) braucht Zahlen statt Bauchgefühl. Die
-Telemetrie sammelt sie längst – es fehlt das Werkzeug, das sie lesbar macht.
-
-1. **`scripts/balance-live.mjs`:** zieht `/metrics?format=json` von einer
-   laufenden Instanz (URL + optionales `METRICS_TOKEN` als Argumente/ENV) und
-   druckt je Klasse eine Tabelle: Pickrate, K/D, mittlere Lebensdauer,
-   Kills/Minute – plus dieselbe Sicht je Familie (rapid/precision/control/
-   impact) und je Core-Modul/Frame. Sortierbar, `--json` für Weiterverarbeitung.
-2. **Ausreißer-Markierung:** Werte > 1,5× oder < 0,67× des Familien-Medians
-   werden markiert – das ist die Watchlist für die Balance-Runde.
-3. **Zeitvergleich:** `--baseline <datei.json>` vergleicht mit einem früheren
-   Abzug und zeigt Deltas (so sehen wir, was der Projektiltempo-Dämpfer und
-   das Aggro-Pacing wirklich verändert haben).
-4. **Doku-Abschnitt** in docs/TELEMETRY.md: „Balance-Runde fahren in 5
-   Minuten".
-
-Kein Servercode nötig, außer es fehlt eine Kennzahl im Export – dann bitte
-additiv ergänzen (wie gehabt hinter TELEMETRY_ENABLED).
+1. **Loadtest-Matrix:** `npm run loadtest -- --clients 40 --duration 60`
+   lokal gegen einen Server mit ALLEN Flags an (`SNAPSHOT_DELTAS`,
+   `SHORT_NET_IDS`, `ACHIEVEMENTS_ENABLED`, `SPECTATOR_ENABLED`,
+   `SIGNATURE_RAPID_ENABLED=true` – die Signature ist gemerged, Flag lokal
+   zünden ist ausdrücklich Teil des Auftrags). Dokumentiere Tick-p95,
+   Budget-Ratio, KB/s je Client und Drosselungen; Vergleich gegen die letzten
+   Referenzwerte aus README/DEPLOY-Doku. Auffälligkeiten (z. B. Kosten der
+   +25 % Projektil-Lebenszeit in resolveProjectileCollisions – 02s Hinweis
+   aus der Dämpfer-Analyse) gehören in den Bericht.
+2. **Balance-Baseline einfrieren:** Mit `scripts/balance-live.mjs --json`
+   einen Abzug des Lastlaufs als `docs/balance/2026-08-06-baseline.json`
+   einchecken (ohne personenbezogene Daten – nur Aggregatzahlen). Das ist
+   der Vorher-Stand, gegen den KL5 die Signatures misst (`--baseline`).
+3. **Kurz-Doku:** Abschnitt in docs/TELEMETRY.md, wie die Matrix
+   reproduzierbar gefahren wird.
 
 Statusbericht wie gehabt nach `docs/status/chat-04/`.

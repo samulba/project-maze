@@ -1,45 +1,34 @@
 # Auftrag für Chat 03 – Client/UX
 
-**Ausgestellt: 2026-08-05 (Nacht) · Basis: aktueller `origin/main`**
+**Ausgestellt: 2026-08-06 · Basis: aktueller `origin/main`**
 
-Dein R3-Mobile-Paket ist gemerged – die Testmatrix mit dem automatischen
-Überlappungs-Check ist genau der Standard, den wir halten wollen.
+„Neon raus" ist gemerged – Sams Urteil steht noch aus, aber die
+Radial-Verläufe als Hauptursache zu identifizieren war überzeugend.
 
-## Design-Beruhigung II: „Neon raus" (Sams direktes Feedback)
+## Signature-HUD + Perf-Sender (ein kleines Doppel-Paket)
 
-Sam nach dem Live-Test: Das Gesamtbild ist ihm trotz „Ruhe & Gewicht" noch zu
-„Neon City" – Ziel ist **ruhiger, cleaner, minimalistischer**. Das betrifft
-ausdrücklich auch den **Startscreen**, nicht nur das HUD:
+**Teil 1 – Signature-Anzeige (schaltet Klassen 3.0 frei):** Der Server füllt
+`PlayerSnapshot.signature` (0–100) – aktuell Momentum für die Rapid-Familie
+(Flag serverseitig noch aus; dein Paket ist die Voraussetzung, es zu zünden).
 
-1. **Startscreen entschärfen:** Logo-Glow, pulsierender Ring, Radial-Verläufe
-   und Akzent-Schatten deutlich reduzieren oder streichen. Ruhige dunkle
-   Fläche, klare Typo, EIN Akzent.
-2. **Glow-Inventur im ganzen Client:** jede `box-shadow`/`text-shadow` mit
-   Leuchtwirkung begründen oder entfernen (`--accent`-Glows, Badge-Schatten,
-   Button-Schein). Verläufe nur noch, wo sie Funktion haben (HP/XP-Balken).
-3. **Farbdisziplin im Spielfeld:** Die Palette aus „Ruhe & Gewicht" war die
-   richtige Richtung – eine Stufe weiter: Formen/Wände noch zurückhaltender,
-   Sättigung nur für Bedeutung (Schaden, Events, eigener Tank, Gegner).
-4. **Death-Screen und Panels:** gleiche Behandlung (Verlauf-Buttons → ruhige
-   Flächen mit klarer Hover-Reaktion).
+- Dezenter Füllbalken am eigenen Tank oder an der Statusleiste (dein Call –
+  er muss im Blickfeld liegen, ohne zu schreien; „Neon raus"-Disziplin gilt).
+- Generisch bauen: Beschriftung je Familie (Rapid „MOMENTUM", später Impact
+  „WUCHT", Precision „LADUNG", Control „EINHEITEN") – die anderen Familien
+  kommen mit demselben Feld.
+- Nur zeigen, wenn `signature` im Snapshot steht (Flag aus = kein Balken).
+- Wichtig fürs Gefühl (02s Warnung): Ohne Anzeige liest sich die schwankende
+  Feuerrate als Netzproblem – der Balken IST das Feature.
 
-Der Körper-Kickback beim Schießen ist bereits von 01 auf 0 gesetzt (nur das
-Rohr federt) – Sams Wunsch, nicht rückgängig machen.
+**Teil 2 – Perf-Sender:** Spezifikation von 04 in
+`docs/status/chat-04/08-client-perf-telemetrie.md`: einmal pro Minute
+POST /client-metrics (fpsP50, fpsP95 = langsamer Rand!, frameHangs > 100 ms,
+dpr, Viewport, deviceClass, quality = Renderpfad aus renderer.ts).
 
-Vorher/Nachher-Screenshots (Startscreen + HUD) in den Statusbericht.
+## Danach in dieser Reihenfolge
 
-## Danach in dieser Reihenfolge (je ein Paket)
-
-1. **K2 Profil-Tab** – Backend ist live: `GET /profile/:userId` liefert
-   displayName, memberSince, Bestwerte, `favoriteClass(+Runs/Seconds)`,
-   `totalSeconds`, Achievements mit Katalogtexten; `POST /profile` ändert den
-   Anzeigenamen (Supabase-Token im Authorization-Header, 202 = angenommen).
-   Startscreen-Tab mit Profilkarte + Achievements-Galerie; Gast sieht einen
-   dezenten Login-Hinweis.
-2. **Mini-Paket Perf-Sender** – Spezifikation von 04 in
-   `docs/status/chat-04/08-client-perf-telemetrie.md` (POST /client-metrics,
-   einmal pro Minute, fpsP50/fpsP95-Konvention beachten: P95 = langsamer Rand).
-3. **R1/R2/R4** Desktop-Fullscreen-Härtung + Qualitätsstufen.
-4. **N2 Client-Prediction** (docs/CLIENT_PREDICTION.md).
+1. **K2 Profil-Tab** (Backend komplett live, siehe vorherige Auftragsfassung)
+2. **R1/R2/R4** Desktop-Fullscreen + Qualitätsstufen
+3. **N2 Client-Prediction** (docs/CLIENT_PREDICTION.md)
 
 Statusbericht wie gehabt nach `docs/status/chat-03/`.
