@@ -2,44 +2,36 @@
 
 **Ausgestellt: 2026-08-06 · Basis: aktueller `origin/main`**
 
-„Neon raus" ist gemerged – Sams Urteil steht noch aus, aber die
-Radial-Verläufe als Hauptursache zu identifizieren war überzeugend.
+Profil-Tab ist gemerged – die Galerie-Entscheidung (ganzer Katalog statt nur
+Freigeschaltetes) und die vier Zustände ohne Fehlertext sind genau richtig.
 
-## Signature-HUD + Perf-Sender (ein kleines Doppel-Paket)
+## R1/R2/R4: Desktop-Fullscreen, Letterbox-Feinschliff, Qualitätsstufen
 
-**Teil 1 – Signature-Anzeige (schaltet Klassen 3.0 frei):** Der Server füllt
-`PlayerSnapshot.signature` (0–100) – aktuell Momentum für die Rapid-Familie
-(Flag serverseitig noch aus; dein Paket ist die Voraussetzung, es zu zünden).
+MASTERPLAN Feld 1, die verbliebenen Punkte (R3 Mobile ist durch):
 
-- Dezenter Füllbalken am eigenen Tank oder an der Statusleiste (dein Call –
-  er muss im Blickfeld liegen, ohne zu schreien; „Neon raus"-Disziplin gilt).
-- Generisch bauen: Beschriftung je Familie (Rapid „MOMENTUM", später Impact
-  „WUCHT", Precision „LADUNG", Control „EINHEITEN") – die anderen Familien
-  kommen mit demselben Feld.
-- Nur zeigen, wenn `signature` im Snapshot steht (Flag aus = kein Balken).
-- Wichtig fürs Gefühl (02s Warnung): Ohne Anzeige liest sich die schwankende
-  Feuerrate als Netzproblem – der Balken IST das Feature.
+1. **R1 Fullscreen-Härtung Desktop:** Vollbild rein/raus (F11 UND
+   Fullscreen-API), Fenstergrößen-Wechsel, Monitor-Wechsel mit anderem
+   devicePixelRatio, Browser-Zoom. Die syncSize-Grundlage liegt im Renderer;
+   dein Paket ist der Nachweis über eine Testmatrix wie bei R3 plus Fixes für
+   das, was dabei auffällt.
+2. **R2 Letterbox & HUD-Skalierung:** Balken auf Ultrawide/4:3 als gestaltete
+   Ruhe (Design-Richtung beachten: hell, nicht düster!), HUD-Typo mit clamp()
+   auf großen Bildschirmen.
+3. **R4 Qualitätsstufen:** hoch/mittel/niedrig (Partikelmenge, Glow-Effekte im
+   Canvas, Antialias, Auflösungs-Cap). Auto-Einstufung: Start „mittel", nach
+   10 s FPS-Messung (die Infrastruktur aus deinem Perf-Sender kann die Messung
+   liefern) hoch- oder runterstufen; manuelle Wahl im Startscreen unter
+   Sound & Loadout. `quality` im Perf-Report entsprechend erweitern
+   (Renderpfad + Stufe – mit 04 kurz über die Label-Kardinalität abstimmen,
+   deren /metrics-Export ist auf 4×4 ausgelegt; Vorschlag im Statusbericht).
 
-**Teil 2 – Perf-Sender:** Spezifikation von 04 in
-`docs/status/chat-04/08-client-perf-telemetrie.md`: einmal pro Minute
-POST /client-metrics (fpsP50, fpsP95 = langsamer Rand!, frameHangs > 100 ms,
-dpr, Viewport, deviceClass, quality = Renderpfad aus renderer.ts).
+## Danach
 
-## Danach in dieser Reihenfolge
+**N2 Client-Prediction** (docs/CLIENT_PREDICTION.md; `lastProcessedInput ?? -1`)
+– das größte verbleibende Feel-Paket. Bei Fragen zur Bewegungsintegration ist
+02s Doku maßgeblich, nicht der Code-Augenschein.
 
-1. **K2 Profil-Tab** (Backend komplett live, siehe vorherige Auftragsfassung)
-2. **R1/R2/R4** Desktop-Fullscreen + Qualitätsstufen
-3. **N2 Client-Prediction** (docs/CLIENT_PREDICTION.md)
+Design-Richtung gilt weiter: ruhig & minimalistisch JA, düster NEIN
+(MASTERPLAN „Design-Richtung", Grundton wurde von 01 angehoben).
 
 Statusbericht wie gehabt nach `docs/status/chat-03/`.
-
-## NACHTRAG (2026-08-06, vor deinem nächsten Paket lesen)
-
-Sam-Korrektur nach dem Neon-raus-Test: **„Das Game ist noch zu düster/zu
-dunkel – so will ich das gar nicht."** Seine ursprüngliche Dunkel-Ansage war
-ein Irrtum. Neue verbindliche Richtung in MASTERPLAN.md („Design-Richtung"):
-ruhig & minimalistisch JA, düster NEIN. 01 hat die Grundtöne (midnight-Palette
-+ CSS-Variablen) bereits eine Stufe angehoben – bitte in deinem nächsten
-Design-Anfass darauf aufbauen und prüfen, wo Panels/Screens noch schwer wirken
-(Death-Screen-Overlay, Start-Backdrop, Sheet-Hintergründe). Kein neues
-Sofort-Paket – einfach ab jetzt gegen „klar & freundlich-technisch" gestalten.

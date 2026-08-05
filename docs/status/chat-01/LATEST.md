@@ -4,10 +4,9 @@
 
 ## Zuletzt auf main gemerged
 
-- 02 KL2-IMPACT „Wucht" (SIGNATURE_IMPACT_ENABLED; Anlauf = Rammschaden ×2,5,
-  wird beim Aufprall verbraucht; TTK-Deckel 25 % als Testinvariante)
-- 03 Signature-HUD (Balken am Tank + Wort im Panel, generisch) + Perf-Sender
-- 01 Design: Grundton eine Stufe heller (Sam: „zu düster war ein Irrtum")
+- 03 K2 Profil-Tab (Profilkarte, Namensänderung, Achievements-Galerie über
+  den ganzen Katalog; ohne Login-Konfiguration existiert das Panel nicht)
+- 02 KL2-IMPACT „Wucht" + 03 Signature-HUD + 01 Heller-Grundton
 - davor: Momentum, Neon raus, Balance-Live, Aggro-Pacing, R3 Mobile, …
 
 ## Flags live (Railway)
