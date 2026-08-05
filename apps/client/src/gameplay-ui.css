@@ -41,6 +41,10 @@
   box-shadow:0 14px 38px rgba(0,0,0,.34);
   backdrop-filter:blur(18px);
   cursor:pointer;
+  /* .ui-layer und .hud sind pointer-events:none – interaktive Elemente müssen
+     sich das Klicken ausdrücklich zurückholen. Ohne das ist der Button auf
+     Touch-Geräten gar nicht auslösbar, weil dort die Leertaste fehlt. */
+  pointer-events:auto;
 }
 .core-ability > i {
   position:absolute;

@@ -1,0 +1,116 @@
+/* Einstiegshinweise der ersten 60 Sekunden. */
+.onboarding {
+  position: fixed;
+  top: calc(max(10px, env(safe-area-inset-top)) + 52px);
+  left: 50%;
+  z-index: 26;
+  display: grid;
+  gap: 3px;
+  width: min(520px, calc(100vw - 24px));
+  padding: 11px 14px 13px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+  border-radius: 13px;
+  color: var(--muted);
+  background: var(--strong);
+  box-shadow: 0 14px 40px var(--shadow), 0 0 30px color-mix(in srgb, var(--accent) 10%, transparent);
+  translate: -50% 0;
+  backdrop-filter: blur(16px);
+  pointer-events: none;
+}
+.onboarding[hidden] { display: none !important; }
+.onboarding.enter { animation: onboarding-in .26s ease-out; }
+.onboarding-head { display: flex; align-items: center; gap: 9px; margin-bottom: 3px; }
+.onboarding-eyebrow {
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .16em;
+}
+.onboarding-counter { margin-right: auto; color: var(--faint); font-size: 9px; font-weight: 800; }
+.onboarding-skip {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--faint);
+  background: transparent;
+  pointer-events: auto;
+  cursor: pointer;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+.onboarding-skip:hover { border-color: var(--line-strong); color: var(--text); }
+.onboarding > strong { color: var(--text); font-size: 13px; }
+.onboarding > span { font-size: 11px; line-height: 1.45; }
+.onboarding-progress {
+  display: block;
+  height: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+.onboarding-progress > b {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--accent);
+  transition: width .4s linear;
+}
+
+/* Banner weichen dem Hinweis aus, solange das Onboarding läuft – aber nur,
+   wenn darunter überhaupt Platz ist. */
+@media (min-height: 560px) {
+  :root.onboarding-active .arena-event-banner { top: 168px; }
+  :root.onboarding-active .bounty-banner { top: 210px; }
+}
+
+/* Das erklärte Bedienelement pulsiert dezent mit. */
+.onboarding-focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent);
+  outline-offset: 3px;
+  border-radius: 13px;
+  animation: onboarding-pulse 1.7s ease-in-out infinite;
+}
+.move-stick.onboarding-focus,
+.aim-stick.onboarding-focus { outline-offset: -12px; border-radius: 50%; }
+
+@keyframes onboarding-in {
+  from { opacity: 0; transform: translateY(-7px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes onboarding-pulse {
+  0%, 100% { outline-color: color-mix(in srgb, var(--accent) 26%, transparent); }
+  50% { outline-color: color-mix(in srgb, var(--accent) 82%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding.enter { animation: none; }
+  .onboarding-focus { animation: none; }
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  .onboarding { padding: 9px 11px 11px; }
+  .onboarding > strong { font-size: 12px; }
+  .onboarding > span { font-size: 10px; }
+}
+
+/*
+ * Auf Touch ist die Kopfzeile zu voll für eine mittige Karte: Der Hinweis rückt
+ * nach rechts, und die zwei Elemente, die einem Level-1-Spieler in der ersten
+ * Minute nichts nützen, pausieren so lange.
+ */
+@media (pointer: coarse) {
+  .onboarding {
+    /* Unterhalb der Status-Pille, die mittig oben sitzt. */
+    top: calc(max(10px, env(safe-area-inset-top)) + 44px);
+    left: auto;
+    right: max(12px, env(safe-area-inset-right));
+    width: min(440px, calc(100vw - 250px));
+    translate: none;
+  }
+  :root.onboarding-active .leaderboard,
+  :root.onboarding-active .arena-event-banner,
+  :root.onboarding-active .bounty-banner { display: none; }
+}

@@ -1,0 +1,252 @@
+/*
+ * Touch-Layout und Lesbarkeit auf kleinen Screens.
+ * Wird nach style.css und gameplay-ui.css geladen und gewinnt daher bei gleicher
+ * Spezifität. Leitidee: Der untere Bildschirmrand gehört den Daumen, alles andere
+ * weicht darüber aus – nichts liegt mehr unter den Sticks.
+ *
+ * Vertikale Zonen im Touch-Layout (von unten):
+ *   0 … 190px   Sticks, Fähigkeiten-Cluster, Minimap
+ *   190 … 300   Upgrade-Panel
+ *   310 …       Klassenwahl
+ */
+
+/* ------------------------------------------------------------------ *
+ * 1. Sticks: schwebender Ursprung, größere Trefferfläche
+ * ------------------------------------------------------------------ */
+.touch-control {
+  bottom: max(14px, env(safe-area-inset-bottom));
+  width: 168px;
+  height: 168px;
+  -webkit-tap-highlight-color: transparent;
+}
+.move-stick { left: max(12px, env(safe-area-inset-left)); }
+.aim-stick { right: max(12px, env(safe-area-inset-right)); }
+.stick-ring {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: 122px;
+  height: 122px;
+  margin: -61px 0 0 -61px;
+  border-color: color-mix(in srgb, var(--text) 16%, transparent);
+  background: color-mix(in srgb, var(--bg) 30%, transparent);
+  transition: transform .12s ease-out, border-color .16s, opacity .16s;
+  opacity: .72;
+}
+.touch-control.touching .stick-ring { opacity: 1; transition: border-color .16s, opacity .16s; }
+.aim-stick.engaged .stick-ring { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.stick-knob {
+  width: 56px;
+  height: 56px;
+  margin: -28px;
+  border-color: color-mix(in srgb, var(--text) 26%, transparent);
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.aim-stick.engaged .stick-knob {
+  background: color-mix(in srgb, var(--accent) 46%, transparent);
+  box-shadow: 0 5px 20px rgba(0,0,0,.3), 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* ------------------------------------------------------------------ *
+ * 2. Touch-Layout: alles aus dem Daumenbereich räumen
+ * ------------------------------------------------------------------ */
+@media (pointer: coarse) {
+  /* Fähigkeit sitzt innen neben dem Aim-Stick – erreichbar, ohne den Stick zu verlassen. */
+  .core-ability {
+    left: auto;
+    right: calc(max(12px, env(safe-area-inset-right)) + 174px);
+    bottom: calc(max(14px, env(safe-area-inset-bottom)) + 16px);
+    transform: none;
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+    justify-items: center;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .core-ability-key { display: none; }
+  /* Beschriftung muss über dem Ladering liegen. */
+  .core-ability strong,
+  .core-ability small { padding: 0; text-align: center; align-self: center; position: relative; z-index: 1; }
+  .core-ability strong { font-size: 12px; }
+  .core-ability small { font-size: 10px; }
+  /* Ladezustand als Ring statt als 3px-Leiste – auf Armlänge ablesbar. */
+  .core-ability > i {
+    left: 50%;
+    bottom: 50%;
+    width: 100%;
+    height: 100%;
+    translate: -50% 50%;
+    border-radius: 50%;
+    background: conic-gradient(currentColor var(--charge), transparent 0);
+    color: var(--accent);
+    opacity: .2;
+    transition: none;
+    pointer-events: none;
+  }
+  .core-ability[data-module="repulse"] > i { color: #73e3bd; background: conic-gradient(currentColor var(--charge), transparent 0); }
+  .core-ability[data-module="barrier"] > i { color: #81a7ff; background: conic-gradient(currentColor var(--charge), transparent 0); }
+  .core-ability[data-module="repair"] > i { color: #69d79b; background: conic-gradient(currentColor var(--charge), transparent 0); }
+  .core-ability:disabled { opacity: .82; }
+  .core-ability.active { box-shadow: 0 0 0 2px rgba(118,222,192,.45), 0 14px 38px rgba(0,0,0,.34); }
+
+  /* Repel darüber, weiterhin im Daumenbogen. */
+  .secondary-action {
+    display: grid;
+    place-items: center;
+    right: calc(max(12px, env(safe-area-inset-right)) + 186px);
+    bottom: calc(max(14px, env(safe-area-inset-bottom)) + 118px);
+    width: 60px;
+    min-width: 0;
+    height: 60px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 9px;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Minimap raus aus dem Aim-Stick, Auto-Fire raus aus dem Daumenbereich. */
+  .minimap {
+    left: 50%;
+    right: auto;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    translate: -50% 0;
+    width: 146px;
+    height: 96px;
+  }
+  .auto-fire {
+    left: 50%;
+    right: auto;
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 104px);
+    translate: -50% 0;
+    min-width: 96px;
+    height: 34px;
+    touch-action: manipulation;
+  }
+  .modifier-badge { display: none; }
+
+  /* Upgrades als Bogen-Sheet über den Daumen, vier Spalten statt acht Zeilen. */
+  .upgrade-panel {
+    left: 50%;
+    right: auto;
+    bottom: 190px;
+    translate: -50% 0;
+    width: min(460px, calc(100vw - 20px));
+    max-height: calc(100dvh - 210px);
+    overflow: auto;
+  }
+  .upgrade-list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .upgrade-list button {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    justify-items: center;
+    gap: 4px;
+    min-height: 46px;
+    padding: 7px 4px;
+    text-align: center;
+    touch-action: manipulation;
+  }
+  .upgrade-list button > kbd { display: none; }
+  .upgrade-list button > span { font-size: 10px; line-height: 1.15; }
+
+  /* Klassenwahl darüber, als scrollbare Kartenreihe. */
+  .class-selection {
+    bottom: 310px;
+    width: min(620px, calc(100vw - 20px));
+    max-height: calc(100dvh - 330px);
+    padding: 12px;
+    overflow: auto;
+  }
+  .class-choices {
+    grid-auto-flow: column;
+    grid-auto-columns: 200px;
+    grid-template-columns: none;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .class-choices button { min-height: 0; padding: 12px; touch-action: manipulation; }
+
+  /* Ränder an Notch/Home-Indicator ausrichten. */
+  .top-left {
+    top: max(12px, env(safe-area-inset-top));
+    left: max(12px, env(safe-area-inset-left));
+  }
+  .leaderboard {
+    top: max(12px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+  }
+  .network-pill { top: max(12px, env(safe-area-inset-top)); }
+}
+
+/* ------------------------------------------------------------------ *
+ * 3. Lesbarkeit: kleine Screens brauchen mehr Kontrast und mehr Punktgröße
+ * ------------------------------------------------------------------ */
+@media (pointer: coarse), (max-width: 900px) {
+  .player-panel,
+  .leaderboard,
+  .upgrade-panel,
+  .class-selection {
+    background: color-mix(in srgb, var(--strong) 94%, transparent);
+  }
+  .player-heading strong { font-size: 15px; }
+  .player-heading span { font-size: 10px; letter-spacing: .1em; }
+  .level-badge { font-size: 9px; }
+  .level-badge b { font-size: 15px; }
+  .meter { height: 9px; }
+  .xp-meter { height: 7px; }
+  .meter-row { color: var(--muted); font-size: 10px; }
+  .meter-row span:first-child { color: var(--text); font-weight: 800; }
+  .panel-title { font-size: 10px; }
+  .leader-row { min-height: 28px; font-size: 11px; }
+  .leader-row small { font-size: 9px; }
+  .leader-row strong { font-size: 10px; }
+  .network-pill,
+  .network-pill b { font-size: 9px; }
+  .upgrade-header { font-size: 10px; }
+  .class-choices strong { font-size: 15px; }
+  .class-choices span { font-size: 11px; }
+  .toast { min-width: 0; width: min(320px, calc(100vw - 24px)); }
+  .toast strong { font-size: 12px; }
+  .toast span { font-size: 10px; }
+  .death-card { max-height: calc(100dvh - 24px); overflow: auto; }
+  .death-stats b { font-size: 14px; }
+}
+
+/* Auf kleinen Screens zählt nur die Spitze der Rangliste. */
+@media (pointer: coarse) and (max-height: 560px) {
+  .leaderboard .leader-row:nth-of-type(n + 5) { display: none; }
+}
+
+/* ------------------------------------------------------------------ *
+ * 4. Sehr flache Landscape-Screens (iPhone SE & Co.)
+ * ------------------------------------------------------------------ */
+@media (pointer: coarse) and (max-height: 470px) {
+  .touch-control { width: 148px; height: 148px; }
+  .stick-ring { width: 108px; height: 108px; margin: -54px 0 0 -54px; }
+  .stick-knob { width: 50px; height: 50px; margin: -25px; }
+  .core-ability {
+    right: calc(max(10px, env(safe-area-inset-right)) + 154px);
+    width: 74px;
+    height: 74px;
+  }
+  .secondary-action {
+    right: calc(max(10px, env(safe-area-inset-right)) + 164px);
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 104px);
+    width: 54px;
+    height: 54px;
+  }
+  .minimap { width: 124px; height: 80px; }
+  .auto-fire { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 88px); height: 30px; }
+  .top-left { width: 194px; }
+  .player-panel { padding: 10px; }
+  .leaderboard { width: 184px; padding: 10px; }
+  .leaderboard .leader-row:nth-of-type(n + 4) { display: none; }
+  .upgrade-panel { bottom: 166px; max-height: calc(100dvh - 184px); }
+  .upgrade-list button { min-height: 40px; }
+  .class-selection { bottom: 262px; max-height: calc(100dvh - 278px); }
+  .class-choices { grid-auto-columns: 176px; }
+}
