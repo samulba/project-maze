@@ -189,12 +189,13 @@ export class GameplayUI {
 
     const bountyId = extended.bountyTargetId;
     const bountyTarget = bountyId ? snapshot.players.find((player) => player.id === bountyId) : null;
-    if (bountyId && extended.bountyValue > 0) {
+    const bountyValue = extended.bountyValue ?? 0;
+    if (bountyId && bountyValue > 0) {
       this.bountyBanner.hidden = false;
       this.bountyBanner.classList.toggle('self', bountyId === self.id);
       this.bountyBanner.innerHTML = bountyId === self.id
-        ? `<strong>BOUNTY AUF DIR</strong><span>${extended.bountyValue} Bonus</span>`
-        : `<strong>BOUNTY</strong><span>${bountyTarget?.name ?? 'Dominanter Spieler'} · ${extended.bountyValue} Bonus</span>`;
+        ? `<strong>BOUNTY AUF DIR</strong><span>${bountyValue} Bonus</span>`
+        : `<strong>BOUNTY</strong><span>${bountyTarget?.name ?? 'Dominanter Spieler'} · ${bountyValue} Bonus</span>`;
     } else {
       this.bountyBanner.hidden = true;
     }

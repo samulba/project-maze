@@ -293,7 +293,7 @@ export class GameRenderer {
     const root=new Container();const rotating=new Container();const barrels=new Graphics();const body=new Graphics();const detail=new Graphics();const shield=new Graphics();
     rotating.addChild(barrels,body,detail,shield);root.addChild(rotating);
     const healthBack=new Graphics();const healthFill=new Graphics();root.addChild(healthBack,healthFill);
-    const name=new Text({text:'',style:{fill:this.palette.label,fontSize:12,fontWeight:'650',fontFamily:'Inter, system-ui, sans-serif'}});name.anchor.set(.5);name.position.set(0,-42);root.addChild(name);
+    const name=new Text({text:'',style:{fill:this.palette.label,fontSize:12,fontWeight:'600',fontFamily:'Inter, system-ui, sans-serif'}});name.anchor.set(.5);name.position.set(0,-42);root.addChild(name);
     const view:PlayerView={root,rotating,body,barrels,detail,shield,healthBack,healthFill,name,current:{...player.position},target:{...player.position},velocity:{...player.velocity},angle:player.angle,targetAngle:player.angle,snapshot:player,snapshotAt:now,classId:player.playerClass,isSelf};
     root.position.set(player.position.x,player.position.y);this.redrawPlayer(view,true);return view;
   }

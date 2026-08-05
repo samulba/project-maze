@@ -19,7 +19,7 @@ describe('core modules and passive frames', () => {
     const playerId = game.addPlayer('Dasher');
     const internals = game as unknown as Internals;
     const player = internals.players.get(playerId);
-    player.position = { x: 3000, y: 2000 };
+    player.position = { x: 2800, y: 2200 };
     expect(equipLoadout(game, playerId, 'dash', 'standard', 1000)).toBe(true);
     game.applyInput(playerId, { type: 'input', sequence: 1, move: { x: 1, y: 0 }, aim: { x: 500, y: 0 }, primary: false, secondary: false });
 
