@@ -52,6 +52,7 @@ import {
   tunePersistence
 } from './persistence.js';
 import { hardenSimulation } from './simulation-hardening.js';
+import { tuneSpectator } from './spectator.js';
 import { tuneSnapshotEncoding } from './snapshot-encoding.js';
 import { createGracefulShutdown, installSignalHandlers } from './shutdown.js';
 import { metricsHandler, tuneTelemetry } from './telemetry.js';
@@ -84,6 +85,11 @@ const ACHIEVEMENTS_ENABLED = process.env.ACHIEVEMENTS_ENABLED === 'true';
  * einen Client voraus, der die neue Feldform kennt; bis dahin aus.
  */
 const SHORT_NET_IDS = process.env.SHORT_NET_IDS === 'true';
+/**
+ * Nach dem Tod live dem eigenen Killer zusehen. Braucht einen Client, der die
+ * Kamera auf `spectatorTargetId` zentriert; bis dahin aus.
+ */
+const SPECTATOR_ENABLED = process.env.SPECTATOR_ENABLED === 'true';
 /**
  * Arena-Direktor: hält die Bot-Population passend zur Zahl der Menschen.
  * Standardmäßig an; `false` friert die Population auf `BOT_COUNT` ein.
@@ -134,7 +140,7 @@ const encodedGame = tuneSnapshotEncoding(
                       tuneClassMechanics(
                         tuneDrones(
                           tuneCombatScaling(
-                            hardenSimulation(new MazeGame(BOT_COUNT))
+                            tuneSpectator(hardenSimulation(new MazeGame(BOT_COUNT)), SPECTATOR_ENABLED)
                           )
                         )
                       )
