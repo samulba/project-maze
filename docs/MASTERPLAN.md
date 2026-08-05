@@ -25,6 +25,16 @@ Klasse verändert wirklich, WIE man spielt – nicht nur Zahlen.
 
 ---
 
+## Design-Richtung (verbindlich, Stand 2026-08-06)
+
+Sams Korrektur nach „Neon raus": **„Zu düster – so will ich das gar nicht."**
+Die frühere Ansage „dunkler/ruhiger" war ein Irrtum in der Richtung, nicht im
+Ziel. Es gilt: **ruhig und minimalistisch JA, düster NEIN.** Der Grundton ist
+ein helles Dunkelgrau-Blau mit Luft (01 hat die Basis am 06.08. eine Stufe
+angehoben), Flächen wirken offen statt schwer, Akzentfarbe bleibt funktional.
+Jedes Design-Paket prüft ab jetzt gegen „klar & freundlich-technisch", nicht
+gegen „dark & moody".
+
 ## Handlungsfeld 1 – Überall sauber: Responsive & Performance
 
 **Ist:** Fullscreen-Wechsel buggy, Artefakte/Striche an den Rändern großer
