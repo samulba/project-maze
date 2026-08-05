@@ -1,0 +1,85 @@
+{
+  "chat": "03",
+  "revier": "Client/UX (apps/client)",
+  "faesst_nicht_an": ["packages/shared", "apps/server"],
+  "aktualisiert": "2026-08-05",
+  "latest": "07-ruhe-und-gewicht.md",
+  "offene_pakete": 1,
+  "pakete": [
+    {
+      "nr": 1,
+      "titel": "Mobile-UX, Theme Neon, Killcam, Onboarding",
+      "datei": "01-mobile-ux-neon-killcam-onboarding.md",
+      "branch": "claude/project-maze-client-polish-o2q3n4",
+      "basis": "claude/app-analysis-masterplan-lxao21@1f7e911",
+      "status": "in main",
+      "tests": "stick-math, killcam, onboarding",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 2,
+      "titel": "Event-Erlebnis: Zonenfarben, Guardian, Overcharge",
+      "datei": "02-event-erlebnis.md",
+      "branch": "claude/project-maze-event-experience-o2q3n4",
+      "basis": "72ad7b9",
+      "status": "in main",
+      "tests": "arena-event-style",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 3,
+      "titel": "Wandbruch-Effekt, arenaweite Events, Ladebildschirm",
+      "datei": "03-fracture-polish-ladebildschirm.md",
+      "branch": "claude/project-maze-fracture-polish-o2q3n4",
+      "basis": "main@050b51f",
+      "status": "in main",
+      "tests": "onboarding erweitert",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 4,
+      "titel": "Startscreen-Redesign (A2) + Bestenliste (A4)",
+      "datei": "04-startscreen-a2-bestenliste.md",
+      "branch": "claude/project-maze-startscreen-a2-o2q3n4",
+      "basis": "main@2e81500",
+      "status": "in main",
+      "tests": "start-backdrop, start-leaderboard",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 5,
+      "titel": "Delta-Hydrator + Achievement-Popups",
+      "datei": "05-delta-hydrator-achievement-popups.md",
+      "branch": "claude/project-maze-hydrator-achievements-o2q3n4",
+      "basis": "main@017d7eb",
+      "status": "in main",
+      "tests": "snapshot-hydrator, achievements",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 6,
+      "titel": "Google-Login-UI (Supabase)",
+      "datei": "06-google-login-ui.md",
+      "branch": "claude/project-maze-google-login-ui-o2q3n4",
+      "basis": "main@08e4d91",
+      "status": "in main",
+      "tests": "auth",
+      "braucht_von_01": [
+        "Betrieb: VITE_SUPABASE_URL und VITE_SUPABASE_ANON_KEY muessen zur Bauzeit gesetzt sein - Vite backt sie ins Bundle"
+      ]
+    },
+    {
+      "nr": 7,
+      "titel": "Ruhe & Gewicht: Letterbox, entruempeltes HUD, Rueckstoss, Spectator",
+      "datei": "07-ruhe-und-gewicht.md",
+      "branch": "claude/project-maze-calm-and-weight-o2q3n4",
+      "basis": "main@0daa9f0",
+      "status": "offen",
+      "tests": "5 neu / 401 gesamt",
+      "braucht_von_01": [
+        "Merge",
+        "danach kann Sam SPECTATOR_ENABLED=true setzen - die Client-Seite steht"
+      ]
+    }
+  ]
+}
