@@ -26,6 +26,7 @@ import {
   hasLineOfSight,
   isFree,
   isWallDisabled,
+  nearbyWalls,
   resetDisabledWalls,
   setWallDisabled
 } from './world';
@@ -271,8 +272,11 @@ describe('fracture event', () => {
     for (const id of opened) {
       expect(id.startsWith('l')).toBe(false);
       expect(isWallDisabled(id)).toBe(true);
-      // Die Fläche ist begehbar und wird nicht mehr an Clients gesendet.
-      expect(isFree(wallCenter(wallOf(id)), 22)).toBe(true);
+      // Das Segment blockiert nicht mehr und wird nicht mehr an Clients gesendet.
+      // Geprüft wird gezielt diese Wand: benachbarte Segmente dürfen denselben
+      // Punkt weiterhin belegen, sonst hinge der Test am Zufall der Wandauswahl.
+      const center = wallCenter(wallOf(id));
+      expect(nearbyWalls(center, 60).some((wall) => wall.id === id)).toBe(false);
       expect(game.snapshot(viewerId).walls.some((wall) => wall.id === id)).toBe(false);
     }
   });
