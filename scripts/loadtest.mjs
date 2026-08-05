@@ -122,6 +122,31 @@ function nextInput(client, maxAim) {
   };
 }
 
+/**
+ * Liest den eigenen Spieler aus einem Snapshot und schreibt den Stand in den
+ * Client fort. Zwei Eigenheiten der Übertragungsebene machen das nötig – ein
+ * Client, der sie ignoriert, wird blind, ohne dass irgendetwas fehlschlägt:
+ *
+ * 1. **`SHORT_NET_IDS`** ersetzt alle Entitäts-IDs durch fortlaufende Zahlen –
+ *    auch `snapshot.selfId`. Die `welcome`-Nachricht trägt aber weiterhin die
+ *    UUID. Wer seine ID aus dem Welcome behält, findet sich im Snapshot nie
+ *    wieder. Maßgeblich ist deshalb immer `snapshot.selfId`.
+ * 2. **`SNAPSHOT_DELTAS`** lässt Name, Klasse, Bot-Flag und Upgrades weg,
+ *    solange sie sich nicht geändert haben. Fehlende Felder bedeuten
+ *    „unverändert", nicht „leer" – blind zuweisen macht aus der Klasse ein
+ *    `undefined` und damit die Klassenwahl unmöglich.
+ */
+export function readSelf(client, message) {
+  if (message.selfId !== undefined && message.selfId !== null) client.selfId = message.selfId;
+  const self = message.players?.find((player) => player.id === client.selfId);
+  if (!self) return null;
+  if (self.level !== undefined) client.level = self.level;
+  if (self.playerClass !== undefined) client.playerClass = self.playerClass;
+  if (self.availablePoints !== undefined) client.availablePoints = self.availablePoints;
+  if (self.dead !== undefined) client.dead = self.dead;
+  return self;
+}
+
 export async function runLoadTest(options, hooks = {}) {
   const WebSocketImpl = await resolveWebSocket();
   const shared = await resolveShared();
@@ -159,6 +184,8 @@ export async function runLoadTest(options, hooks = {}) {
       selfId: null,
       level: 1,
       playerClass: 'core',
+      availablePoints: 0,
+      dead: false,
       sequence: 0,
       heading: Math.random() * Math.PI * 2,
       aimAngle: Math.random() * Math.PI * 2,
@@ -223,15 +250,11 @@ export async function runLoadTest(options, hooks = {}) {
         }
       }
       client.lastSnapshotAt = now;
-      const self = message.players?.find((player) => player.id === client.selfId);
-      if (self) {
-        client.level = self.level;
-        client.playerClass = self.playerClass;
-        client.availablePoints = self.availablePoints ?? 0;
+      if (readSelf(client, message)) {
         // Höchstens einmal pro Sekunde: Der Server frühestens nach
         // respawnDelayMs (2,5 s) an, und ein echter Client schickt das
         // ohnehin nur auf Knopfdruck. Ein Respawn je Snapshot wären 30/s.
-        if (self.dead && now - client.lastRespawnAt >= 1_000) {
+        if (client.dead && now - client.lastRespawnAt >= 1_000) {
           client.lastRespawnAt = now;
           socket.send(JSON.stringify({ type: 'respawn' }));
         }

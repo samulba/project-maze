@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exitCodeFor, formatReport, parseArgs, quantile, summarize } from './loadtest.mjs';
+import { exitCodeFor, formatReport, parseArgs, quantile, readSelf, summarize } from './loadtest.mjs';
 
 const report = (overrides = {}) => ({
   target: 'ws://localhost:2567',
@@ -110,5 +110,65 @@ describe('loadtest report', () => {
   it('surfaces unexpected close codes', () => {
     const text = formatReport(report({ connections: { closeCodes: { 1006: 3 } } }));
     expect(text).toContain('1006×3');
+  });
+});
+
+describe('loadtest self tracking', () => {
+  const client = (overrides = {}) => ({
+    selfId: 'uuid-self', level: 1, playerClass: 'core', availablePoints: 0, dead: false, ...overrides
+  });
+  const player = (overrides = {}) => ({
+    id: 'uuid-self', level: 12, playerClass: 'rapid', availablePoints: 3, dead: false, ...overrides
+  });
+
+  it('reads level, class, points and death from a full snapshot', () => {
+    const c = client();
+    expect(readSelf(c, { selfId: 'uuid-self', players: [player()] })).not.toBeNull();
+    expect(c).toMatchObject({ level: 12, playerClass: 'rapid', availablePoints: 3, dead: false });
+  });
+
+  it('follows the id the snapshot names, not the one from the welcome', () => {
+    // SHORT_NET_IDS nummeriert alle Entitäten durch – auch selfId. Die
+    // welcome-Nachricht trägt weiterhin die UUID. Wer daran festhält, findet
+    // sich nie im Snapshot und bleibt für immer Level 1.
+    const c = client();
+    const self = readSelf(c, { selfId: 7, players: [{ ...player(), id: 7 }, { ...player(), id: 8 }] });
+    expect(self).not.toBeNull();
+    expect(c.selfId).toBe(7);
+    expect(c.level).toBe(12);
+  });
+
+  it('keeps the last known value when a delta leaves the field out', () => {
+    // SNAPSHOT_DELTAS lässt playerClass weg, solange sie unverändert ist.
+    // Fehlend heißt unverändert – nicht undefined.
+    const c = client();
+    readSelf(c, { selfId: 'uuid-self', players: [player({ playerClass: 'sniper' })] });
+    expect(c.playerClass).toBe('sniper');
+
+    readSelf(c, { selfId: 'uuid-self', players: [{ id: 'uuid-self', level: 13, availablePoints: 1, dead: false }] });
+    expect(c.playerClass).toBe('sniper');
+    expect(c.level).toBe(13);
+  });
+
+  it('reports no self when the own tank is not in the snapshot', () => {
+    const c = client();
+    expect(readSelf(c, { selfId: 'uuid-self', players: [{ ...player(), id: 'jemand-anders' }] })).toBeNull();
+    expect(readSelf(c, { selfId: 'uuid-self' })).toBeNull();
+    expect(c.level).toBe(1);
+  });
+
+  it('survives a snapshot without selfId', () => {
+    const c = client();
+    readSelf(c, { players: [player()] });
+    expect(c.selfId).toBe('uuid-self');
+    expect(c.level).toBe(12);
+  });
+
+  it('notices death and recovery', () => {
+    const c = client();
+    readSelf(c, { selfId: 'uuid-self', players: [player({ dead: true })] });
+    expect(c.dead).toBe(true);
+    readSelf(c, { selfId: 'uuid-self', players: [player({ dead: false })] });
+    expect(c.dead).toBe(false);
   });
 });

@@ -85,7 +85,14 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   bleibt im 25-ms-Zeitplan – das ist die Kennzahl für „wie viele Spieler trägt
   eine Instanz".
 - **Lasttest:** `npm run loadtest -- --clients 40 --duration 60` simuliert echte
-  Clients und berichtet Join-Erfolg, Snapshot-Latenz und Abbrüche.
+  Clients und berichtet Join-Erfolg, Snapshot-Latenz und Abbrüche. Als **Matrix**
+  gefahren – ein Durchgang je Schalterstellung, drei Runden im Wechsel – beziffert
+  er, was ein Feature kostet; Rezept und Referenzwerte in
+  [`docs/TELEMETRY.md`](docs/TELEMETRY.md#lastprobe-matrix-reproduzierbar-fahren).
+  Stand 2026-08-06 mit **allen** Schaltern an (Deltas, kurze IDs, Achievements,
+  Spectator, Signature „Momentum"): Tick p95 2,83 ms bei 25 ms Budget
+  (budgetRatio 0,113), 129,1 KB/s je Client, 40 von 40 Joins, keine einzige
+  gedrosselte Nachricht.
 - **Snapshot-Bandbreite:** Bei voller Arena ist der Versand der Flaschenhals,
   nicht die Simulation. Alle Zahlen werden auf darstellbare Genauigkeit gerundet
   (Positionen 1, Winkel 3 Nachkommastellen); mit `SNAPSHOT_DELTAS=true` fallen
@@ -93,7 +100,9 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   nicht geändert haben, und mit `SHORT_NET_IDS=true` werden die Entitäts-UUIDs
   durch fortlaufende Zahlen ersetzt. Gemessen mit 40 Clients: **231,9 KB/s
   (nur Runden) → 151,3 (Deltas) → 127,4 (beides) je Client, −45 %** bei
-  unveränderter Latenz.
+  unveränderter Latenz. Nachgemessen am 2026-08-06 auf anderer Maschine:
+  230,8 → 123,6 KB/s (**−46 %**) bei unveränderter Snapshot-Rate von 30,5/s je
+  Client – die Ersparnis hält.
 - **Rate-Limits:** Verbindungen und Beitritte je IP, Nachrichten-Budgets je
   Verbindung (Input 50/s, alles andere deutlich weniger) und Limits auf
   `/leaderboard` und `/profile`. Bei Überschreitung wird erst gedrosselt, dann
