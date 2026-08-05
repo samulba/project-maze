@@ -241,7 +241,40 @@ reload_effektiv = reload * (1 - 0.25 * momentum / 100)     // maxReloadBonus
 **Zurücksetzen:** Beim Tod auf 0, beim Verlassen der Familie (Respawn unter
 Level 10 macht aus einem Storm wieder einen Core) verschwindet das Feld ganz.
 
-## 7. Kurzcheck für den Nachbau
+## 7. Wucht (IMPACT) – was der Client spiegeln muss
+
+Gilt nur mit `SIGNATURE_IMPACT_ENABLED=true` und nur für Klassen der
+Impact-Familie (`branch === 'impact'`). Gleicher Unterbau wie Momentum
+(Abschnitt 6), zwei Unterschiede:
+
+```
+speed  = |velocity|                          // NACH dem Tick
+moving = speed >= 0.45 * stats.moveSpeed
+wucht  = clamp(wucht + (moving ? +30 : -50) * dt, 0, 100)
+```
+
+1. **Kein `primary` im Aufbau.** Wucht lädt allein durch Fahren – die
+   Feuertaste spielt keine Rolle. Wer die Momentum-Rechnung kopiert und die
+   `primary`-Bedingung stehen lässt, zeigt einen Balken, der bei jedem
+   Waffenstillstand einbricht, während der Server weiterlädt.
+2. **Sie wird im Kontakt verbraucht, nicht nur abgebaut.** Solange ein
+   Körperkontakt Schaden macht, zieht der Server zusätzlich `600/s` ab – eine
+   volle Ladung ist nach **0,17 s** Dauerkontakt leer. Das ist der sichtbarste
+   Teil der Mechanik und lässt sich clientseitig **nicht** zuverlässig
+   vorhersagen: Ob ein Kontakt Schaden gemacht hat, entscheidet der Server
+   (Unverwundbarkeit, Anfängerschutz, wer wen zuerst trifft). Der Balken folgt
+   hier dem Serverwert, statt ihn vorherzusagen.
+
+Der Verbrauch gilt **einmal je Tick**, auch wenn ein Anlauf zwei Gegner
+gleichzeitig erwischt.
+
+**Was der Client gar nicht rechnen muss:** den Schadensmultiplikator. Der
+Körperschaden ist reine Serversache und taucht als Trefferzahl auf.
+
+**Zurücksetzen:** wie bei Momentum – beim Tod auf 0, beim Verlassen der Familie
+verschwindet das Feld.
+
+## 8. Kurzcheck für den Nachbau
 
 - [ ] `dt` ist exakt `1/40`, nicht die Framezeit
 - [ ] `clampMagnitude` statt Normieren
@@ -254,3 +287,5 @@ Level 10 macht aus einem Storm wieder einen Core) verschwindet das Feld ganz.
 - [ ] Korrektur weich, Hartkorrektur nur über der Schwelle
 - [ ] Momentum (falls aktiv): Aufbau an `primary`, `moving` aus der echten
       Geschwindigkeit, Rechnung ungerundet
+- [ ] Wucht (falls aktiv): Aufbau **ohne** `primary`; den Kontaktverbrauch
+      nicht vorhersagen, sondern vom Server übernehmen

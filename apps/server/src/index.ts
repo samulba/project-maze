@@ -62,6 +62,7 @@ import {
   tunePersistence
 } from './persistence.js';
 import { tuneRapidBots, tuneRapidSignature } from './signature-rapid.js';
+import { tuneImpactSignature } from './signature-impact.js';
 import { hardenSimulation } from './simulation-hardening.js';
 import { tuneSpectator } from './spectator.js';
 import { tuneSnapshotEncoding } from './snapshot-encoding.js';
@@ -124,6 +125,12 @@ const BOT_PACING_ENABLED = !['false', '0', 'off']
  */
 const SIGNATURE_RAPID_ENABLED = process.env.SIGNATURE_RAPID_ENABLED === 'true';
 /**
+ * Klassen 3.0, zweite Familie: Wucht für IMPACT. Der Anlauf-Skalar erhöht den
+ * Körperschaden und wird beim Aufprall verbraucht. Standardmäßig aus – ohne den
+ * Schalter wird die Schicht gar nicht erst angehängt.
+ */
+const SIGNATURE_IMPACT_ENABLED = process.env.SIGNATURE_IMPACT_ENABLED === 'true';
+/**
  * Rate-Limits und Missbrauchsschutz. Standardmäßig an; `false` schaltet sie
  * vollständig ab (dann verhält sich der Server wie vor dem Modul).
  */
@@ -169,11 +176,14 @@ const encodedGame = tuneSnapshotEncoding(
                           tuneDrones(
                             // Momentum direkt um das Kampf-Tuning: Dort entsteht
                             // der Cooldown, den die Signature verkürzt.
-                            tuneRapidSignature(
-                              tuneCombatScaling(
-                                tuneSpectator(hardenSimulation(new MazeGame(BOT_COUNT)), SPECTATOR_ENABLED)
+                            tuneImpactSignature(
+                              tuneRapidSignature(
+                                tuneCombatScaling(
+                                  tuneSpectator(hardenSimulation(new MazeGame(BOT_COUNT)), SPECTATOR_ENABLED)
+                                ),
+                                SIGNATURE_RAPID_ENABLED
                               ),
-                              SIGNATURE_RAPID_ENABLED
+                              SIGNATURE_IMPACT_ENABLED
                             )
                           )
                         ),

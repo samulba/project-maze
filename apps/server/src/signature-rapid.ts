@@ -1,7 +1,18 @@
-import { CLASS_DEFINITIONS, type PlayerClass, type PlayerSnapshot, type Vector2 } from '@project-maze/shared';
-import type { PassiveModifierId } from '@project-maze/shared/gameplay';
+import { type PlayerClass } from '@project-maze/shared';
 import { tunedStatsFor } from './combat-tuning.js';
 import { MazeGame } from './game.js';
+import {
+  SIGNATURE_MAX,
+  advanceSignature,
+  classBranch,
+  isMovingFast,
+  signatureStateFor,
+  type SignatureRuntimePlayer
+} from './signature.js';
+
+// Der gemeinsame Unterbau liegt in `signature.ts`; hier steht nur, was Rapid
+// von den anderen Familien unterscheidet.
+export { SIGNATURE_MAX } from './signature.js';
 
 /**
  * Klassen 3.0 – Signature der RAPID-Familie: **Momentum**.
@@ -24,9 +35,6 @@ import { MazeGame } from './game.js';
  * Nachladezeit) bräuchte für dieselbe Ladung fünfmal so lange wie eine Rapid
  * (0,19 s) – ausgerechnet die Klasse, die am meisten aufs Feuern setzt.
  */
-
-/** Obergrenze des Signature-Feldes im Snapshot. Gilt für alle vier Familien. */
-export const SIGNATURE_MAX = 100;
 
 export interface MomentumConfig {
   /** Aufbau je Sekunde, solange in Bewegung gefeuert wird. */
@@ -54,8 +62,7 @@ export const DEFAULT_MOMENTUM: MomentumConfig = {
   maxReloadBonus: 0.25
 };
 
-export const isRapidClass = (playerClass: PlayerClass): boolean =>
-  CLASS_DEFINITIONS[playerClass].branch === 'rapid';
+export const isRapidClass = (playerClass: PlayerClass): boolean => classBranch(playerClass) === 'rapid';
 
 /**
  * Nachladefaktor bei gegebenem Momentum: 0 → 1.0 (unverändert),
@@ -72,32 +79,12 @@ export function momentumFireRate(reload: number, momentum: number, config: Momen
   return 1 / Math.max(0.001, reload * momentumReloadScale(momentum, config));
 }
 
-interface RuntimePlayer extends PlayerSnapshot {
-  move: Vector2;
-  aim: Vector2;
-  primary: boolean;
-  secondary: boolean;
-  cooldown: number;
-  lastDamageAt: number;
-  invulnerableUntil: number;
-  passiveModifier?: PassiveModifierId;
-  bot: unknown | null;
-}
+type RuntimePlayer = SignatureRuntimePlayer;
 
 interface SignatureInternals {
   players: Map<string, RuntimePlayer>;
   stepPlayer(player: RuntimePlayer, dt: number, now: number): void;
 }
-
-/** Ungerundeter Füllstand je Spieler; im Snapshot steht die gerundete Zahl. */
-const states = new WeakMap<MazeGame, Map<string, number>>();
-const stateFor = (game: MazeGame): Map<string, number> => {
-  const existing = states.get(game);
-  if (existing) return existing;
-  const created = new Map<string, number>();
-  states.set(game, created);
-  return created;
-};
 
 /**
  * Hängt Momentum an. `enabled = false` lässt die Schicht komplett weg – der
@@ -111,7 +98,7 @@ export function tuneRapidSignature<T extends MazeGame>(
 ): T {
   if (!enabled) return game;
   const internals = game as unknown as SignatureInternals;
-  const momentum = stateFor(game);
+  const momentum = signatureStateFor(game, 'rapid');
 
   const originalStepPlayer = internals.stepPlayer.bind(internals);
   internals.stepPlayer = (player: RuntimePlayer, dt: number, now: number): void => {
@@ -121,39 +108,25 @@ export function tuneRapidSignature<T extends MazeGame>(
     const cooldownBefore = player.cooldown;
     originalStepPlayer(player, dt, now);
 
-    if (!isRapidClass(player.playerClass)) {
-      // Auch der Rückweg zählt: Wer nach dem Tod auf ein Level unter 10 fällt,
-      // ist wieder Core und darf keinen Restwert im Snapshot behalten. Wer nie
-      // Rapid war, zahlt nur den Feldvergleich – das Feld ist gesetzt, genau
-      // solange auch ein Momentum-Eintrag existiert.
-      if (player.signature !== undefined) {
-        delete player.signature;
-        momentum.delete(player.id);
-      }
-      return;
-    }
-
-    const current = momentum.get(player.id) ?? 0;
+    const inFamily = isRapidClass(player.playerClass);
     // Der Schuss dieses Ticks nutzt das Momentum, das der Spieler beim Abdrücken
     // hatte – erst danach wird fortgeschrieben.
-    if (player.cooldown > cooldownBefore) player.cooldown *= momentumReloadScale(current, config);
-
-    if (player.dead) {
-      momentum.delete(player.id);
-      player.signature = 0;
-      return;
+    if (inFamily && !player.dead && player.cooldown > cooldownBefore) {
+      player.cooldown *= momentumReloadScale(momentum.get(player.id) ?? 0, config);
     }
 
-    const stats = tunedStatsFor(player);
-    const moving = Math.hypot(player.velocity.x, player.velocity.y) >= config.moveThreshold * stats.moveSpeed;
-    const rate = !moving
-      ? -config.decayPerSecond
-      : player.primary
-        ? config.buildPerSecond
-        : -config.holdDecayPerSecond;
-    const next = Math.max(0, Math.min(SIGNATURE_MAX, current + rate * dt));
-    momentum.set(player.id, next);
-    player.signature = Math.round(next);
+    // Rate nur berechnen, wenn sie gebraucht wird – `tunedStatsFor` ist für
+    // jeden Nicht-Rapid-Spieler reine Verschwendung.
+    let rate = 0;
+    if (inFamily && !player.dead) {
+      const moving = isMovingFast(player, tunedStatsFor(player).moveSpeed, config.moveThreshold);
+      rate = !moving
+        ? -config.decayPerSecond
+        : player.primary
+          ? config.buildPerSecond
+          : -config.holdDecayPerSecond;
+    }
+    advanceSignature(momentum, player, dt, inFamily, rate);
   };
 
   const originalRemovePlayer = game.removePlayer.bind(game);
@@ -216,5 +189,5 @@ export function tuneRapidBots<T extends MazeGame>(game: T, enabled = false): T {
 
 /** Ungerundeter Füllstand für Tests und Betriebsanzeigen. */
 export function momentumFor(game: MazeGame, playerId: string): number {
-  return states.get(game)?.get(playerId) ?? 0;
+  return signatureStateFor(game, 'rapid').get(playerId) ?? 0;
 }

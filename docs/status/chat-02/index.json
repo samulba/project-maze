@@ -5,8 +5,8 @@
     "packages/shared",
     "apps/client"
   ],
-  "aktualisiert": "2026-08-05",
-  "latest": "10-signature-rapid-momentum.md",
+  "aktualisiert": "2026-08-06",
+  "latest": "11-signature-impact-wucht.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -105,13 +105,23 @@
       "datei": "10-signature-rapid-momentum.md",
       "branch": "claude/signature-rapid-momentum",
       "basis": "main@a36a0dd",
-      "status": "offen",
+      "status": "in main",
       "tests": "13 neu / 462 gesamt",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 11,
+      "titel": "KL2-IMPACT: Signature Wucht",
+      "datei": "11-signature-impact-wucht.md",
+      "branch": "claude/signature-impact-wucht",
+      "basis": "main@2551d34",
+      "status": "offen",
+      "tests": "15 neu / 515 gesamt",
       "braucht_von_01": [
-        "Nichts zwingend – PlayerSnapshot.signature steht bereits und wird korrekt gefuellt",
-        "Entscheidung: bleibt maxReloadBonus bei 0.25 (= +33 % Feuerrate, Rapid-Spitze 123 FWD DPS gegen Deadeye 85)? Alternativen im Bericht",
-        "Zur Kenntnis: prebalance baut jetzt auch den Server, damit der Report die echten Momentum-Zahlen zeigt",
-        "Fuer 03: HUD-Balken auf player.signature, Rechnung in docs/CLIENT_PREDICTION.md Abschnitt 6"
+        "Nichts zwingend – PlayerSnapshot.signature traegt jetzt beide Familien, kein Shared-Bedarf",
+        "Entscheidung: WUCHT_MAX_TTK_GAIN = 0.25 ist meine Uebersetzung der Forderung 'toetet nie in einem Kontakt' – die woertliche Fassung ist ohne Wucht schon verletzt (Juggernaut toetet frischen Lancer heute in 0,45 s). Strenger geht ueber contactDrainPerSecond",
+        "Zur Kenntnis: Rammschaden gegen Formen bewusst nicht verstaerkt (waere eine Balance-Entscheidung, keine Signature)",
+        "Fuer 03: docs/CLIENT_PREDICTION.md Abschnitt 7 – Aufbau ist nachrechenbar (ohne primary), der Kontaktverbrauch nicht vorhersagbar"
       ]
     }
   ]

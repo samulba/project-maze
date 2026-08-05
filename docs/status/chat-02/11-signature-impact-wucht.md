@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 02
-
-> Kopie von `11-signature-impact-wucht.md`. Diese Datei zeigt immer das jüngste
-> fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 11 – KL2-IMPACT: Signature „Wucht"
 
 **Branch:** `claude/signature-impact-wucht` · **Basis:** `origin/main` @ `2551d34` ·
