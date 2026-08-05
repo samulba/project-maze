@@ -13,6 +13,7 @@
     "pixi.js": "^8.12.0"
   },
   "devDependencies": {
+    "happy-dom": "^20.11.1",
     "vite": "^7.1.1"
   }
 }

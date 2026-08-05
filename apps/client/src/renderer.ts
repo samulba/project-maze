@@ -113,10 +113,21 @@ export class GameRenderer {
   private knownEliteIds=new Set<string>();
   private hadArenaEvent=false;
   private suppressShapeRewardsUntil=0;
+  private initialized=false;
   private lastSnapshotAt=performance.now();
 
+  /** Erst true, wenn PixiJS fertig initialisiert ist – vorher darf nichts auf app.renderer zugreifen. */
+  get ready():boolean{return this.initialized}
+
   async init(root:HTMLElement):Promise<void>{
-    await this.app.init({resizeTo:window,antialias:true,background:this.palette.outside,resolution:Math.min(devicePixelRatio||1,2),autoDensity:true,preference:'webgl'});
+    const options={resizeTo:window,antialias:true,background:this.palette.outside,resolution:Math.min(devicePixelRatio||1,2),autoDensity:true};
+    try{
+      await this.app.init({...options,preference:'webgl'});
+    }catch{
+      // Ältere Geräte ohne WebGL-Kontext: zweiter Versuch ohne Präferenz.
+      await this.app.init(options);
+    }
+    this.initialized=true;
     root.prepend(this.app.canvas);
     this.world.addChild(this.background,this.walls,this.shapes,this.projectiles,this.drones,this.particles.graphics,this.players,this.fx,this.numbers.container);
     this.world.mask=this.viewportMask;
@@ -154,7 +165,9 @@ export class GameRenderer {
   }
 
   setTheme(theme:ClientThemeId):void{
-    this.palette=PALETTES[theme];
+    this.palette=PALETTES[theme]??PALETTES.midnight;
+    // Vor dem Init existiert kein Renderer – die Palette gilt dann ab dem ersten Frame.
+    if(!this.initialized)return;
     this.app.renderer.background.color=this.palette.outside;
     this.resizeViewport();
     this.drawBackground();

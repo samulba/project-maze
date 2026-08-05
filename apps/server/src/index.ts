@@ -298,6 +298,9 @@ if (CLIENT_DIST) {
   app.use(express.static(clientRoot));
   app.use((request: Request, response: Response, next: () => void) => {
     if (request.method !== 'GET') return next();
+    // Fehlende Assets müssen 404 bleiben: index.html als Antwort auf eine .js-Anfrage
+    // lässt dynamische Imports mit einem MIME-Fehler scheitern statt sichtbar zu failen.
+    if (/\.[a-z0-9]+$/i.test(request.path)) return next();
     response.sendFile(path.join(clientRoot, 'index.html'));
   });
 }
