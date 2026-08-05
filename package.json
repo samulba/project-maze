@@ -13,6 +13,7 @@
     "test": "vitest run",
     "prebalance": "npm run build -w @project-maze/shared",
     "balance": "node scripts/balance-report.mjs",
+    "balance:live": "node scripts/balance-live.mjs",
     "preloadtest": "npm run build -w @project-maze/shared",
     "loadtest": "node scripts/loadtest.mjs",
     "build": "npm run build -w @project-maze/shared && npm run build -w @project-maze/server && npm run build -w @project-maze/client",

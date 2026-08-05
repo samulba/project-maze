@@ -32,7 +32,7 @@ import { MazeGame } from './game.js';
  * und verlassen den Prozess nie.
  */
 
-const TELEMETRY_VERSION = 2;
+const TELEMETRY_VERSION = 3;
 const SERVER_MODE = 'maze-alpha';
 const SERVER_VERSION = '1.0.0-alpha';
 /** Round-Robin-Abstand für die Loadout-Erhebung (ein Spieler pro Intervall). */
@@ -101,6 +101,13 @@ interface TelemetryState {
   frameKills: Counter;
   frameDeaths: Counter;
   lifetimes: Map<string, LifeStat>;
+  /**
+   * Lebensdauer je Loadout, gebucht wie `moduleDeaths`/`frameDeaths`: auf das
+   * Loadout zum Zeitpunkt des Todes. Erst damit lässt sich Kills/Minute auch
+   * für Module und Frames ausrechnen, nicht nur je Klasse.
+   */
+  moduleLifetimes: Map<string, LifeStat>;
+  frameLifetimes: Map<string, LifeStat>;
   /** Laufzeit-Ledger: letzter beobachteter Zustand je Spieler (nie exportiert). */
   loadouts: Map<string, LoadoutObservation>;
   lifeStartedAt: Map<string, number>;
@@ -123,6 +130,8 @@ const createState = (now: number): TelemetryState => ({
   frameKills: new Map(),
   frameDeaths: new Map(),
   lifetimes: new Map(),
+  moduleLifetimes: new Map(),
+  frameLifetimes: new Map(),
   loadouts: new Map(),
   lifeStartedAt: new Map(),
   lastSampleAt: 0,
@@ -161,19 +170,19 @@ const readCounter = (counter: Counter, filter: TelemetrySubjectFilter, id: strin
   return SUBJECTS.reduce((total, subject) => total + (counter.get(counterKey(subject, id)) ?? 0), 0);
 };
 
-const addLifetime = (state: TelemetryState, subject: TelemetrySubject, playerClass: PlayerClass, seconds: number): void => {
-  const key = counterKey(subject, playerClass);
-  const existing = state.lifetimes.get(key) ?? { lives: 0, seconds: 0, longestSeconds: 0 };
+const addLifetime = (target: Map<string, LifeStat>, subject: TelemetrySubject, id: string, seconds: number): void => {
+  const key = counterKey(subject, id);
+  const existing = target.get(key) ?? { lives: 0, seconds: 0, longestSeconds: 0 };
   existing.lives += 1;
   existing.seconds += seconds;
   existing.longestSeconds = Math.max(existing.longestSeconds, seconds);
-  state.lifetimes.set(key, existing);
+  target.set(key, existing);
 };
 
-const readLifetime = (state: TelemetryState, filter: TelemetrySubjectFilter, playerClass: PlayerClass): LifeStat => {
+const readLifetime = (target: Map<string, LifeStat>, filter: TelemetrySubjectFilter, id: string): LifeStat => {
   const subjects = filter === 'all' ? SUBJECTS : [filter];
   return subjects.reduce<LifeStat>((total, subject) => {
-    const entry = state.lifetimes.get(counterKey(subject, playerClass));
+    const entry = target.get(counterKey(subject, id));
     if (!entry) return total;
     return {
       lives: total.lives + entry.lives,
@@ -330,23 +339,33 @@ export function telemetryTickHealth(game: MazeGame, nowMs = performance.now()): 
   return tickHealth(stateFor(game), nowMs);
 }
 
+/**
+ * Schließt eine Lebensspanne ab und liefert ihre Dauer in Sekunden zurück –
+ * `null`, wenn für den Spieler kein Start bekannt war (dann zählt der Tod,
+ * aber kein Leben).
+ */
 function commitLife(
   state: TelemetryState,
   playerId: string,
   subject: TelemetrySubject,
   playerClass: PlayerClass,
   now: number
-): void {
+): number | null {
   const startedAt = state.lifeStartedAt.get(playerId);
   state.lifeStartedAt.delete(playerId);
-  if (startedAt === undefined) return;
-  addLifetime(state, subject, playerClass, Math.max(0, now - startedAt) / 1000);
+  if (startedAt === undefined) return null;
+  const seconds = Math.max(0, now - startedAt) / 1000;
+  addLifetime(state.lifetimes, subject, playerClass, seconds);
+  return seconds;
 }
 
 /** Legt alle gesammelten Werte zurück – für Tests und manuelle Messläufe. */
 export function resetTelemetry(game: MazeGame, now = Date.now()): void {
   states.set(game, createState(now));
 }
+
+/** Familie einer Klasse – abgeleitet aus dem Katalog, damit shared unberührt bleibt. */
+export type ClassBranch = (typeof CLASS_DEFINITIONS)[PlayerClass]['branch'];
 
 export interface TelemetryEntry {
   id: string;
@@ -356,14 +375,19 @@ export interface TelemetryEntry {
   kills: number;
   deaths: number;
   killsPerDeath: number;
+  lives: number;
+  /** Exakte Summe aller abgeschlossenen Leben – Basis für jede Aggregation. */
+  lifetimeSeconds: number;
+  averageLifetimeSeconds: number;
+  longestLifetimeSeconds: number;
+  killsPerMinute: number;
 }
 
 export interface TelemetryClassEntry extends TelemetryEntry {
   id: PlayerClass;
   tier: ClassTier;
-  lives: number;
-  averageLifetimeSeconds: number;
-  longestLifetimeSeconds: number;
+  /** Familie der Klasse (core/rapid/precision/control/impact). */
+  branch: ClassBranch;
 }
 
 export interface TelemetryReport {
@@ -408,23 +432,29 @@ export function telemetryReport(
   const modulePickTotal = ACTIVE_MODULE_IDS.reduce((total, id) => total + readCounter(state.modulePicks, subject, id), 0);
   const framePickTotal = PASSIVE_MODIFIER_IDS.reduce((total, id) => total + readCounter(state.framePicks, subject, id), 0);
 
+  const lifeFields = (life: LifeStat, kills: number) => ({
+    lives: life.lives,
+    lifetimeSeconds: round(life.seconds, 2),
+    averageLifetimeSeconds: round(life.lives > 0 ? life.seconds / life.lives : 0, 2),
+    longestLifetimeSeconds: round(life.longestSeconds, 2),
+    killsPerMinute: round(life.seconds > 0 ? (kills * 60) / life.seconds : 0, 2)
+  });
+
   const classes: TelemetryClassEntry[] = PLAYER_CLASS_IDS.map((id) => {
     const picks = readCounter(state.classPicks, subject, id);
     const kills = readCounter(state.classKills, subject, id);
     const deaths = readCounter(state.classDeaths, subject, id);
-    const life = readLifetime(state, subject, id);
     return {
       id,
       label: CLASS_DEFINITIONS[id].label,
       tier: classTier(id),
+      branch: CLASS_DEFINITIONS[id].branch,
       picks,
       pickRate: round(rate(picks, classPickTotal)),
       kills,
       deaths,
       killsPerDeath: round(ratio(kills, deaths), 2),
-      lives: life.lives,
-      averageLifetimeSeconds: round(life.lives > 0 ? life.seconds / life.lives : 0, 2),
-      longestLifetimeSeconds: round(life.longestSeconds, 2)
+      ...lifeFields(readLifetime(state.lifetimes, subject, id), kills)
     };
   });
 
@@ -439,7 +469,8 @@ export function telemetryReport(
       pickRate: round(rate(picks, modulePickTotal)),
       kills,
       deaths,
-      killsPerDeath: round(ratio(kills, deaths), 2)
+      killsPerDeath: round(ratio(kills, deaths), 2),
+      ...lifeFields(readLifetime(state.moduleLifetimes, subject, id), kills)
     };
   });
 
@@ -454,12 +485,16 @@ export function telemetryReport(
       pickRate: round(rate(picks, framePickTotal)),
       kills,
       deaths,
-      killsPerDeath: round(ratio(kills, deaths), 2)
+      killsPerDeath: round(ratio(kills, deaths), 2),
+      ...lifeFields(readLifetime(state.frameLifetimes, subject, id), kills)
     };
   });
 
   const lives = classes.reduce((total, entry) => total + entry.lives, 0);
-  const lifeSeconds = PLAYER_CLASS_IDS.reduce((total, id) => total + readLifetime(state, subject, id).seconds, 0);
+  const lifeSeconds = PLAYER_CLASS_IDS.reduce(
+    (total, id) => total + readLifetime(state.lifetimes, subject, id).seconds,
+    0
+  );
   const humans = game.humanCount;
 
   return {
@@ -643,29 +678,44 @@ export function renderMetricsText(game: MazeGame, now = Date.now()): string {
     counterMetric('maze_frame_deaths_total', 'Deaths je passivem Frame.', state.frameDeaths, 'frame', PASSIVE_MODIFIER_IDS)
   );
 
-  const lifeSamples = (pick: (life: LifeStat) => number) => SUBJECTS.flatMap((subject) => PLAYER_CLASS_IDS
-    .map((id) => ({ labels: { class: id, subject }, value: round(pick(readLifetime(state, subject, id)), 2) }))
-    .filter((sample) => sample.value > 0));
+  const lifeMetrics = (
+    prefix: string,
+    subjectName: string,
+    label: string,
+    ids: readonly string[],
+    lifetimes: Map<string, LifeStat>
+  ): MetricLine[] => {
+    const samples = (pick: (life: LifeStat) => number) => SUBJECTS.flatMap((subject) => ids
+      .map((id) => ({ labels: { [label]: id, subject }, value: round(pick(readLifetime(lifetimes, subject, id)), 2) }))
+      .filter((sample) => sample.value > 0));
+    return [
+      {
+        name: `${prefix}lives_total`,
+        help: `Abgeschlossene Leben (Spawn bis Tod) je ${subjectName}.`,
+        type: 'counter',
+        samples: samples((life) => life.lives)
+      },
+      {
+        name: `${prefix}life_seconds_total`,
+        help: `Summierte Lebensdauer abgeschlossener Leben je ${subjectName}.`,
+        type: 'counter',
+        samples: samples((life) => life.seconds)
+      },
+      {
+        name: `${prefix}life_seconds_max`,
+        help: `Längstes abgeschlossenes Leben je ${subjectName}.`,
+        type: 'gauge',
+        samples: samples((life) => life.longestSeconds)
+      }
+    ];
+  };
 
+  // Die Klassen-Namen bleiben unverändert (maze_lives_total, maze_life_*);
+  // Module und Frames hängen sich mit eigenem Präfix daneben.
   metrics.push(
-    {
-      name: 'maze_lives_total',
-      help: 'Abgeschlossene Leben (Spawn bis Tod) je Klasse.',
-      type: 'counter',
-      samples: lifeSamples((life) => life.lives)
-    },
-    {
-      name: 'maze_life_seconds_total',
-      help: 'Summierte Lebensdauer abgeschlossener Leben je Klasse.',
-      type: 'counter',
-      samples: lifeSamples((life) => life.seconds)
-    },
-    {
-      name: 'maze_life_seconds_max',
-      help: 'Längstes abgeschlossenes Leben je Klasse.',
-      type: 'gauge',
-      samples: lifeSamples((life) => life.longestSeconds)
-    }
+    ...lifeMetrics('maze_', 'Klasse', 'class', PLAYER_CLASS_IDS, state.lifetimes),
+    ...lifeMetrics('maze_module_', 'Core Module', 'module', ACTIVE_MODULE_IDS, state.moduleLifetimes),
+    ...lifeMetrics('maze_frame_', 'passivem Frame', 'frame', PASSIVE_MODIFIER_IDS, state.frameLifetimes)
   );
 
   // Client-Perf-Telemetrie hängt hinten an: eigenes Modul, eigener Zustand,
@@ -756,11 +806,15 @@ export function tuneTelemetry<T extends MazeGame>(game: T): T {
 
     originalKillPlayer(target, attackerId, now, environmentName);
 
-    commitLife(state, target.id, victimSubject, victimClass, now);
+    const lifeSeconds = commitLife(state, target.id, victimSubject, victimClass, now);
     bump(state.classDeaths, victimSubject, victimClass);
     if (victimLoadout) {
       bump(state.moduleDeaths, victimSubject, victimLoadout.activeModule);
       bump(state.frameDeaths, victimSubject, victimLoadout.passiveModifier);
+      if (lifeSeconds !== null) {
+        addLifetime(state.moduleLifetimes, victimSubject, victimLoadout.activeModule, lifeSeconds);
+        addLifetime(state.frameLifetimes, victimSubject, victimLoadout.passiveModifier, lifeSeconds);
+      }
     }
     if (!attackerSubject || !attackerClass) return;
     bump(state.classKills, attackerSubject, attackerClass);
