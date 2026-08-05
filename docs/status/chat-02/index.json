@@ -6,7 +6,7 @@
     "apps/client"
   ],
   "aktualisiert": "2026-08-05",
-  "latest": "09-bot-aggro-pacing.md",
+  "latest": "10-signature-rapid-momentum.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -95,13 +95,23 @@
       "datei": "09-bot-aggro-pacing.md",
       "branch": "claude/bot-aggro-pacing",
       "basis": "main@b4598db",
-      "status": "offen",
+      "status": "in main",
       "tests": "6 neu / 435 gesamt",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 10,
+      "titel": "KL2-RAPID: Signature Momentum",
+      "datei": "10-signature-rapid-momentum.md",
+      "branch": "claude/signature-rapid-momentum",
+      "basis": "main@a36a0dd",
+      "status": "offen",
+      "tests": "13 neu / 462 gesamt",
       "braucht_von_01": [
-        "Fuer Teil 1: nichts – rein serverseitig, keine Shared-Aenderung",
-        "Fuer KL2: ein gemeinsames Feld signature?: number (0-100, ganzzahlig) in PlayerSnapshot – Details in 09-bot-aggro-pacing.md",
-        "Designentscheidung KL1: Auto-Fire (E) x Ladeschuss – volle Ladung oder Schwachschuss?",
-        "Designentscheidung KL1: Eingabekanal fuer das Umschichten der Control-Einheiten"
+        "Nichts zwingend – PlayerSnapshot.signature steht bereits und wird korrekt gefuellt",
+        "Entscheidung: bleibt maxReloadBonus bei 0.25 (= +33 % Feuerrate, Rapid-Spitze 123 FWD DPS gegen Deadeye 85)? Alternativen im Bericht",
+        "Zur Kenntnis: prebalance baut jetzt auch den Server, damit der Report die echten Momentum-Zahlen zeigt",
+        "Fuer 03: HUD-Balken auf player.signature, Rechnung in docs/CLIENT_PREDICTION.md Abschnitt 6"
       ]
     }
   ]

@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 02
-
-> Kopie von `10-signature-rapid-momentum.md`. Diese Datei zeigt immer das jüngste
-> fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 10 – KL2-RAPID: Signature „Momentum"
 
 **Branch:** `claude/signature-rapid-momentum` · **Basis:** `origin/main` @ `a36a0dd` ·
