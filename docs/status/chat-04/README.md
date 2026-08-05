@@ -25,7 +25,8 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 | # | Paket | Branch | Commit | Tests | Status |
 | --- | --- | --- | --- | --- | --- |
-| [09](./09-balance-live-auswertung.md) | Balance-Live-Auswertung (`npm run balance:live`) | `claude/maze-balance-live-dfb335` | `263fd5c` | 487 ✔ | **offen** |
+| [10](./10-lastprobe-balance-baseline.md) | Lastprobe-Matrix + Balance-Baseline, Lasttest-Fix | `claude/maze-lastprobe-baseline-dfb335` | `8261c82` | 507 ✔ | **offen** |
+| [09](./09-balance-live-auswertung.md) | Balance-Live-Auswertung (`npm run balance:live`) | `claude/maze-balance-live-dfb335` | `263fd5c` | 487 ✔ | gemerged |
 | [08](./08-client-perf-telemetrie.md) | Client-Perf-Telemetrie (Server-Seite) + Spec für 03 | `claude/maze-client-perf-telemetry-dfb335` | `69ade20` | 443 ✔ | **offen** |
 | [07](./07-profil-backend.md) | Profil-Backend: `POST /profile`, Lieblingsklasse | `claude/maze-profile-backend-dfb335` | `b986baf` | 429 ✔ | gemerged |
 | [06](./06-rate-limits.md) | Rate-Limits & Missbrauchsschutz | `claude/maze-rate-limits-abuse-dfb335` | `ea2e4ec` | 389 ✔ | gemerged |
@@ -37,12 +38,22 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 ## Offene Punkte für die Zentrale
 
-- **Paket 09 (Balance-Live-Auswertung) wartet auf Review und Merge.** Erst
-  danach liefert die Live-Instanz `telemetryVersion 3` – also Familie, exakte
-  Lebenszeit und Kills/Minute, die `npm run balance:live` auswertet. Der Ablauf
-  für die KL5-Runde steht in `docs/TELEMETRY.md` → „Balance-Runde fahren in
-  5 Minuten"; der Vorher-Abzug muss **vor** dem Deploy der Änderung entstehen,
-  weil der Redeploy alle Zähler zurücksetzt.
+- **Paket 10 (Lastprobe-Matrix + Balance-Baseline) wartet auf Review und
+  Merge.** Enthält einen Fix am Lasttest: mit `SHORT_NET_IDS` fand er sich
+  nicht mehr im Snapshot und maß eine geschönte Last (null Klassenwahlen, null
+  Upgrades in sechs Läufen). Ohne den Fix misst jede weitere Lastprobe mit
+  diesem Schalter zu gute Zahlen.
+- **Für alle, die Werkzeuge gegen den Server bauen:** Die eigene Spieler-ID
+  **immer aus `snapshot.selfId`** lesen, nie aus der `welcome`-Nachricht – die
+  trägt weiterhin die UUID, während `SHORT_NET_IDS` die Snapshots durchnummeriert.
+  Der ausgelieferte Client ist bereits korrekt (geprüft).
+- **Für 02:** Der Projektiltempo-Dämpfer kostet anderthalb Prozentpunkte
+  Tickbudget (0,023 ms je Projektil × rund 18 zusätzliche Projektile) – kein
+  Kapazitätsproblem. Details in Bericht 10.
+- **Für KL5:** Eingefrorene Vorher-Stände liegen unter `docs/balance/`, mit und
+  ohne Signature. Der Vergleich läuft im Modus `VERGLEICH`, nicht `ZEITFENSTER` –
+  das ist richtig so, `docs/balance/README.md` erklärt warum. Erste Ablesung:
+  Rapid verdoppelt K/D und Kills/Minute mit Momentum, bei noch dünner Stichprobe.
 - **Paket 08 (Client-Perf-Telemetrie) wartet auf Review und Merge.**
 - **Für Chat 03 liegt in Bericht 08 eine vollständige Sender-Spezifikation**
   (wann sampeln, wie FPS robust messen, wie `deviceClass` und `quality`
@@ -101,5 +112,6 @@ Standard – ohne sie verhält sich der Server wie vorher:
 | `apps/server/src/client-metrics.ts` | anonyme FPS-/Geräteberichte, `POST /client-metrics` |
 | `scripts/loadtest.mjs` | N simulierte Clients, Join-Erfolg, Snapshot-Latenz |
 | `scripts/balance-live.mjs` | Live-Balance aus `/metrics`: Tabellen, Watchlist, Zeitvergleich |
+| `docs/balance/*.json` | eingefrorene Vorher-Stände für Balance-Runden |
 | `supabase/migrations/*` | `runs`, `profiles`, `achievements`, `profile_stats` |
 | `docs/TELEMETRY.md`, `docs/SUPABASE.md`, `docs/DEPLOYMENT.md` | Betriebsdoku |
