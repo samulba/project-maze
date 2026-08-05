@@ -29,7 +29,7 @@ ins globale Leaderboard.**
 einen Roundtrip. Fällt die Datenbank aus, wird die letzte gute Antwort
 weitergereicht statt eines Fehlers; ohne Cache 503, ohne Persistenz 404.
 
-**Migration 0001** (`20260805120000_create_runs.sql`) – Tabelle mit Checks,
+**Migration 0001** (`supabase/migrations/applied/0001_runs.sql`) – Tabelle mit Checks,
 Index auf `(score desc, created_at asc)` für genau die eine heiße Abfrage. RLS
 aktiv, dazu explizite Deny-Policy *und* Rechteentzug für `anon`/`authenticated`.
 Idempotent.
@@ -66,5 +66,5 @@ Nichts.
 
 ## Für Sam
 
-- [x] Migration `0001` (`20260805120000_create_runs.sql`) in Supabase einspielen
+- [x] Migration `0001` (`supabase/migrations/applied/0001_runs.sql`) in Supabase einspielen
 - [x] `SUPABASE_URL` und `SUPABASE_SERVICE_ROLE_KEY` in Railway setzen

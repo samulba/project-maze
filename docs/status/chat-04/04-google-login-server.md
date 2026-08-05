@@ -10,7 +10,7 @@
 
 ## Was gebaut wurde
 
-**Migration 0002** (`20260805130000_0002_profiles_and_run_user.sql`) –
+**Migration 0002** (`supabase/migrations/applied/0002_profiles.sql`) –
 `profiles` (user_id → `auth.users`, display_name, created_at), `runs.user_id`
 nullable mit Teilindex für Lifetime-Stats, RLS exakt wie in 0001. Bewusst
 **keine E-Mail** in `profiles`: die liegt in `auth.users` und hat in einer

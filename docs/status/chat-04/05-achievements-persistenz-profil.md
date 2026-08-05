@@ -10,8 +10,8 @@
 
 ## Was gebaut wurde
 
-**Migration 0003** (`20260805140000_0003_achievements.sql`) – Tabelle
-`achievements` mit zusammengesetztem Primärschlüssel `(user_id,
+**Migration 0003** (`supabase/migrations/applied/0003_achievements.sql`) –
+Tabelle `achievements` mit zusammengesetztem Primärschlüssel `(user_id,
 achievement_id)`: das *ist* die geforderte Eindeutigkeit und macht den Insert
 idempotent, statt bei Doppeln zu scheitern. Dazu die View `profile_stats`, die
 die Bestleistungen je Konto in der Datenbank aggregiert – `GET /profile` kommt
@@ -68,6 +68,7 @@ der Persistenz.
 
 ## Für Sam
 
-- [ ] **Migration `0003` in Supabase einspielen**
+- [x] Migration `0003` eingespielt (bestätigt 2026-08-05, siehe
+      `supabase/migrations/README.md`)
 - Wirksam wird sie erst mit `AUTH_ENABLED=true` **und**
   `ACHIEVEMENTS_ENABLED=true`

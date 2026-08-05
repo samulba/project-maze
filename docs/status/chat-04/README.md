@@ -41,13 +41,15 @@ warum etwas so gebaut ist, wie es gebaut ist.
 Gesammelt aus allen Berichten – erledigte Punkte werden gestrichen, nicht
 gelöscht.
 
-- [ ] Supabase-Migration `0003` (`achievements` + View `profile_stats`)
-      einspielen – siehe Bericht 05
 - [ ] Nach dem Merge von Paket 06: `mazers.de/health` → `abuse`-Block prüfen.
       Steigt `rejectedConnections` ohne Angriff, sitzen echte Spieler hinter
       einem Mobilfunk-NAT → `RATE_LIMIT_CONNECTIONS_PER_IP` erhöhen
 - [ ] `TRUST_PROXY_HOPS=1` passt für Railway; bei einem zusätzlichen Proxy
       davor auf `2` setzen, sonst landet die Proxy-IP im Limit-Topf
+
+> Migrationen liegen seit `a7a213a` unter `supabase/migrations/` mit der
+> Ablage-Konvention von 01: noch offene direkt im Ordner, eingespielte in
+> `applied/`. Stand: `0001`–`0003` eingespielt.
 
 ## ENV-Variablen aus Chat 04
 
