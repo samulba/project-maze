@@ -11,7 +11,7 @@ Der v2-Ausbau ist in `docs/MASTERPLAN_V2.md` beschrieben und umgesetzt.
 - genau ein aktives Core Module pro Leben
 - genau ein passiver Frame Modifier oder Standard Frame
 - Elite Shapes
-- Core-Surge-Arena-Event
+- drei rotierende Arena-Events: Core Surge, Overcharge, Hunter Signal
 - Bounty-System und Kill-Streaks
 - faire Bots mit Skill-Tiers, Anfängerschutz und Modul-Nutzung
 - Treffer-Feedback (Hit-Flash, Schadenszahlen, Shake) und Audio v2
@@ -57,6 +57,8 @@ Es gibt keine mehrteilige Hotbar, kein Kampfinventar und keine fünf gleichzeiti
 - Im Match wird ausschließlich eine Ability-Taste benötigt.
 - Nach dem Tod kann das Loadout im Death-Screen geändert werden.
 - Elite Shapes, Events und Bounties erklären sich durch Weltmarker und kurze Hinweise.
+- Kein Event fügt eine Eingabe hinzu: Overcharge verändert nur eine Regel, Hunter Signal
+  stellt nur ein zusätzliches Ziel in die Arena.
 - Detailzahlen bleiben im optionalen F2-Balance-Lab.
 
 ## Klassenbaum
@@ -189,27 +191,67 @@ Seltene goldene Farmziele erzeugen lokale Konflikte, ohne eine neue Steuerung ei
 - während Core Surge maximal vier gleichzeitig
 - Vergrößerung nur an kollisionssicheren Positionen
 
-## Arena Event – Core Surge
+## Arena-Events
+
+Die Arena rotiert fest durch drei Events: **Core Surge → Overcharge → Hunter Signal**.
+Damit dominiert kein Event die Session, und jedes bleibt wiedererkennbar.
+
+Gemeinsame Regeln:
 
 - erstes Event ungefähr 65 Sekunden nach Serverstart
-- 10 Sekunden sichtbare Vorwarnung
-- 40 Sekunden aktive Phase
-- markierte Zone im Zentrum
-- zusätzliche Formen innerhalb der Zone
-- höhere Elite-Chance
-- maximal 42 zusätzliche Event-Formen
-- verbleibende Bonusformen werden am Ende entfernt
-- nächstes Event frühestens ungefähr zwei Minuten später
+- sichtbare Vorwarnung vor jeder aktiven Phase
+- markierte Zone im Zentrum, auf Karte und Minimap sichtbar
+- nächstes Event frühestens ungefähr zwei Minuten nach dem Ende des vorherigen
+- alle Auswirkungen sind serverautoritativ und enden mit der aktiven Phase
 
 Spieler werden niemals teleportiert oder zur Teilnahme gezwungen.
+
+### Core Surge
+
+- 10 Sekunden Vorwarnung, 40 Sekunden aktive Phase, Zonenradius 620
+- zusätzliche Formen innerhalb der Zone
+- höhere Elite-Chance (maximal vier statt drei gleichzeitig)
+- maximal 42 zusätzliche Event-Formen
+- verbleibende Bonusformen werden am Ende entfernt
+- nur dieses Event verändert das Formenaufkommen
+
+**Rolle:** wechselndes Farmziel, das lokale Konflikte erzeugt.
+
+### Overcharge
+
+- 8 Sekunden Vorwarnung, 35 Sekunden aktive Phase, Zonenradius 560
+- verändert ausschließlich das Verhalten von Projektil-Kollisionen
+- Geschosse in der Zone tragen einen Überladungspuffer von 75 % ihrer maximalen Integrität
+- bei einem Zusammenstoß wird zuerst dieser Puffer verbraucht: Kugeln löschen sich
+  nicht mehr gegenseitig aus, sondern streifen sich
+- ein gestreiftes Geschoss wird um rund 8 Grad abgelenkt und behält 94 % seines Tempos
+- der Puffer wird verbraucht und nicht nachgeladen – Dauerbeschuss zerstört Geschosse weiterhin
+- **kein Schadensbuff:** Geschoss- und Treffer-Schaden bleiben exakt unverändert
+- außerhalb der Zone und außerhalb der aktiven Phase gilt die normale Kollisionsregel
+
+**Rolle:** Defensive Kugelwände (Storm, Gatling, Octo) verlieren in der Zone ihre
+Schutzwirkung, schwere Einzelschüsse kommen durch das Kreuzfeuer. Der Preis ist,
+dass jeder gestreifte Schuss vom Ziel abweicht – Overcharge belohnt Winkel, nicht Spam.
+
+### Hunter Signal
+
+- 8 Sekunden Vorwarnung, 45 Sekunden aktive Phase, Zonenradius 520
+- ein neutraler Elite-Guardian bewacht die Zone (Guardian-Klasse, Level 45, fester Bau)
+- er gehört keinem Team, wird von niemandem gesteuert und verlässt seine Zone nicht
+- er erhält nur 30 % des eingehenden Schadens (rund 3,3-faches effektives Leben)
+- er verteidigt sich gegen jeden Angreifer, jagt aber keine frischen Spieler unter Level 8,
+  solange diese ihn in Ruhe lassen
+- er sammelt weder XP noch Score und erscheint nicht in Bestenliste oder Bounty
+- sein Abschuss gibt zusätzlich 600 Bonus-XP; er respawnt nicht
+- am Ende des Events verschwindet er, auch wenn er noch lebt
+
+**Rolle:** gemeinsames PvE-Ziel, das PvP-Druck erzeugt, ohne jemanden zu zwingen.
 
 ### Spätere Event-Kandidaten
 
 - **Fracture:** temporär veränderte Durchgänge
-- **Overcharge:** besonderes Projektilkollisions-Verhalten ohne pauschalen Schadensbuff
-- **Hunter Signal:** neutraler Elite-Guardian
 
-Diese Events bleiben gesperrt, bis Core Surge getestet wurde.
+Fracture bleibt gesperrt, bis die drei bestehenden Events beobachtet wurden.
 
 ## Bounties
 
@@ -311,7 +353,12 @@ Regressionstests sichern unter anderem:
 - Modifier mit Vorteil und Preis
 - Drohnen-Modifier-Konsistenz
 - Elite-Shape-Limits und Belohnungen
-- Core-Surge-Phasen
+- Core-Surge-Phasen und feste Event-Rotation
+- zusätzliche Formen nur während Core Surge
+- Overcharge: Geschosse überstehen den Zusammenstoß, nur in der Zone, ohne Schadensänderung
+- Overcharge: Puffer wird verbraucht, Geschosse bleiben zerstörbar
+- Hunter-Signal-Guardian: Schadensreduktion, Anfängerschutz, Kill-Belohnung, kein Respawn
+- Hunter-Signal-Guardian: kein Score, keine Bestenlisten- und Bounty-Teilnahme
 - Bounty-Auslösung und Anti-Farming
 - Gatling-Spin-up
 - Storm-Projektilintegrität

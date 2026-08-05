@@ -44,7 +44,10 @@ npm run build
 - klassenspezifische Kernmechaniken: Heckläufe, Rundum-Feuer,
   Exekutionsbonus, Defensiv-Orbit, Mikro-Schwarm, Momentum-Rammen u. a.
 - Core Modules (Dash, Repulse, Barrier, Repair) und passive Frames
-- Elite Shapes, Core-Surge-Event, Bounty-System, Kill-Streaks
+- Elite Shapes, Bounty-System, Kill-Streaks
+- drei rotierende Arena-Events: Core Surge (mehr Formen), Overcharge
+  (Geschosse streifen sich statt sich auszulöschen), Hunter Signal
+  (neutraler Elite-Guardian als PvE-Ziel)
 - Drohnensteuerung mit linker und rechter Maustaste
 - faire Bots mit Skill-Tiers, Vorhalte-Zielen, Anfängerschutz,
   Anti-Gang-up und eigener Modul-/Frame-Nutzung

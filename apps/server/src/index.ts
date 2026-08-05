@@ -16,6 +16,7 @@ import {
   PASSIVE_MODIFIER_IDS,
   type GameplayClientMessage
 } from '@project-maze/shared/gameplay';
+import { tuneArenaEvents } from './arena-events.js';
 import { tuneArenaSystems } from './arena-systems.js';
 import { tuneClassMechanics } from './class-mechanics.js';
 import { tuneCombatScaling } from './combat-tuning.js';
@@ -62,14 +63,16 @@ app.use(cors({ origin: allowedOrigins ? [...allowedOrigins] : true }));
 const server = createServer(app);
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
 const game = tuneDebugRules(
-  tuneArenaSystems(
-    tuneLoadoutSystem(
-      tuneProgression(
-        tuneBotBrain(
-          tuneClassMechanics(
-            tuneDrones(
-              tuneCombatScaling(
-                hardenSimulation(new MazeGame(BOT_COUNT))
+  tuneArenaEvents(
+    tuneArenaSystems(
+      tuneLoadoutSystem(
+        tuneProgression(
+          tuneBotBrain(
+            tuneClassMechanics(
+              tuneDrones(
+                tuneCombatScaling(
+                  hardenSimulation(new MazeGame(BOT_COUNT))
+                )
               )
             )
           )

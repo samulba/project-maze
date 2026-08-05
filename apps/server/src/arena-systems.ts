@@ -6,10 +6,34 @@ import {
   type Vector2,
   type WorldSnapshot
 } from '@project-maze/shared';
-import type { ArenaEventSnapshot, GameplayWorldExtension } from '@project-maze/shared/gameplay';
+import type { ArenaEventKind, ArenaEventSnapshot, GameplayWorldExtension } from '@project-maze/shared/gameplay';
 import { MazeGame } from './game.js';
 import { distanceSquared } from './physics.js';
 import { createShape, isFree } from './world.js';
+
+/**
+ * Serverseitige Event-Arten. `overcharge` und `hunterSignal` fehlen noch im
+ * geteilten `ArenaEventKind`; bis der Shared-Typ erweitert ist, bleibt die
+ * Erweiterung serverlokal und wird beim Schreiben in den Snapshot gecastet.
+ */
+export type ServerArenaEventKind = ArenaEventKind | 'overcharge' | 'hunterSignal';
+export interface ServerArenaEvent extends Omit<ArenaEventSnapshot, 'kind'> {
+  kind: ServerArenaEventKind;
+}
+
+interface ArenaEventTiming {
+  warningMs: number;
+  activeMs: number;
+  radius: number;
+}
+
+/** Die Arena rotiert fest durch alle Events, damit keines dominiert. */
+export const ARENA_EVENT_ROTATION: readonly ServerArenaEventKind[] = ['coreSurge', 'overcharge', 'hunterSignal'];
+export const ARENA_EVENT_TIMINGS: Record<ServerArenaEventKind, ArenaEventTiming> = {
+  coreSurge: { warningMs: 10_000, activeMs: 40_000, radius: 620 },
+  overcharge: { warningMs: 8_000, activeMs: 35_000, radius: 560 },
+  hunterSignal: { warningMs: 8_000, activeMs: 45_000, radius: 520 }
+};
 
 interface RuntimePlayer extends PlayerSnapshot {
   bot: unknown | null;
@@ -27,10 +51,11 @@ interface ArenaState {
   eliteShapeIds: Set<string>;
   eventBonusShapeIds: Set<string>;
   nextEliteAt: number;
-  event: ArenaEventSnapshot | null;
+  event: ServerArenaEvent | null;
   nextEventAt: number;
   eventSpawnAt: number;
   eventId: number;
+  eventIndex: number;
   bountyTargetId: string | null;
   bountyValue: number;
   lastBountyCheckAt: number;
@@ -50,6 +75,7 @@ const stateFor = (game: MazeGame): ArenaState => {
     nextEventAt: now + 65_000,
     eventSpawnAt: 0,
     eventId: 0,
+    eventIndex: 0,
     bountyTargetId: null,
     bountyValue: 0,
     lastBountyCheckAt: 0,
@@ -97,9 +123,9 @@ function pickEliteCandidate(internals: ArenaInternals, state: ArenaState, prefer
   return candidates[Math.floor(Math.random() * candidates.length)] ?? null;
 }
 
-function spawnEventShape(internals: ArenaInternals): string | null {
+function spawnEventShape(internals: ArenaInternals, radius: number): string | null {
   const center = eventCenter();
-  const position = shapePositionInZone(center, 560);
+  const position = shapePositionInZone(center, radius);
   if (!position) return null;
   const shape = createShape(crypto.randomUUID());
   shape.position = position;
@@ -111,15 +137,18 @@ function spawnEventShape(internals: ArenaInternals): string | null {
 
 function updateEvent(internals: ArenaInternals, state: ArenaState, now: number): void {
   if (!state.event && now >= state.nextEventAt) {
-    const startsAt = now + 10_000;
+    const kind = ARENA_EVENT_ROTATION[state.eventIndex % ARENA_EVENT_ROTATION.length] ?? 'coreSurge';
+    const timing = ARENA_EVENT_TIMINGS[kind];
+    const startsAt = now + timing.warningMs;
+    state.eventIndex += 1;
     state.event = {
       id: ++state.eventId,
-      kind: 'coreSurge',
+      kind,
       phase: 'warning',
       startsAt,
-      endsAt: startsAt + 40_000,
+      endsAt: startsAt + timing.activeMs,
       center: eventCenter(),
-      radius: 620
+      radius: timing.radius
     };
     state.eventSpawnAt = startsAt;
     return;
@@ -135,12 +164,13 @@ function updateEvent(internals: ArenaInternals, state: ArenaState, now: number):
     state.eventSpawnAt = 0;
     return;
   }
-  if (state.event.phase !== 'active' || now < state.eventSpawnAt) return;
+  // Nur Core Surge flutet die Zone mit Formen; die anderen Events verändern Regeln, keine Beute.
+  if (state.event.kind !== 'coreSurge' || state.event.phase !== 'active' || now < state.eventSpawnAt) return;
 
   state.eventSpawnAt = now + 2_400;
   if (state.eventBonusShapeIds.size < 42) {
     for (let index = 0; index < 3; index += 1) {
-      const id = spawnEventShape(internals);
+      const id = spawnEventShape(internals, state.event.radius * 0.9);
       if (id) state.eventBonusShapeIds.add(id);
     }
   }
@@ -176,6 +206,11 @@ function updateBounty(internals: ArenaInternals, state: ArenaState, now: number)
 /** Aktuelles Bounty-Ziel für andere Systeme (z. B. Bot-Zielwahl). */
 export function bountyTargetIdFor(game: MazeGame): string | null {
   return stateFor(game).bountyTargetId;
+}
+
+/** Laufendes Arena-Event für andere Systeme (z. B. Event-Mechaniken). Nur lesen. */
+export function activeArenaEventFor(game: MazeGame): ServerArenaEvent | null {
+  return stateFor(game).event;
 }
 
 /** Adds world-level objectives without changing the one-button combat model. */
@@ -216,11 +251,12 @@ export function tuneArenaSystems<T extends MazeGame>(game: T): T {
     for (const id of state.eliteShapeIds) if (!internals.shapes.has(id)) state.eliteShapeIds.delete(id);
     for (const id of state.eventBonusShapeIds) if (!internals.shapes.has(id)) state.eventBonusShapeIds.delete(id);
 
-    const eliteLimit = state.event?.phase === 'active' ? 4 : 3;
+    const surging = state.event?.kind === 'coreSurge' && state.event.phase === 'active';
+    const eliteLimit = surging ? 4 : 3;
     if (now >= state.nextEliteAt && state.eliteShapeIds.size < eliteLimit) {
-      const candidate = pickEliteCandidate(internals, state, state.event?.phase === 'active');
+      const candidate = pickEliteCandidate(internals, state, surging);
       if (candidate) promoteElite(state, candidate);
-      state.nextEliteAt = now + (state.event?.phase === 'active' ? 8_000 : 22_000);
+      state.nextEliteAt = now + (surging ? 8_000 : 22_000);
     }
 
     updateEvent(internals, state, now);
@@ -231,7 +267,10 @@ export function tuneArenaSystems<T extends MazeGame>(game: T): T {
   game.snapshot = ((selfId: string, now = Date.now()): WorldSnapshot => {
     const snapshot = originalSnapshot(selfId, now) as WorldSnapshot & Partial<GameplayWorldExtension>;
     snapshot.eliteShapeIds = snapshot.shapes.filter((shape) => state.eliteShapeIds.has(shape.id)).map((shape) => shape.id);
-    snapshot.arenaEvent = state.event ? { ...state.event, center: { ...state.event.center } } : null;
+    // `kind` ist serverseitig bereits erweitert; der geteilte Union-Typ zieht nach.
+    snapshot.arenaEvent = state.event
+      ? ({ ...state.event, center: { ...state.event.center } } as ArenaEventSnapshot)
+      : null;
     snapshot.bountyTargetId = state.bountyTargetId;
     snapshot.bountyValue = state.bountyValue;
     const targetGameplay = state.bountyTargetId && snapshot.gameplay ? snapshot.gameplay[state.bountyTargetId] : undefined;
