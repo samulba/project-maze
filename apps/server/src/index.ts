@@ -79,6 +79,11 @@ const SNAPSHOT_DELTAS = process.env.SNAPSHOT_DELTAS === 'true';
  */
 const ACHIEVEMENTS_ENABLED = process.env.ACHIEVEMENTS_ENABLED === 'true';
 /**
+ * Ersetzt UUIDs im Snapshot durch kurze Zahlen. Setzt – wie SNAPSHOT_DELTAS –
+ * einen Client voraus, der die neue Feldform kennt; bis dahin aus.
+ */
+const SHORT_NET_IDS = process.env.SHORT_NET_IDS === 'true';
+/**
  * Arena-Direktor: hält die Bot-Population passend zur Zahl der Menschen.
  * Standardmäßig an; `false` friert die Population auf `BOT_COUNT` ein.
  */
@@ -137,7 +142,8 @@ const encodedGame = tuneSnapshotEncoding(
       )
     )
   ),
-  SNAPSHOT_DELTAS
+  SNAPSHOT_DELTAS,
+  SHORT_NET_IDS
 );
 // Achievement-Drain als äußerste Schicht: nur echte, an Clients gehende
 // Snapshots leeren die Warteschlange (Telemetrie-Round-Robin bleibt außen vor).

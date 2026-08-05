@@ -4,7 +4,7 @@ import { tuneCombatScaling } from './combat-tuning';
 import { MazeGame } from './game';
 import { tuneLoadoutSystem } from './loadout-system';
 import { hardenSimulation } from './simulation-hardening';
-import { resetSnapshotBaseline, tuneSnapshotEncoding } from './snapshot-encoding';
+import { resetSnapshotBaseline, shortIdStats, tuneSnapshotEncoding } from './snapshot-encoding';
 import { WALLS } from './world';
 
 interface Internals {
@@ -13,10 +13,11 @@ interface Internals {
   killPlayer(target: any, attackerId: string | null, now: number, environmentName: string): void;
 }
 
-const createGame = (deltas: boolean): MazeGame =>
+const createGame = (deltas: boolean, shortIds = false): MazeGame =>
   tuneSnapshotEncoding(
     tuneArenaSystems(tuneLoadoutSystem(tuneCombatScaling(hardenSimulation(new MazeGame(0))))),
-    deltas
+    deltas,
+    shortIds
   );
 
 const decimals = (value: number): number => {
@@ -229,5 +230,188 @@ describe('snapshot deltas', () => {
     const full = JSON.stringify(game.snapshot(viewerId)).length;
     const delta = JSON.stringify(game.snapshot(viewerId)).length;
     expect(delta).toBeLessThan(full * 0.75);
+  });
+});
+
+describe('kurze Netz-IDs', () => {
+  /** Zwei Spieler nebeneinander, einer schießt – liefert Spieler und Projektile im Sichtfeld. */
+  const seated = (shortIds: boolean): { game: MazeGame; internals: Internals; viewerId: string; otherId: string } => {
+    const game = createGame(false, shortIds);
+    const internals = game as unknown as Internals;
+    const viewerId = game.addPlayer('Viewer');
+    const otherId = game.addPlayer('Other');
+    internals.players.get(viewerId).position = { x: 3_000, y: 2_000 };
+    const other = internals.players.get(otherId);
+    other.position = { x: 3_120, y: 2_000 };
+    other.primary = true;
+    other.aim = { x: 300, y: 0 };
+    game.step(1 / 40, 1_000);
+    return { game, internals, viewerId, otherId };
+  };
+
+  it('lässt ohne Schalter jede ID unverändert', () => {
+    const { game, viewerId } = seated(false);
+    const snapshot = game.snapshot(viewerId) as any;
+    expect(typeof snapshot.selfId).toBe('string');
+    expect(snapshot.selfId).toBe(viewerId);
+    for (const player of snapshot.players) expect(typeof player.id).toBe('string');
+    for (const shape of snapshot.shapes) expect(typeof shape.id).toBe('string');
+  });
+
+  it('ersetzt jede Entitäts-ID durch eine Zahl', () => {
+    const { game, viewerId } = seated(true);
+    const snapshot = game.snapshot(viewerId) as any;
+
+    expect(typeof snapshot.selfId).toBe('number');
+    expect(snapshot.players.length).toBeGreaterThan(0);
+    for (const player of snapshot.players) expect(Number.isInteger(player.id)).toBe(true);
+    for (const shape of snapshot.shapes) expect(Number.isInteger(shape.id)).toBe(true);
+    for (const projectile of snapshot.projectiles) {
+      expect(Number.isInteger(projectile.id)).toBe(true);
+      expect(Number.isInteger(projectile.ownerId)).toBe(true);
+    }
+    for (const entry of snapshot.leaderboard) expect(Number.isInteger(entry.id)).toBe(true);
+    // Wände tragen bereits kurze Namen und bleiben, wie sie sind.
+    for (const wall of snapshot.walls) expect(typeof wall.id).toBe('string');
+  });
+
+  it('hält Querverweise innerhalb eines Snapshots konsistent', () => {
+    const { game, viewerId, otherId } = seated(true);
+    const snapshot = game.snapshot(viewerId) as any;
+
+    const byName = new Map(snapshot.players.map((player: any) => [player.name, player.id]));
+    expect(snapshot.selfId).toBe(byName.get('Viewer'));
+    // `gameplay` ist nach denselben Nummern verschlüsselt wie die Spielerliste.
+    for (const player of snapshot.players) expect(snapshot.gameplay[String(player.id)]).toBeDefined();
+    expect(Object.keys(snapshot.gameplay)).toHaveLength(snapshot.players.length);
+    // Jedes Projektil gehört zu einem Spieler aus derselben Liste.
+    const playerIds = new Set(snapshot.players.map((player: any) => player.id));
+    expect(snapshot.projectiles.length).toBeGreaterThan(0);
+    for (const projectile of snapshot.projectiles) expect(playerIds.has(projectile.ownerId)).toBe(true);
+    expect(byName.get('Other')).toBeDefined();
+    expect(otherId).not.toBe(byName.get('Other'));
+  });
+
+  it('vergibt für dieselbe Entität dauerhaft dieselbe Nummer', () => {
+    const { game, viewerId } = seated(true);
+    const first = game.snapshot(viewerId) as any;
+    game.step(1 / 40, 2_000);
+    const second = game.snapshot(viewerId) as any;
+
+    expect(second.selfId).toBe(first.selfId);
+    const firstShapes = new Map(first.shapes.map((shape: any) => [shape.id, shape.kind]));
+    let matched = 0;
+    for (const shape of second.shapes) {
+      if (!firstShapes.has(shape.id)) continue;
+      expect(shape.kind).toBe(firstShapes.get(shape.id));
+      matched += 1;
+    }
+    expect(matched).toBeGreaterThan(0);
+  });
+
+  it('vergibt niemals zweimal dieselbe Nummer', () => {
+    const { game, viewerId } = seated(true);
+    const snapshot = game.snapshot(viewerId) as any;
+    const numbers = [
+      ...snapshot.players.map((entity: any) => entity.id),
+      ...snapshot.projectiles.map((entity: any) => entity.id),
+      ...snapshot.drones.map((entity: any) => entity.id),
+      ...snapshot.shapes.map((entity: any) => entity.id)
+    ];
+    expect(new Set(numbers).size).toBe(numbers.length);
+  });
+
+  it('gibt Nummern verschwundener Entitäten nicht erneut aus', () => {
+    const { game, internals, viewerId } = seated(true);
+    const before = game.snapshot(viewerId) as any;
+    const usedBefore = new Set<number>(
+      [...before.shapes, ...before.players, ...before.projectiles].map((entity: any) => entity.id)
+    );
+    expect(usedBefore.size).toBeGreaterThan(0);
+    const nextBefore = shortIdStats(game).next;
+
+    // Alle Formen verschwinden, die Zuordnung wird aufgeräumt.
+    internals.shapes.clear();
+    game.step(1 / 40, 100_000);
+
+    // Wer danach neu dazukommt, bekommt garantiert eine unbenutzte Nummer –
+    // keine der freigewordenen wird recycelt.
+    const newcomerId = game.addPlayer('Nachzügler');
+    internals.players.get(newcomerId).position = { x: 3_000, y: 2_000 };
+    const after = game.snapshot(viewerId, 200_000) as any;
+    const newcomer = after.players.find((player: any) => player.name === 'Nachzügler');
+    expect(newcomer).toBeDefined();
+    expect(newcomer.id).toBeGreaterThanOrEqual(nextBefore);
+    expect(usedBefore.has(newcomer.id)).toBe(false);
+  });
+
+  it('räumt die Zuordnung auf, statt unbegrenzt zu wachsen', () => {
+    const { game, internals, viewerId } = seated(true);
+    game.snapshot(viewerId);
+    const assignedBefore = shortIdStats(game).assigned;
+    expect(assignedBefore).toBeGreaterThan(0);
+
+    internals.shapes.clear();
+    game.step(1 / 40, 100_000);
+    expect(shortIdStats(game).assigned).toBeLessThan(assignedBefore);
+  });
+
+  it('arbeitet mit den Delta-Feldern zusammen', () => {
+    const game = createGame(true, true);
+    const internals = game as unknown as Internals;
+    const viewerId = game.addPlayer('Viewer');
+    const otherId = game.addPlayer('Other');
+    internals.players.get(viewerId).position = { x: 3_000, y: 2_000 };
+    internals.players.get(otherId).position = { x: 3_120, y: 2_000 };
+    game.step(1 / 40, 1_000);
+
+    const first = game.snapshot(viewerId) as any;
+    const otherShort = first.players.find((player: any) => player.name === 'Other').id;
+    expect(Number.isInteger(otherShort)).toBe(true);
+
+    const second = game.snapshot(viewerId) as any;
+    const repeated = second.players.find((player: any) => player.id === otherShort);
+    // Statik weggelassen, Nummer trotzdem stabil.
+    expect(repeated).toBeDefined();
+    expect(Object.hasOwn(repeated, 'name')).toBe(false);
+    expect(Object.hasOwn(second, 'walls')).toBe(false);
+  });
+
+  it('macht den Snapshot bei identischem Weltzustand spürbar kleiner', () => {
+    // Beide Varianten müssen denselben Zustand codieren – zwei eigene Spiele
+    // hätten zwei verschiedene Welten und wären als Vergleich wertlos.
+    const source = tuneArenaSystems(tuneLoadoutSystem(tuneCombatScaling(hardenSimulation(new MazeGame(0)))));
+    const raw = source as any;
+    const viewerId = source.addPlayer('Viewer');
+    const otherId = source.addPlayer('Other');
+    raw.players.get(viewerId).position = { x: 3_000, y: 2_000 };
+    const other = raw.players.get(otherId);
+    other.position = { x: 3_120, y: 2_000 };
+    other.primary = true;
+    other.aim = { x: 300, y: 0 };
+    source.step(1 / 40, 1_000);
+    const frozen = JSON.parse(JSON.stringify(source.snapshot(viewerId)));
+
+    const encoded = (shortIds: boolean): string => {
+      const stub = {
+        players: raw.players,
+        projectiles: raw.projectiles,
+        drones: raw.drones,
+        shapes: raw.shapes,
+        snapshot: () => JSON.parse(JSON.stringify(frozen)),
+        removePlayer: () => {},
+        step: () => {}
+      } as unknown as MazeGame;
+      tuneSnapshotEncoding(stub, false, shortIds);
+      return JSON.stringify(stub.snapshot(viewerId));
+    };
+
+    const plain = encoded(false);
+    const short = encoded(true);
+    const uuid = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+    // Der eigentliche Beweis: Auf der Leitung bleibt keine einzige UUID übrig.
+    expect(uuid.test(plain)).toBe(true);
+    expect(uuid.test(short)).toBe(false);
+    expect(short.length).toBeLessThan(plain.length);
   });
 });

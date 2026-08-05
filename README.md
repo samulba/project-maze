@@ -82,8 +82,10 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   nicht die Simulation. Alle Zahlen werden auf darstellbare Genauigkeit gerundet
   (Positionen 1, Winkel 3 Nachkommastellen); mit `SNAPSHOT_DELTAS=true` fallen
   zusätzlich alle Felder weg, die sich seit dem letzten Snapshot dieses Clients
-  nicht geändert haben. Gemessen mit 40 Clients: **256,8 → 153,1 KB/s je Client
-  (−40 %)** bei unveränderter Latenz.
+  nicht geändert haben, und mit `SHORT_NET_IDS=true` werden die Entitäts-UUIDs
+  durch fortlaufende Zahlen ersetzt. Gemessen mit 40 Clients: **231,9 KB/s
+  (nur Runden) → 151,3 (Deltas) → 127,4 (beides) je Client, −45 %** bei
+  unveränderter Latenz.
 - **Redeploy:** Bei `SIGTERM` meldet `/health` sofort `503`, dann werden alle
   WebSockets mit Code 1001 sauber geschlossen – Clients reconnecten umgehend
   statt in einen Timeout zu laufen.
