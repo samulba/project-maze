@@ -21,11 +21,12 @@ const editableTarget = (target: EventTarget | null): boolean => {
   return Boolean(element?.closest('input, textarea, select, [contenteditable="true"]'));
 };
 
-const EVENT_COPY: Partial<Record<string, { name: string; active: string }>> = {
-  coreSurge: { name: 'CORE SURGE', active: 'mehr Shapes und Elites im Zentrum' },
-  overcharge: { name: 'OVERCHARGE', active: 'Geschosse löschen sich in der Zone nicht mehr aus' },
-  hunterSignal: { name: 'HUNTER SIGNAL', active: 'neutraler Guardian im Zentrum · 600 Bonus-XP' },
-  fracture: { name: 'FRACTURE', active: 'einzelne Wände sind arenaweit aufgebrochen' }
+const EVENT_COPY: Partial<Record<string, { name: string; active: string; where: string }>> = {
+  coreSurge: { name: 'CORE SURGE', active: 'mehr Shapes und Elites im Zentrum', where: 'Zentrum' },
+  overcharge: { name: 'OVERCHARGE', active: 'Geschosse löschen sich in der Zone nicht mehr aus', where: 'Zentrum' },
+  hunterSignal: { name: 'HUNTER SIGNAL', active: 'neutraler Guardian im Zentrum · 600 Bonus-XP', where: 'Zentrum' },
+  // Fracture ist ortlos – ein "Zentrum"-Hinweis würde Spieler an eine Stelle schicken, an der nichts passiert.
+  fracture: { name: 'FRACTURE', active: 'einzelne Wände sind arenaweit aufgebrochen', where: 'arenaweit' }
 };
 
 export class GameplayUI {
@@ -204,7 +205,7 @@ export class GameplayUI {
       this.eventBanner.hidden = false;
       this.eventBanner.dataset.phase = event.phase;
       this.eventBanner.innerHTML = event.phase === 'warning'
-        ? `<strong>${copy.name}</strong><span>startet in ${Math.ceil(remainingEvent / 1000)}s · Zentrum</span>`
+        ? `<strong>${copy.name}</strong><span>startet in ${Math.ceil(remainingEvent / 1000)}s · ${copy.where}</span>`
         : `<strong>${copy.name} AKTIV</strong><span>${Math.ceil(remainingEvent / 1000)}s · ${copy.active}</span>`;
     } else {
       this.eventBanner.hidden = true;

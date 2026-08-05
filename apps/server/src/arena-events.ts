@@ -43,7 +43,8 @@ export const OVERCHARGE_SPEED_RETENTION = 0.94;
  * Hunter Signal: Ein neutraler Elite-Guardian bewacht die Zone. Er gehört
  * niemandem, verteidigt sich gegen jeden und verschwindet mit dem Event.
  */
-export const GUARDIAN_NAME = 'Hunter Signal';
+/** Muss zum Client-Namensschild passen ("⚔ GUARDIAN") – Killfeed, Death-Screen und Killcam zeigen diesen Namen. */
+export const GUARDIAN_NAME = 'GUARDIAN';
 /** Anteil des Schadens, den der Guardian tatsächlich erhält (entspricht rund 3,3-fachem Leben). */
 export const GUARDIAN_DAMAGE_TAKEN = 0.3;
 /** Bonus-XP zusätzlich zur normalen Kill-Belohnung. */

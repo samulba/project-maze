@@ -47,9 +47,12 @@ export interface GracefulShutdown {
   isShuttingDown(): boolean;
 }
 
+// Bewusst NICHT unref: Nach dem Schließen von Listener und Sockets wäre dieser
+// Timer der letzte lebendige Handle. Unreft stirbt der Event-Loop mitten im
+// Shutdown – Abschluss-Log und exit(0) würden nie erreicht. Der Prozess endet
+// ohnehin über installSignalHandlers.
 const delay = (ms: number): Promise<void> => new Promise((resolve) => {
-  const timer = setTimeout(resolve, ms);
-  timer.unref();
+  setTimeout(resolve, ms);
 });
 
 export function createGracefulShutdown(options: GracefulShutdownOptions): GracefulShutdown {

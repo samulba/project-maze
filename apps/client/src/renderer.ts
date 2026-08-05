@@ -428,6 +428,9 @@ export class GameRenderer {
     const event=this.arenaEvent;
     const self=this.selfId?this.playerViews.get(this.selfId):undefined;
     if(!event||event.kind!=='overcharge'||event.phase!=='active'||!self){this.sparkBudget=0;return}
+    // Ohne frische Snapshots (Verbindungsverlust) friert der Weltzustand ein –
+    // dann dürfen auch die Funken nicht endlos weitersprühen.
+    if(performance.now()-this.lastSnapshotAt>2000){this.sparkBudget=0;return}
     const radiusSquared=event.radius**2;
     const inZone:Vector2[]=[];
     for(const view of this.projectileViews.values()){

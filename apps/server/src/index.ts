@@ -87,17 +87,18 @@ const wss = new WebSocketServer({ server, maxPayload: 4096 });
 // Telemetrie sehen weiterhin vollständige Snapshots.
 const game = tuneSnapshotEncoding(
   tunePersistence(
-  tuneTelemetry(
-    tuneDebugRules(
-      tuneArenaEvents(
-        tuneArenaSystems(
-          tuneLoadoutSystem(
-            tuneProgression(
-              tuneBotBrain(
-                tuneClassMechanics(
-                  tuneDrones(
-                    tuneCombatScaling(
-                      hardenSimulation(new MazeGame(BOT_COUNT))
+    tuneTelemetry(
+      tuneDebugRules(
+        tuneArenaEvents(
+          tuneArenaSystems(
+            tuneLoadoutSystem(
+              tuneProgression(
+                tuneBotBrain(
+                  tuneClassMechanics(
+                    tuneDrones(
+                      tuneCombatScaling(
+                        hardenSimulation(new MazeGame(BOT_COUNT))
+                      )
                     )
                   )
                 )
