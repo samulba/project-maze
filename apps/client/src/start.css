@@ -12,10 +12,10 @@
   place-items: center;
   padding: clamp(14px, 3vw, 32px);
   overflow: hidden;
-  background:
-    radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--brand) 15%, transparent), transparent 62%),
-    radial-gradient(90% 60% at 50% 108%, color-mix(in srgb, var(--brand) 7%, transparent), transparent 70%),
-    linear-gradient(180deg, #080a11, #05060b);
+  /* Ruhige dunkle Fläche. Die violetten Radial-Verläufe sind raus: Sie waren
+     der Hauptgrund, warum der Screen „Neon City" wirkte. Der einzige Akzent
+     ist der Startknopf. */
+  background: linear-gradient(180deg, #090b12, #05060b);
 }
 .start-backdrop {
   position: absolute;
@@ -76,25 +76,17 @@
   height: clamp(84px, 15vw, 116px);
   margin: 0 0 clamp(10px, 2vw, 18px);
 }
-/* Der Halo gibt dem Logo Präsenz, ohne es zu überstrahlen: breit und weich
-   statt hell – so trägt er die Marke, ohne selbst zu leuchten. */
-.start-logo-wrap::before {
-  content: '';
-  position: absolute;
-  inset: -46%;
-  border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--brand) 30%, transparent), transparent 68%);
-  filter: blur(12px);
-}
+/* Kein Halo mehr. Das Logo trägt sich selbst; Präsenz kommt aus Größe und
+   Platz, nicht aus Leuchten. */
 .start-logo {
   position: relative;
   width: 100%;
   height: 100%;
   margin: 0;
   border-radius: 26%;
-  box-shadow:
-    0 18px 42px rgba(0, 0, 0, .5),
-    0 0 0 1px color-mix(in srgb, var(--brand-soft) 26%, transparent);
+  /* Nur Tiefe, keine Farbe: ein Schatten sagt „liegt oben", ein farbiger
+     Schein sagt „leuchtet". Gewollt ist Ersteres. */
+  box-shadow: 0 14px 30px rgba(0, 0, 0, .45), 0 0 0 1px rgba(255, 255, 255, .07);
 }
 .start-card h1 {
   margin: 0;
@@ -104,12 +96,8 @@
   letter-spacing: -.06em;
   font-weight: 900;
 }
-.start-card h1 b {
-  color: transparent;
-  background: linear-gradient(120deg, var(--brand-soft), var(--brand) 70%);
-  background-clip: text;
-  -webkit-background-clip: text;
-}
+/* Eine Farbe statt Verlauf – der Verlauf las sich als Leuchtschrift. */
+.start-card h1 b { color: var(--brand-soft); }
 .start-tagline {
   margin: clamp(8px, 1.6vw, 14px) 0 clamp(18px, 3vw, 30px);
   color: #a7adc4;
@@ -140,23 +128,26 @@
   font-size: 16px;
   font-weight: 700;
 }
+/* Fokusring bleibt: Er hat eine Funktion (wo stehe ich?), leuchtet aber nicht. */
 #player-name:focus {
-  border-color: color-mix(in srgb, var(--brand-soft) 75%, transparent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 22%, transparent);
+  border-color: color-mix(in srgb, var(--brand-soft) 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 14%, transparent);
 }
 .play-button {
   height: clamp(56px, 7.5vw, 64px);
   margin-top: 5px;
   border-radius: 15px;
-  background: linear-gradient(120deg, var(--brand), #8b5cff 60%, #9a6dff);
-  box-shadow:
-    0 14px 32px color-mix(in srgb, var(--brand) 24%, transparent),
-    inset 0 1px rgba(255, 255, 255, .18);
+  /* Der eine Akzent des Screens: eine ruhige Fläche, kein Verlauf, kein
+     Schein. Die Reaktion beim Hover kommt aus Helligkeit, nicht aus Glühen. */
+  background: var(--brand);
+  box-shadow: none;
   font-size: 13px;
   letter-spacing: .14em;
+  transition: background .18s, transform .18s;
 }
-.play-button:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.07); }
-.play-button b { background: rgba(255, 255, 255, .18); }
+.play-button:hover:not(:disabled) { transform: translateY(-1px); background: #7b52f7; }
+.play-button:active:not(:disabled) { transform: none; background: #5f36dd; }
+.play-button b { background: rgba(255, 255, 255, .16); }
 
 .start-status { margin: 12px 0 0; min-height: 15px; font-size: 11px; }
 

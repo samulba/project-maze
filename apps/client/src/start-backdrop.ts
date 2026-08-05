@@ -20,8 +20,12 @@ export interface BackdropShape {
   alpha: number;
 }
 
-/** Farben der echten Arena-Formen plus ein Violett-Akzent der Marke. */
-const SHAPE_COLORS = ['#6574dd', '#e6a954', '#cf6eb5', '#6b3ff5'] as const;
+/**
+ * Farben der echten Arena-Formen – in derselben gedeckten Stufe wie im
+ * Spielfeld. Der Marken-Akzent ist hier bewusst raus: Auf dem Startscreen
+ * leuchtet nur der Knopf.
+ */
+const SHAPE_COLORS = ['#565f85', '#877a60', '#7d6379', '#4d5470'] as const;
 const GRID_FINE = 68;
 const GRID_COARSE = 340;
 
@@ -168,7 +172,7 @@ export class StartBackdrop {
     for (let y = 0; y <= this.height; y += GRID_FINE) { context.moveTo(0, y); context.lineTo(this.width, y); }
     context.stroke();
 
-    context.strokeStyle = 'rgba(139,109,255,.07)';
+    context.strokeStyle = 'rgba(150,160,200,.05)';
     context.beginPath();
     for (let x = 0; x <= this.width; x += GRID_COARSE) { context.moveTo(x, 0); context.lineTo(x, this.height); }
     for (let y = 0; y <= this.height; y += GRID_COARSE) { context.moveTo(0, y); context.lineTo(this.width, y); }

@@ -25,10 +25,11 @@ interface Palette {
   square:number; triangle:number; pentagon:number; label:number;
 }
 const PALETTES:Record<ClientThemeId,Palette>={
-  // Ruhige Fläche, wenig Sättigung: Farbe soll Bedeutung tragen, nicht Dekoration
-  // sein. Kräftig bleiben nur der eigene Tank und die Gegnerfarbe – Formen und
-  // Wände treten bewusst zurück.
-  midnight:{background:0x080a11,outside:0x04050a,grid:0x121724,border:0x2c3347,wall:0x1b2130,wallEdge:0x2f3749,self:0x6f7ad6,enemy:0xc4626f,barrel:0x9aa1b2,projectile:0xdfe4f0,drone:0x5f9e94,square:0x515d9c,triangle:0xa8834a,pentagon:0x93588a,label:0xd6dae6},
+  // Farbe trägt Bedeutung, nicht Dekoration. Gesättigt bleiben genau vier
+  // Dinge: eigener Tank, Gegner, Drohnen (eigene Mechanik) und Geschosse (muss
+  // man sehen). Formen, Wände und Raster sind bewusst fast grau – zweite
+  // Stufe nach „Ruhe & Gewicht", auf Sams Wunsch „weg von Neon City".
+  midnight:{background:0x080a11,outside:0x04050a,grid:0x11141c,border:0x2a2f3c,wall:0x191d27,wallEdge:0x2b313d,self:0x6f7ad6,enemy:0xc4626f,barrel:0x9aa1b2,projectile:0xdfe4f0,drone:0x5c8b84,square:0x565f85,triangle:0x877a60,pentagon:0x7d6379,label:0xd6dae6},
   void:{background:0x030407,outside:0x000000,grid:0x111317,border:0x31343b,wall:0x181b20,wallEdge:0x343942,self:0xb8ff6a,enemy:0xff5c76,barrel:0xdde2e8,projectile:0xffffff,drone:0x65e7c2,square:0x6b7c8f,triangle:0xffb84d,pentagon:0xc77dff,label:0xf1f3f5},
   classic:{background:0xe8ebf0,outside:0xcbd0da,grid:0xd5d9e1,border:0x818a9b,wall:0xaab1bf,wallEdge:0x7e8798,self:0x536dfe,enemy:0xf14e63,barrel:0x727b8d,projectile:0x343a46,drone:0x2ba887,square:0x6f7ee8,triangle:0xe5a044,pentagon:0xbd5c9d,label:0x252a34},
   neon:{background:0x0b0620,outside:0x050210,grid:0x241154,border:0x8a3df0,wall:0x1d1040,wallEdge:0x9b52ff,self:0x35e8ff,enemy:0xff3d9e,barrel:0xd9c2ff,projectile:0xf2fbff,drone:0x7bff7d,square:0x5f6dff,triangle:0xffc247,pentagon:0xc85cff,label:0xf4f0ff}
@@ -718,7 +719,7 @@ export class GameRenderer {
       const position={x:shape.position.x+shape.velocity.x*snapshotAge,y:shape.position.y+shape.velocity.y*snapshotAge};
       const sides=shape.kind==='square'?4:shape.kind==='triangle'?3:5;
       const color=this.shapeColor(shape);
-      this.shapes.poly(translated(polygon(sides,shape.radius,shape.rotation),position)).fill(color).stroke({color:0xffffff,alpha:.22,width:2});
+      this.shapes.poly(translated(polygon(sides,shape.radius,shape.rotation),position)).fill(color).stroke({color:0xffffff,alpha:.12,width:2});
       if(shape.health<shape.maxHealth){
         const width=shape.radius*2;
         this.shapes.roundRect(position.x-width/2,position.y+shape.radius+7,width,4,2).fill({color:0x000000,alpha:.45});
@@ -745,7 +746,7 @@ export class GameRenderer {
       const angle=Math.atan2(view.velocity.y,view.velocity.x)||view.snapshot.angle;
       const speed=Math.hypot(view.velocity.x,view.velocity.y);
       if(speed>90)this.drones.moveTo(view.current.x-view.velocity.x/speed*16,view.current.y-view.velocity.y/speed*16).lineTo(view.current.x,view.current.y).stroke({color,alpha:.2,width:3});
-      this.drones.poly(translated(polygon(3,13,angle),view.current)).fill(color).stroke({color:0xffffff,alpha:.48,width:2});
+      this.drones.poly(translated(polygon(3,13,angle),view.current)).fill(color).stroke({color:0xffffff,alpha:.3,width:2});
     }
   }
 

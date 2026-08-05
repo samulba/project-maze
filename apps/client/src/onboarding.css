@@ -15,7 +15,7 @@
   border-radius: 13px;
   color: var(--muted);
   background: var(--strong);
-  box-shadow: 0 14px 40px var(--shadow), 0 0 30px color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: 0 12px 32px var(--shadow);
   translate: -50% 0;
   backdrop-filter: blur(16px);
   pointer-events: none;
