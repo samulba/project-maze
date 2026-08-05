@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
 import type { PlayerClass, PlayerSnapshot } from '@project-maze/shared';
+import { ACHIEVEMENT_CATALOG, type AchievementId } from '@project-maze/shared/gameplay';
+import { achievementProgressFor, unlockedAchievementsFor } from './achievements.js';
 import { MazeGame } from './game.js';
 
 /**
@@ -22,11 +24,18 @@ import { MazeGame } from './game.js';
 export const RUNS_TABLE = 'runs';
 /** Profiltabelle aus Migration 0002; nur mit aktiviertem Login befüllt. */
 export const PROFILES_TABLE = 'profiles';
+/** Achievement-Tabelle aus Migration 0003. */
+export const ACHIEVEMENTS_TABLE = 'achievements';
+/** Aggregat-View aus Migration 0003 – spart GET /profile das Nachrechnen. */
+export const PROFILE_STATS_VIEW = 'profile_stats';
 const DEFAULT_FLUSH_INTERVAL_MS = 5_000;
 const DEFAULT_LEADERBOARD_CACHE_MS = 30_000;
 const DEFAULT_LEADERBOARD_LIMIT = 50;
 /** Obergrenze des Puffers; darüber werden die ältesten Runs verworfen. */
 const MAX_QUEUE = 500;
+/** So viele Profile bleiben gecacht – begrenzt, weil die Route öffentlich ist. */
+const MAX_PROFILE_CACHE = 200;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 /** Zeilen pro Insert – hält einzelne Requests klein und schnell. */
 const MAX_BATCH = 200;
 /** Fehlermeldungen höchstens einmal pro Minute, damit Logs nutzbar bleiben. */
@@ -42,6 +51,50 @@ export interface RunRecord {
   durationSeconds: number;
   /** Konto des Spielers, `null` bei Gast-Runs (Normalfall). */
   userId: string | null;
+}
+
+/** Ein freigeschaltetes Achievement eines Kontos (Migration 0003). */
+export interface AchievementRecord {
+  userId: string;
+  achievementId: AchievementId;
+}
+
+/** Gespeichertes Achievement inklusive Zeitpunkt, wie es aus der DB kommt. */
+export interface StoredAchievement {
+  achievementId: AchievementId;
+  unlockedAt: string;
+}
+
+/** Bestleistungen eines Kontos, aggregiert aus `profile_stats`. */
+export interface ProfileStats {
+  runs: number;
+  bestScore: number;
+  bestLevel: number;
+  bestKills: number;
+  bestStreak: number;
+  longestRunSeconds: number;
+  totalKills: number;
+  totalSeconds: number;
+  firstRunAt: string | null;
+  lastRunAt: string | null;
+}
+
+/** Rohdaten eines Profils, so wie der Adapter sie liefert. */
+export interface ProfileSnapshot {
+  userId: string;
+  displayName: string | null;
+  memberSince: string | null;
+  stats: ProfileStats | null;
+  achievements: StoredAchievement[];
+}
+
+/** Öffentliche Antwort von `GET /profile/:userId`. */
+export interface PublicProfile {
+  userId: string;
+  displayName: string | null;
+  memberSince: string | null;
+  stats: ProfileStats;
+  achievements: { id: AchievementId; name: string; description: string; unlockedAt: string }[];
 }
 
 /** Profilzeile eines angemeldeten Kontos (Migration 0002). */
@@ -67,6 +120,9 @@ export interface PersistenceClient {
   insertRuns(runs: readonly RunRecord[]): Promise<void>;
   topRuns(limit: number): Promise<LeaderboardEntry[]>;
   upsertProfiles(profiles: readonly ProfileRecord[]): Promise<void>;
+  insertAchievements(unlocks: readonly AchievementRecord[]): Promise<void>;
+  achievementsFor(userId: string): Promise<StoredAchievement[]>;
+  profileFor(userId: string): Promise<ProfileSnapshot | null>;
 }
 
 export interface PersistenceConfig {
@@ -90,6 +146,8 @@ export interface PersistenceStats {
   dropped: number;
   failedFlushes: number;
   lastErrorAt: number | null;
+  achievementsQueued: number;
+  achievementsWritten: number;
 }
 
 interface RuntimePlayer extends PlayerSnapshot {
@@ -106,6 +164,12 @@ interface PersistenceState {
   client: PersistenceClient | null;
   queue: RunRecord[];
   profileQueue: Map<string, ProfileRecord>;
+  achievementQueue: AchievementRecord[];
+  /** Konto-ID → bereits gespeicherte Achievements (vorgeladen + geschrieben). */
+  knownAchievements: Map<string, Set<AchievementId>>;
+  /** Vorgeladene Unlocks, die noch in die Engine gespiegelt werden müssen. */
+  pendingSeed: Map<string, AchievementId[]>;
+  achievementsWritten: number;
   /** Spieler-ID → Konto-ID, gesetzt beim angemeldeten Join. */
   accounts: Map<string, string>;
   lifeStartedAt: Map<string, number>;
@@ -119,6 +183,9 @@ interface PersistenceState {
   leaderboardCacheMs: number;
   cache: { entries: LeaderboardEntry[]; fetchedAt: number } | null;
   cacheInFlight: Promise<LeaderboardEntry[]> | null;
+  /** Profil-Cache je Konto; `null` merkt sich auch „kenne ich nicht". */
+  profileCache: Map<string, { profile: PublicProfile | null; fetchedAt: number }>;
+  profileInFlight: Map<string, Promise<PublicProfile | null>>;
   log: (message: string) => void;
 }
 
@@ -129,6 +196,10 @@ const createState = (): PersistenceState => ({
   client: null,
   queue: [],
   profileQueue: new Map(),
+  achievementQueue: [],
+  knownAchievements: new Map(),
+  pendingSeed: new Map(),
+  achievementsWritten: 0,
   accounts: new Map(),
   lifeStartedAt: new Map(),
   written: 0,
@@ -141,6 +212,8 @@ const createState = (): PersistenceState => ({
   leaderboardCacheMs: DEFAULT_LEADERBOARD_CACHE_MS,
   cache: null,
   cacheInFlight: null,
+  profileCache: new Map(),
+  profileInFlight: new Map(),
   log: () => {}
 });
 
@@ -213,6 +286,64 @@ export function createSupabaseClient(config: PersistenceConfig): PersistenceClie
       );
       if (error) throw new Error(error.message);
     },
+    async insertAchievements(unlocks) {
+      const client = await clientPromise;
+      // Doppelte sind kein Fehler: Der zusammengesetzte Primärschlüssel macht
+      // den Insert idempotent, `ignoreDuplicates` lässt ihn dabei still bleiben.
+      const { error } = await client.from(ACHIEVEMENTS_TABLE).upsert(
+        unlocks.map((unlock) => ({ user_id: unlock.userId, achievement_id: unlock.achievementId })),
+        { onConflict: 'user_id,achievement_id', ignoreDuplicates: true }
+      );
+      if (error) throw new Error(error.message);
+    },
+    async achievementsFor(userId) {
+      const client = await clientPromise;
+      const { data, error } = await client
+        .from(ACHIEVEMENTS_TABLE)
+        .select('achievement_id, unlocked_at')
+        .eq('user_id', userId)
+        .order('unlocked_at', { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((row) => ({
+        achievementId: String(row.achievement_id ?? '') as AchievementId,
+        unlockedAt: String(row.unlocked_at ?? '')
+      }));
+    },
+    async profileFor(userId) {
+      const client = await clientPromise;
+      const [profile, stats, unlocks] = await Promise.all([
+        client.from(PROFILES_TABLE).select('display_name, created_at').eq('user_id', userId).maybeSingle(),
+        client.from(PROFILE_STATS_VIEW).select('*').eq('user_id', userId).maybeSingle(),
+        this.achievementsFor(userId)
+      ]);
+      if (profile.error) throw new Error(profile.error.message);
+      if (stats.error) throw new Error(stats.error.message);
+
+      const row = stats.data as Record<string, unknown> | null;
+      // Wer weder Profil noch Runs noch Achievements hat, existiert für diese
+      // Route nicht – das ist ein 404 und keine leere Antwort.
+      if (!profile.data && !row && unlocks.length === 0) return null;
+      return {
+        userId,
+        displayName: profile.data ? String(profile.data.display_name ?? '') || null : null,
+        memberSince: profile.data ? String(profile.data.created_at ?? '') || null : null,
+        stats: row
+          ? {
+            runs: Number(row['runs'] ?? 0),
+            bestScore: Number(row['best_score'] ?? 0),
+            bestLevel: Number(row['best_level'] ?? 0),
+            bestKills: Number(row['best_kills'] ?? 0),
+            bestStreak: Number(row['best_streak'] ?? 0),
+            longestRunSeconds: Number(row['longest_run_seconds'] ?? 0),
+            totalKills: Number(row['total_kills'] ?? 0),
+            totalSeconds: Number(row['total_seconds'] ?? 0),
+            firstRunAt: row['first_run_at'] ? String(row['first_run_at']) : null,
+            lastRunAt: row['last_run_at'] ? String(row['last_run_at']) : null
+          }
+          : null,
+        achievements: unlocks
+      };
+    },
     async topRuns(limit) {
       const client = await clientPromise;
       const { data, error } = await client
@@ -249,43 +380,165 @@ function enqueue(state: PersistenceState, run: RunRecord): void {
  * Schreibt den Puffer weg. Läuft nie parallel zu sich selbst; scheitert der
  * Insert, wandern die Zeilen zurück an den Anfang der Warteschlange.
  */
-async function flush(state: PersistenceState): Promise<void> {
-  if (!state.enabled || !state.client || state.flushing) return;
-  if (state.queue.length === 0 && state.profileQueue.size === 0) return;
-  state.flushing = true;
-  const batch = state.queue.splice(0, MAX_BATCH);
+const knownFor = (state: PersistenceState, userId: string): Set<AchievementId> => {
+  const existing = state.knownAchievements.get(userId);
+  if (existing) return existing;
+  const created = new Set<AchievementId>();
+  state.knownAchievements.set(userId, created);
+  return created;
+};
+
+/**
+ * Vergleicht den Stand der Engine mit dem, was für dieses Konto schon
+ * gespeichert ist, und puffert die Differenz. Reine Mengenarithmetik im
+ * Arbeitsspeicher – kein Netzwerk, kein `await`.
+ */
+function collectAchievementUnlocks(game: MazeGame, state: PersistenceState): void {
+  if (!state.enabled || state.accounts.size === 0) return;
+  for (const [playerId, userId] of state.accounts) {
+    const unlocked = unlockedAchievementsFor(game, playerId);
+    if (unlocked.length === 0) continue;
+    const known = knownFor(state, userId);
+    for (const achievementId of unlocked) {
+      if (known.has(achievementId)) continue;
+      known.add(achievementId);
+      if (state.achievementQueue.length >= MAX_QUEUE) {
+        state.achievementQueue.shift();
+        state.dropped += 1;
+      }
+      state.achievementQueue.push({ userId, achievementId });
+    }
+  }
+}
+
+/**
+ * Spiegelt bereits gespeicherte Unlocks in die Engine, damit ein
+ * wiederkehrendes Konto nichts doppelt freischaltet – weder als Popup noch als
+ * Datenbankzeile. Bewusst nur `unlocked`, niemals `fresh`: Alte Achievements
+ * sollen nicht erneut gefeiert werden.
+ *
+ * Gibt `false` zurück, solange die Engine für diesen Spieler noch keinen
+ * Fortschritt angelegt hat; der Aufrufer versucht es dann im nächsten Tick.
+ */
+function seedEngine(game: MazeGame, playerId: string, ids: readonly AchievementId[]): boolean {
+  const progress = achievementProgressFor(game, playerId);
+  if (!progress) return false;
+  for (const id of ids) progress.unlocked.add(id);
+  return true;
+}
+
+/**
+ * Holt die gespeicherten Unlocks eines Kontos beim Join. Läuft im Hintergrund;
+ * der Join wartet nie darauf.
+ */
+function preloadAchievements(game: MazeGame, state: PersistenceState, playerId: string, userId: string): void {
+  const client = state.client;
+  if (!client) return;
+  void client.achievementsFor(userId)
+    .then((stored) => {
+      const known = knownFor(state, userId);
+      for (const entry of stored) known.add(entry.achievementId);
+      // Der Platz könnte inzwischen frei oder neu vergeben sein.
+      if (state.accounts.get(playerId) !== userId || stored.length === 0) return;
+      const ids = stored.map((entry) => entry.achievementId);
+      if (!seedEngine(game, playerId, ids)) state.pendingSeed.set(playerId, ids);
+    })
+    .catch((error: unknown) => noteError(state, 'Achievement-Vorladen fehlgeschlagen', error));
+}
+
+/** Trägt nachgereichte Vorladungen ein, sobald die Engine bereit ist. */
+function applyPendingSeeds(game: MazeGame, state: PersistenceState): void {
+  for (const [playerId, ids] of state.pendingSeed) {
+    if (!state.accounts.has(playerId) || seedEngine(game, playerId, ids)) state.pendingSeed.delete(playerId);
+  }
+}
+
+const pending = (state: PersistenceState): boolean =>
+  state.queue.length > 0 || state.profileQueue.size > 0 || state.achievementQueue.length > 0;
+
+/**
+ * Profile zuerst: Ein Run mit `user_id` braucht die Zeile nicht, aber die
+ * Reihenfolge hält die Profilkarte im Death-Screen aktuell.
+ */
+async function flushProfiles(state: PersistenceState, client: PersistenceClient): Promise<void> {
   const profiles = [...state.profileQueue.values()].slice(0, MAX_BATCH);
+  if (profiles.length === 0) return;
   try {
-    // Profile zuerst: Ein Run mit user_id braucht die Zeile nicht, aber die
-    // Reihenfolge hält die Profilkarte im Death-Screen aktuell.
-    if (profiles.length > 0) {
-      await state.client.upsertProfiles(profiles);
-      for (const profile of profiles) state.profileQueue.delete(profile.userId);
-    }
-    if (batch.length > 0) {
-      await state.client.insertRuns(batch);
-      state.written += batch.length;
-    }
+    await client.upsertProfiles(profiles);
+    for (const profile of profiles) state.profileQueue.delete(profile.userId);
   } catch (error) {
     state.failedFlushes += 1;
-    noteError(state, 'Supabase-Schreibzugriff fehlgeschlagen', error);
+    noteError(state, 'Profil-Upsert fehlgeschlagen', error);
+  }
+}
+
+/**
+ * Achievements bleiben bei einem Fehler in der Warteschlange. Der Insert ist
+ * idempotent, ein zweiter Versuch kann also nichts doppeln.
+ */
+async function flushAchievements(state: PersistenceState, client: PersistenceClient): Promise<void> {
+  const batch = state.achievementQueue.splice(0, MAX_BATCH);
+  if (batch.length === 0) return;
+  try {
+    await client.insertAchievements(batch);
+    state.achievementsWritten += batch.length;
+  } catch (error) {
+    state.failedFlushes += 1;
+    noteError(state, 'Achievement-Insert fehlgeschlagen', error);
+    const room = Math.max(0, MAX_QUEUE - state.achievementQueue.length);
+    const kept = batch.slice(Math.max(0, batch.length - room));
+    state.dropped += batch.length - kept.length;
+    state.achievementQueue.unshift(...kept);
+    // Was nicht geschrieben wurde, darf nicht als „bekannt" gelten – sonst
+    // versucht es der Sammler nie wieder.
+    for (const unlock of kept) state.knownAchievements.get(unlock.userId)?.delete(unlock.achievementId);
+  }
+}
+
+async function flushRuns(state: PersistenceState, client: PersistenceClient): Promise<void> {
+  const batch = state.queue.splice(0, MAX_BATCH);
+  if (batch.length === 0) return;
+  try {
+    await client.insertRuns(batch);
+    state.written += batch.length;
+  } catch (error) {
+    state.failedFlushes += 1;
+    noteError(state, 'Run-Insert fehlgeschlagen', error);
     // Zurück in die Warteschlange, aber ohne sie über die Obergrenze zu treiben.
     const room = Math.max(0, MAX_QUEUE - state.queue.length);
     const kept = batch.slice(Math.max(0, batch.length - room));
     state.dropped += batch.length - kept.length;
     state.queue.unshift(...kept);
+  }
+}
+
+/**
+ * Schreibt die Puffer weg. Läuft nie parallel zu sich selbst; jede der drei
+ * Warteschlangen scheitert für sich, damit ein Fehler die anderen nicht
+ * mitreißt.
+ */
+async function flush(state: PersistenceState): Promise<void> {
+  if (!state.enabled || !state.client || state.flushing || !pending(state)) return;
+  const client = state.client;
+  state.flushing = true;
+  try {
+    await flushProfiles(state, client);
+    await flushAchievements(state, client);
+    await flushRuns(state, client);
   } finally {
     state.flushing = false;
   }
 }
 
-/** Leert den Puffer sofort – für den geordneten Shutdown. */
+/** Leert die Puffer sofort – für den geordneten Shutdown. */
 export async function flushPersistence(game: MazeGame): Promise<void> {
   const state = stateFor(game);
   if (!state.enabled) return;
+  // Letzte Unlocks noch einsammeln, bevor der Prozess geht.
+  collectAchievementUnlocks(game, state);
   // Ein laufender Flush darf zu Ende gehen, bevor der Rest hinterherkommt.
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    if (state.queue.length === 0 && state.profileQueue.size === 0) return;
+    if (!pending(state)) return;
     await flush(state);
   }
 }
@@ -309,9 +562,12 @@ export function linkPlayerToUser(
     state.accounts.delete(playerId);
     return;
   }
+  const alreadyLinked = state.accounts.get(playerId) === user.userId;
   state.accounts.set(playerId, user.userId);
   const displayName = user.displayName?.trim().slice(0, 18);
   if (displayName) state.profileQueue.set(user.userId, { userId: user.userId, displayName });
+  // Gespeicherte Unlocks holen, damit nichts doppelt vergeben wird.
+  if (!alreadyLinked) preloadAchievements(game, state, playerId, user.userId);
 }
 
 export function persistenceStats(game: MazeGame): PersistenceStats {
@@ -322,7 +578,9 @@ export function persistenceStats(game: MazeGame): PersistenceStats {
     written: state.written,
     dropped: state.dropped,
     failedFlushes: state.failedFlushes,
-    lastErrorAt: state.lastErrorAt
+    lastErrorAt: state.lastErrorAt,
+    achievementsQueued: state.achievementQueue.length,
+    achievementsWritten: state.achievementsWritten
   };
 }
 
@@ -378,6 +636,120 @@ export function leaderboardHandler(game: MazeGame): (request: Request, response:
       })
       .catch(() => {
         response.status(503).json({ error: 'Leaderboard gerade nicht verfügbar.' });
+      });
+  };
+}
+
+const EMPTY_STATS: ProfileStats = {
+  runs: 0,
+  bestScore: 0,
+  bestLevel: 0,
+  bestKills: 0,
+  bestStreak: 0,
+  longestRunSeconds: 0,
+  totalKills: 0,
+  totalSeconds: 0,
+  firstRunAt: null,
+  lastRunAt: null
+};
+
+/** Rohdaten in die öffentliche Form bringen und mit Katalogtexten anreichern. */
+function toPublicProfile(snapshot: ProfileSnapshot): PublicProfile {
+  return {
+    userId: snapshot.userId,
+    displayName: snapshot.displayName,
+    memberSince: snapshot.memberSince,
+    stats: snapshot.stats ?? EMPTY_STATS,
+    achievements: snapshot.achievements
+      // Ein Achievement, das der Katalog nicht kennt (z. B. nach einem
+      // Rückbau), wird ausgelassen statt halb dargestellt.
+      .filter((entry) => entry.achievementId in ACHIEVEMENT_CATALOG)
+      .map((entry) => ({
+        id: entry.achievementId,
+        name: ACHIEVEMENT_CATALOG[entry.achievementId].name,
+        description: ACHIEVEMENT_CATALOG[entry.achievementId].description,
+        unlockedAt: entry.unlockedAt
+      }))
+  };
+}
+
+const rememberProfile = (state: PersistenceState, userId: string, profile: PublicProfile | null): void => {
+  // Die Route ist öffentlich: Der Cache bleibt beschränkt, damit zufällige
+  // UUIDs den Speicher nicht aufblähen. Ältester Eintrag fliegt zuerst.
+  if (state.profileCache.size >= MAX_PROFILE_CACHE) {
+    const oldest = state.profileCache.keys().next();
+    if (!oldest.done) state.profileCache.delete(oldest.value);
+  }
+  state.profileCache.set(userId, { profile, fetchedAt: Date.now() });
+};
+
+/**
+ * Profil eines Kontos: Bestleistungen aus `runs` plus freigeschaltete
+ * Achievements. Gecacht wie das Leaderboard – auch das „kenne ich nicht",
+ * damit zufällige Anfragen die Datenbank nicht treffen.
+ */
+export async function profile(game: MazeGame, userId: string): Promise<PublicProfile | null> {
+  const state = stateFor(game);
+  if (!state.enabled || !state.client || !UUID_PATTERN.test(userId)) return null;
+  const cached = state.profileCache.get(userId);
+  const now = Date.now();
+  if (cached && now - cached.fetchedAt < state.leaderboardCacheMs) return cached.profile;
+  const inFlight = state.profileInFlight.get(userId);
+  if (inFlight) return inFlight;
+
+  const client = state.client;
+  const request = client.profileFor(userId)
+    .then((snapshot) => {
+      const result = snapshot ? toPublicProfile(snapshot) : null;
+      rememberProfile(state, userId, result);
+      return result;
+    })
+    .catch((error: unknown) => {
+      noteError(state, 'Profil-Abfrage fehlgeschlagen', error);
+      // Lieber leicht veraltet als kaputt.
+      if (cached) return cached.profile;
+      throw error instanceof Error ? error : new Error(String(error));
+    })
+    .finally(() => { state.profileInFlight.delete(userId); });
+  state.profileInFlight.set(userId, request);
+  return request;
+}
+
+/**
+ * Express-Handler für `GET /profile/:userId`. Verhält sich wie
+ * `/leaderboard`: 404 ohne Persistenz, 503 wenn Supabase nicht antwortet und
+ * nichts im Cache liegt.
+ */
+export function profileHandler(game: MazeGame): (request: Request, response: Response) => void {
+  return (request: Request, response: Response): void => {
+    const state = stateFor(game);
+    if (!state.enabled) {
+      response.status(404).json({ error: 'Profile sind nicht konfiguriert.' });
+      return;
+    }
+    const userId = String(request.params['userId'] ?? '');
+    // Ungültige IDs kosten keine Datenbankabfrage.
+    if (!UUID_PATTERN.test(userId)) {
+      response.status(400).json({ error: 'Ungültige Konto-ID.' });
+      return;
+    }
+
+    void profile(game, userId)
+      .then((found) => {
+        if (!found) {
+          response.status(404).json({ error: 'Profil nicht gefunden.' });
+          return;
+        }
+        const cachedAt = state.profileCache.get(userId)?.fetchedAt ?? Date.now();
+        response.setHeader('Cache-Control', `public, max-age=${Math.round(state.leaderboardCacheMs / 1000)}`);
+        response.json({
+          ...found,
+          cachedAt: new Date(cachedAt).toISOString(),
+          cacheSeconds: Math.round(state.leaderboardCacheMs / 1000)
+        });
+      })
+      .catch(() => {
+        response.status(503).json({ error: 'Profil gerade nicht verfügbar.' });
       });
   };
 }
@@ -442,18 +814,29 @@ export function tunePersistence<T extends MazeGame>(game: T, options: Persistenc
     if (state.lifeStartedAt.size > internals.players.size) {
       for (const id of state.lifeStartedAt.keys()) if (!internals.players.has(id)) state.lifeStartedAt.delete(id);
     }
+    // Ein Map-Größenvergleich pro Tick; nachgereichte Vorladungen sind selten.
+    if (state.pendingSeed.size > 0) applyPendingSeeds(game, state);
   }) as T['step'];
 
   const originalRemovePlayer = game.removePlayer.bind(game);
   game.removePlayer = ((id: string): void => {
+    // Beim Verlassen noch einsammeln, was die Engine zuletzt vergeben hat –
+    // danach ist ihr Fortschritt weg.
+    collectAchievementUnlocks(game, state);
     state.lifeStartedAt.delete(id);
     state.accounts.delete(id);
+    state.pendingSeed.delete(id);
     originalRemovePlayer(id);
   }) as T['removePlayer'];
 
   const flushIntervalMs = options.flushIntervalMs
     ?? integerEnvironment('PERSISTENCE_FLUSH_MS', DEFAULT_FLUSH_INTERVAL_MS, 500, 120_000);
-  state.timer = setInterval(() => { void flush(state); }, flushIntervalMs);
+  state.timer = setInterval(() => {
+    // Sammeln und schreiben laufen im selben Intervall – beides außerhalb der
+    // Simulation.
+    collectAchievementUnlocks(game, state);
+    void flush(state);
+  }, flushIntervalMs);
   // Der Puffer darf den Prozess nicht am Leben halten.
   state.timer.unref();
 

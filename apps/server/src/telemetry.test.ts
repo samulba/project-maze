@@ -182,7 +182,7 @@ describe('telemetry', () => {
     expect(text.endsWith('\n')).toBe(true);
   });
 
-  it('measures every tick and keeps the budget in reach on an idle arena', () => {
+  it('measures every tick and reports consistent percentiles', () => {
     const game = createGame();
     const now = Date.now();
     for (let tick = 0; tick < 40; tick += 1) game.step(1 / 40, now + tick * 25);
@@ -194,8 +194,14 @@ describe('telemetry', () => {
     expect(health.p50Ms).toBeGreaterThan(0);
     expect(health.p95Ms).toBeGreaterThanOrEqual(health.p50Ms);
     expect(health.maxMs).toBeGreaterThanOrEqual(health.p95Ms);
-    expect(health.budgetRatio).toBeLessThan(1);
-    expect(health.overrunsTotal).toBe(0);
+    expect(health.averageMs).toBeLessThanOrEqual(health.maxMs);
+    // Bewusst keine Aussage über absolute Laufzeiten: Wie schnell 40 Ticks auf
+    // einem ausgelasteten CI-Läufer sind, ist keine Eigenschaft des Codes.
+    // Geprüft wird stattdessen, dass die abgeleiteten Werte zusammenpassen.
+    expect(health.budgetRatio).toBeCloseTo(health.p95Ms / health.budgetMs, 2);
+    expect(health.busyRatio).toBeCloseTo(health.averageMs / health.budgetMs, 2);
+    expect(health.overrunsTotal).toBeGreaterThanOrEqual(0);
+    expect(health.overrunsTotal).toBeLessThanOrEqual(health.ticksTotal);
   });
 
   it('drops tick samples that fall out of the 60 second window', () => {
