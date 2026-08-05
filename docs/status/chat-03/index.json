@@ -6,7 +6,7 @@
     "apps/server"
   ],
   "aktualisiert": "2026-08-05",
-  "latest": "09-neon-raus.md",
+  "latest": "10-signature-perf.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -97,11 +97,22 @@
       "datei": "09-neon-raus.md",
       "branch": "claude/project-maze-neon-raus-o2q3n4",
       "basis": "main@a36a0dd",
-      "status": "offen",
+      "status": "in main",
       "tests": "36 Dateien / 449 Tests gruen, Vorher/Nachher-Screenshots im Bericht",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 10,
+      "titel": "Signature-Anzeige (Klassen 3.0) + Perf-Telemetrie-Sender",
+      "datei": "10-signature-perf.md",
+      "branch": "claude/project-maze-signature-perf-o2q3n4",
+      "basis": "main@2551d34",
+      "status": "offen",
+      "tests": "17 neu / 517 gesamt, Round-Trip gegen den laufenden Server",
       "braucht_von_01": [
         "Merge",
-        "danach Sams Urteil - 'ruhig genug' ist keine messbare Groesse"
+        "danach kann 02 das Momentum-Flag zuenden - die Anzeige steht",
+        "nach dem Ausrollen: maze_client_low_fps_ratio{quality=\"webgl-kompat\"} beobachten"
       ]
     }
   ]

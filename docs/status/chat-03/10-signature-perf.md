@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 03
-
-> Kopie von `10-signature-perf.md`. Diese Datei zeigt immer das jüngste
-> fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 10 – Signature-Anzeige (Klassen 3.0) + Perf-Telemetrie-Sender
 
 **Branch:** `claude/project-maze-signature-perf-o2q3n4` · **Basis:** `origin/main` @ `2551d34` · **Status: OFFEN – wartet auf Merge**
