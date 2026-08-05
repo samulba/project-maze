@@ -200,6 +200,43 @@
   letter-spacing: .12em;
 }
 .start-sound > b { color: #cfd4e4; font-size: 10px; font-variant-numeric: tabular-nums; }
+
+/* Grafikstufe und Vollbild – dieselbe Zeile, weil beide die Darstellung betreffen. */
+.start-display {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.start-quality {
+  display: grid;
+  gap: 6px;
+  color: #7d859b;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+.start-fullscreen {
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  transition: background .16s, border-color .16s, color .16s;
+}
+.start-fullscreen:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+}
+.start-fullscreen[hidden] { display: none; }
 .start-sound > input { grid-column: 1 / -1; }
 /* Das Loadout wird hier hineingezogen – ohne eigenen Rahmen, es ist schon drin. */
 .start-settings-body .core-loadout {

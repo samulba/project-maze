@@ -15,6 +15,22 @@
 .hud{position:absolute;inset:0;pointer-events:none}.top-left{position:absolute;top:var(--edge-y);left:var(--edge-x);width:250px}.player-panel{padding:14px;border-radius:16px}.player-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.player-heading strong,.player-heading span{display:block}.player-heading strong{max-width:160px;overflow:hidden;color:var(--text);font-size:14px;text-overflow:ellipsis;white-space:nowrap}.player-heading span{margin-top:3px;color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.14em}.level-badge{min-width:52px;padding:7px 8px;border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);border-radius:9px;color:var(--faint);background:color-mix(in srgb,var(--accent) 8%,transparent);text-align:center;font-size:9px;font-weight:800;letter-spacing:.08em}.level-badge b{display:block;margin-top:1px;color:var(--accent);font-size:14px}.meter{height:7px;margin-top:13px;overflow:hidden;border-radius:999px;background:color-mix(in srgb,var(--text) 10%,transparent)}.meter>div{height:100%;border-radius:inherit;transition:width .12s linear}.health-meter>div{background:linear-gradient(90deg,var(--success),color-mix(in srgb,var(--success) 65%,#b9ffda))}.xp-meter{height:5px;margin-top:10px}.xp-meter>div{background:linear-gradient(90deg,var(--accent),var(--accent2))}.meter-row{display:flex;justify-content:space-between;gap:8px;margin-top:7px;color:var(--faint);font-size:9px;font-weight:750;letter-spacing:.04em}/* Punkte-Badge und Sheet-Schließer gehören zum Touch-Layout (mobile.css) –
    auf Maus-Geräten steht das Upgrade-Panel ohnehin dauerhaft offen. */
 .points-badge,.sheet-close{display:none}
+/*
+ * Große Bildschirme (R2): Ab etwa 1920 px wächst das HUD mit, darunter ändert
+ * sich nichts. Die vw-Faktoren sind so gewählt, dass der Wert bei genau 1920 px
+ * dem bisherigen Pixelwert entspricht – der geprüfte 1080p-Look bleibt also
+ * unangetastet, und auf 4K ist das HUD nicht mehr briefmarkengroß.
+ */
+.top-left{width:clamp(250px,13.02vw,330px)}
+.leaderboard{width:clamp(278px,14.48vw,366px)}
+.upgrade-panel{width:clamp(282px,14.69vw,372px)}
+.player-heading strong{font-size:clamp(14px,.73vw,18px)}
+.level-badge b{font-size:clamp(14px,.73vw,18px)}
+.meter-row{font-size:clamp(9px,.47vw,12px)}
+.leader-row{font-size:clamp(10px,.52vw,13px)}
+.upgrade-list button>span{font-size:clamp(10px,.52vw,13px)}
+.panel-title,.upgrade-header{font-size:clamp(9px,.47vw,12px)}
+.killfeed div{font-size:clamp(9px,.47vw,12px)}
 /* Signature (Klassen 3.0): Der Balken sitzt am Tank, hier steht nur, wie er
    heißt. Akzentfarbe, weil der Wert eine Fähigkeit beschreibt. */
 .signature-row{margin-top:9px;padding-top:8px;border-top:1px solid var(--line)}

@@ -25,6 +25,7 @@ import { GameplayUI } from './gameplay-ui';
 import { InputController } from './input';
 import { OnboardingCoach } from './onboarding-view';
 import { startPerfReporting } from './perf-metrics';
+import { QualityControl } from './quality-panel';
 import { GameRenderer } from './renderer';
 import { SnapshotHydrator, isWireSnapshot, type WireServerMessage } from './snapshot-hydrator';
 import { SpectatorBanner } from './spectator';
@@ -135,7 +136,10 @@ enhanceClassChoices(ui.root);
 const GRAPHICS_HELP = 'Grafik konnte nicht gestartet werden. Das liegt fast immer am Browser: Hardwarebeschleunigung einschalten (Einstellungen → System), ein paar Tabs schließen oder den Browser einmal komplett schließen und neu öffnen. Danach unten auf NEU LADEN drücken.';
 
 ui.setJoinPending(true, 'Grafik wird geladen …', 'booting');
-const rendererReady = renderer.init(ui.root);
+// Die Stufe muss VOR dem Start feststehen: Antialias und Auflösung lassen sich
+// an einem laufenden Grafikkontext nicht mehr ändern.
+const rendererReady = renderer.init(ui.root, QualityControl.initialTier());
+new QualityControl(ui.root, renderer, () => enteredGame && joined);
 // Sicherheitsnetz hinter den Init-Zeitlimits (3 Versuche à 6 s): Sollte trotzdem
 // etwas hängen, bleibt der Spieler nicht ohne Erklärung sitzen.
 const stuckNotice = window.setTimeout(() => ui.setJoinPending(true, GRAPHICS_HELP, 'failed'), 20_000);
