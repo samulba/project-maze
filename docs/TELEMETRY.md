@@ -289,15 +289,25 @@ darunter: sonst würde die Loadout-Erhebung alle 250 ms das p95 verzerren.
 Referenzmessung auf einem Entwicklungsrechner (8 Bots, Lasttest-Clients auf
 derselben Maschine, daher pessimistisch):
 
-| Spieler | p50 Dauer | p95 Dauer | budgetRatio | p95 Abstand |
-| --- | --- | --- | --- | --- |
-| 25 | 1,3 ms | 2,7 ms | 0,11 | 26 ms |
-| 40 (Arena voll) | 1,9 ms | 4,7 ms | 0,19 | 34 ms |
+| Spieler | p50 Dauer | p95 Dauer | budgetRatio | p95 Abstand | Stand |
+| --- | --- | --- | --- | --- | --- |
+| 25 | 1,3 ms | 2,7 ms | 0,11 | 26 ms | 2026-08-05 |
+| 40 (Arena voll) | 1,9 ms | 4,7 ms | 0,19 | 34 ms | 2026-08-05 |
+| 40 (Arena voll) | 1,8 ms | 2,6 ms | 0,10 | 27 ms | 2026-08-06, 4 Kerne |
 
-Die Lehre daraus: Die Simulation ist bei voller Arena erst zu einem Fünftel
-ausgelastet – die Grenze setzt der Snapshot-Versand, sichtbar am Abstand von
-34 ms statt 25 ms. Wer mehr Spieler pro Instanz will, optimiert also zuerst
-den Snapshot-Pfad, nicht die Physik.
+Die Lehre daraus gilt unverändert: Die Simulation ist bei voller Arena nicht
+das Problem – nach der Messung vom 06. August ist sie zu einem Zehntel
+ausgelastet. Die Grenze setzt der Snapshot-Versand, sichtbar daran, dass der
+Tick-*Abstand* über dem 25-ms-Soll liegt. Der Abstand ist gegenüber August
+deutlich näher ans Soll gerückt (27 statt 34 ms), sitzt aber weiterhin über der
+Simulationsdauer. Wer mehr Spieler pro Instanz will, optimiert also zuerst den
+Snapshot-Pfad, nicht die Physik.
+
+Die beiden Zeilen vom 05. und 06. August stammen von **verschiedenen
+Maschinen** – die CPU-Zahlen sind deshalb nicht direkt vergleichbar. Was sich
+vergleichen lässt, ist die Bandbreite (Bytes sind maschinenunabhängig), und die
+stimmt zwischen beiden Messungen auf unter ein Prozent überein. Der vollständige
+Vergleich steht unten unter [Lastprobe-Matrix](#lastprobe-matrix-reproduzierbar-fahren).
 
 Passende Alarme:
 
@@ -309,6 +319,162 @@ rate(maze_tick_overruns_total[5m]) > 1
 
 Gegenprobe mit echter Last: `npm run loadtest -- --url <ws-url> --clients 40`
 (siehe [`DEPLOYMENT.md`](./DEPLOYMENT.md#lasttest)).
+
+## Lastprobe-Matrix reproduzierbar fahren
+
+Ein einzelner Lastlauf beantwortet nichts. „Tick p95 = 2,4 ms" ist ohne einen
+zweiten Lauf daneben keine Aussage – erst der Vergleich zeigt, was ein Schalter
+kostet. Deshalb wird die Kapazität als **Matrix** gemessen: dieselbe Last, ein
+Durchgang je Schalterstellung, mehrfach wiederholt.
+
+### Aufbau
+
+Ein frischer Server je Durchgang, danach 40 Clients über 60 Sekunden:
+
+```bash
+npm run build -w @project-maze/shared && npm run build -w @project-maze/server
+
+PORT=2610 BOT_COUNT=8 TELEMETRY_ENABLED=true ENABLE_DEV_TOOLS=false \
+RATE_LIMITS_ENABLED=true RATE_LIMIT_CONNECTIONS_PER_IP=200 RATE_LIMIT_JOINS_PER_MINUTE=400 \
+SNAPSHOT_DELTAS=true SHORT_NET_IDS=true ACHIEVEMENTS_ENABLED=true \
+SPECTATOR_ENABLED=true SIGNATURE_RAPID_ENABLED=true \
+node apps/server/dist/index.js &
+
+sleep 12                                    # Vorlauf: Bots kämpfen, Projektile pendeln sich ein
+node scripts/loadtest.mjs --url ws://127.0.0.1:2610 --clients 40 --duration 60 --json > lauf.json
+curl -s 'http://127.0.0.1:2610/metrics?format=json&subject=all' > metriken.json   # SOFORT danach
+curl -s http://127.0.0.1:2610/health > health.json
+kill %1
+```
+
+Vier Dinge daran sind nicht optional:
+
+1. **`RATE_LIMIT_CONNECTIONS_PER_IP` hochsetzen.** 40 Clients auf einem Host
+   teilen sich `127.0.0.1`. Mit dem Produktionswert 5 misst der Lauf den
+   Rate-Limiter, nicht die Arena. Die *Nachrichten*budgets (Input 50/s) bleiben
+   unangetastet – die sollen ja mitgemessen werden.
+2. **`/metrics` sofort nach dem Lauf ziehen.** Das Tick-Fenster ist 60 Sekunden
+   lang und wandert weiter; eine Minute später steht dort die Leerlaufphase.
+3. **Vorlauf abwarten.** Direkt nach dem Start ist die Arena leer und die
+   Projektilzahl niedrig – die ersten Sekunden würden den Schnitt beschönigen.
+4. **`/health` mitschreiben, nicht nur am Ende lesen.** Die Zahl der Projektile
+   und Drohnen schwankt stark; ein Endstand allein sagt nichts. Ein Abgriff pro
+   Sekunde reicht.
+
+### Was „volle Arena" heißt
+
+`GAME.maxPlayers = 40` begrenzt die **Menschen**; die Bots des Arena-Direktors
+kommen obendrauf. Bei 40 Clients joinen alle 40, der Direktor fährt die
+Bot-Population auf ihr Minimum herunter, und in der Arena stehen rund **44
+Tanks**. „Arena voll" heißt also 44 simulierte Einheiten, nicht 40.
+
+### Rauschen
+
+Die simulierten Clients wählen Klassen und Upgrades zufällig. Landen sie auf
+Drohnenklassen, laufen zweistellig mehr Entitäten mit – zwischen zwei sonst
+identischen Läufen schwankte die mittlere Drohnenzahl um mehr als das Doppelte
+(4,4 bis 12,4). Ein einzelner Lauf je Konfiguration ist deshalb wertlos.
+
+**Drei Runden fahren, im Wechsel A–B–C–D, A–B–C–D, A–B–C–D**, und Median plus
+Spannweite berichten. Blockweise (dreimal A, dann dreimal B) wäre falsch: driftet
+die Maschine, verschiebt sie ganze Konfigurationen gegeneinander.
+
+### Referenzwerte 2026-08-06
+
+Median aus drei Runden, 40 Clients, 60 s, 4-Kern-Maschine, Lasttest-Clients auf
+derselben Maschine (daher pessimistisch). In Klammern die Spannweite über die
+drei Runden.
+
+| Lauf | Schalter | p50 | p95 | budgetRatio | Abstand p95 | KB/s je Client | Projektile ⌀ |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **A** Referenz | keiner | 1,80 ms | 2,57 ms (2,26–2,77) | 0,103 | 26,7 ms | 230,8 (223,5–239,6) | 71 |
+| **B** Bandbreite | `SNAPSHOT_DELTAS`, `SHORT_NET_IDS` | 1,81 ms | 2,66 ms (2,55–2,71) | 0,106 | 28,1 ms | 123,6 (121,5–127,2) | 65 |
+| **C** Signature | `SIGNATURE_RAPID_ENABLED` | 2,10 ms | 2,93 ms (2,75–3,27) | 0,117 | 26,0 ms | 237,6 (228,8–240,0) | 74 |
+| **D** Alle an | alle fünf | 1,97 ms | 2,83 ms (2,60–3,07) | 0,113 | 26,8 ms | 129,1 (126,6–133,9) | 70 |
+
+In allen zwölf Läufen: 40 von 40 Joins, keine Abbrüche, **keine einzige
+gedrosselte Nachricht**, Snapshot-Latenz p95 = 1 ms, Snapshot-Rate 30,5–30,6/s
+je Client, rund 44 Tanks in der Arena.
+
+Drei Ablesungen:
+
+- **Die Bandbreiten-Schalter halten, was die Messung vom August versprach.**
+  231 → 124 KB/s je Client (**−46 %**); die frühere Messung nannte −45 %. Mit
+  allen fünf Schaltern sind es 129 KB/s (−44 %) – der Aufschlag gegenüber B geht
+  auf Achievements und Spectator, die den Snapshot wieder etwas größer machen.
+- **„Alle Schalter an" kostet rund ein Zehntel mehr Tickzeit.** D liegt beim p95
+  bei 2,83 ms gegen 2,57 ms bei A. Das sind 11 % des 25-ms-Budgets statt 10 % –
+  die Arena trägt die volle Ausstattung mit großem Abstand.
+- **Die Signature „Momentum" ist der teuerste einzelne Schalter, aber knapp an
+  der Nachweisgrenze.** C liegt in allen drei Runden über A (p95 2,93 gegen
+  2,57 ms, Auslastung 0,085 gegen 0,076), die Spannweiten berühren sich nur am
+  Rand (A bis 2,77, C ab 2,75). Ein Aufschlag von rund 0,3 ms – gut ein
+  Prozentpunkt Budget – ist plausibel, mit drei Runden aber **nicht bewiesen**.
+  Er passt zur Wirkung: mehr Feuerrate heißt mehr Projektile (74 gegen 71).
+
+> **Was der Lastlauf hier nicht misst:** Momentum wirkt nur für die
+> Rapid-Familie bei vollem Ausschlag. In 60 Sekunden erreichen die simulierten
+> Clients diesen Zustand selten – die echte Wirkung gehört im Betrieb gemessen,
+> nicht im Lastlauf. Die Zahl oben ist eine Obergrenze für die *Serverlast*,
+> keine Aussage über die Spielwirkung.
+
+### Kosten des Projektiltempo-Dämpfers
+
+Der Dämpfer verlängert die Projektil-Lebenszeit im selben Maß, in dem er das
+Tempo senkt (`projectileLife = base.projectileLife / speedScale`): Faktor 1,33
+für alle Familien außer Precision, dort 1,11. Mehr gleichzeitig fliegende
+Projektile heißen mehr Paare in `resolveProjectileCollisions` – die Frage von 02
+war, was das kostet.
+
+Abschalten lässt er sich nicht (kein Flag), aber die zwölf Läufe liefern die
+Antwort über die Steigung: Tick-Mittel gegen mittlere Projektilzahl, kleinste
+Quadrate, **0,023 ms je Projektil** (r = 0,70).
+
+| | Projektile ⌀ | Tick-Mittel | Anteil am 25-ms-Budget |
+| --- | --- | --- | --- |
+| gemessen (mit Dämpfer) | 70,5 | – | – |
+| rechnerisch ohne Dämpfer | 52,9 | −0,40 ms | −1,6 %-Punkte |
+
+**Der Dämpfer kostet rund anderthalb Prozentpunkte Tickbudget** – bei einer
+Auslastung von 8 % im Mittel und 10–12 % im p95. Das ist messbar und
+unkritisch. Zur Einordnung: Bei 0,023 ms je Projektil wäre das Tickbudget erst
+bei über tausend gleichzeitigen Projektilen erschöpft; beobachtet wurden im
+Spitzenwert 114.
+
+Die Steigung gilt nur im gemessenen Bereich (60–80 Projektile im Mittel) und
+mischt zwangsläufig den Einfluss der Drohnen mit ein, die mit den Projektilen
+zusammen schwanken – das drückt sich in r = 0,70 aus. Wer eine saubere Zahl
+will, braucht ein temporäres Flag am Dämpfer und einen A/B-Lauf; für die
+Kapazitätsfrage reicht diese Schranke.
+
+### Warum der Lasttest die Schalter mitspielen muss
+
+Die erste Runde dieser Matrix lieferte für B und D deutlich *bessere* Werte als
+für A und C – bis der Blick auf `classChoicesSent` das erklärte: **null**
+Klassenwahlen und **null** Upgrades in allen sechs Läufen mit
+`SHORT_NET_IDS=true`, gegen 15–21 und rund 430 ohne.
+
+Die Ursache liegt nicht im Server, sondern in der Übertragungsebene und einem
+Lasttest, der sie ignorierte:
+
+- **`SHORT_NET_IDS` nummeriert alle Entitäts-IDs durch – auch `snapshot.selfId`.
+  Die `welcome`-Nachricht trägt weiterhin die UUID.** Wer seine eigene ID aus
+  dem Welcome behält und im Snapshot danach sucht, findet sich nie wieder:
+  keine Level, keine Upgrades, keine Klassenwahl, kein Respawn nach dem Tod.
+- **`SNAPSHOT_DELTAS` lässt Name, Klasse, Bot-Flag und Upgrades weg, solange sie
+  unverändert sind.** Fehlende Felder heißen „unverändert", nicht „leer".
+
+Der ausgelieferte Client macht beides richtig (`snapshot-hydrator.ts` puffert
+die Statik, `renderer.ts` und `ui.ts` lesen `snapshot.selfId`) – der Lasttest
+tat es nicht und maß deshalb eine geschönte Last: Level-1-Tanks ohne Upgrades,
+die nach dem ersten Tod liegen blieben. Seit `readSelf()` in
+`scripts/loadtest.mjs` liest er seine ID aus dem Snapshot und behält fehlende
+Felder. **Die Zahlen oben stammen aus der Wiederholung nach dieser Korrektur.**
+
+Die Lehre für jede weitere Messung: Ein Lasttest, der einen Schalter nicht
+mitspielt, meldet keinen Fehler – er meldet zu gute Zahlen. Bei jeder neuen
+Matrix gehört `classChoicesSent`/`upgradesSent` deshalb mit auf den
+Prüfstand; stehen sie bei null, misst der Lauf etwas anderes als gedacht.
 
 ## Client-Perf-Telemetrie
 

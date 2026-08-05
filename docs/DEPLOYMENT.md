@@ -60,7 +60,7 @@ docker build -f apps/client/Dockerfile --build-arg VITE_WS_URL=wss://maze.exampl
 | `SHUTDOWN_DRAIN_MS` | `0` | 0–30000 | Vorlauf beim Herunterfahren, in dem `/health` bereits `503` meldet, der Listener aber noch offen ist. Railway nimmt die Instanz schon beim Signal aus dem Verkehr und braucht das nicht; hinter einem eigenen Loadbalancer sind 500–2000 ms sinnvoll. |
 | `SNAPSHOT_DELTAS` | `false` | `true`/`false` | Lässt unveränderte Snapshot-Felder (Name, Klasse, Upgrades, Wände, Bestenliste, Killfeed, Formstatik) weg – rund 40 % weniger Bytes je Snapshot. **Setzt einen Client voraus, der den letzten Stand puffert.** Das Runden der Zahlen ist davon unabhängig und immer aktiv. |
 | `ARENA_DIRECTOR_ENABLED` | `true` | `true`/`false` | Dynamische Bot-Population: Zielgröße richtet sich nach der Zahl der Menschen (1 → 8 Bots, je weiterem −1, Minimum 3), höchstens eine Änderung alle 5 s. Bots verschwinden nur tot oder weit außer Sicht. Bei `false` bleibt die Population starr bei `BOT_COUNT` – dem Verhalten vor dem Direktor. |
-| `SHORT_NET_IDS` | `false` | `true`/`false` | Ersetzt Entitäts-UUIDs im Snapshot durch fortlaufende Zahlen. Gemessen mit 40 Clients: zusätzlich rund 16 % weniger Bytes gegenüber `SNAPSHOT_DELTAS` allein. **Setzt einen Client voraus, der Zahlen als Entitäts-ID akzeptiert.** |
+| `SHORT_NET_IDS` | `false` | `true`/`false` | Ersetzt Entitäts-UUIDs im Snapshot durch fortlaufende Zahlen. Gemessen mit 40 Clients: zusätzlich rund 16 % weniger Bytes gegenüber `SNAPSHOT_DELTAS` allein. **Setzt einen Client voraus, der Zahlen als Entitäts-ID akzeptiert – und der seine eigene ID aus `snapshot.selfId` nimmt, nicht aus der `welcome`-Nachricht** (die trägt weiterhin die UUID; siehe unten). |
 | `SPECTATOR_ENABLED` | `false` | `true`/`false` | Toter Spieler sieht bis zum Respawn live seinem Killer zu: Der Snapshot wird aus dessen Perspektive gebaut, `selfId` bleibt die eigene. **Setzt einen Client voraus, der die Kamera auf `spectatorTargetId` zentriert** – sonst steht die Kamera auf der Leiche und der Bildschirm bleibt leer. |
 | `ACHIEVEMENTS_ENABLED` | `false` | `true`/`false` | Serverseitige Achievement-Engine. Rein beobachtend, Fortschritt nur im Arbeitsspeicher und nur je Verbindung. Ohne den Schalter wird die Schicht nicht angehängt und der Server verhält sich exakt wie vorher. |
 | `NODE_ENV` | – | `production` | Von Compose gesetzt; schaltet Express in den Produktionsmodus. |
@@ -183,6 +183,28 @@ außerhalb der Simulation auf. Details in [`TELEMETRY.md`](./TELEMETRY.md).
 
 Den Lasttest nie gegen eine produktive Arena mit echten Spielern fahren – er
 belegt reale Plätze.
+
+**Was ein Schalter kostet**, beantwortet ein einzelner Lauf nicht – dafür wird
+dieselbe Last je Schalterstellung gefahren und mehrfach wiederholt. Rezept,
+Fallstricke (Rate-Limits auf einem Host, Tick-Fenster sofort abgreifen) und die
+Referenzwerte vom 2026-08-06 stehen in
+[`TELEMETRY.md`](./TELEMETRY.md#lastprobe-matrix-reproduzierbar-fahren).
+
+### Die eigene ID mit `SHORT_NET_IDS`
+
+Die `welcome`-Nachricht trägt die **UUID** des Spielers; sobald
+`SHORT_NET_IDS=true` gesetzt ist, tragen die Snapshots dagegen fortlaufende
+Zahlen – auch in `snapshot.selfId`. Ein Client, der sich die ID aus dem Welcome
+merkt und im Snapshot danach sucht, findet sich **nie** wieder: kein Level, kein
+Upgrade, keine Klassenwahl, kein Respawn nach dem Tod. Nichts davon meldet
+einen Fehler, das Spiel wirkt nur seltsam leblos.
+
+Der ausgelieferte Client macht es richtig (`snapshot-hydrator.ts` wandelt eine
+numerische `selfId` in einen String, `renderer.ts` und `ui.ts` lesen sie aus dem
+Snapshot). Für jedes weitere Werkzeug gilt: **eigene ID immer aus dem
+Snapshot**. Der Lasttest tat das bis zum 06.08. nicht und maß deshalb eine
+geschönte Last – die Geschichte steht in
+[`TELEMETRY.md`](./TELEMETRY.md#warum-der-lasttest-die-schalter-mitspielen-muss).
 
 ## Rate-Limits und Missbrauchsschutz
 

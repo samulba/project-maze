@@ -477,5 +477,21 @@ describe('balance-live report', () => {
     const text = formatReport(after, OPTIONS, diffDumps(before, after, OPTIONS));
     expect(text).toContain('VERGLEICH mit');
     expect(text).toContain('neu gestartet');
+    expect(text).toContain('einer anderen Instanz');
+  });
+
+  it('names both sources when the baseline came from somewhere else', () => {
+    // Ein eingecheckter Abzug aus einem Lastlauf gegen eine Produktionsinstanz
+    // zu halten ist der wahrscheinlichste Fehlgriff – dann muss dastehen,
+    // welche zwei Quellen da verglichen werden.
+    const before = buildDump(report({ uptimeSeconds: 7200 }), OPTIONS, '2026-08-06T10:00:00.000Z', 'http://127.0.0.1:2610/metrics');
+    const after = buildDump(report({ uptimeSeconds: 120 }), OPTIONS, '2026-08-06T12:00:00.000Z', 'https://mazers.de/metrics');
+    const text = formatReport(after, OPTIONS, diffDumps(before, after, OPTIONS));
+    expect(text).toContain('Baseline-Quelle: http://127.0.0.1:2610/metrics');
+    expect(text).toContain('Jetzige Quelle:  https://mazers.de/metrics');
+
+    // Bei gleicher Quelle bleibt der Hinweis weg – sonst wird er zum Rauschen.
+    const sameSource = buildDump(report({ uptimeSeconds: 7200 }), OPTIONS, '2026-08-06T10:00:00.000Z', 'https://mazers.de/metrics');
+    expect(formatReport(after, OPTIONS, diffDumps(sameSource, after, OPTIONS))).not.toContain('Baseline-Quelle:');
   });
 });

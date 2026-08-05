@@ -533,9 +533,14 @@ export function formatDiff(diff, options) {
     lines.push('  Fenster mit dem Stand davor.', '');
   } else {
     lines.push(`VERGLEICH mit ${diff.baseline.capturedAt}`, '');
-    lines.push('  ! Die Zähler sind seit dem Abzug nicht durchgehend gewachsen – der Server');
-    lines.push('    wurde zwischendurch neu gestartet. Ein sauberes Zeitfenster ist damit');
-    lines.push('    nicht rekonstruierbar; verglichen werden zwei Gesamtstände.', '');
+    lines.push('  ! Die Zähler sind seit dem Abzug nicht durchgehend gewachsen. Entweder');
+    lines.push('    wurde der Server zwischendurch neu gestartet, oder der Abzug stammt von');
+    lines.push('    einer anderen Instanz. Ein Zeitfenster ist damit nicht rekonstruierbar;');
+    lines.push('    verglichen werden zwei Gesamtstände.', '');
+    if (diff.baseline.source !== diff.current.source) {
+      lines.push(`    Baseline-Quelle: ${diff.baseline.source}`);
+      lines.push(`    Jetzige Quelle:  ${diff.current.source}`, '');
+    }
   }
 
   const movers = [...diff.classes]
