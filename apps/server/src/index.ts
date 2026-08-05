@@ -366,7 +366,7 @@ app.get('/health', (_request: Request, response: Response) => {
     version: '1.0.0-alpha',
     // Zeigt, welcher Stand wirklich ausgeliefert wird – Railway setzt die Variable beim Build.
     commit: (process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT ?? 'unbekannt').slice(0, 7),
-    build: 'sprint-b+auth+achievements+gfx-fallback',
+    build: 'sprint-b2+static-renderers',
     snapshotRate: GAME.snapshotRate,
     debugTools: ENABLE_DEV_TOOLS,
     // Macht die Feature-Schalter von außen prüfbar – sonst sieht man einer
