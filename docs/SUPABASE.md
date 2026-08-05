@@ -43,7 +43,7 @@ diesem Repository. So ist jederzeit nachvollziehbar, wie das Schema aussieht.
 1. In der linken Seitenleiste **SQL Editor** öffnen.
 2. **New query** klicken.
 3. Den kompletten Inhalt von
-   [`supabase/migrations/20260805120000_create_runs.sql`](../supabase/migrations/20260805120000_create_runs.sql)
+   [`supabase/migrations/applied/20260805120000_create_runs.sql`](../supabase/migrations/applied/20260805120000_create_runs.sql)
    kopieren und in das Editorfenster einfügen.
 4. Unten rechts auf **Run** klicken (oder `Strg`/`Cmd` + `Enter`).
 5. Erwartete Ausgabe: `Success. No rows returned.`
@@ -220,7 +220,7 @@ Wie Schritt 2, nur mit der zweiten Datei:
 
 1. **SQL Editor** → **New query**
 2. Inhalt von
-   [`supabase/migrations/20260805130000_0002_profiles_and_run_user.sql`](../supabase/migrations/20260805130000_0002_profiles_and_run_user.sql)
+   [`supabase/migrations/applied/20260805130000_0002_profiles_and_run_user.sql`](../supabase/migrations/applied/20260805130000_0002_profiles_and_run_user.sql)
    einfügen → **Run**
 3. Erwartet: `Success. No rows returned.`
 
