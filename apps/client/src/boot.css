@@ -1,0 +1,102 @@
+/*
+ * Ladezustand des Startscreens: PixiJS lädt seine Renderer-Chunks nach, und
+ * so lange ist "ARENA BETRETEN" gesperrt. Statt einer reinen Textzeile pulst
+ * das Logo in einem laufenden Ring – ein Prozentbalken wäre gelogen, weil es
+ * keinen meldbaren Fortschritt gibt.
+ */
+.start-logo-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  margin: 0 0 16px;
+}
+.start-logo-wrap .start-logo { margin: 0; }
+.start-logo-ring {
+  position: absolute;
+  inset: -11px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 58%,
+    color-mix(in srgb, var(--accent) 80%, transparent) 76%,
+    color-mix(in srgb, var(--accent2) 92%, transparent) 90%,
+    transparent 100%
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+  transition: opacity .3s ease;
+}
+
+/* --- Ladend --- */
+.start-screen.booting .start-logo-ring {
+  opacity: 1;
+  animation: boot-spin 1.05s linear infinite;
+}
+.start-screen.booting .start-logo {
+  animation: boot-pulse 1.7s ease-in-out infinite;
+}
+.start-screen.booting .play-button {
+  position: relative;
+  overflow: hidden;
+}
+/* Wischlicht über dem gesperrten Button: zeigt „läuft“, ohne Fortschritt zu behaupten. */
+.start-screen.booting .play-button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 22%, rgba(255, 255, 255, .26) 50%, transparent 78%);
+  animation: boot-sweep 1.5s ease-in-out infinite;
+  pointer-events: none;
+}
+.start-screen.booting .start-status {
+  color: var(--muted);
+  animation: boot-breathe 1.7s ease-in-out infinite;
+}
+
+/* --- Fertig: kurze Quittung, dann normal --- */
+.start-screen.booted .start-logo { animation: boot-settle .7s cubic-bezier(.22, 1, .36, 1); }
+.start-screen.booted .start-logo-ring {
+  opacity: 1;
+  background: none;
+  border: 2px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  -webkit-mask: none;
+  mask: none;
+  animation: boot-burst .7s ease-out forwards;
+}
+
+@keyframes boot-spin { to { transform: rotate(1turn); } }
+@keyframes boot-pulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.045); filter: brightness(1.2); }
+}
+@keyframes boot-sweep {
+  0% { transform: translateX(-105%); }
+  100% { transform: translateX(105%); }
+}
+@keyframes boot-breathe {
+  0%, 100% { opacity: .62; }
+  50% { opacity: 1; }
+}
+@keyframes boot-settle {
+  0% { transform: scale(1.07); filter: brightness(1.45) saturate(1.15); }
+  100% { transform: scale(1); filter: none; }
+}
+@keyframes boot-burst {
+  0% { opacity: .85; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.55); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-screen.booting .start-logo,
+  .start-screen.booting .start-status,
+  .start-screen.booting .play-button::after,
+  .start-screen.booted .start-logo,
+  .start-screen.booted .start-logo-ring { animation: none; }
+  /* Der Ring bleibt als ruhiger Zustandsanzeiger stehen. */
+  .start-screen.booting .start-logo-ring { opacity: .55; animation: none; }
+  .start-screen.booted .start-logo-ring { opacity: 0; }
+}

@@ -26,6 +26,7 @@ import { DEFAULT_THEME, applyTheme, isClientThemeId, readStoredTheme, storeTheme
 import { GameUI, type JoinOptions } from './ui';
 import './style.css';
 import './stability.css';
+import './boot.css';
 import './balance-lab.css';
 import './class-choice.css';
 import './gameplay-ui.css';
@@ -84,10 +85,10 @@ enhanceClassChoices(ui.root);
 
 // Der Startscreen bleibt gesperrt, bis der Renderer wirklich läuft: PixiJS lädt seine
 // Renderer-Chunks dynamisch nach, und ein Klick davor hätte keinen Renderer zum Zeichnen.
-ui.setJoinPending(true, 'Grafik wird geladen …');
+ui.setJoinPending(true, 'Grafik wird geladen …', 'booting');
 const rendererReady = renderer.init(ui.root);
 const slowRendererNotice = window.setTimeout(() => {
-  ui.setJoinPending(true, 'Die Grafik braucht ungewöhnlich lange. Prüfe, ob die Hardwarebeschleunigung deines Browsers aktiv ist.');
+  ui.setJoinPending(true, 'Die Grafik braucht ungewöhnlich lange. Prüfe, ob die Hardwarebeschleunigung deines Browsers aktiv ist.', 'booting');
 }, 15000);
 try {
   await rendererReady;
@@ -96,7 +97,7 @@ try {
 } catch (error) {
   window.clearTimeout(slowRendererNotice);
   console.error('Renderer-Init fehlgeschlagen', error);
-  ui.setJoinPending(true, 'Grafik konnte nicht gestartet werden. Bitte lade die Seite neu – hilft das nicht, aktiviere die Hardwarebeschleunigung im Browser.');
+  ui.setJoinPending(true, 'Grafik konnte nicht gestartet werden. Bitte lade die Seite neu – hilft das nicht, aktiviere die Hardwarebeschleunigung im Browser.', 'failed');
   throw error;
 }
 const gameplayEffects = new GameplayEffects(renderer.app);

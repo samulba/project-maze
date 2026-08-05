@@ -70,6 +70,7 @@ export class GameUI {
   private readonly upgradeButtons = new Map<UpgradeId, HTMLButtonElement>();
   private readonly vignette: HTMLElement;
   private entered = false;
+  private wasBooting = false;
   private lastDeathCount = 0;
   private lastClassChoicesKey = '';
   private lastLeaderboardKey = '';
@@ -92,7 +93,10 @@ export class GameUI {
       <div class="ui-layer">
         <section class="start-screen" id="start-screen">
           <form class="start-card" id="join-form">
-            <img class="start-logo" src="/logo.png" alt="Mazers-Logo" width="76" height="76" />
+            <div class="start-logo-wrap">
+              <img class="start-logo" src="/logo.png" alt="Mazers-Logo" width="76" height="76" />
+              <span class="start-logo-ring" aria-hidden="true"></span>
+            </div>
             <div class="eyebrow"><span></span> PLAYABLE ALPHA 1.0</div>
             <h1>MAZE<b>RS</b></h1>
             <p class="intro">Farmen, leveln, spezialisieren und mit deinem Build die Arena kontrollieren. Jeder startet als Core-Tank.</p>
@@ -215,13 +219,32 @@ export class GameUI {
     });
   }
 
-  setJoinPending(pending: boolean, message = ''): void {
+  /**
+   * `mode: 'booting'` ist der Zustand vor dem ersten Klick: PixiJS lädt seine
+   * Renderer-Chunks nach. Der Startscreen zeigt das als eigene Inszenierung –
+   * ein Ladebalken wäre gelogen, weil es keinen Fortschritt zu melden gibt.
+   */
+  setJoinPending(pending: boolean, message = '', mode: 'connecting' | 'booting' | 'failed' = 'connecting'): void {
     if (this.entered) return;
+    const booting = pending && mode === 'booting';
+    const failed = mode === 'failed';
     this.joinButton.disabled = pending;
     const label = this.joinButton.querySelector('span');
-    if (label) label.textContent = pending ? 'VERBINDE …' : 'ARENA BETRETEN';
+    if (label) {
+      label.textContent = failed ? 'NICHT VERFÜGBAR'
+        : booting ? 'GRAFIK LÄDT …'
+          : pending ? 'VERBINDE …' : 'ARENA BETRETEN';
+    }
     this.joinStatus.textContent = message;
-    this.joinStatus.classList.toggle('error', !pending && message.length > 0);
+    this.joinStatus.classList.toggle('error', failed || (!pending && message.length > 0));
+    this.start.classList.toggle('booting', booting);
+    // Erst wenn der Renderer steht, ist der Startscreen „scharf“ – das quittiert
+    // ein kurzes Aufblitzen des Logos statt eines stillen Zustandswechsels.
+    if (!booting && this.wasBooting) {
+      this.start.classList.add('booted');
+      window.setTimeout(() => this.start.classList.remove('booted'), 900);
+    }
+    this.wasBooting = booting;
   }
 
   enterGame(): void {
@@ -463,7 +486,12 @@ export class GameUI {
       }
     }
     context.restore();
-    context.strokeStyle = 'rgba(255,255,255,.18)';
+    // Ortlose Events (Fracture) bekommen keinen Zonenkreis – stattdessen färbt
+    // sich der Rahmen der Minimap, weil die ganze Arena betroffen ist.
+    const zonelessStyle = event && !arenaEventStyle(event.kind).zoned ? arenaEventStyle(event.kind) : null;
+    context.strokeStyle = zonelessStyle
+      ? cssColor(zonelessStyle.ring, event?.phase === 'active' ? 0.8 : 0.45)
+      : 'rgba(255,255,255,.18)';
     context.strokeRect(0.5, 0.5, width - 1, height - 1);
   }
 
