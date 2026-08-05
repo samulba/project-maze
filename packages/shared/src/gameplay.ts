@@ -128,7 +128,7 @@ export interface PlayerGameplaySnapshot {
   bountyValue: number;
 }
 
-export type ArenaEventKind = 'coreSurge';
+export type ArenaEventKind = 'coreSurge' | 'overcharge' | 'hunterSignal';
 export type ArenaEventPhase = 'warning' | 'active';
 
 export interface ArenaEventSnapshot {
@@ -147,6 +147,8 @@ export interface GameplayWorldExtension {
   arenaEvent: ArenaEventSnapshot | null;
   bountyTargetId: string | null;
   bountyValue: number;
+  /** Neutraler Elite-Guardian des Hunter-Signal-Events (Spieler-ID in snapshot.players), sonst null. */
+  arenaGuardianId: string | null;
 }
 
 export const DEFAULT_ACTIVE_MODULE: ActiveModuleId = 'dash';

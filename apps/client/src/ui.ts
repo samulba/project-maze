@@ -393,6 +393,7 @@ export class GameUI {
       eliteShapeIds?: string[];
       arenaEvent?: { center: { x: number; y: number }; radius: number; phase: string } | null;
       bountyTargetId?: string | null;
+      arenaGuardianId?: string | null;
     };
     const { width, height } = this.minimap;
     const halfWorldWidth = GAME.visibleWorldWidth * 0.62;
@@ -436,15 +437,16 @@ export class GameUI {
       if (player.dead) continue;
       const point = toRadar(player.position);
       const bounty = player.id === extended.bountyTargetId;
+      const guardian = player.id === extended.arenaGuardianId;
       context.beginPath();
-      context.fillStyle = player.id === self.id ? '#8c95ff' : bounty ? '#f3c45f' : '#ef7181';
-      context.arc(point.x, point.y, player.id === self.id ? 3.4 : bounty ? 3 : 2, 0, Math.PI * 2);
+      context.fillStyle = player.id === self.id ? '#8c95ff' : guardian ? '#f4c866' : bounty ? '#f3c45f' : '#ef7181';
+      context.arc(point.x, point.y, player.id === self.id ? 3.4 : guardian ? 3.6 : bounty ? 3 : 2, 0, Math.PI * 2);
       context.fill();
-      if (bounty) {
+      if (bounty || guardian) {
         context.beginPath();
         context.strokeStyle = 'rgba(243,196,95,.8)';
         context.lineWidth = 1;
-        context.arc(point.x, point.y, 5, 0, Math.PI * 2);
+        context.arc(point.x, point.y, guardian ? 6 : 5, 0, Math.PI * 2);
         context.stroke();
       }
     }

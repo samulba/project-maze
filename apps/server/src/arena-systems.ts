@@ -11,15 +11,9 @@ import { MazeGame } from './game.js';
 import { distanceSquared } from './physics.js';
 import { createShape, isFree } from './world.js';
 
-/**
- * Serverseitige Event-Arten. `overcharge` und `hunterSignal` fehlen noch im
- * geteilten `ArenaEventKind`; bis der Shared-Typ erweitert ist, bleibt die
- * Erweiterung serverlokal und wird beim Schreiben in den Snapshot gecastet.
- */
-export type ServerArenaEventKind = ArenaEventKind | 'overcharge' | 'hunterSignal';
-export interface ServerArenaEvent extends Omit<ArenaEventSnapshot, 'kind'> {
-  kind: ServerArenaEventKind;
-}
+/** Der geteilte `ArenaEventKind` deckt inzwischen alle Events ab – Aliase bleiben für die Event-Schicht. */
+export type ServerArenaEventKind = ArenaEventKind;
+export type ServerArenaEvent = ArenaEventSnapshot;
 
 interface ArenaEventTiming {
   warningMs: number;
@@ -267,10 +261,7 @@ export function tuneArenaSystems<T extends MazeGame>(game: T): T {
   game.snapshot = ((selfId: string, now = Date.now()): WorldSnapshot => {
     const snapshot = originalSnapshot(selfId, now) as WorldSnapshot & Partial<GameplayWorldExtension>;
     snapshot.eliteShapeIds = snapshot.shapes.filter((shape) => state.eliteShapeIds.has(shape.id)).map((shape) => shape.id);
-    // `kind` ist serverseitig bereits erweitert; der geteilte Union-Typ zieht nach.
-    snapshot.arenaEvent = state.event
-      ? ({ ...state.event, center: { ...state.event.center } } as ArenaEventSnapshot)
-      : null;
+    snapshot.arenaEvent = state.event ? { ...state.event, center: { ...state.event.center } } : null;
     snapshot.bountyTargetId = state.bountyTargetId;
     snapshot.bountyValue = state.bountyValue;
     const targetGameplay = state.bountyTargetId && snapshot.gameplay ? snapshot.gameplay[state.bountyTargetId] : undefined;

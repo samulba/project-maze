@@ -98,6 +98,21 @@ export class GameplayEffects {
       const gameplay = snapshot.gameplay?.[player.id];
       const color = player.id === snapshot.selfId ? 0x7d88ff : 0xe7677b;
 
+      if (player.id === snapshot.arenaGuardianId) {
+        const pulse = 1 + Math.sin(this.time * 2.6) * 0.05;
+        const radius = (GAME.playerRadius + 18) * viewport.scale * pulse;
+        this.graphics.circle(position.x, position.y, radius)
+          .fill({ color: 0xf4c866, alpha: 0.05 })
+          .stroke({ color: 0xf4c866, alpha: 0.95, width: 4 });
+        this.graphics.circle(position.x, position.y, radius + 7 * viewport.scale)
+          .stroke({ color: 0xffe3a0, alpha: 0.35, width: 1.5 });
+        const healthRatio = player.maxHealth > 0 ? Math.max(0, Math.min(1, player.health / player.maxHealth)) : 0;
+        const barWidth = 110 * viewport.scale;
+        const barY = position.y - (GAME.playerRadius + 34) * viewport.scale;
+        this.graphics.roundRect(position.x - barWidth / 2, barY, barWidth, 6, 3).fill({ color: 0x000000, alpha: 0.55 });
+        this.graphics.roundRect(position.x - barWidth / 2, barY, barWidth * healthRatio, 6, 3).fill({ color: 0xf4c866, alpha: 0.95 });
+      }
+
       if (player.id === snapshot.bountyTargetId) {
         const pulse = 1 + Math.sin(this.time * 4) * 0.06;
         this.graphics.circle(position.x, position.y, (GAME.playerRadius + 14) * viewport.scale * pulse)

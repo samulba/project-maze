@@ -20,6 +20,12 @@ const editableTarget = (target: EventTarget | null): boolean => {
   return Boolean(element?.closest('input, textarea, select, [contenteditable="true"]'));
 };
 
+const EVENT_COPY: Partial<Record<string, { name: string; active: string }>> = {
+  coreSurge: { name: 'CORE SURGE', active: 'mehr Shapes und Elites im Zentrum' },
+  overcharge: { name: 'OVERCHARGE', active: 'Geschosse löschen sich in der Zone nicht mehr aus' },
+  hunterSignal: { name: 'HUNTER SIGNAL', active: 'neutraler Guardian im Zentrum · 600 Bonus-XP' }
+};
+
 export class GameplayUI {
   private readonly root: HTMLElement;
   private readonly send: SendMessage;
@@ -178,11 +184,12 @@ export class GameplayUI {
     const event = extended.arenaEvent;
     if (event) {
       const remainingEvent = Math.max(0, (event.phase === 'warning' ? event.startsAt : event.endsAt) - snapshot.serverTime);
+      const copy = EVENT_COPY[event.kind] ?? EVENT_COPY.coreSurge!;
       this.eventBanner.hidden = false;
       this.eventBanner.dataset.phase = event.phase;
       this.eventBanner.innerHTML = event.phase === 'warning'
-        ? `<strong>CORE SURGE</strong><span>startet in ${Math.ceil(remainingEvent / 1000)}s · Zentrum</span>`
-        : `<strong>CORE SURGE AKTIV</strong><span>${Math.ceil(remainingEvent / 1000)}s · mehr Shapes und Elites im Zentrum</span>`;
+        ? `<strong>${copy.name}</strong><span>startet in ${Math.ceil(remainingEvent / 1000)}s · Zentrum</span>`
+        : `<strong>${copy.name} AKTIV</strong><span>${Math.ceil(remainingEvent / 1000)}s · ${copy.active}</span>`;
     } else {
       this.eventBanner.hidden = true;
     }

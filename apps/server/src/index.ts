@@ -71,14 +71,15 @@ const wss = new WebSocketServer({ server, maxPayload: 4096 });
 const game = tuneTelemetry(
   tuneDebugRules(
     tuneArenaEvents(
-    tuneArenaSystems(
-      tuneLoadoutSystem(
-        tuneProgression(
-          tuneBotBrain(
-            tuneClassMechanics(
-              tuneDrones(
-                tuneCombatScaling(
-                  hardenSimulation(new MazeGame(BOT_COUNT))
+      tuneArenaSystems(
+        tuneLoadoutSystem(
+          tuneProgression(
+            tuneBotBrain(
+              tuneClassMechanics(
+                tuneDrones(
+                  tuneCombatScaling(
+                    hardenSimulation(new MazeGame(BOT_COUNT))
+                  )
                 )
               )
             )
