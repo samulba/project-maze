@@ -30,7 +30,7 @@ import {
   tuneDebugRules,
   type DebugPreset
 } from './debug-lab.js';
-import { tuneDifficulty } from './difficulty-tuning.js';
+import { tuneBotBrain } from './bot-brain.js';
 import { tuneDrones } from './drone-tuning.js';
 import { MazeGame } from './game.js';
 import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system.js';
@@ -65,7 +65,7 @@ const game = tuneDebugRules(
   tuneArenaSystems(
     tuneLoadoutSystem(
       tuneProgression(
-        tuneDifficulty(
+        tuneBotBrain(
           tuneClassMechanics(
             tuneDrones(
               tuneCombatScaling(

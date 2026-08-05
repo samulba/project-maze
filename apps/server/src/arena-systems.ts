@@ -173,6 +173,11 @@ function updateBounty(internals: ArenaInternals, state: ArenaState, now: number)
   state.bountyValue = next ? Math.min(1_200, 250 + next.kills * 85 + Math.floor(next.score * 0.06)) : 0;
 }
 
+/** Aktuelles Bounty-Ziel für andere Systeme (z. B. Bot-Zielwahl). */
+export function bountyTargetIdFor(game: MazeGame): string | null {
+  return stateFor(game).bountyTargetId;
+}
+
 /** Adds world-level objectives without changing the one-button combat model. */
 export function tuneArenaSystems<T extends MazeGame>(game: T): T {
   const internals = game as unknown as ArenaInternals;
