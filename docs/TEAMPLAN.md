@@ -12,6 +12,13 @@ Stand: Alpha 1.0 live auf https://www.mazers.de (Railway, Auto-Deploy von `main`
 | **03 – Client/UX** | Rendering, HUD, Mobile, Design (`apps/client`) | `packages/shared`, `apps/server` |
 | **04 – Infra/Betrieb** | Telemetrie, Persistenz, Deployment, CI, Lasttests | `packages/shared`, `apps/client/src` |
 
+## Statusberichte
+
+Chat 04 legt seine Übergaben nicht mehr im Chat ab, sondern in
+[`docs/status/chat-04/`](./status/chat-04/README.md) – ein Bericht je Paket,
+Tabelle mit Branch, Commit, Testergebnis und Status. Die Zentrale liest direkt
+von dort, statt aus dem Chatfenster zu kopieren.
+
 ## Eiserne Regeln (aus echten Zwischenfällen destilliert)
 
 1. **Basis ist immer `origin/main`:** Jedes Paket startet mit
