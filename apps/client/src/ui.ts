@@ -6,14 +6,21 @@ import {
   xpAtLevelStart,
   type PlayerClass,
   type PlayerSnapshot,
-  type ThemeId,
   type UpgradeId,
   type WorldSnapshot
 } from '@project-maze/shared';
+import {
+  CLIENT_THEME_IDS,
+  CLIENT_THEME_LABELS,
+  DEFAULT_THEME,
+  applyTheme,
+  isClientThemeId,
+  type ClientThemeId
+} from './themes';
 
 export interface JoinOptions {
   name: string;
-  theme: ThemeId;
+  theme: ClientThemeId;
 }
 
 const upgradeLabels: Record<UpgradeId, string> = {
@@ -89,7 +96,7 @@ export class GameUI {
             <label class="field-label" for="player-name">SPIELERNAME</label>
             <input id="player-name" maxlength="18" autocomplete="off" value="Player" />
             <div class="start-options">
-              <label><span>THEME</span><select id="theme"><option value="midnight">Midnight</option><option value="void">Void</option><option value="classic">Classic</option></select></label>
+              <label><span>THEME</span><select id="theme">${CLIENT_THEME_IDS.map((id) => `<option value="${id}">${CLIENT_THEME_LABELS[id]}</option>`).join('')}</select></label>
               <label><span>SOUND</span><input type="range" id="volume" min="0" max="100" step="5" /></label>
               <div class="control-preview"><span>WASD</span><span>LINKSKLICK FEUER</span><span>RECHTSKLICK DROHNEN</span></div>
             </div>
@@ -186,8 +193,9 @@ export class GameUI {
       event.preventDefault();
       if (this.joinButton.disabled) return;
       const name = this.require<HTMLInputElement>('#player-name').value.trim() || 'Player';
-      const theme = this.require<HTMLSelectElement>('#theme').value as ThemeId;
-      document.documentElement.dataset.theme = theme;
+      const selected = this.require<HTMLSelectElement>('#theme').value;
+      const theme: ClientThemeId = isClientThemeId(selected) ? selected : DEFAULT_THEME;
+      applyTheme(theme);
       onJoin({ name, theme });
     });
 

@@ -7,21 +7,22 @@ import {
   type PlayerSnapshot,
   type ProjectileSnapshot,
   type ShapeSnapshot,
-  type ThemeId,
   type Vector2,
   type WorldSnapshot
 } from '@project-maze/shared';
 import { ParticleField } from './particles';
+import type { ClientThemeId } from './themes';
 
 interface Palette {
   background:number; outside:number; grid:number; border:number; wall:number; wallEdge:number;
   self:number; enemy:number; barrel:number; projectile:number; drone:number;
   square:number; triangle:number; pentagon:number; label:number;
 }
-const PALETTES:Record<ThemeId,Palette>={
+const PALETTES:Record<ClientThemeId,Palette>={
   midnight:{background:0x070910,outside:0x020307,grid:0x151a28,border:0x3d4661,wall:0x222839,wallEdge:0x3f4964,self:0x7d88ff,enemy:0xe7677b,barrel:0xc4cad9,projectile:0xf5f7ff,drone:0x78d7c7,square:0x6574dd,triangle:0xe6a954,pentagon:0xcf6eb5,label:0xe9ecf5},
   void:{background:0x030407,outside:0x000000,grid:0x111317,border:0x31343b,wall:0x181b20,wallEdge:0x343942,self:0xb8ff6a,enemy:0xff5c76,barrel:0xdde2e8,projectile:0xffffff,drone:0x65e7c2,square:0x6b7c8f,triangle:0xffb84d,pentagon:0xc77dff,label:0xf1f3f5},
-  classic:{background:0xe8ebf0,outside:0xcbd0da,grid:0xd5d9e1,border:0x818a9b,wall:0xaab1bf,wallEdge:0x7e8798,self:0x536dfe,enemy:0xf14e63,barrel:0x727b8d,projectile:0x343a46,drone:0x2ba887,square:0x6f7ee8,triangle:0xe5a044,pentagon:0xbd5c9d,label:0x252a34}
+  classic:{background:0xe8ebf0,outside:0xcbd0da,grid:0xd5d9e1,border:0x818a9b,wall:0xaab1bf,wallEdge:0x7e8798,self:0x536dfe,enemy:0xf14e63,barrel:0x727b8d,projectile:0x343a46,drone:0x2ba887,square:0x6f7ee8,triangle:0xe5a044,pentagon:0xbd5c9d,label:0x252a34},
+  neon:{background:0x0b0620,outside:0x050210,grid:0x241154,border:0x8a3df0,wall:0x1d1040,wallEdge:0x9b52ff,self:0x35e8ff,enemy:0xff3d9e,barrel:0xd9c2ff,projectile:0xf2fbff,drone:0x7bff7d,square:0x5f6dff,triangle:0xffc247,pentagon:0xc85cff,label:0xf4f0ff}
 };
 
 interface PlayerView {
@@ -152,7 +153,7 @@ export class GameRenderer {
     return{x:direction.x*factor,y:direction.y*factor};
   }
 
-  setTheme(theme:ThemeId):void{
+  setTheme(theme:ClientThemeId):void{
     this.palette=PALETTES[theme];
     this.app.renderer.background.color=this.palette.outside;
     this.resizeViewport();
