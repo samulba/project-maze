@@ -46,6 +46,7 @@ docker build -f apps/client/Dockerfile --build-arg VITE_WS_URL=wss://maze.exampl
 | `ENABLE_DEV_TOOLS` | `false` | `true`/`false` | F2-Debug-Werkzeuge (Builds setzen, God-Mode, Dummies). **Muss in Produktion `false` bleiben.** |
 | `TELEMETRY_ENABLED` | `true` | `true`/`false` | Anonyme Balance-Telemetrie inklusive `/metrics`. Bei `false` wird die Schicht gar nicht erst angehängt und `/metrics` antwortet mit 404. |
 | `METRICS_TOKEN` | – | Freitext | Ist die Variable gesetzt, verlangt `/metrics` den Header `Authorization: Bearer <token>` (zeitkonstanter Vergleich). Leer lassen ist nur akzeptabel, solange der Serverport das interne Netz nicht verlässt. |
+| `SHUTDOWN_DRAIN_MS` | `0` | 0–30000 | Vorlauf beim Herunterfahren, in dem `/health` bereits `503` meldet, der Listener aber noch offen ist. Railway nimmt die Instanz schon beim Signal aus dem Verkehr und braucht das nicht; hinter einem eigenen Loadbalancer sind 500–2000 ms sinnvoll. |
 | `NODE_ENV` | – | `production` | Von Compose gesetzt; schaltet Express in den Produktionsmodus. |
 
 Ungültige Zahlenwerte fallen auf den Standard zurück, statt den Start zu
@@ -133,6 +134,60 @@ scrape_configs:
       type: Bearer
       credentials_file: /etc/prometheus/maze-token
 ```
+
+## Lasttest
+
+`scripts/loadtest.mjs` simuliert echte Clients gegen eine laufende Arena:
+join, Eingaben mit der Tickrate, gelegentlich Upgrades und Klassenwahl.
+
+```bash
+npm run loadtest                                     # 20 Clients, 30 s, localhost
+npm run loadtest -- --clients 40 --duration 60       # Arena bis ans Limit
+npm run loadtest -- --url wss://maze.example.com --clients 40 --json
+```
+
+| Option | Standard | Bedeutung |
+| --- | --- | --- |
+| `--url` | `ws://localhost:2567` | Zielserver |
+| `--clients` | `20` | parallele Verbindungen |
+| `--duration` | `30` | Messfenster in Sekunden |
+| `--rate` | `40` | Eingaben pro Sekunde je Client |
+| `--ramp` | `2` | Sekunden, über die die Joins verteilt werden |
+| `--json` | – | nur JSON ausgeben (für CI und Auswertung) |
+
+Der Bericht zeigt Join-Erfolg, Durchsatz und vier Latenzreihen: **Snapshot**
+(uhrversatzkorrigiertes Alter beim Eintreffen, per Ping/Pong-Offset berechnet),
+**Abstand** (Lücke zwischen zwei Snapshots, Soll ~33 ms bei 30 Hz), **RTT** und
+**Join**. Der Exit-Code ist 1, sobald Clients unerwartet scheitern – eine volle
+Arena (`maxPlayers`) wird als Ergebnis ausgewiesen und gilt nicht als Fehler.
+
+Während des Laufs `/metrics` beobachten: `maze_tick_budget_ratio` zeigt, ob die
+Simulation noch Luft hat, `maze_tick_interval_seconds` deckt Sättigung
+außerhalb der Simulation auf. Details in [`TELEMETRY.md`](./TELEMETRY.md).
+
+Den Lasttest nie gegen eine produktive Arena mit echten Spielern fahren – er
+belegt reale Plätze.
+
+## Redeploy und Graceful Shutdown
+
+Railway (und jede Plattform mit rollierendem Deploy) schickt beim Neustart
+`SIGTERM`. Der Server fährt daraufhin geordnet herunter:
+
+1. `/health` antwortet mit `503` und `draining: true`. Standardmäßig schließt
+   der Listener unmittelbar danach – ein externer Checker sieht dann nur noch
+   „connection refused", was für Railway genau richtig ist. Wer einen eigenen
+   Loadbalancer davor hat, gibt ihm über `SHUTDOWN_DRAIN_MS` ein Zeitfenster,
+   in dem die 503 tatsächlich abgeholt werden kann.
+2. Tick-, Snapshot- und Heartbeat-Timer werden gestoppt.
+3. Der Listener wird geschlossen, offene HTTP-Keep-Alives werden gelöst.
+4. Jede WebSocket-Verbindung bekommt einen sauberen Close-Frame mit Code
+   **1001 („going away")**. Der Browser feuert sein `close`-Event sofort und
+   startet den Reconnect, statt in einen Timeout zu laufen.
+5. Wer den Handshake ignoriert, wird nach 1,5 Sekunden hart getrennt;
+   spätestens nach 8 Sekunden ist der Prozess in jedem Fall unten.
+
+Ein zweites Signal bricht sofort ab. Zustände sind bewusst flüchtig – nach dem
+Reconnect starten Spieler in einer frischen Arena.
 
 ## Betrieb
 
