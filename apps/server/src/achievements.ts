@@ -4,8 +4,10 @@ import {
   type ClassDefinition,
   type PlayerClass,
   type PlayerSnapshot,
-  type Vector2
+  type Vector2,
+  type WorldSnapshot
 } from '@project-maze/shared';
+import { ACHIEVEMENT_IDS, type AchievementId, type GameplayWorldExtension } from '@project-maze/shared/gameplay';
 import { activeArenaEventFor, type ServerArenaEvent } from './arena-systems.js';
 import { arenaGuardianIdFor, fracturedWallIdsFor } from './arena-events.js';
 import { MazeGame } from './game.js';
@@ -26,16 +28,9 @@ import { segmentCrossesWalls } from './world.js';
  * Sterben und Wiederholen ist damit ausgeschlossen. Bots bekommen nichts.
  */
 
-export const ACHIEVEMENT_IDS = [
-  'firstStreak5',
-  'guardianSlayer',
-  'maxLevel',
-  'threeFamilies',
-  'overchargeDuelist',
-  'fractureFlanker',
-  'score10k'
-] as const;
-export type AchievementId = (typeof ACHIEVEMENT_IDS)[number];
+// IDs und Katalogtexte leben im Shared-Paket (Client-Popups nutzen denselben
+// Katalog); hier bleiben nur die serverseitigen Bedingungen.
+export { ACHIEVEMENT_IDS, type AchievementId };
 
 type ClassFamily = ClassDefinition['branch'];
 
@@ -263,6 +258,24 @@ export function drainUnlockedAchievements(game: MazeGame, playerId: string): Ach
   const progress = states.get(game)?.get(playerId);
   if (!progress || progress.fresh.length === 0) return [];
   return progress.fresh.splice(0, progress.fresh.length);
+}
+
+/**
+ * Hängt frisch freigeschaltete Achievements an ausgehende Snapshots. Bewusst
+ * eine eigene, ÄUSSERSTE Schicht (außerhalb von Telemetrie und Encoding):
+ * Die Telemetrie ruft snapshot() zusätzlich im Round-Robin auf ihrer inneren
+ * Referenz auf – läge der Drain weiter innen, würde die Warteschlange dort
+ * unsichtbar geleert, bevor der Client sie je erreicht.
+ */
+export function attachAchievementSnapshots<T extends MazeGame>(game: T): T {
+  const originalSnapshot = game.snapshot.bind(game);
+  game.snapshot = ((selfId: string, now = Date.now()): WorldSnapshot => {
+    const snapshot = originalSnapshot(selfId, now) as WorldSnapshot & Partial<GameplayWorldExtension>;
+    const fresh = drainUnlockedAchievements(game, selfId);
+    if (fresh.length > 0) snapshot.freshAchievements = fresh;
+    return snapshot;
+  }) as T['snapshot'];
+  return game;
 }
 
 /** Lesender Blick auf den Fortschritt – für Tests und spätere Persistenz. */

@@ -64,6 +64,8 @@ export class GameUI {
   private readonly vignette: HTMLElement;
   private entered = false;
   private wasBooting = false;
+  /** Grafikstart endgültig gescheitert – der Play-Button wird zum Neu-laden-Knopf. */
+  private failedMode = false;
   private startScreenGone: (() => void) | null = null;
   private lastDeathCount = 0;
   private lastClassChoicesKey = '';
@@ -208,6 +210,12 @@ export class GameUI {
 
     this.require<HTMLFormElement>('#join-form').addEventListener('submit', (event) => {
       event.preventDefault();
+      // Nach einem Grafikfehler lädt der Button die Seite neu – eine Sackgasse
+      // mit totem Knopf hilft niemandem weiter.
+      if (this.failedMode) {
+        location.reload();
+        return;
+      }
       if (this.joinButton.disabled) return;
       const name = this.require<HTMLInputElement>('#player-name').value.trim() || 'Player';
       // Vorerst genau ein neutrales Theme – die Auswahl kommt zurück, wenn das
@@ -239,10 +247,11 @@ export class GameUI {
     if (this.entered) return;
     const booting = pending && mode === 'booting';
     const failed = mode === 'failed';
-    this.joinButton.disabled = pending;
+    this.failedMode = failed;
+    this.joinButton.disabled = pending && !failed;
     const label = this.joinButton.querySelector('span');
     if (label) {
-      label.textContent = failed ? 'NICHT VERFÜGBAR'
+      label.textContent = failed ? 'NEU LADEN'
         : booting ? 'GRAFIK LÄDT …'
           : pending ? 'VERBINDE …' : 'ARENA BETRETEN';
     }

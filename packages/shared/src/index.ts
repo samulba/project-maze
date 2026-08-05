@@ -50,7 +50,8 @@ export type ThemeId = 'midnight' | 'void' | 'classic';
 export interface Vector2 { x: number; y: number; }
 /** `aim` is a world-space offset. Bullet classes use direction; drones also use magnitude. */
 export interface InputMessage { type: 'input'; sequence: number; move: Vector2; aim: Vector2; primary: boolean; secondary: boolean; }
-export interface JoinMessage { type: 'join'; name: string; }
+/** `authToken` ist optional: Gast-Spielen bleibt immer möglich, Login heftet nur das Konto an. */
+export interface JoinMessage { type: 'join'; name: string; authToken?: string; }
 export interface UpgradeMessage { type: 'upgrade'; upgrade: UpgradeId; }
 export interface ChooseClassMessage { type: 'chooseClass'; playerClass: PlayerClass; }
 export interface RespawnMessage { type: 'respawn'; }
@@ -347,3 +348,25 @@ export const respawnLevelFrom = (level:number):number => Math.max(1, Math.floor(
 export const availableClassChoices = (current:PlayerClass, level:number):PlayerClass[] => PLAYER_CLASS_IDS.filter((id) => { const definition = CLASS_DEFINITIONS[id]; return definition.parent === current && definition.unlockLevel <= level; });
 export const isValidClassChoice = (current:PlayerClass, target:PlayerClass, level:number):boolean => availableClassChoices(current, level).includes(target);
 export const classAvailableAtLevel = (playerClass:PlayerClass, level:number):PlayerClass => { let current = CLASS_DEFINITIONS[playerClass]; const visited = new Set<PlayerClass>(); while (current.unlockLevel > level && current.parent) { if (visited.has(current.id)) return 'core'; visited.add(current.id); current = CLASS_DEFINITIONS[current.parent]; } return current.id; };
+
+// ---------------------------------------------------------------------------
+// Wire-Typen für den Delta-Versand (SNAPSHOT_DELTAS): Felder, die sich selten
+// ändern, fehlen im Netzwerk-Snapshot und werden clientseitig aus einem Cache
+// hydriert. Die vollständigen Typen oben bleiben unangetastet – Renderer, UI
+// und Killcam arbeiten weiter mit garantiert vollständigen Daten.
+// ---------------------------------------------------------------------------
+
+export type WirePlayerSnapshot =
+  Omit<PlayerSnapshot, 'name' | 'playerClass' | 'isBot' | 'upgrades'>
+  & Partial<Pick<PlayerSnapshot, 'name' | 'playerClass' | 'isBot' | 'upgrades'>>;
+export type WireShapeSnapshot =
+  Omit<ShapeSnapshot, 'kind' | 'radius' | 'maxHealth'>
+  & Partial<Pick<ShapeSnapshot, 'kind' | 'radius' | 'maxHealth'>>;
+export interface WireWorldSnapshot
+  extends Omit<WorldSnapshot, 'players' | 'shapes' | 'walls' | 'leaderboard' | 'killfeed'> {
+  players: WirePlayerSnapshot[];
+  shapes: WireShapeSnapshot[];
+  walls?: Wall[];
+  leaderboard?: LeaderboardEntry[];
+  killfeed?: KillEvent[];
+}

@@ -6,6 +6,7 @@ import { hardenSimulation } from './simulation-hardening';
 type MutableGame = {
   players: Map<string, any>;
   projectiles: Map<string, any>;
+  shapes: Map<string, any>;
   resolveProjectileCollisions(): void;
   stepProjectiles(dt: number, now: number): void;
   resolvePlayerCollisions(now: number): void;
@@ -35,6 +36,9 @@ describe('simulation hardening', () => {
     target.position = { x: 3050, y: 2000 };
     target.invulnerable = false;
     target.invulnerableUntil = 0;
+    // Shapes spawnen zufällig – liegt eine auf der Projektilposition, schluckt
+    // sie den Treffer vor dem Spieler und der Test würde vom Zufall abhängen.
+    internals.shapes.clear();
     const initialHealth = target.health;
     internals.projectiles.set('projectile', {
       id: 'projectile', ownerId, position: { ...target.position }, velocity: { x: 0, y: 0 },
@@ -59,6 +63,9 @@ describe('simulation hardening', () => {
       rammer.invulnerable = false;
       target.position = { x: 2800 + GAME.playerRadius * 2 - 4, y: 2200 };
       target.invulnerable = false;
+      // Gleiche Zufallsquelle wie oben: Eine Shape am Messpunkt würde zusätzlichen
+      // Körperschaden beisteuern und das Verhältnis verfälschen.
+      internals.shapes.clear();
       const before = target.health;
       internals.resolvePlayerCollisions(Date.now());
       return before - target.health;

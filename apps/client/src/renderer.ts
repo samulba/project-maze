@@ -89,7 +89,9 @@ const translated=(points:number[],position:Vector2):number[]=>points.map((value,
 function angleLerp(current:number,target:number,factor:number):number{let difference=(target-current+Math.PI)%(Math.PI*2)-Math.PI;if(difference<-Math.PI)difference+=Math.PI*2;return current+difference*factor}
 
 export class GameRenderer {
-  readonly app=new Application();
+  // Nicht readonly: Schlägt der WebGL-Start fehl, braucht der WebGPU-Versuch
+  // eine frische Application – eine halb initialisierte lässt sich nicht neu starten.
+  app=new Application();
   private readonly world=new Container();
   private readonly background=new Graphics();
   private readonly walls=new Graphics();
@@ -141,17 +143,43 @@ export class GameRenderer {
   static webglAvailable():boolean{
     try{
       const canvas=document.createElement('canvas');
-      return Boolean(canvas.getContext('webgl2')||canvas.getContext('webgl'));
+      const gl=canvas.getContext('webgl2')??canvas.getContext('webgl');
+      if(!gl)return false;
+      // Den Testkontext sofort zurückgeben – Browser vergeben nur ~16 Kontexte,
+      // und dieser hier würde sonst bis zur Garbage Collection einen blockieren.
+      (gl.getExtension('WEBGL_lose_context') as {loseContext():void}|null)?.loseContext();
+      return true;
     }catch{
       return false;
     }
   }
 
+  /** app.init() kann bei kaputten Treibern hängen statt abzulehnen – deshalb ein hartes Zeitlimit. */
+  private static withTimeout(promise:Promise<void>,ms:number,label:string):Promise<void>{
+    return new Promise((resolve,reject)=>{
+      const timer=window.setTimeout(()=>reject(new Error(label)),ms);
+      promise.then(
+        ()=>{window.clearTimeout(timer);resolve()},
+        (error:unknown)=>{window.clearTimeout(timer);reject(error instanceof Error?error:new Error(String(error)))}
+      );
+    });
+  }
+
   async init(root:HTMLElement):Promise<void>{
-    // PixiJS hängt sonst ohne Rückmeldung, wenn der Browser keinen Kontext mehr
-    // vergibt (Hardwarebeschleunigung aus, zu viele offene WebGL-Tabs).
-    if(!GameRenderer.webglAvailable())throw new Error('WEBGL_UNAVAILABLE');
-    await this.app.init({resizeTo:window,antialias:true,background:this.palette.outside,resolution:Math.min(devicePixelRatio||1,2),autoDensity:true,preference:'webgl'});
+    const options={resizeTo:window,antialias:true,background:this.palette.outside,resolution:Math.min(devicePixelRatio||1,2),autoDensity:true};
+    // Zwei Grafikwege: erst WebGL, sonst WebGPU (Chrome/Edge vergeben den auch
+    // dann noch, wenn alle WebGL-Kontexte belegt sind). Beide mit Zeitlimit,
+    // weil PixiJS ohne Rückmeldung hängt, wenn der Browser keinen Kontext mehr
+    // hergibt (Hardwarebeschleunigung aus, zu viele offene WebGL-Tabs).
+    try{
+      if(!GameRenderer.webglAvailable())throw new Error('WEBGL_UNAVAILABLE');
+      await GameRenderer.withTimeout(this.app.init({...options,preference:'webgl'}),6000,'WEBGL_INIT_TIMEOUT');
+    }catch(webglError){
+      if(!('gpu' in navigator))throw webglError instanceof Error?webglError:new Error('GRAPHICS_UNAVAILABLE');
+      console.warn('WebGL-Start fehlgeschlagen, versuche WebGPU', webglError);
+      this.app=new Application();
+      await GameRenderer.withTimeout(this.app.init({...options,preference:'webgpu'}),6000,'GRAPHICS_UNAVAILABLE');
+    }
     this.initialized=true;
     root.prepend(this.app.canvas);
     this.world.addChild(this.background,this.walls,this.shapes,this.projectiles,this.drones,this.particles.graphics,this.players,this.fx,this.numbers.container);

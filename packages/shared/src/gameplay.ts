@@ -149,7 +149,37 @@ export interface GameplayWorldExtension {
   bountyValue: number;
   /** Neutraler Elite-Guardian des Hunter-Signal-Events (Spieler-ID in snapshot.players), sonst null. */
   arenaGuardianId: string | null;
+  /** Seit dem letzten Snapshot dieses Clients freigeschaltet. Leer = nichts Neues. */
+  freshAchievements: AchievementId[];
 }
 
 export const DEFAULT_ACTIVE_MODULE: ActiveModuleId = 'dash';
 export const DEFAULT_PASSIVE_MODIFIER: PassiveModifierId = 'standard';
+
+export const ACHIEVEMENT_IDS = [
+  'firstStreak5',
+  'guardianSlayer',
+  'maxLevel',
+  'threeFamilies',
+  'overchargeDuelist',
+  'fractureFlanker',
+  'score10k'
+] as const;
+export type AchievementId = (typeof ACHIEVEMENT_IDS)[number];
+
+export interface AchievementInfo {
+  id: AchievementId;
+  name: string;
+  description: string;
+}
+
+/** Statischer Katalog für Popups und Profilkarte – ohne Serverabfrage nutzbar. */
+export const ACHIEVEMENT_CATALOG: Record<AchievementId, AchievementInfo> = {
+  firstStreak5: { id: 'firstStreak5', name: 'Lauf ohne Ende', description: 'Erreiche eine Serie von fünf Abschüssen, ohne zu sterben.' },
+  guardianSlayer: { id: 'guardianSlayer', name: 'Signal gebrochen', description: 'Erlege den neutralen Guardian des Hunter-Signal-Events.' },
+  maxLevel: { id: 'maxLevel', name: 'Ausgereizt', description: 'Erreiche Level 45.' },
+  threeFamilies: { id: 'threeFamilies', name: 'Allrounder', description: 'Spiele drei verschiedene Klassenfamilien in einer Verbindung.' },
+  overchargeDuelist: { id: 'overchargeDuelist', name: 'Überladen', description: 'Besiege einen Gegner während Overcharge innerhalb der Eventzone.' },
+  fractureFlanker: { id: 'fractureFlanker', name: 'Durch die Bresche', description: 'Besiege einen Gegner durch ein von Fracture aufgebrochenes Wandsegment.' },
+  score10k: { id: 'score10k', name: 'Fünfstellig', description: 'Erreiche 10.000 Punkte in einem Lauf.' }
+};

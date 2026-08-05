@@ -96,12 +96,13 @@ enhanceClassChoices(ui.root);
 
 // Der Startscreen bleibt gesperrt, bis der Renderer wirklich läuft: PixiJS lädt seine
 // Renderer-Chunks dynamisch nach, und ein Klick davor hätte keinen Renderer zum Zeichnen.
-const GRAPHICS_HELP = 'Grafik konnte nicht gestartet werden. Das liegt fast immer am Browser: Hardwarebeschleunigung einschalten (Einstellungen → System) oder ein paar Tabs schließen – Browser vergeben nur eine begrenzte Zahl an WebGL-Fenstern. Danach Seite neu laden.';
+const GRAPHICS_HELP = 'Grafik konnte nicht gestartet werden. Das liegt fast immer am Browser: Hardwarebeschleunigung einschalten (Einstellungen → System), ein paar Tabs schließen oder den Browser einmal komplett schließen und neu öffnen. Danach unten auf NEU LADEN drücken.';
 
 ui.setJoinPending(true, 'Grafik wird geladen …', 'booting');
 const rendererReady = renderer.init(ui.root);
-// Hängt PixiJS trotz vorhandenem Kontext, bleibt der Spieler sonst ohne Erklärung sitzen.
-const stuckNotice = window.setTimeout(() => ui.setJoinPending(true, GRAPHICS_HELP, 'failed'), 8000);
+// Sicherheitsnetz hinter den Init-Zeitlimits (2 Versuche à 6 s): Sollte trotzdem
+// etwas hängen, bleibt der Spieler nicht ohne Erklärung sitzen.
+const stuckNotice = window.setTimeout(() => ui.setJoinPending(true, GRAPHICS_HELP, 'failed'), 15_000);
 try {
   await rendererReady;
   window.clearTimeout(stuckNotice);

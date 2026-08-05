@@ -19,10 +19,10 @@ import {
   PASSIVE_MODIFIER_IDS,
   type GameplayClientMessage
 } from '@project-maze/shared/gameplay';
-import { tuneAchievements } from './achievements.js';
+import { attachAchievementSnapshots, tuneAchievements } from './achievements.js';
 import { tuneArenaEvents } from './arena-events.js';
 import { tuneArenaSystems } from './arena-systems.js';
-import { authStatus, initAuth } from './auth.js';
+import { authStatus, initAuth, verifyAuthToken } from './auth.js';
 import { tuneClassMechanics } from './class-mechanics.js';
 import { tuneCombatScaling } from './combat-tuning.js';
 import {
@@ -44,6 +44,7 @@ import { tuneProgression } from './progression-tuning.js';
 import {
   flushPersistence,
   leaderboardHandler,
+  linkPlayerToUser,
   persistenceStats,
   tunePersistence
 } from './persistence.js';
@@ -96,7 +97,7 @@ const wss = new WebSocketServer({ server, maxPayload: 4096 });
 // Reihenfolge der äußeren Schichten: Encoding zuallerletzt, damit nur das
 // komprimiert wird, was wirklich über die Leitung geht – Persistenz und
 // Telemetrie sehen weiterhin vollständige Snapshots.
-const game = tuneSnapshotEncoding(
+const encodedGame = tuneSnapshotEncoding(
   tunePersistence(
     tuneTelemetry(
       tuneDebugRules(
@@ -125,12 +126,16 @@ const game = tuneSnapshotEncoding(
   ),
   SNAPSHOT_DELTAS
 );
+// Achievement-Drain als äußerste Schicht: nur echte, an Clients gehende
+// Snapshots leeren die Warteschlange (Telemetrie-Round-Robin bleibt außen vor).
+const game = ACHIEVEMENTS_ENABLED ? attachAchievementSnapshots(encodedGame) : encodedGame;
 const socketPlayerIds = new WeakMap<WebSocket, string>();
 const socketAlive = new WeakMap<WebSocket, boolean>();
 
 const joinSchema = z.object({
   type: z.literal('join'),
-  name: z.string().transform(sanitizePlayerName).pipe(z.string().min(1).max(18))
+  name: z.string().transform(sanitizePlayerName).pipe(z.string().min(1).max(18)),
+  authToken: z.string().min(1).max(4096).optional()
 }).strict();
 const inputSchema = z.object({
   type: z.literal('input'),
@@ -215,6 +220,13 @@ wss.on('connection', (socket, request) => {
         playerId = game.addPlayer(parsed.data.name);
         socketPlayerIds.set(socket, playerId);
         send(socket, { type: 'welcome', selfId: playerId });
+        // Login ist optional und darf den Join nie verzögern: Der Spieler ist schon
+        // drin, das Konto wird ein paar Millisekunden später angeheftet.
+        if (parsed.data.authToken) {
+          const joinedId = playerId;
+          void verifyAuthToken(parsed.data.authToken)
+            .then((user) => { if (user) linkPlayerToUser(game, joinedId, user); });
+        }
         return;
       }
       if (message.type === 'equipLoadout' && playerId) {
