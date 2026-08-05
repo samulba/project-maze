@@ -13,9 +13,9 @@
   padding: clamp(14px, 3vw, 32px);
   overflow: hidden;
   background:
-    radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--brand) 26%, transparent), transparent 62%),
-    radial-gradient(90% 60% at 50% 108%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 70%),
-    linear-gradient(180deg, #090b14, #05060b);
+    radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--brand) 15%, transparent), transparent 62%),
+    radial-gradient(90% 60% at 50% 108%, color-mix(in srgb, var(--brand) 7%, transparent), transparent 70%),
+    linear-gradient(180deg, #080a11, #05060b);
 }
 .start-backdrop {
   position: absolute;
@@ -76,14 +76,15 @@
   height: clamp(84px, 15vw, 116px);
   margin: 0 0 clamp(10px, 2vw, 18px);
 }
-/* Der Halo gibt dem Logo Präsenz, ohne es zu überstrahlen. */
+/* Der Halo gibt dem Logo Präsenz, ohne es zu überstrahlen: breit und weich
+   statt hell – so trägt er die Marke, ohne selbst zu leuchten. */
 .start-logo-wrap::before {
   content: '';
   position: absolute;
   inset: -46%;
   border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--brand) 55%, transparent), transparent 68%);
-  filter: blur(6px);
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand) 30%, transparent), transparent 68%);
+  filter: blur(12px);
 }
 .start-logo {
   position: relative;
@@ -92,9 +93,8 @@
   margin: 0;
   border-radius: 26%;
   box-shadow:
-    0 18px 46px rgba(0, 0, 0, .55),
-    0 0 0 1px color-mix(in srgb, var(--brand-soft) 40%, transparent),
-    0 0 34px color-mix(in srgb, var(--brand) 42%, transparent);
+    0 18px 42px rgba(0, 0, 0, .5),
+    0 0 0 1px color-mix(in srgb, var(--brand-soft) 26%, transparent);
 }
 .start-card h1 {
   margin: 0;
@@ -148,10 +148,10 @@
   height: clamp(56px, 7.5vw, 64px);
   margin-top: 5px;
   border-radius: 15px;
-  background: linear-gradient(120deg, var(--brand), #8b5cff 55%, #a97bff);
+  background: linear-gradient(120deg, var(--brand), #8b5cff 60%, #9a6dff);
   box-shadow:
-    0 16px 40px color-mix(in srgb, var(--brand) 42%, transparent),
-    inset 0 1px rgba(255, 255, 255, .22);
+    0 14px 32px color-mix(in srgb, var(--brand) 24%, transparent),
+    inset 0 1px rgba(255, 255, 255, .18);
   font-size: 13px;
   letter-spacing: .14em;
 }
@@ -198,7 +198,18 @@
 }
 .start-settings[open] > summary i { rotate: 225deg; translate: 0 2px; }
 .start-settings-body { padding: 0 14px 14px; }
-.start-sound { display: grid; gap: 6px; color: #7d859b; font-size: 9px; font-weight: 800; letter-spacing: .12em; }
+.start-sound {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 8px 10px;
+  color: #7d859b;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+.start-sound > b { color: #cfd4e4; font-size: 10px; font-variant-numeric: tabular-nums; }
+.start-sound > input { grid-column: 1 / -1; }
 /* Das Loadout wird hier hineingezogen – ohne eigenen Rahmen, es ist schon drin. */
 .start-settings-body .core-loadout {
   margin: 12px 0 0;
@@ -330,6 +341,14 @@
   .start-tagline { display: none; }
   .start-note { display: none; }
   .start-status { margin-top: 8px; }
+}
+/*
+ * Sehr flach (Handy im Querformat): Mit aufgeklapptem Loadout passt die Karte
+ * nicht mehr auf den Schirm. Gescrollt wird die Bühne, nicht der Screen – sonst
+ * wandert der Hintergrund mit. Zugeklappt ändert sich nichts.
+ */
+@media (max-height: 560px) {
+  .start-stage { overflow: auto; scrollbar-width: thin; }
 }
 
 @media (prefers-reduced-motion: reduce) {

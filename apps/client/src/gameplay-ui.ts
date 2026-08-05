@@ -38,7 +38,6 @@ export class GameplayUI {
   private readonly abilityButton: HTMLButtonElement;
   private readonly abilityLabel: HTMLElement;
   private readonly abilityCooldown: HTMLElement;
-  private readonly modifierBadge: HTMLElement;
   private readonly eventBanner: HTMLElement;
   private readonly bountyBanner: HTMLElement;
   private self: PlayerSnapshot | null = null;
@@ -116,10 +115,6 @@ export class GameplayUI {
     this.abilityLabel = this.abilityButton.querySelector<HTMLElement>('[data-ability-label]')!;
     this.abilityCooldown = this.abilityButton.querySelector<HTMLElement>('[data-ability-cooldown]')!;
 
-    this.modifierBadge = document.createElement('div');
-    this.modifierBadge.className = 'modifier-badge';
-    hud.append(this.modifierBadge);
-
     this.eventBanner = document.createElement('div');
     this.eventBanner.className = 'arena-event-banner';
     this.eventBanner.hidden = true;
@@ -193,10 +188,6 @@ export class GameplayUI {
     this.abilityButton.classList.toggle('active', active);
     this.abilityButton.style.setProperty('--charge', `${Math.round(gameplay.moduleCharge * 100)}%`);
     this.abilityButton.dataset.module = gameplay.activeModule;
-
-    const modifier = PASSIVE_MODIFIER_DEFINITIONS[gameplay.passiveModifier];
-    this.modifierBadge.textContent = modifier.label;
-    this.modifierBadge.title = modifier.description;
 
     const event = extended.arenaEvent;
     if (event) {

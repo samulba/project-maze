@@ -22,10 +22,10 @@ import { AchievementPopups } from './achievement-popups';
 import { GameplayEffects } from './gameplay-effects';
 import { GameplayUI } from './gameplay-ui';
 import { InputController } from './input';
-import { KillcamView } from './killcam-view';
 import { OnboardingCoach } from './onboarding-view';
 import { GameRenderer } from './renderer';
 import { SnapshotHydrator, isWireSnapshot, type WireServerMessage } from './snapshot-hydrator';
+import { SpectatorBanner } from './spectator';
 import { StartBackdrop } from './start-backdrop';
 import { StartLeaderboard } from './start-leaderboard';
 import { DEFAULT_THEME, applyTheme } from './themes';
@@ -37,8 +37,9 @@ import './start.css';
 import './balance-lab.css';
 import './class-choice.css';
 import './gameplay-ui.css';
+import './controls.css';
 import './mobile.css';
-import './killcam.css';
+import './spectator.css';
 import './onboarding.css';
 import './achievements.css';
 import './auth.css';
@@ -109,7 +110,7 @@ void authReady.then((client) => {
   if (!client) return;
   new AuthPanel(ui.root, client, (title, message, tone) => ui.toast(title, message, tone), (name) => ui.prefillPlayerName(name));
 });
-const killcam = new KillcamView(ui.root);
+const spectator = new SpectatorBanner(ui.root);
 const onboarding = new OnboardingCoach(ui.root);
 const achievements = new AchievementPopups(ui.root);
 new BalanceLab(ui.root, send);
@@ -251,7 +252,7 @@ function connect(): void {
     previousProjectileIds.clear();
     previousModuleActiveUntil = 0;
     gameplayUI.onDisconnect();
-    killcam.reset();
+    spectator.reset();
     achievements.reset();
     onboarding.pause();
     if (input?.resetAll()) ui.setAutoFire(false);
@@ -311,7 +312,7 @@ function updateWorld(snapshot: WorldSnapshot): void {
   balanceCombatMeter.update(snapshot);
   gameplayUI.update(snapshot);
   gameplayEffects.update(snapshot);
-  killcam.update(snapshot);
+  spectator.update(snapshot);
   achievements.update(snapshot);
   onboarding.update(snapshot, input?.isMoving ?? false);
   const self = snapshot.players.find((player) => player.id === snapshot.selfId) ?? null;
@@ -413,10 +414,21 @@ window.addEventListener('unhandledrejection', (event) => reportClientError(event
 
 const volumeSlider = document.querySelector<HTMLInputElement>('#volume');
 if (volumeSlider) {
+  const volumeValue = document.querySelector<HTMLElement>('#volume-value');
+  // Der eigene Regler zeichnet den gefüllten Teil der Schiene selbst – WebKit
+  // hat dafür kein Gegenstück zu ::-moz-range-progress, also kommt der Stand
+  // als CSS-Variable von hier.
+  const showVolume = (percent: number): void => {
+    volumeSlider.style.setProperty('--fill', `${percent}%`);
+    if (volumeValue) volumeValue.textContent = `${percent}%`;
+  };
   volumeSlider.value = String(Math.round(audio.getVolume() * 100));
+  showVolume(Number(volumeSlider.value));
   volumeSlider.addEventListener('input', () => {
     audio.unlock();
-    audio.setVolume(Number(volumeSlider.value) / 100);
+    const percent = Number(volumeSlider.value);
+    audio.setVolume(percent / 100);
+    showVolume(percent);
   });
 }
 

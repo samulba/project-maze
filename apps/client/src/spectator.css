@@ -1,0 +1,38 @@
+/*
+ * Zuschauer-Hinweis. Liegt über dem Death-Screen (z-index 36), weil man beim
+ * Zuschauen tot ist, bleibt aber unter den Toasts (44). Bewusst schmal und
+ * gedeckt – das Geschehen dahinter ist die Hauptsache.
+ */
+.spectator-banner {
+  position: fixed;
+  top: max(var(--edge-y), env(safe-area-inset-top));
+  left: 50%;
+  z-index: 38;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 7px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--faint);
+  background: color-mix(in srgb, var(--strong) 92%, transparent);
+  translate: -50% 0;
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+.spectator-banner[hidden] { display: none !important; }
+.spectator-banner b {
+  max-width: 44vw;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+
+/* Die Status-Pille sitzt an derselben Stelle – beim Zuschauen weicht sie. */
+:root:has(.spectator-banner:not([hidden])) .network-pill { opacity: 0; }

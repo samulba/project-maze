@@ -1,0 +1,108 @@
+/*
+ * Formularelemente (Loadout-Dropdowns, Lautstärke-Regler).
+ *
+ * Native Controls bringen ihr eigenes Betriebssystem-Aussehen mit – nebeneinander
+ * mit den restlichen Flächen wirkt das wie zusammengesteckt. Hier bekommen sie
+ * dieselbe Sprache wie der Rest: gleiche Höhe, gleicher Radius, gleicher
+ * Fokusring wie das Namensfeld.
+ */
+
+/* ------------------------------------------------------------------ *
+ * Dropdowns
+ * ------------------------------------------------------------------ */
+.core-loadout-fields label { position: relative; }
+.core-loadout-fields select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 0;
+  height: 42px;
+  /* Rechts Platz für den eigenen Pfeil. */
+  padding: 0 34px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  outline: 0;
+  color: var(--text);
+  background: color-mix(in srgb, var(--strong) 84%, transparent);
+  cursor: pointer;
+  text-overflow: ellipsis;
+  font: 650 11px inherit;
+  transition: border-color .18s, box-shadow .18s;
+}
+.core-loadout-fields select:hover { border-color: var(--line-strong); }
+.core-loadout-fields select:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+/* Die aufgeklappte Liste erbt unter Linux/Windows die Farben des Elements. */
+.core-loadout-fields option { color: var(--text); background: #0d101a; }
+
+/*
+ * Eigener Pfeil auf dem Label statt des Systemdreiecks. Die Mitte des 42px
+ * hohen Feldes liegt 21px über der Label-Unterkante – dort sitzt das gedrehte
+ * Quadrat mit seiner Bounding-Box.
+ */
+.core-loadout-fields label::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  bottom: 16px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--faint);
+  border-bottom: 2px solid var(--faint);
+  rotate: 45deg;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ *
+ * Lautstärke
+ * ------------------------------------------------------------------ */
+#volume {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  /* Höher als die 4px-Schiene: ein Finger braucht mehr Fläche als das Auge. */
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  outline: 0;
+  background: transparent;
+  cursor: pointer;
+}
+#volume::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  /* `--fill` setzt main.ts beim Wert-Wechsel – WebKit kennt kein ::-moz-range-progress. */
+  background: linear-gradient(
+    90deg,
+    var(--accent) 0 var(--fill, 80%),
+    color-mix(in srgb, var(--text) 12%, transparent) var(--fill, 80%) 100%
+  );
+}
+#volume::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  /* (Schienenhöhe − Knopfhöhe) / 2 – zentriert den Knopf auf der Schiene. */
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+#volume::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+#volume::-moz-range-progress { height: 4px; border-radius: 999px; background: var(--accent); }
+#volume::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+#volume:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 42%, transparent); }
+#volume:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 42%, transparent); }
