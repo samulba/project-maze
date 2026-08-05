@@ -8,6 +8,7 @@ import {
   type ProjectileSnapshot,
   type ShapeSnapshot,
   type Vector2,
+  type Wall,
   type WorldSnapshot
 } from '@project-maze/shared';
 import type { ArenaEventSnapshot } from '@project-maze/shared/gameplay';
@@ -37,11 +38,16 @@ interface MotionView<T> {
   current:Vector2; target:Vector2; velocity:Vector2; snapshot:T; snapshotAt:number;
 }
 interface ShockRing { position:Vector2; life:number; maxLife:number; maxRadius:number; color:number; width:number; }
+/** Bruch-Umriss an der Stelle, an der eine Wand aufgeht (`closing:false`) oder sich schließt. */
+interface WallFlash { x:number; y:number; width:number; height:number; life:number; maxLife:number; closing:boolean; }
 interface FloatingLabel { text:Text; life:number; maxLife:number; velocityY:number; }
 
 const SHAPE_REWARDS:Record<string,number>={square:18,triangle:45,pentagon:120};
 /** Obergrenze der Overcharge-Funken pro Sekunde – unabhängig von der Zahl der Geschosse. */
 const OVERCHARGE_SPARKS_PER_SECOND=48;
+/** Sicherheitsrand zum Server-Cull-Rechteck, damit Culling nicht als Bruch gilt. */
+const WALL_CULL_MARGIN=140;
+const MAX_WALL_FLASHES=24;
 
 class FloatingNumbers {
   readonly container=new Container();
@@ -123,6 +129,10 @@ export class GameRenderer {
   private arenaEvent:ArenaEventSnapshot|null=null;
   /** Bruchteile eines Funkens, damit die Rate unabhängig von der Bildrate bleibt. */
   private sparkBudget=0;
+  private knownWalls=new Map<string,Wall>();
+  private wallsInitialized=false;
+  private lastSelfPosition:Vector2|null=null;
+  private readonly wallFlashes:WallFlash[]=[];
 
   /** Erst true, wenn PixiJS fertig initialisiert ist – vorher darf nichts auf app.renderer zugreifen. */
   get ready():boolean{return this.initialized}
@@ -152,7 +162,7 @@ export class GameRenderer {
     this.snapshot=snapshot;
     this.selfId=snapshot.selfId;
     const signature=snapshot.walls.map(wall=>`${wall.id}:${wall.x}:${wall.y}:${wall.width}:${wall.height}`).join('|');
-    if(signature!==this.wallsSignature){this.wallsSignature=signature;this.drawWalls(snapshot)}
+    if(signature!==this.wallsSignature){this.wallsSignature=signature;this.syncWallChanges(snapshot);this.drawWalls(snapshot)}
     const extended=snapshot as WorldSnapshot&{arenaEvent?:ArenaEventSnapshot|null;arenaGuardianId?:string|null};
     this.arenaEvent=extended.arenaEvent??null;
     const guardianId=extended.arenaGuardianId??null;
@@ -163,6 +173,57 @@ export class GameRenderer {
     this.syncDrones(snapshot,now);
     this.syncShapeEffects(snapshot);
     if(guardianChanged&&guardianId)this.announceGuardian(guardianId,snapshot);
+    const self=snapshot.players.find(player=>player.id===snapshot.selfId);
+    this.lastSelfPosition=self?{...self.position}:null;
+  }
+
+  /**
+   * Erkennt aufgebrochene und wieder geschlossene Wände (Fracture).
+   *
+   * Heikel daran: Der Server schneidet die Wandliste am Sichtfeld zu, es
+   * kommen also ständig Wände dazu und weg, nur weil sich der Spieler bewegt.
+   * Gezeigt wird deshalb nur, was *deutlich innerhalb* des Sichtfelds
+   * verschwindet oder auftaucht – und gar nichts, wenn der Spieler gerade
+   * gesprungen ist (Respawn), weil dann die ganze Liste wechselt.
+   */
+  private syncWallChanges(snapshot:WorldSnapshot):void{
+    const self=snapshot.players.find(player=>player.id===snapshot.selfId);
+    const next=new Map(snapshot.walls.map(wall=>[wall.id,wall] as const));
+    const jumped=!self||!this.lastSelfPosition
+      ||Math.hypot(self.position.x-this.lastSelfPosition.x,self.position.y-this.lastSelfPosition.y)>400;
+    if(this.wallsInitialized&&self&&!jumped){
+      for(const[id,wall]of this.knownWalls){
+        if(!next.has(id)&&this.wallWellInsideView(wall,self.position))this.flashWall(wall,false);
+      }
+      for(const[id,wall]of next){
+        if(!this.knownWalls.has(id)&&this.wallWellInsideView(wall,self.position))this.flashWall(wall,true);
+      }
+    }
+    this.knownWalls=next;
+    this.wallsInitialized=true;
+  }
+
+  /**
+   * Die Wand muss vollständig innerhalb des Server-Cull-Rechtecks liegen, mit
+   * Rand. Nur dann kann ihr Verschwinden kein Culling gewesen sein.
+   */
+  private wallWellInsideView(wall:Wall,center:Vector2):boolean{
+    const halfWidth=GAME.visibleWorldWidth*.62-WALL_CULL_MARGIN;
+    const halfHeight=GAME.visibleWorldHeight*.72-WALL_CULL_MARGIN;
+    return wall.x>=center.x-halfWidth&&wall.x+wall.width<=center.x+halfWidth
+      &&wall.y>=center.y-halfHeight&&wall.y+wall.height<=center.y+halfHeight;
+  }
+
+  /** Bruch-Partikel plus violetter Umriss – nach außen beim Öffnen, nach innen beim Schließen. */
+  private flashWall(wall:Wall,closing:boolean):void{
+    if(this.wallFlashes.length>=MAX_WALL_FLASHES)this.wallFlashes.shift();
+    this.wallFlashes.push({x:wall.x,y:wall.y,width:wall.width,height:wall.height,life:.62,maxLife:.62,closing});
+    const style=arenaEventStyle('fracture');
+    const count=Math.min(20,6+Math.round((wall.width+wall.height)/38));
+    for(let index=0;index<count;index+=1){
+      const point={x:wall.x+Math.random()*wall.width,y:wall.y+Math.random()*wall.height};
+      this.particles.burst(point,index%2===0?style.ring:style.core,1,closing?70:165,closing?.3:.48);
+    }
   }
 
   /** Auftritt des Guardians: doppelter Schockring, goldener Funkenkranz, kurzer Kamera-Stoß. */
@@ -391,6 +452,26 @@ export class GameRenderer {
       const eased=1-Math.pow(1-progress,2.4);
       this.fx.circle(ring.position.x,ring.position.y,ring.maxRadius*eased)
         .stroke({color:ring.color,alpha:(1-progress)*.75,width:ring.width*(1-progress*.5)});
+    }
+    this.drawWallFlashes(delta);
+  }
+
+  /** Öffnen: Umriss dehnt sich nach außen. Schließen: Umriss zieht sich auf die Wand zusammen. */
+  private drawWallFlashes(delta:number):void{
+    if(this.wallFlashes.length===0)return;
+    const style=arenaEventStyle('fracture');
+    for(let index=this.wallFlashes.length-1;index>=0;index-=1){
+      const flash=this.wallFlashes[index];
+      if(!flash)continue;
+      flash.life-=delta;
+      if(flash.life<=0){this.wallFlashes.splice(index,1);continue;}
+      const progress=1-flash.life/flash.maxLife;
+      const spread=flash.closing?(1-progress)*18:progress*15;
+      const fade=1-progress;
+      this.fx.roundRect(flash.x-spread,flash.y-spread,flash.width+spread*2,flash.height+spread*2,10)
+        .stroke({color:style.ring,alpha:fade*(flash.closing?.8:.95),width:flash.closing?2.5:3});
+      this.fx.roundRect(flash.x,flash.y,flash.width,flash.height,10)
+        .stroke({color:style.core,alpha:fade*.5,width:1.5});
     }
   }
 
