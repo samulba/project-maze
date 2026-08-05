@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   ONBOARDING_DURATION_MS,
+  ONBOARDING_EVENT_SEEN_MS,
+  ONBOARDING_EVENT_WINDOW_MS,
   ONBOARDING_STEPS,
   activeStep,
   completedSteps,
@@ -18,6 +20,8 @@ const fresh = (overrides: Partial<OnboardingContext> = {}): OnboardingContext =>
   usedAbility: false,
   classChoicesOpen: false,
   specialized: false,
+  eventRunning: false,
+  eventHintShownMs: 0,
   ...overrides
 });
 
@@ -29,6 +33,7 @@ const veteran = (overrides: Partial<OnboardingContext> = {}): OnboardingContext 
     spentPoint: true,
     usedAbility: true,
     specialized: true,
+    eventHintShownMs: ONBOARDING_EVENT_SEEN_MS,
     elapsedMs: 20_000,
     ...overrides
   });
@@ -80,6 +85,71 @@ describe('activeStep', () => {
   });
 });
 
+describe('arena event step', () => {
+  const settled = { moved: true, farmed: true, spentPoint: true, usedAbility: true, specialized: true };
+
+  it('appears as soon as the first event runs', () => {
+    expect(activeStep(fresh({ ...settled, eventRunning: true }))?.id).toBe('event');
+  });
+
+  it('stays away while no event is running', () => {
+    expect(activeStep(fresh({ ...settled }))).toBeNull();
+  });
+
+  it('still appears long after the basics window – events are rare', () => {
+    const late = fresh({ ...settled, eventRunning: true, elapsedMs: ONBOARDING_DURATION_MS * 4 });
+    expect(activeStep(late)?.id).toBe('event');
+  });
+
+  it('does not resurrect the basics after the window', () => {
+    const late = fresh({ eventRunning: true, elapsedMs: ONBOARDING_DURATION_MS * 4 });
+    // "move" wäre sonst der erste offene Schritt.
+    expect(activeStep(late)?.id).toBe('event');
+  });
+
+  it('is not marked read just because an event happened to run', () => {
+    // Ein Event während der Grundlagen erklärt dem Spieler nichts – der Hinweis
+    // stand ja nie. Gezählt wird die Standzeit des Hinweises, nicht des Events.
+    const busy = fresh({ eventRunning: true, elapsedMs: 30_000 });
+    expect(activeStep(busy)?.id).not.toBe('event');
+    expect(ONBOARDING_STEPS.find((entry) => entry.id === 'event')!.isDone(busy)).toBe(false);
+  });
+
+  it('is done once an event was on screen long enough', () => {
+    const seen = fresh({ ...settled, eventRunning: true, eventHintShownMs: ONBOARDING_EVENT_SEEN_MS });
+    expect(activeStep(seen)).toBeNull();
+  });
+
+  it('does not come back for later events', () => {
+    const later = fresh({ ...settled, eventRunning: true, eventHintShownMs: ONBOARDING_EVENT_SEEN_MS * 10 });
+    expect(activeStep(later)).toBeNull();
+  });
+
+  it('gives up entirely at the end of the event window', () => {
+    const tooLate = fresh({ ...settled, eventRunning: true, elapsedMs: ONBOARDING_EVENT_WINDOW_MS });
+    expect(activeStep(tooLate)).toBeNull();
+  });
+
+  it('points at the event banner', () => {
+    const step = ONBOARDING_STEPS.find((entry) => entry.id === 'event')!;
+    expect(step.focus(true)).toBe('.arena-event-banner');
+    expect(step.focus(false)).toBe('.arena-event-banner');
+    expect(step.outlivesWindow).toBe(true);
+  });
+
+  it('is not blocked by a basics hint that is still open after the window', () => {
+    // Ungenutzte Upgrade-Punkte laufen nie ab – sie dürfen den Event-Hinweis
+    // trotzdem nicht verdecken, sobald das Grundlagen-Fenster vorbei ist.
+    const late = fresh({ ...settled, spentPoint: false, availablePoints: 3, eventRunning: true, elapsedMs: ONBOARDING_DURATION_MS * 2 });
+    expect(activeStep(late)?.id).toBe('event');
+  });
+
+  it('yields to a pending class choice', () => {
+    const both = fresh({ ...settled, specialized: false, eventRunning: true, classChoicesOpen: true });
+    expect(activeStep(both)?.id).toBe('specialize');
+  });
+});
+
 describe('hint wording', () => {
   it('has a distinct text per input method for every step', () => {
     for (const step of ONBOARDING_STEPS) {
@@ -118,8 +188,19 @@ describe('completion', () => {
     expect(isOnboardingComplete(veteran())).toBe(true);
   });
 
-  it('ends when the window runs out even if nothing was learned', () => {
-    expect(isOnboardingComplete(fresh({ elapsedMs: ONBOARDING_DURATION_MS }))).toBe(true);
+  it('ends when the basics window runs out and no event hint is pending', () => {
+    const seenEvent = fresh({ elapsedMs: ONBOARDING_DURATION_MS, eventHintShownMs: ONBOARDING_EVENT_SEEN_MS });
+    expect(isOnboardingComplete(seenEvent)).toBe(true);
+  });
+
+  it('stays open past the basics window while the event hint is still owed', () => {
+    // Das erste Arena-Event kommt fast nie in der ersten Minute.
+    expect(isOnboardingComplete(fresh({ elapsedMs: ONBOARDING_DURATION_MS }))).toBe(false);
+    expect(isOnboardingComplete(fresh({ elapsedMs: ONBOARDING_DURATION_MS * 3 }))).toBe(false);
+  });
+
+  it('gives up on the event hint at the end of the event window', () => {
+    expect(isOnboardingComplete(fresh({ elapsedMs: ONBOARDING_EVENT_WINDOW_MS }))).toBe(true);
   });
 
   it('reports progress that never exceeds the step count', () => {

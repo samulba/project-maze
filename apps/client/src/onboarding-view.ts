@@ -34,6 +34,9 @@ export class OnboardingCoach {
   private spentPoint = false;
   private usedAbility = false;
   private baselineUpgrades: number | null = null;
+  private eventRunning = false;
+  private eventHintShownMs = 0;
+  private lastStepMs = 0;
   private focused: Element | null = null;
   private currentStepId: string | null = null;
 
@@ -85,6 +88,9 @@ export class OnboardingCoach {
       return;
     }
 
+    // Der Event-Hinweis gilt erst als gelesen, wenn er auch wirklich stand.
+    if (step.id === 'event') this.eventHintShownMs += this.lastStepMs;
+
     if (step.id !== this.currentStepId) {
       this.currentStepId = step.id;
       this.title.textContent = step.title;
@@ -95,7 +101,9 @@ export class OnboardingCoach {
       this.card.classList.add('enter');
     }
     this.counter.textContent = `${Math.min(ONBOARDING_STEPS.length, completedSteps(context) + 1)}/${ONBOARDING_STEPS.length}`;
-    this.progress.style.width = `${Math.round((context.elapsedMs / ONBOARDING_DURATION_MS) * 100)}%`;
+    // Der Balken zeigt das Grundlagen-Fenster; ereignisgebundene Hinweise
+    // danach lassen ihn schlicht voll stehen.
+    this.progress.style.width = `${Math.min(100, Math.round((context.elapsedMs / ONBOARDING_DURATION_MS) * 100))}%`;
     this.card.hidden = false;
     document.documentElement.classList.add('onboarding-active');
   }
@@ -107,9 +115,9 @@ export class OnboardingCoach {
 
   private track(snapshot: WorldSnapshot, self: PlayerSnapshot, moving: boolean): void {
     const now = performance.now();
-    if (this.lastTickAt !== null && !self.dead) {
-      this.elapsedMs += Math.min(1000, now - this.lastTickAt);
-    }
+    this.lastStepMs = this.lastTickAt === null ? 0 : Math.min(1000, now - this.lastTickAt);
+    if (this.lastTickAt !== null && !self.dead) this.elapsedMs += this.lastStepMs;
+    this.eventRunning = Boolean((snapshot as ExtendedSnapshot).arenaEvent);
     this.lastTickAt = now;
 
     if (moving) this.moved = true;
@@ -133,7 +141,9 @@ export class OnboardingCoach {
       spentPoint: this.spentPoint,
       usedAbility: this.usedAbility,
       classChoicesOpen: availableClassChoices(self.playerClass, self.level).length > 0,
-      specialized: self.playerClass !== 'core'
+      specialized: self.playerClass !== 'core',
+      eventRunning: this.eventRunning,
+      eventHintShownMs: this.eventHintShownMs
     };
   }
 
