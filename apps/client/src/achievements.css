@@ -1,0 +1,70 @@
+/*
+ * Achievement-Popup: sitzt in der linken Spalte unter dem Killfeed und
+ * übernimmt dessen Formensprache (Glas, kleine Schrift, gerundete Ecken).
+ * Bewusst nicht in der Bildmitte – eine Freischaltung ist eine Notiz, keine
+ * Unterbrechung.
+ */
+.achievement-popup {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 9px 11px 9px 9px;
+  border: 1px solid color-mix(in srgb, #f0c265 34%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: 0 10px 30px var(--shadow), 0 0 22px color-mix(in srgb, #f0c265 10%, transparent);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+.achievement-popup[hidden] { display: none !important; }
+.achievement-popup.enter { animation: achievement-in .3s cubic-bezier(.2, .9, .3, 1); }
+
+.achievement-badge {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  color: #f0c265;
+  background: color-mix(in srgb, #f0c265 14%, transparent);
+  font-size: 12px;
+  line-height: 1;
+}
+.achievement-body { display: grid; gap: 1px; min-width: 0; }
+.achievement-eyebrow {
+  color: #f0c265;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .14em;
+}
+.achievement-popup strong {
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+}
+.achievement-popup small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+@keyframes achievement-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Der Killfeed ist auf schmalen Screens aus – das Popup bleibt, ist aber
+   knapper: Der Name trägt die Information, die Beschreibung ist Beiwerk. */
+@media (pointer: coarse), (max-width: 900px) {
+  .achievement-popup { margin-top: 6px; padding: 7px 9px 7px 7px; }
+  .achievement-popup small { display: none; }
+  .achievement-popup strong { font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .achievement-popup.enter { animation: none; }
+}
