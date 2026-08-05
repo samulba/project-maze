@@ -20,6 +20,8 @@ import { MazeGame } from './game.js';
 
 /** Tabelle der abgeschlossenen Runs – siehe supabase/migrations. */
 export const RUNS_TABLE = 'runs';
+/** Profiltabelle aus Migration 0002; nur mit aktiviertem Login befüllt. */
+export const PROFILES_TABLE = 'profiles';
 const DEFAULT_FLUSH_INTERVAL_MS = 5_000;
 const DEFAULT_LEADERBOARD_CACHE_MS = 30_000;
 const DEFAULT_LEADERBOARD_LIMIT = 50;
@@ -38,6 +40,14 @@ export interface RunRecord {
   kills: number;
   bestStreak: number;
   durationSeconds: number;
+  /** Konto des Spielers, `null` bei Gast-Runs (Normalfall). */
+  userId: string | null;
+}
+
+/** Profilzeile eines angemeldeten Kontos (Migration 0002). */
+export interface ProfileRecord {
+  userId: string;
+  displayName: string;
 }
 
 export interface LeaderboardEntry {
@@ -56,6 +66,7 @@ export interface LeaderboardEntry {
 export interface PersistenceClient {
   insertRuns(runs: readonly RunRecord[]): Promise<void>;
   topRuns(limit: number): Promise<LeaderboardEntry[]>;
+  upsertProfiles(profiles: readonly ProfileRecord[]): Promise<void>;
 }
 
 export interface PersistenceConfig {
@@ -94,6 +105,9 @@ interface PersistenceState {
   enabled: boolean;
   client: PersistenceClient | null;
   queue: RunRecord[];
+  profileQueue: Map<string, ProfileRecord>;
+  /** Spieler-ID → Konto-ID, gesetzt beim angemeldeten Join. */
+  accounts: Map<string, string>;
   lifeStartedAt: Map<string, number>;
   written: number;
   dropped: number;
@@ -114,6 +128,8 @@ const createState = (): PersistenceState => ({
   enabled: false,
   client: null,
   queue: [],
+  profileQueue: new Map(),
+  accounts: new Map(),
   lifeStartedAt: new Map(),
   written: 0,
   dropped: 0,
@@ -184,8 +200,17 @@ export function createSupabaseClient(config: PersistenceConfig): PersistenceClie
         player_class: run.playerClass,
         kills: run.kills,
         best_streak: run.bestStreak,
-        duration_seconds: run.durationSeconds
+        duration_seconds: run.durationSeconds,
+        user_id: run.userId
       })));
+      if (error) throw new Error(error.message);
+    },
+    async upsertProfiles(profiles) {
+      const client = await clientPromise;
+      const { error } = await client.from(PROFILES_TABLE).upsert(
+        profiles.map((profile) => ({ user_id: profile.userId, display_name: profile.displayName })),
+        { onConflict: 'user_id' }
+      );
       if (error) throw new Error(error.message);
     },
     async topRuns(limit) {
@@ -225,15 +250,25 @@ function enqueue(state: PersistenceState, run: RunRecord): void {
  * Insert, wandern die Zeilen zurück an den Anfang der Warteschlange.
  */
 async function flush(state: PersistenceState): Promise<void> {
-  if (!state.enabled || !state.client || state.flushing || state.queue.length === 0) return;
+  if (!state.enabled || !state.client || state.flushing) return;
+  if (state.queue.length === 0 && state.profileQueue.size === 0) return;
   state.flushing = true;
   const batch = state.queue.splice(0, MAX_BATCH);
+  const profiles = [...state.profileQueue.values()].slice(0, MAX_BATCH);
   try {
-    await state.client.insertRuns(batch);
-    state.written += batch.length;
+    // Profile zuerst: Ein Run mit user_id braucht die Zeile nicht, aber die
+    // Reihenfolge hält die Profilkarte im Death-Screen aktuell.
+    if (profiles.length > 0) {
+      await state.client.upsertProfiles(profiles);
+      for (const profile of profiles) state.profileQueue.delete(profile.userId);
+    }
+    if (batch.length > 0) {
+      await state.client.insertRuns(batch);
+      state.written += batch.length;
+    }
   } catch (error) {
     state.failedFlushes += 1;
-    noteError(state, 'Run-Insert fehlgeschlagen', error);
+    noteError(state, 'Supabase-Schreibzugriff fehlgeschlagen', error);
     // Zurück in die Warteschlange, aber ohne sie über die Obergrenze zu treiben.
     const room = Math.max(0, MAX_QUEUE - state.queue.length);
     const kept = batch.slice(Math.max(0, batch.length - room));
@@ -249,7 +284,34 @@ export async function flushPersistence(game: MazeGame): Promise<void> {
   const state = stateFor(game);
   if (!state.enabled) return;
   // Ein laufender Flush darf zu Ende gehen, bevor der Rest hinterherkommt.
-  for (let attempt = 0; attempt < 3 && state.queue.length > 0; attempt += 1) await flush(state);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (state.queue.length === 0 && state.profileQueue.size === 0) return;
+    await flush(state);
+  }
+}
+
+/**
+ * Verknüpft einen Spielplatz mit einem verifizierten Konto. **Wird noch von
+ * niemandem aufgerufen** – die Join-Message trägt das Token erst, wenn
+ * `packages/shared` erweitert ist (siehe Vorschlag im Statusblock). Bis dahin
+ * bleibt `runs.user_id` überall NULL.
+ *
+ * Ohne aktive Persistenz ist der Aufruf ein No-op.
+ */
+export function linkPlayerToUser(
+  game: MazeGame,
+  playerId: string,
+  user: { userId: string; displayName?: string | null } | null
+): void {
+  const state = stateFor(game);
+  if (!state.enabled) return;
+  if (!user) {
+    state.accounts.delete(playerId);
+    return;
+  }
+  state.accounts.set(playerId, user.userId);
+  const displayName = user.displayName?.trim().slice(0, 18);
+  if (displayName) state.profileQueue.set(user.userId, { userId: user.userId, displayName });
 }
 
 export function persistenceStats(game: MazeGame): PersistenceStats {
@@ -353,7 +415,8 @@ export function tunePersistence<T extends MazeGame>(game: T, options: Persistenc
       playerClass: target.playerClass,
       kills: Math.max(0, Math.round(target.kills)),
       bestStreak: Math.max(0, Math.round(Math.max(target.bestStreak, target.streak))),
-      durationSeconds: 0
+      durationSeconds: 0,
+      userId: state.accounts.get(target.id) ?? null
     };
     const startedAt = state.lifeStartedAt.get(target.id);
     state.lifeStartedAt.delete(target.id);
@@ -384,6 +447,7 @@ export function tunePersistence<T extends MazeGame>(game: T, options: Persistenc
   const originalRemovePlayer = game.removePlayer.bind(game);
   game.removePlayer = ((id: string): void => {
     state.lifeStartedAt.delete(id);
+    state.accounts.delete(id);
     originalRemovePlayer(id);
   }) as T['removePlayer'];
 

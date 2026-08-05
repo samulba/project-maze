@@ -22,6 +22,7 @@ import {
 import { tuneAchievements } from './achievements.js';
 import { tuneArenaEvents } from './arena-events.js';
 import { tuneArenaSystems } from './arena-systems.js';
+import { authStatus, initAuth } from './auth.js';
 import { tuneClassMechanics } from './class-mechanics.js';
 import { tuneCombatScaling } from './combat-tuning.js';
 import {
@@ -82,6 +83,10 @@ function originAllowed(origin: string | undefined): boolean {
   if (!allowedOrigins || !origin) return true;
   return allowedOrigins.has(origin);
 }
+
+// Login-Verifikation vorbereiten. Ohne AUTH_ENABLED=true bleibt sie inaktiv;
+// die Join-Message trägt noch kein Token (siehe docs/SUPABASE.md).
+initAuth();
 
 const app = express();
 app.disable('x-powered-by');
@@ -339,7 +344,8 @@ app.get('/health', (_request: Request, response: Response) => {
     build: 'mazers-branding+events+join-fix',
     snapshotRate: GAME.snapshotRate,
     debugTools: ENABLE_DEV_TOOLS,
-    persistence: persistenceStats(game)
+    persistence: persistenceStats(game),
+    auth: authStatus()
   });
 });
 app.get('/metrics', metricsHandler(game));
