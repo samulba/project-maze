@@ -1,7 +1,9 @@
 /* Einstiegshinweise der ersten 60 Sekunden. */
 .onboarding {
   position: fixed;
-  top: calc(max(10px, env(safe-area-inset-top)) + 52px);
+  /* Gleicher Anker wie die HUD-Ecken – auf 21:9 klebt der Hinweis damit am
+     Spielfeld statt am Fensterrand. */
+  top: calc(var(--edge-y) + 44px);
   left: 50%;
   z-index: 26;
   display: grid;
@@ -59,11 +61,11 @@
   transition: width .4s linear;
 }
 
-/* Banner weichen dem Hinweis aus, solange das Onboarding läuft – aber nur,
-   wenn darunter überhaupt Platz ist. */
+/* Die ganze obere Mitte (Banner und Toasts, siehe gameplay-ui.css) rückt unter
+   den Hinweis, solange das Onboarding läuft – aber nur, wenn darunter
+   überhaupt Platz ist. */
 @media (min-height: 560px) {
-  :root.onboarding-active .arena-event-banner { top: 168px; }
-  :root.onboarding-active .bounty-banner { top: 210px; }
+  :root.onboarding-active { --top-stack: calc(var(--edge-y) + 150px); }
 }
 
 /* Das erklärte Bedienelement pulsiert dezent mit. */
@@ -113,4 +115,7 @@
   :root.onboarding-active .leaderboard,
   :root.onboarding-active .arena-event-banner,
   :root.onboarding-active .bounty-banner { display: none; }
+  /* Toasts bleiben – sie melden Dinge, die auch Anfänger sehen müssen –,
+     rücken aber unter die Karte. */
+  :root.onboarding-active { --top-stack: calc(var(--edge-y) + 110px); }
 }

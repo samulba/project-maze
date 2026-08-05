@@ -3,8 +3,9 @@
 .start-card .eyebrow > span { font-size:10px; }
 .balance-lab-toggle {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
+  /* Links neben die Minimap: rechts unten sass der Knopf bisher darauf. */
+  right: calc(var(--edge-x) + 196px);
+  bottom: var(--edge-y);
   z-index: 70;
   border: 1px solid rgba(255,255,255,.18);
   border-radius: 999px;

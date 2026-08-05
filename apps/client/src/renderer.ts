@@ -16,6 +16,7 @@ import {
 import type { ArenaEventSnapshot } from '@project-maze/shared/gameplay';
 import { GUARDIAN_COLOR, GUARDIAN_NAME, arenaEventStyle } from './arena-event-style';
 import { ParticleField } from './particles';
+import { type RecoilState, startRecoil, stepRecoil } from './recoil';
 import type { ClientThemeId } from './themes';
 
 interface Palette {
@@ -24,7 +25,10 @@ interface Palette {
   square:number; triangle:number; pentagon:number; label:number;
 }
 const PALETTES:Record<ClientThemeId,Palette>={
-  midnight:{background:0x070910,outside:0x020307,grid:0x151a28,border:0x3d4661,wall:0x222839,wallEdge:0x3f4964,self:0x7d88ff,enemy:0xe7677b,barrel:0xc4cad9,projectile:0xf5f7ff,drone:0x78d7c7,square:0x6574dd,triangle:0xe6a954,pentagon:0xcf6eb5,label:0xe9ecf5},
+  // Ruhige Fläche, wenig Sättigung: Farbe soll Bedeutung tragen, nicht Dekoration
+  // sein. Kräftig bleiben nur der eigene Tank und die Gegnerfarbe – Formen und
+  // Wände treten bewusst zurück.
+  midnight:{background:0x080a11,outside:0x04050a,grid:0x121724,border:0x2c3347,wall:0x1b2130,wallEdge:0x2f3749,self:0x6f7ad6,enemy:0xc4626f,barrel:0x9aa1b2,projectile:0xdfe4f0,drone:0x5f9e94,square:0x515d9c,triangle:0xa8834a,pentagon:0x93588a,label:0xd6dae6},
   void:{background:0x030407,outside:0x000000,grid:0x111317,border:0x31343b,wall:0x181b20,wallEdge:0x343942,self:0xb8ff6a,enemy:0xff5c76,barrel:0xdde2e8,projectile:0xffffff,drone:0x65e7c2,square:0x6b7c8f,triangle:0xffb84d,pentagon:0xc77dff,label:0xf1f3f5},
   classic:{background:0xe8ebf0,outside:0xcbd0da,grid:0xd5d9e1,border:0x818a9b,wall:0xaab1bf,wallEdge:0x7e8798,self:0x536dfe,enemy:0xf14e63,barrel:0x727b8d,projectile:0x343a46,drone:0x2ba887,square:0x6f7ee8,triangle:0xe5a044,pentagon:0xbd5c9d,label:0x252a34},
   neon:{background:0x0b0620,outside:0x050210,grid:0x241154,border:0x8a3df0,wall:0x1d1040,wallEdge:0x9b52ff,self:0x35e8ff,enemy:0xff3d9e,barrel:0xd9c2ff,projectile:0xf2fbff,drone:0x7bff7d,square:0x5f6dff,triangle:0xffc247,pentagon:0xc85cff,label:0xf4f0ff}
@@ -35,7 +39,11 @@ interface PlayerView {
   shield:Graphics; flash:Graphics; healthBack:Graphics; healthFill:Graphics; name:Text;
   current:Vector2; target:Vector2; velocity:Vector2; angle:number; targetAngle:number;
   snapshot:PlayerSnapshot; snapshotAt:number; classId:PlayerClass; isSelf:boolean; isGuardian:boolean; flashUntil:number;
+  /** Rückstoß als Federweg (siehe recoil.ts) plus Richtung des letzten Schusses. */
+  recoil:RecoilState; recoilDirection:Vector2;
 }
+/** Kurzer Mündungsblitz am Rohrende. */
+interface MuzzleBlip { x:number; y:number; angle:number; radius:number; life:number; maxLife:number; color:number; }
 interface MotionView<T> {
   current:Vector2; target:Vector2; velocity:Vector2; snapshot:T; snapshotAt:number;
 }
@@ -50,6 +58,12 @@ const OVERCHARGE_SPARKS_PER_SECOND=48;
 /** Sicherheitsrand zum Server-Cull-Rechteck, damit Culling nicht als Bruch gilt. */
 const WALL_CULL_MARGIN=140;
 const MAX_WALL_FLASHES=24;
+/** Weg des Rohrs nach hinten in Welteinheiten (Feder: recoil.ts). */
+const RECOIL_BARREL=5;
+/** Der Tank selbst zuckt nur andeutungsweise mit. */
+const RECOIL_BODY=2.2;
+const MUZZLE_BLIP_SECONDS=.07;
+const MAX_MUZZLE_BLIPS=24;
 
 class FloatingNumbers {
   readonly container=new Container();
@@ -115,7 +129,6 @@ export class GameRenderer {
   private readonly rings:ShockRing[]=[];
   private shakeAmplitude=0;
   private readonly viewportMask=new Graphics();
-  private readonly viewportFrame=new Graphics();
   private readonly crosshair=new Graphics();
   private readonly playerViews=new Map<string,PlayerView>();
   private readonly projectileViews=new Map<string,MotionView<ProjectileSnapshot>>();
@@ -138,6 +151,8 @@ export class GameRenderer {
   private initialized=false;
   private lastSnapshotAt=performance.now();
   private guardianId:string|null=null;
+  /** Gesetzt, solange der Server einen Zuschauer-Blick vorgibt (SPECTATOR_ENABLED). */
+  private spectatorId:string|null=null;
   private arenaEvent:ArenaEventSnapshot|null=null;
   /** Bruchteile eines Funkens, damit die Rate unabhängig von der Bildrate bleibt. */
   private sparkBudget=0;
@@ -145,6 +160,7 @@ export class GameRenderer {
   private wallsInitialized=false;
   private lastSelfPosition:Vector2|null=null;
   private readonly wallFlashes:WallFlash[]=[];
+  private readonly muzzleBlips:MuzzleBlip[]=[];
 
   /** Erst true, wenn PixiJS fertig initialisiert ist – vorher darf nichts auf app.renderer zugreifen. */
   get ready():boolean{return this.initialized}
@@ -218,7 +234,7 @@ export class GameRenderer {
     root.prepend(this.app.canvas);
     this.world.addChild(this.background,this.walls,this.shapes,this.projectiles,this.drones,this.particles.graphics,this.players,this.fx,this.numbers.container);
     this.world.mask=this.viewportMask;
-    this.app.stage.addChild(this.world,this.viewportMask,this.viewportFrame,this.crosshair);
+    this.app.stage.addChild(this.world,this.viewportMask,this.crosshair);
     this.syncSize();
     // iOS meldet neue Maße gern verspätet – deshalb nach jedem Ereignis ein
     // zweiter Abgleich mit kurzem Abstand.
@@ -239,8 +255,9 @@ export class GameRenderer {
     this.selfId=snapshot.selfId;
     const signature=snapshot.walls.map(wall=>`${wall.id}:${wall.x}:${wall.y}:${wall.width}:${wall.height}`).join('|');
     if(signature!==this.wallsSignature){this.wallsSignature=signature;this.syncWallChanges(snapshot);this.drawWalls(snapshot)}
-    const extended=snapshot as WorldSnapshot&{arenaEvent?:ArenaEventSnapshot|null;arenaGuardianId?:string|null};
+    const extended=snapshot as WorldSnapshot&{arenaEvent?:ArenaEventSnapshot|null;arenaGuardianId?:string|null;spectatorTargetId?:string|null};
     this.arenaEvent=extended.arenaEvent??null;
+    this.spectatorId=extended.spectatorTargetId??null;
     const guardianId=extended.arenaGuardianId??null;
     const guardianChanged=guardianId!==this.guardianId;
     this.guardianId=guardianId;
@@ -388,7 +405,11 @@ export class GameRenderer {
       if(!existing){
         this.projectileViews.set(projectile.id,{current:{...projectile.position},target:{...projectile.position},velocity:{...projectile.velocity},snapshot:projectile,snapshotAt:now});
         const owner=this.playerViews.get(projectile.ownerId);
-        if(owner)this.particles.muzzle(owner.current,normalize(projectile.velocity),this.ownerColor(projectile.ownerId));
+        if(owner){
+          const direction=normalize(projectile.velocity);
+          this.particles.muzzle(owner.current,direction,this.ownerColor(projectile.ownerId));
+          this.fireRecoil(owner,direction,projectile);
+        }
         continue;
       }
       const displacement=Math.hypot(projectile.position.x-existing.target.x,projectile.position.y-existing.target.y);
@@ -452,6 +473,9 @@ export class GameRenderer {
     this.time+=delta;
     const now=performance.now();
     const self=this.selfId?this.playerViews.get(this.selfId):undefined;
+    // Beim Zuschauen hängt die Kamera am beobachteten Spieler; `selfId` bleibt
+    // unverändert, damit HUD, Death-Screen und Respawn weiter den eigenen Tank meinen.
+    const camera=(this.spectatorId?this.playerViews.get(this.spectatorId):undefined)??self;
     for(const view of this.playerViews.values()){
       const age=clamp((now-view.snapshotAt)/1000,0,.09);
       const predicted={x:view.target.x+view.velocity.x*age,y:view.target.y+view.velocity.y*age};
@@ -467,7 +491,13 @@ export class GameRenderer {
       }else{
         view.angle=angleLerp(view.angle,view.targetAngle,1-Math.exp(-28*delta));
       }
-      view.root.position.set(view.current.x,view.current.y);
+      // Feder zurück in die Ruhelage – unterkritisch gedämpft, damit das Rohr
+      // kurz zurückgeht und danach federnd wieder vorschwingt.
+      if(stepRecoil(view.recoil,delta))view.barrels.position.x=-view.recoil.offset*RECOIL_BARREL;
+      view.root.position.set(
+        view.current.x-view.recoilDirection.x*view.recoil.offset*RECOIL_BODY,
+        view.current.y-view.recoilDirection.y*view.recoil.offset*RECOIL_BODY
+      );
       view.rotating.rotation=view.angle;
       view.shield.alpha=view.snapshot.invulnerable?.45+Math.sin(this.time*8)*.16:0;
       view.flash.alpha=view.flashUntil>now?.62*((view.flashUntil-now)/130):0;
@@ -476,13 +506,13 @@ export class GameRenderer {
     this.updateMotion(this.droneViews,delta,now,30,.09);
     this.shakeAmplitude*=Math.exp(-6.5*delta);
     if(this.shakeAmplitude<.15)this.shakeAmplitude=0;
-    if(self){
+    if(camera){
       this.scale=this.viewport.height/GAME.visibleWorldHeight;
       this.world.scale.set(this.scale);
       const shakeX=(Math.random()-.5)*2*this.shakeAmplitude;
       const shakeY=(Math.random()-.5)*2*this.shakeAmplitude;
       this.world.position.set(this.viewport.x+this.viewport.width/2+shakeX,this.viewport.y+this.viewport.height/2+shakeY);
-      this.world.pivot.set(self.current.x,self.current.y);
+      this.world.pivot.set(camera.current.x,camera.current.y);
     }
     this.emitOverchargeSparks(delta);
     this.drawDynamic(now);
@@ -491,6 +521,28 @@ export class GameRenderer {
     this.numbers.update(delta);
     this.drawRings(delta);
     this.drawCrosshair();
+  }
+
+  /**
+   * Schuss-Feedback: Das Rohr bekommt einen Federstoß nach hinten, der Tank
+   * einen angedeuteten Ruck, und am Rohrende sitzt kurz ein Mündungsblitz.
+   * Rein visuell – Flugbahn und Schaden kommen unverändert vom Server.
+   */
+  private fireRecoil(view:PlayerView,direction:Vector2,projectile:ProjectileSnapshot):void{
+    if(direction.x===0&&direction.y===0)return;
+    startRecoil(view.recoil);
+    view.recoilDirection=direction;
+    if(this.muzzleBlips.length>=MAX_MUZZLE_BLIPS)this.muzzleBlips.shift();
+    const distance=GAME.playerRadius+12;
+    this.muzzleBlips.push({
+      x:view.current.x+direction.x*distance,
+      y:view.current.y+direction.y*distance,
+      angle:Math.atan2(direction.y,direction.x),
+      radius:Math.max(3.5,projectile.radius*1.35),
+      life:MUZZLE_BLIP_SECONDS,
+      maxLife:MUZZLE_BLIP_SECONDS,
+      color:this.ownerColor(projectile.ownerId)
+    });
   }
 
   /** Kurzer, gedämpfter Kamera-Impuls (eigener Schaden, Kills, Tod). */
@@ -503,7 +555,9 @@ export class GameRenderer {
    */
   private emitOverchargeSparks(delta:number):void{
     const event=this.arenaEvent;
-    const self=this.selfId?this.playerViews.get(this.selfId):undefined;
+    // Was sichtbar ist, hängt an der Kamera – beim Zuschauen also am beobachteten Tank.
+    const self=(this.spectatorId?this.playerViews.get(this.spectatorId):undefined)
+      ??(this.selfId?this.playerViews.get(this.selfId):undefined);
     if(!event||event.kind!=='overcharge'||event.phase!=='active'||!self){this.sparkBudget=0;return}
     // Ohne frische Snapshots (Verbindungsverlust) friert der Weltzustand ein –
     // dann dürfen auch die Funken nicht endlos weitersprühen.
@@ -541,6 +595,24 @@ export class GameRenderer {
         .stroke({color:ring.color,alpha:(1-progress)*.75,width:ring.width*(1-progress*.5)});
     }
     this.drawWallFlashes(delta);
+    this.drawMuzzleBlips(delta);
+  }
+
+  /** Kurzer heller Fleck am Rohrende, quer zur Schussrichtung gestreckt. */
+  private drawMuzzleBlips(delta:number):void{
+    for(let index=this.muzzleBlips.length-1;index>=0;index-=1){
+      const blip=this.muzzleBlips[index];
+      if(!blip)continue;
+      blip.life-=delta;
+      if(blip.life<=0){this.muzzleBlips.splice(index,1);continue;}
+      const fade=blip.life/blip.maxLife;
+      const reach=blip.radius*(1.4+(1-fade)*1.4);
+      const tip={x:blip.x+Math.cos(blip.angle)*reach,y:blip.y+Math.sin(blip.angle)*reach};
+      this.fx.moveTo(blip.x,blip.y).lineTo(tip.x,tip.y)
+        .stroke({color:blip.color,alpha:fade*.5,width:blip.radius*1.1});
+      this.fx.circle(blip.x,blip.y,blip.radius*(.7+fade*.5))
+        .fill({color:0xffffff,alpha:fade*.55});
+    }
   }
 
   /** Öffnen: Umriss dehnt sich nach außen. Schließen: Umriss zieht sich auf die Wand zusammen. */
@@ -586,14 +658,32 @@ export class GameRenderer {
     this.resizeViewport();
   }
 
+  /**
+   * Letterbox für das feste 16:9-Sichtfeld.
+   *
+   * Zwei Dinge erzeugten hier sichtbare Striche an den Bildschirmrändern:
+   * ein gezeichneter Rahmen genau auf der Maskenkante (dessen Strich je zur
+   * Hälfte innen und außen lag) und krumme Pixelwerte aus der Zentrierung.
+   * Der Rahmen ist ersatzlos weg – die Balken sollen nicht auffallen – und
+   * alle Kanten liegen jetzt auf ganzen Pixeln.
+   */
   private resizeViewport():void{
-    const screenWidth=this.app.screen.width||window.innerWidth;
-    const screenHeight=this.app.screen.height||window.innerHeight;
-    const width=Math.min(screenWidth,screenHeight*16/9);
-    const height=width*9/16;
-    this.viewport={x:(screenWidth-width)/2,y:(screenHeight-height)/2,width,height};
+    const screenWidth=Math.max(1,Math.round(this.app.screen.width||window.innerWidth));
+    const screenHeight=Math.max(1,Math.round(this.app.screen.height||window.innerHeight));
+    const width=Math.max(1,Math.floor(Math.min(screenWidth,screenHeight*16/9)));
+    const height=Math.max(1,Math.floor(width*9/16));
+    this.viewport={
+      x:Math.floor((screenWidth-width)/2),
+      y:Math.floor((screenHeight-height)/2),
+      width,
+      height
+    };
     this.viewportMask.clear().rect(this.viewport.x,this.viewport.y,this.viewport.width,this.viewport.height).fill(0xffffff);
-    this.viewportFrame.clear().rect(this.viewport.x,this.viewport.y,this.viewport.width,this.viewport.height).stroke({color:this.palette.border,alpha:.55,width:2});
+    // Das HUD hängt sich auf breiten Bildschirmen an diese Werte, damit die
+    // Panels am Spielfeld kleben statt im schwarzen Balken zu schweben.
+    const root=document.documentElement.style;
+    root.setProperty('--view-x',`${this.viewport.x}px`);
+    root.setProperty('--view-y',`${this.viewport.y}px`);
   }
 
   private drawBackground():void{
@@ -662,7 +752,7 @@ export class GameRenderer {
     rotating.addChild(barrels,body,detail,flash,shield);root.addChild(rotating);
     const healthBack=new Graphics();const healthFill=new Graphics();root.addChild(healthBack,healthFill);
     const name=new Text({text:'',style:{fill:this.palette.label,fontSize:12,fontWeight:'600',fontFamily:'Inter, system-ui, sans-serif'}});name.anchor.set(.5);name.position.set(0,-42);root.addChild(name);
-    const view:PlayerView={root,rotating,body,barrels,detail,shield,flash,healthBack,healthFill,name,current:{...player.position},target:{...player.position},velocity:{...player.velocity},angle:player.angle,targetAngle:player.angle,snapshot:player,snapshotAt:now,classId:player.playerClass,isSelf,isGuardian:player.id===this.guardianId,flashUntil:0};
+    const view:PlayerView={root,rotating,body,barrels,detail,shield,flash,healthBack,healthFill,name,current:{...player.position},target:{...player.position},velocity:{...player.velocity},angle:player.angle,targetAngle:player.angle,snapshot:player,snapshotAt:now,classId:player.playerClass,isSelf,isGuardian:player.id===this.guardianId,flashUntil:0,recoil:{offset:0,velocity:0},recoilDirection:{x:1,y:0}};
     root.position.set(player.position.x,player.position.y);this.redrawPlayer(view,true);return view;
   }
 

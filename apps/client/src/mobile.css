@@ -126,7 +126,6 @@
     height: 34px;
     touch-action: manipulation;
   }
-  .modifier-badge { display: none; }
 
   /* Upgrades als Bogen-Sheet über den Daumen, vier Spalten statt acht Zeilen. */
   .upgrade-panel {

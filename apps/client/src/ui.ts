@@ -115,7 +115,7 @@ export class GameUI {
               <details class="start-settings" id="start-settings">
                 <summary><span>Sound &amp; Loadout</span><i aria-hidden="true"></i></summary>
                 <div class="start-settings-body" id="start-settings-body">
-                  <label class="start-sound"><span>SOUND</span><input type="range" id="volume" min="0" max="100" step="5" /></label>
+                  <label class="start-sound"><span>SOUND</span><b id="volume-value">80%</b><input type="range" id="volume" min="0" max="100" step="5" /></label>
                 </div>
               </details>
 
@@ -170,7 +170,6 @@ export class GameUI {
           </section>
 
           <canvas class="minimap" id="minimap" width="180" height="120"></canvas>
-          <div class="controls-hint"><span>WASD BEWEGEN</span><span>LINKS FEUERN</span><span>RECHTS DROHNEN ABSTOSSEN</span><span>1–8 UPGRADES</span></div>
           <button class="auto-fire" id="auto-fire" type="button">AUTO <b>OFF</b></button>
           <button class="secondary-action" id="secondary-action" type="button">REPEL</button>
         </section>
