@@ -60,6 +60,40 @@ Kommt als Nächstes dazu: `FAMILY_UPGRADES_ENABLED` (02, Default aus).
   setzen, falls noch nicht; den neuen hellen Look auf www.mazers.de ansehen;
   Momentum, Wucht und Spectator beurteilen
 
+## Runde 3 gemerged (06.08. abends) – 588 Tests grün
+
+- **02 Paket 13 – KL4 Server:** Familien-Upgrades hinter
+  `FAMILY_UPGRADES_ENABLED`, Variante B. Die Familiensperre hängt **auch ohne
+  Flag** (sonst wären die Slots allein durch die Shared-Erweiterung kaufbar
+  gewesen – vom eigenen Test gefunden), und `FAMILY_UPGRADE_BRANCHES` öffnet
+  Slots nur für Familien, deren Signature wirklich läuft. Korrektur am
+  Konzept: Der Impact-Festwert wird bei 6 Punkten erreicht, nicht bei 5.
+- **04 Paket 11 – Deploy-Wache, `tier`, `uptimeSeconds`:** `deploy-watch` als
+  eigener CI-Job, `tier` im Perf-Report (entblockt 03), `uptimeSeconds` in
+  `/health`.
+- **01 Konfliktauflösung:** 04 und ich hatten unabhängig dieselbe Idee
+  (`uptimeSeconds` gegen `startedAt`). `uptimeSeconds` hat gewonnen, weil die
+  Deploy-Wache darauf zugreift; `deploymentId` bleibt daneben, weil es etwas
+  anderes sagt.
+
+**Der Deploy-Stillstand ist aufgeklärt – es gab keinen.** 04 hat die
+Watch-Path-Erklärung widerlegt (`d8568b6` hat selbst keine Server-Datei
+angefasst und wurde trotzdem deployt) und die Gegenhypothese aufgestellt: eine
+fest verdrahtete `RAILWAY_GIT_COMMIT_SHA` meldet für immer denselben Commit.
+Ihre Prüffrage „ist die Seite hell oder dunkel?" konnte ich aus Sams Screenshot
+selbst beantworten: **hell** – der Diep-Umbau war live, während `/health` noch
+`d8568b6` meldete. Die Deploys liefen also durchgehend.
+
+**Betriebswarnung von 02:** `FAMILY_UPGRADES_ENABLED=true` bleibt aus, bis 03
+die `Digit0`-Zuordnung geliefert hat. Variante B senkt die Signature auf den
+Sockel, und `Digit0` bildet heute auf Index −1 ab – `signaturePower` ist über
+die Tastatur nicht erreichbar. Der Spieler verlöre Stärke, die er nicht
+zurückkaufen kann. Die beiden Schalter gehören zusammen umgelegt.
+
+**02 hat den Kugel-Vorrang nicht gesehen** – die Anweisung lag noch nicht in
+Git, als sie angefangen haben. Sie steht jetzt als einziges Paket in ihrem
+Auftrag.
+
 ## Betriebsstand – zwei Fakten von Sam (06.08., merken)
 
 1. **`SIGNATURE_RAPID_ENABLED` und `SIGNATURE_IMPACT_ENABLED` sind in Railway

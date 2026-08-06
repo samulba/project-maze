@@ -1,97 +1,73 @@
 # Auftrag für Chat 04 – Infra/Betrieb
 
-**Ausgestellt: 2026-08-06 (2. Fassung) · Basis: aktueller `origin/main`**
+**Ausgestellt: 2026-08-06 (3. Fassung) · Basis: aktueller `origin/main`**
 
 > Neu im Chat? Lies zuerst `docs/status/chat-04/UEBERGABE.md` – Rolle, Regeln,
 > Sicherheitsauflagen und die Fallen, die uns schon Zeit gekostet haben.
 > Danach diese Datei.
 
-Paket 10 ist gemerged. Der wichtigste Teil war nicht die Lastprobe, sondern
-dass du dem eigenen Messergebnis nicht geglaubt hast: „alle Schalter an kostet
-nichts" war ein blinder Lasttest, kein Serverbefund. Die `welcome`-Falle bei
-`SHORT_NET_IDS` hätte jede weitere Messung geschönt – und der Schalter ist
-live an. Die Warnung in `.env.example` und `DEPLOYMENT.md` bleibt genau da,
-wo sie steht.
+Paket 11 ist gemerged. Deine Deploy-Untersuchung war die beste Arbeit dieser
+Runde – vor allem, weil du nicht bei „Watch-Paths" stehengeblieben bist,
+sondern die Erklärung **widerlegt** hast: `d8568b6` hat selbst keine Datei in
+`apps/server` oder `packages/shared` angefasst und wurde trotzdem deployt. Der
+Schnitt liegt zeitlich, nicht in den Pfaden.
 
-Dein Befund für die Kapazitätsplanung ist notiert: Der Tick-Abstand p95 liegt
-bei 26–28 ms über dem 25-ms-Soll, während die Simulation nur ein Zehntel des
-Budgets braucht – der Flaschenhals ist der Snapshot-Versand, nicht die
-Physik. Das wird das Thema, sobald echte Spieler dazukommen.
+## Deine Frage 1 ist beantwortet – deine Gegenhypothese stimmt
 
-Die Dämpfer-Frage habe ich an 02 weitergegeben (1,5 Prozentpunkte
-Tickbudget – kein Problem). Ein A/B-Lauf mit temporärem Flag kommt nur, wenn
-02 die exakte Zahl anfordert.
+Du wolltest von Sam wissen, ob die Seite hell oder dunkel ist. Ich kann es
+dir sagen, ich hatte den Screenshot: **Sie war hell.** Der Diep-Umbau war live,
+während `/health` noch `d8568b6` meldete.
 
-## Kleiner Vorlauf: `/health` hat uns einmal angelogen
+Damit ist es entschieden, und zwar in Richtung deiner Gegenhypothese: **Die
+Deploys liefen die ganze Zeit. `/health` hat gelogen.** Es gab nie einen
+Deploy-Stillstand – meine ursprüngliche Diagnose war falsch, und du hast den
+Weg gefunden, sie zu widerlegen, statt sie zu bestätigen. Das ist die Sorte
+Skepsis, die dieses Projekt braucht.
 
-Am 06.08. zeigte ein `/health` von www.mazers.de `commit: d8568b6` – „K2
-Profil-Tab" vom Vortag, zwölf Commits hinter `main`. Ich habe daraus einen
-Deploy-Stillstand geschlossen. **Das war falsch:** Railway deployt normal, Sam
-hat es an der Deploy-Historie gegengeprüft.
+Zwei Ursachen, die sich nicht ausschließen:
 
-Bevor du daraus ein Paket machst – das ist schon repariert. Der Endpunkt hatte
-zwei Wege, veraltet auszusehen, beide von mir behoben (01, `index.ts`):
+1. **`RAILWAY_GIT_COMMIT_SHA` ist als Service-Variable fest verdrahtet** –
+   deine Vermutung. Dann meldet `/health` für immer denselben Commit.
+2. **`/health` hatte kein `Cache-Control`** und wurde mit ETag ausgeliefert –
+   ein Browser-Tab zeigt den alten Rumpf. Das habe ich am 06.08. behoben
+   (`no-store`), aber es erklärt nur Sams Abruf, nicht einen dauerhaft alten
+   Wert.
 
-1. **Kein `Cache-Control`.** Express liefert `res.json()` mit ETag aus; ein
-   Browser-Tab zeigt nach dem Neuladen den alten Rumpf. Ausgerechnet unser
-   Testprotokoll kam damit aus dem Cache. Jetzt `no-store`.
-2. **`build` ist tot.** Der String `sprint-b2+static-renderers` steht seit
-   Sprint B als Festwert im Code und sieht nur aus wie eine Build-Kennung. Er
-   bleibt aus Kompatibilität stehen, ist aber als Etikett kommentiert.
+## Das Paket
 
-Neu und für dich beim Messen nützlich: **`startedAt`** (Prozessstart, aus
-`process.uptime()`) und **`deploymentId`** (`RAILWAY_DEPLOYMENT_ID`). `commit`
-allein genügt nicht – wird ein Deploy durch eine Variablenänderung ausgelöst,
-kann dieselbe Abbildung mit derselben Git-Variable erneut starten. `startedAt`
-verrät das.
+**1. Die Deploy-Wache scharf machen – sie kann heute nicht grün werden.**
+Dein `deploy-watch` pollt `/health`, bis der gepushte Commit dort steht. Wenn
+`RAILWAY_GIT_COMMIT_SHA` fest verdrahtet ist, wird das **nie** passieren: Die
+Wache schlägt bei jedem Push fehl, aus einem Grund, der nichts mit dem Deploy
+zu tun hat. Eine Wache, die immer rot ist, wird nach drei Tagen ignoriert –
+und dann ist sie schlimmer als keine.
 
-**Wenn du magst, nimm das eine mit:** ein CI-Schritt, der nach einem Push auf
-`main` `/health` pollt, bis `commit` dem gepushten Stand entspricht, und sonst
-laut wird. Klein halten – das ist Absicherung, keine Baustelle. Wenn dein
-eigentliches Paket dadurch wackelt, lass es weg und sag es im Bericht.
+Sam prüft die Service-Variablen (steht bei ihm auf der Liste). Bau darauf auf:
+Solange die Ursache nicht raus ist, muss die Wache **unterscheiden können**
+zwischen „nicht deployt" und „`commit` ist unbrauchbar". `uptimeSeconds` ist
+dafür genau das richtige Werkzeug – du hast es selbst eingebaut. Ein Prozess,
+der seit 40 Sekunden läuft, ist frisch deployt, egal was `commit` behauptet.
+Formulier die Fehlermeldung entsprechend: Sie soll sagen, **welcher der drei
+Fälle** vorliegt, nicht nur dass etwas nicht stimmt.
 
-**Ebenfalls neu von 01:** `signatureRapid` und `signatureImpact` stehen jetzt
-im `features`-Block. Sie fehlten, obwohl genau deren Wirkung gerade beurteilt
-wird. **Beide Variablen sind in Railway gesetzt** (von Sam bestätigt) – ab dem
-nächsten Deploy ist das auch von außen ablesbar.
+**2. Deine offenen Punkte zu Ende bringen.** Was im Bericht unter „Was 03 noch
+fehlt" und in den drei Festlegungen steht, ziehst du selbst zu Ende, soweit es
+dein Revier ist. Wenn die verdichteten Balance-Läufe noch offen sind, sind sie
+jetzt dran – deine eigene Einschränkung war „ein Lauf je Konfiguration ist noch
+keine Messung", und die Frage, ob Control und Impact gleichzeitig einbrechen
+oder ob das Streuung war, ist weiterhin unbeantwortet.
 
-## Das Paket: Perf-Report um `tier` erweitern + Balance-Läufe verdichten
+## Kontext
 
-**1. `tier` im Perf-Report (blockiert 03, deshalb zuerst).**
-03 hat R4 gebaut: drei Qualitätsstufen (hoch/mittel/niedrig) mit Automatik.
-Die Stufe soll als **eigenes Feld** neben `quality` laufen –
-`{"quality":"webgl","tier":"mid"}` – statt als kombiniertes Label
-`webgl-mid`, das die Kardinalität von 4 auf 12 heben und deinen
-`/metrics`-Export sprengen würde. Ich habe den Vorschlag angenommen.
+- **KL4 ist gemerged** (02, Paket 13). Der Balance-Report trägt jetzt den Block
+  `FAMILIEN-UPGRADES — DOMINANZPRUEFUNG`.
+- **`FAMILY_UPGRADES_ENABLED` bleibt aus**, bis 03 die `Digit0`-Zuordnung
+  geliefert hat – sonst verlieren Rapid- und Impact-Spieler Signature-Stärke,
+  die sie über die Tastatur nicht zurückkaufen können. Das ist eine
+  Betriebswarnung, keine Feinheit.
+- **Der Grundlook ist zurückgebaut** – Sam hat den hellen Diep-Look live
+  verworfen. Rein client-seitig, keine Deploy-Wirkung. Für dich nur relevant,
+  weil „ist die Seite hell oder dunkel?" ab jetzt **keine** Deploy-Diagnose
+  mehr ist: Beide Stände sind inzwischen dunkel.
 
-Du brauchst: `tier` im Zod-Schema von `POST /client-metrics` erlauben (sonst
-400 – und ein dauerhaft abgelehnter Client fällt im Spiel nicht auf), den
-`/metrics`-Export um die Dimension erweitern (Renderpfade × 3 Stufen, plus
-„unbekannt" für ältere Clients), und die Labelgrenzen so setzen, dass ein
-manipulierter Client den Export nicht aufbläht. Erlaubte Werte: `high` ·
-`mid` · `low` – alles andere wird verworfen, nicht durchgereicht.
-
-**2. Balance-Baseline verdichten.**
-Deine eigene Einschränkung war „ein Lauf je Konfiguration ist noch keine
-Messung" – Control und Impact brechen gleichzeitig ein, das kann Folge eines
-stärkeren Rapid oder schlicht Streuung sein. Fahr die Läufe wie bei der
-Matrix mehrfach (deine Wahl, wie viele – begründe die Zahl im Bericht) und
-sag, welche der beiden Erklärungen die Zahlen stützen. Ergebnis als
-zusätzlicher eingefrorener Abzug neben den beiden vorhandenen; die alten
-bleiben liegen, sie sind der Vorher-Stand für KL5.
-
-## Kontext, der dich betrifft
-
-- **Neu auf main: der Diep-Design-Umbau** (heller Grundlook, Sams Entscheid).
-  Rein client-seitig, keine Server- oder Deploy-Wirkung – aber wenn Sam über
-  Optik berichtet, weißt du, woher es kommt.
-- **KL4 kommt:** 02 baut die Server-Seite der Familien-Upgrades hinter
-  `FAMILY_UPGRADES_ENABLED` (Default aus). Für dich erst relevant, wenn der
-  Balance-Report den Block `FAMILIEN-UPGRADES — DOMINANZPRUEFUNG` bekommt.
-- `RATE_LIMIT_CONNECTIONS_PER_IP=200` war korrekt nur lokal für den Lastlauf.
-  Produktionswert bleibt 5 – steht so auch in deinem Bericht, ich bestätige
-  es hier nur, damit es nicht versehentlich wandert.
-- Paket 08 (Client-Perf-Telemetrie) hängt weiterhin, blockiert aber nichts
-  davon. Wenn du es beiläufig abräumen kannst: gern, sonst später.
-
-Statusbericht wie gehabt nach `docs/status/chat-04/`.
+Statusbericht wie gehabt nach `docs/status/chat-04/`, mit `LATEST.md`.
