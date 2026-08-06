@@ -199,7 +199,12 @@ const FAMILY_UPGRADE_BRANCHES: SignatureFamily[] = FAMILY_UPGRADES_ENABLED
  * zwischen zwei Snapshots an, und genau so sieht es aus. Standardmaessig aus:
  * gehoert zusammen mit 03s Spur eingeschaltet.
  */
-const DASH_TRAVEL_ENABLED = process.env.DASH_TRAVEL_ENABLED === 'true';
+// Opt-out nach der Regel vom 06.08.: Der Dash war buchstäblich ein Teleport –
+// die ganzen 189 px in einem einzigen Tick –, und genau das hat Sam gemeldet.
+// Ein Fix dafür hinter einem Schalter, den jemand erst setzen muss, wäre der
+// dritte Anlauf desselben Fehlers. `false`/`0`/`off` stellt den Sprung zurück.
+const DASH_TRAVEL_ENABLED = !['false', '0', 'off']
+  .includes((process.env.DASH_TRAVEL_ENABLED ?? '').trim().toLowerCase());
 const PROJECTILE_SPEED_V2 = !['false', '0', 'off']
   .includes((process.env.PROJECTILE_SPEED_V2 ?? '').trim().toLowerCase());
 /**
