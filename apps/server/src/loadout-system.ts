@@ -47,6 +47,7 @@ interface LoadoutInternals {
   drones: Map<string, RuntimeDrone>;
   damagePlayer(target: RuntimePlayer, damage: number, attackerId: string | null, now: number): void;
   removeOwnerDrones(ownerId: string): void;
+  stepPlayer(player: RuntimePlayer, dt: number, now: number): void;
   spawnInitialDrones(owner: RuntimePlayer, now: number): void;
 }
 
@@ -60,6 +61,10 @@ interface LoadoutState {
   repairStartedAt: number;
   repairLastTickAt: number;
   repairEndsAt: number;
+  /** Richtung der laufenden Dash-Fahrt; `null`, wenn gerade keine laeuft. */
+  dashDirection: Vector2 | null;
+  /** Ende der Dash-Fahrt in Serverzeit. */
+  dashUntil: number;
 }
 
 interface GameLoadoutState {
@@ -88,7 +93,9 @@ const loadoutFor = (game: MazeGame, playerId: string): LoadoutState => {
     barrierMaxHealth: 70,
     repairStartedAt: 0,
     repairLastTickAt: 0,
-    repairEndsAt: 0
+    repairEndsAt: 0,
+    dashDirection: null,
+    dashUntil: 0
   };
   state.players.set(playerId, created);
   return created;
@@ -107,7 +114,7 @@ const frontAttack = (target: RuntimePlayer, attacker: RuntimePlayer): boolean =>
     y: attacker.position.y - target.position.y
   });
   const facing = { x: Math.cos(target.angle), y: Math.sin(target.angle) };
-  return direction.x * facing.x + direction.y * facing.y >= 0.28;
+  return direction.x * facing.x + direction.y * facing.y >= BARRIER_FRONT_DOT;
 };
 
 const gameplaySnapshot = (game: MazeGame, player: RuntimePlayer, now: number): PlayerGameplaySnapshot => {
@@ -158,7 +165,22 @@ export function equipLoadout(
   return true;
 }
 
-export function activateModule(game: MazeGame, playerId: string, now = Date.now()): boolean {
+/**
+ * Frontwinkel der Barriere als Skalarprodukt. 0,28 entspricht rund ±74°.
+ * Steht hier, damit der Client den Bogen nicht schaetzen muss.
+ */
+export const BARRIER_FRONT_DOT = 0.28;
+/** Wirkradius des Repulse. Der Client zeichnet den Ring damit. */
+export const REPULSE_RADIUS = 195;
+/** Tempo der Dash-Fahrt. Mal `activeMs` ergibt dieselbe Strecke wie bisher. */
+export const DASH_SPEED = 1_050;
+
+export function activateModule(
+  game: MazeGame,
+  playerId: string,
+  now = Date.now(),
+  dashTravel = false
+): boolean {
   const internals = game as unknown as LoadoutInternals;
   const player = internals.players.get(playerId);
   if (!player || player.dead) return false;
@@ -181,9 +203,24 @@ export function activateModule(game: MazeGame, playerId: string, now = Date.now(
   loadout.activeUntil = now + definition.activeMs;
 
   if (loadout.activeModule === 'dash' && dashDirection) {
-    const moved = moveCircle(player.position, { x: dashDirection.x * 1_050, y: dashDirection.y * 1_050 }, 0.18, GAME.playerRadius);
-    player.position = moved.position;
-    player.velocity = { x: dashDirection.x * 480, y: dashDirection.y * 480 };
+    if (dashTravel) {
+      // **Der Dash faehrt, statt zu springen.** Bisher wurde die ganze Strecke
+      // in einem einzigen Aufruf zurueckgelegt – 189 px in einem Tick. Beim
+      // Client kam davon eine Positionsaenderung zwischen zwei Snapshots an,
+      // und genau so sah es aus: „ein Dash von Gegnern sieht aus wie ein
+      // Teleport-Bug" (MASTERPLAN, Handlungsfeld 3).
+      //
+      // Dieselbe Strecke, ueber `activeMs` verteilt: Bei 30 Snapshots je
+      // Sekunde sind 180 ms **fuenf bis sechs Snapshots**, in denen der Tank
+      // unterwegs ist. Erst damit gibt es eine Bewegung, die 03 zeichnen kann.
+      loadout.dashDirection = { ...dashDirection };
+      loadout.dashUntil = now + definition.activeMs;
+      player.velocity = { x: dashDirection.x * DASH_SPEED, y: dashDirection.y * DASH_SPEED };
+    } else {
+      const moved = moveCircle(player.position, { x: dashDirection.x * 1_050, y: dashDirection.y * 1_050 }, 0.18, GAME.playerRadius);
+      player.position = moved.position;
+      player.velocity = { x: dashDirection.x * 480, y: dashDirection.y * 480 };
+    }
     player.primary = false;
     player.secondary = false;
     player.cooldown = Math.max(player.cooldown, 0.32);
@@ -191,7 +228,7 @@ export function activateModule(game: MazeGame, playerId: string, now = Date.now(
   }
 
   if (loadout.activeModule === 'repulse') {
-    const radius = 195;
+    const radius = REPULSE_RADIUS;
     for (const target of internals.players.values()) {
       if (target.id === player.id || target.dead || distanceSquared(target.position, player.position) > radius * radius) continue;
       const direction = normalize({ x: target.position.x - player.position.x, y: target.position.y - player.position.y });
@@ -231,8 +268,46 @@ export function activateModule(game: MazeGame, playerId: string, now = Date.now(
   return true;
 }
 
-export function tuneLoadoutSystem<T extends MazeGame>(game: T): T {
+/**
+ * Der Dash faehrt, statt zu springen. Standardmaessig aus: Er aendert das
+ * Spielgefuehl (die Fahrt ist unterbrechbar und an Waenden sichtbar) und
+ * gehoert zusammen mit 03s Spur eingeschaltet, nicht davor.
+ */
+export function tuneLoadoutSystem<T extends MazeGame>(game: T, dashTravel = false): T {
   const internals = game as unknown as LoadoutInternals;
+
+  if (dashTravel) {
+    const originalStepPlayer = internals.stepPlayer.bind(internals);
+    internals.stepPlayer = (player: RuntimePlayer, dt: number, now: number): void => {
+      const loadout = loadoutFor(game, player.id);
+      const dashing = loadout.dashUntil > now && loadout.dashDirection && !player.dead;
+      // Startpunkt **vor** dem Originalschritt merken: Der bewegt den Tank
+      // bereits anhand seiner Geschwindigkeit. Wer danach nochmal vom Ergebnis
+      // aus rechnet, legt die Strecke zweimal zurueck – der erste Anlauf
+      // dieses Tests hat 360 statt 189 px gemessen.
+      const from = dashing ? { ...player.position } : null;
+      originalStepPlayer(player, dt, now);
+      if (!dashing || !loadout.dashDirection) {
+        if (loadout.dashUntil !== 0 && loadout.dashUntil <= now) {
+          loadout.dashUntil = 0;
+          loadout.dashDirection = null;
+        }
+        return;
+      }
+      // Die Fahrt ueberschreibt die Bewegungsintegration, statt sie zu
+      // ergaenzen: Sonst zoege `moveVectorToward` das Dash-Tempo sofort in
+      // Richtung der Eingabe, und aus der Fahrt wuerde ein Schlenker.
+      // `moveCircle` bleibt drin – ein Dash endet an der Wand, sichtbar.
+      const step = moveCircle(
+        from ?? player.position,
+        { x: loadout.dashDirection.x * DASH_SPEED, y: loadout.dashDirection.y * DASH_SPEED },
+        dt,
+        GAME.playerRadius
+      );
+      player.position = step.position;
+      player.velocity = { x: loadout.dashDirection.x * DASH_SPEED, y: loadout.dashDirection.y * DASH_SPEED };
+    };
+  }
 
   const originalApplyInput = game.applyInput.bind(game);
   game.applyInput = ((playerId: string, input: InputMessage): void => {

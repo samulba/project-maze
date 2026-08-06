@@ -191,6 +191,14 @@ const FAMILY_UPGRADE_BRANCHES: SignatureFamily[] = FAMILY_UPGRADES_ENABLED
 // Schalter aus war und die Kugeln unverändert flogen. Ein Fix, den erst jemand
 // von Hand einschalten muss, ist für ihn kein Fix. `false`, `0` oder `off`
 // stellen das alte Tempo wieder her.
+/**
+ * Der Dash faehrt, statt zu springen: dieselbe Strecke, aber ueber die 180 ms
+ * seiner Wirkdauer verteilt. Ohne den Schalter springt der Tank in einem
+ * einzigen Tick um bis zu 189 px – beim Client kommt eine Positionsaenderung
+ * zwischen zwei Snapshots an, und genau so sieht es aus. Standardmaessig aus:
+ * gehoert zusammen mit 03s Spur eingeschaltet.
+ */
+const DASH_TRAVEL_ENABLED = process.env.DASH_TRAVEL_ENABLED === 'true';
 const PROJECTILE_SPEED_V2 = !['false', '0', 'off']
   .includes((process.env.PROJECTILE_SPEED_V2 ?? '').trim().toLowerCase());
 /**
@@ -289,6 +297,8 @@ const encodedGame = tuneSnapshotEncoding(
                     ARENA_DIRECTOR_ENABLED
                   )
                 )
+              ,
+                DASH_TRAVEL_ENABLED
               )
             )
           ),
@@ -424,7 +434,7 @@ wss.on('connection', (socket, request) => {
       }
       if (message.type === 'activateModule' && playerId) {
         const parsed = activateModuleSchema.safeParse(message);
-        if (parsed.success) activateModule(game, playerId, now);
+        if (parsed.success) activateModule(game, playerId, now, DASH_TRAVEL_ENABLED);
         return;
       }
       if (message.type === 'debug' && playerId) {
@@ -570,7 +580,7 @@ app.get('/health', (_request: Request, response: Response) => {
     // Jedes Flag, das Spielgefühl verändert, gehört hier hinein: /health ist das
     // Testprotokoll, wenn Sam sagt „geht nicht". Die Signatures fehlten – genau
     // die, deren Wirkung gerade beurteilt werden soll.
-    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED },
+    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, dashTravel: DASH_TRAVEL_ENABLED, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED },
     persistence: persistenceStats(game),
     auth: authStatus(),
     clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),
