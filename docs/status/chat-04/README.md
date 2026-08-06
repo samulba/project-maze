@@ -25,6 +25,7 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 | # | Paket | Branch | Commit | Tests | Status |
 | --- | --- | --- | --- | --- | --- |
+| [13](./13-deploy-wache-projektiltempo.md) | Deploy-Wache mit drei Fällen, Projektiltempo gepaart gemessen | `claude/chat-04-infra-betrieb-ihx0xz` | `b8fd1a1` | 707 ✔ | **offen** |
 | [12](./12-momentum-gepaart-gemessen.md) | `--seed` im Lasttest + gepaarter A/B: was Momentum wirklich tut | `claude/chat-04-infra-betrieb-ihx0xz` | `ff9ece7` | 575 ✔ | **offen** |
 | [11](./11-deploy-stopp-tier-balance.md) | Deploy-Stopp diagnostiziert + Deploy-Wache, `tier` im Perf-Report, Balance verdichtet | `claude/chat-04-infra-betrieb-ihx0xz` | `3e8b83d` | 570 ✔ | **offen** |
 | [10](./10-lastprobe-balance-baseline.md) | Lastprobe-Matrix + Balance-Baseline, Lasttest-Fix | `claude/maze-lastprobe-baseline-dfb335` | `8261c82` | 507 ✔ | gemerged |

@@ -307,24 +307,56 @@ Request:
 ### Deploy-Wache
 
 Ein dritter Job, `deploy-watch`, läuft **nur nach einem Push auf `main`**. Er
-pollt `/health`, bis dort der gepushte Commit steht, und schlägt nach 15 Minuten
-fehl, wenn er ausbleibt (`scripts/deploy-watch.mjs`).
+pollt `/health` und prüft, ob der gepushte Stand live ankommt
+(`scripts/deploy-watch.mjs`). Der Job hängt an keinem anderen: Wird er rot,
+heißt das **nicht**, dass der Code kaputt ist, sondern dass der Stand nicht
+angekommen ist – zwei sehr verschiedene Dinge.
 
-Der Job hängt an keinem anderen. Wird er rot, heißt das **nicht**, dass der Code
-kaputt ist, sondern dass der Stand nicht live angekommen ist – zwei sehr
-verschiedene Dinge.
+Das Ziel lässt sich über die Repository-Variable `HEALTH_URL` umstellen; ohne
+sie gilt `https://www.mazers.de/health`.
 
-Das Ziel lässt sich ohne Codeänderung über die Repository-Variable `HEALTH_URL`
-umstellen; ohne sie gilt `https://www.mazers.de/health`.
+**Die Wache unterscheidet drei Fälle**, und diese Unterscheidung ist ihr
+eigentlicher Zweck:
 
-**Warum es den Job gibt.** Am 05.08. blieb der Auto-Deploy stehen. Zwölf
-Commits landeten auf `main`, ohne live anzukommen – darunter ein kompletter
-Design-Umbau –, und zwei Tage lang wurde eine Seite beurteilt, die es so nicht
-mehr gab. Jeder einzelne Push war grün. **Ein grüner Push ist eben kein Beweis,
-dass der Stand live ist**; das beweist nur `/health` mit dem erwarteten Commit.
+| Befund | Ergebnis | Bedeutung |
+| --- | --- | --- |
+| `commit` stimmt | **grün** | Der Stand ist live. |
+| `commit` stimmt nicht, aber der Prozess ist frisch hochgekommen | **grün mit Warnung** | Der Deploy **ist** angekommen – die Commit-Anzeige lügt. |
+| `commit` stimmt nicht und der Prozess läuft unverändert seit Stunden | **rot** | Jetzt ist es wirklich ein Deploy-Stopp. |
 
-Meldet der Job „live steht noch `<alter Commit>`", ist der Fehler nicht im
-Repository zu suchen, sondern in Railway:
+„Frisch hochgekommen" wird an drei Signalen erkannt, in dieser Reihenfolge der
+Verlässlichkeit: Die Laufzeit ist zwischen zwei Abgriffen **zurückgesprungen**
+(dann gab es sicher einen Neustart), die **`deploymentId` hat gewechselt**, oder
+`uptimeSeconds` liegt unter der Schwelle aus `FRESH_UPTIME_SECONDS`
+(Standard 900 s) – dann kann der Prozess nicht schon vor dem Push gelaufen sein.
+
+**Warum der mittlere Fall grün bleibt und nicht rot:** Ist
+`RAILWAY_GIT_COMMIT_SHA` von Hand als Service-Variable gesetzt, überschreibt sie
+den echten Wert, und `commit` steht für immer still. Eine Wache, die deswegen
+dauerhaft rot steht, wird nach drei Tagen ignoriert – und meldet dann auch den
+echten Stillstand nicht mehr. Sie meldet den Fall stattdessen als
+GitHub-Warnung, sichtbar, ohne den Job zu blockieren.
+
+Zwei Fälle sind immer rot: Der Timeout mit altem Stand **und** ein `/health`,
+das gar keinen Commit meldet (`unbekannt`). Ohne diese Angabe kann die Wache
+nichts beweisen, und eine Wache, die im Zweifel grün meldet, ist schlimmer als
+keine.
+
+**Warum es den Job gibt.** Am 06.08. wurde aus einem `/health`-Abruf ein
+Deploy-Stillstand über zwölf Commits diagnostiziert – **den es nicht gab.**
+Railway hatte durchgehend normal deployt; Sam hat es an der Deploy-Historie
+gegengeprüft. Die Anzeige hatte gleich mehrere kaputte Freshness-Signale:
+`/health` kam ohne `Cache-Control` und wurde aus dem Browser-Cache beantwortet,
+`build` ist ein Festwert und sieht nur wie eine Build-Kennung aus, und `commit`
+allein genügt nicht.
+
+Die Lehre ist nicht „der Deploy steht", sondern: **Ein Testprotokoll, dessen
+Frische man nicht prüfen kann, erzeugt Diagnosen aus dem Nichts.** Deshalb
+prüft die Wache heute nicht nur den Commit, sondern auch, ob sich der Prozess
+überhaupt bewegt hat.
+
+Meldet sie einen echten Stillstand, ist der Fehler nicht im Repository zu
+suchen, sondern in Railway:
 
 1. **Watch-Paths** – ein Muster, das auf nichts passt, überspringt jeden Deploy
    stillschweigend („No changes to watched files"). Leer heißt „alles
@@ -341,11 +373,24 @@ Hand als Service-Variable gesetzt, überschreibt sie den echten Wert und `/healt
 meldet dauerhaft denselben Commit – auch nach erfolgreichen Deploys. Umgekehrt
 kann ein Deploy laufen, ohne dass sich am Server etwas ändert.
 
-Zwei Felder helfen beim Auseinanderhalten:
+**Zuerst aber: Kommt die Antwort überhaupt frisch?** `/health` setzt seit dem
+06.08. `Cache-Control: no-store`, weil genau daran schon einmal ein
+Deploy-Stillstand diagnostiziert wurde, den es nicht gab – ein Browser-Tab
+zeigte nach dem Neuladen den alten Rumpf. Bei einem Abruf aus dem Browser im
+Zweifel hart neu laden oder `curl` nehmen.
+
+Drei Felder helfen beim Auseinanderhalten:
 
 - **`uptimeSeconds`** ist die Laufzeit des Prozesses und kommt ohne jede
   Railway-Variable aus. Steht dort ein Wert von Tagen, hat es seit Tagen keinen
-  Deploy gegeben – ganz gleich, was `commit` behauptet.
+  Deploy gegeben – ganz gleich, was `commit` behauptet. Steht dort ein kleiner
+  Wert, während `commit` alt aussieht, ist die Git-Variable das Problem und
+  nicht der Deploy.
+- **`deploymentId`** wechselt bei jedem echten Deploy. Ändert sie sich, während
+  `commit` stehenbleibt, ist `RAILWAY_GIT_COMMIT_SHA` fest verdrahtet.
 - **`build`** ist ein **fester Text im Quelltext** und keine Build-Information.
   Er ändert sich nur, wenn ihn jemand von Hand ändert, und taugt deshalb nicht
   als Beleg dafür, welcher Stand läuft.
+
+Genau diese drei wertet auch die Deploy-Wache aus – wer von Hand nachsieht,
+prüft dasselbe in derselben Reihenfolge.
