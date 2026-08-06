@@ -62,6 +62,32 @@ const SHIM = `
               if (z.tot !== undefined) { ich.dead = z.tot; ich.killerName = 'Nova'; ich.canRespawnAt = p.serverTime + 2000; ich.deathLevel = 12; }
               if (z.signature !== undefined) ich.signature = z.signature;
             }
+            if (z.zuschauen) {
+              // Ein Ziel muss her – im Sichtradius ist nicht immer jemand.
+              let fremd = p.players.find((x) => String(x.id) !== String(p.selfId));
+              if (!fremd && ich) {
+                fremd = JSON.parse(JSON.stringify(ich));
+                fremd.id = 999999; fremd.name = 'Nova'; fremd.dead = false;
+                fremd.position = { x: ich.position.x + 120, y: ich.position.y };
+                p.players.push(fremd);
+              }
+              if (fremd) p.spectatorTargetId = fremd.id;
+            }
+            if (z.event) {
+              p.arenaEvent = { kind: z.event, phase: 'active', endsAt: p.serverTime + 30000,
+                center: ich ? { x: ich.position.x, y: ich.position.y } : { x: 3000, y: 2000 }, radius: 700 };
+            }
+            if (z.bounty) {
+              const opfer = p.players.find((x) => String(x.id) !== String(p.selfId));
+              if (opfer) { p.bountyTargetId = opfer.id; p.gameplay = p.gameplay || {};
+                p.gameplay[String(opfer.id)] = { ...(p.gameplay?.[String(opfer.id)] ?? {}), bountyValue: 1200 }; }
+            }
+            if (z.achievements && !window.__achievementsGesendet) {
+              // freshAchievements ist das Feld, aus dem der Client seine Popups
+              // speist – einmal senden, sonst laufen sie endlos nach.
+              window.__achievementsGesendet = true;
+              p.freshAchievements = z.achievements;
+            }
             data = JSON.stringify(p);
           }
         } catch { /* keine JSON-Nachricht */ }
@@ -70,6 +96,53 @@ const SHIM = `
     }
   };
 `;
+
+/**
+ * Läuft im Browser: prüft den Startscreen und seine Unterseiten. Andere Fragen
+ * als im Spiel – dort geht es um Kollisionen, hier um Erreichbarkeit: Passt
+ * alles ohne Seitenscrollen, bleibt der Weg ins Spiel sichtbar, ragt nichts
+ * über den Rand?
+ */
+function messenStartscreen(seite) {
+  const el = (sel) => document.querySelector(sel);
+  const kasten = (sel) => { const e = el(sel); if (!e || e.hidden) return null; const r = e.getBoundingClientRect(); return r.width < 1 ? null : r; };
+  const ganzImBild = (r) => r && r.top >= -1 && r.left >= -1 && r.bottom <= window.innerHeight + 1 && r.right <= window.innerWidth + 1;
+  const probleme = [];
+
+  const bildschirm = el('#start-screen');
+  if (bildschirm.scrollHeight > window.innerHeight + 1) probleme.push('Startscreen scrollt als Ganzes');
+
+  if (seite === 'start') {
+    const play = kasten('#join-button');
+    const name = kasten('#player-name');
+    if (!ganzImBild(play)) probleme.push('Play-Knopf nicht vollständig im Bild');
+    if (!ganzImBild(name)) probleme.push('Namensfeld nicht vollständig im Bild');
+    const bedien = [...el('#join-form').querySelectorAll('input, select, button, textarea')]
+      .filter((e) => e.getBoundingClientRect().width > 0 && !e.closest('.start-nav'));
+    if (bedien.length > 2) probleme.push(`Startseite trägt ${bedien.length} Bedienelemente statt 2`);
+    for (const knopf of el('.start-nav').querySelectorAll('[data-goto]')) {
+      if (!ganzImBild(knopf.getBoundingClientRect())) probleme.push(`Navigationseintrag ${knopf.dataset.goto} ragt aus dem Bild`);
+    }
+  } else {
+    const abschnitt = el(`[data-view="${seite}"]`);
+    if (!abschnitt || abschnitt.hidden) return { probleme: [`Seite ${seite} öffnet nicht`] };
+    const kopf = abschnitt.querySelector('.start-page-head').getBoundingClientRect();
+    if (!ganzImBild(kopf)) probleme.push('Seitenkopf mit Zurück-Weg nicht im Bild');
+    const koerper = abschnitt.querySelector('.start-page-body');
+    const kr = koerper.getBoundingClientRect();
+    if (kr.bottom > window.innerHeight + 1) probleme.push('Seiteninhalt ragt unter den Bildrand');
+    if ((koerper.textContent || '').trim().length < 20) probleme.push('Seite ist praktisch leer – kein erklärender Text');
+    // Waagerecht darf nichts überlaufen: Das ist der klassische Fehler auf schmalen Geräten.
+    for (const kind of koerper.querySelectorAll('*')) {
+      const r = kind.getBoundingClientRect();
+      if (r.width > 0 && (r.left < kr.left - 2 || r.right > kr.right + 2)) {
+        probleme.push(`Element läuft waagerecht über: ${kind.className || kind.tagName}`);
+        break;
+      }
+    }
+  }
+  return { probleme };
+}
 
 /** Läuft im Browser: sammelt Flächen und sucht die vier Fehlerarten. */
 function messenImBrowser() {
@@ -88,7 +161,9 @@ function messenImBrowser() {
     '.onboarding': 'Onboarding',
     '.arena-event-banner': 'Event-Banner',
     '.spectator-banner': 'Zuschauerband',
-    '.points-badge': 'Punkte-Badge'
+    '.points-badge': 'Punkte-Badge',
+    '.move-stick': 'Bewegungs-Stick',
+    '.aim-stick': 'Ziel-Stick'
   };
   const sichtbar = (e) => {
     if (!e || e.hidden) return false;
@@ -175,8 +250,9 @@ function messenImBrowser() {
   const totenschirm = document.querySelector('#death-screen');
   const imTod = totenschirm && !totenschirm.hidden;
   const canvas = document.querySelector('canvas');
+  const kompakt = totenschirm && totenschirm.classList.contains('spectating');
   let tot = 0, raster = 0;
-  if (!imTod) for (let x = 8; x < window.innerWidth; x += 24) {
+  if (!imTod || kompakt) for (let x = 8; x < window.innerWidth; x += 24) {
     for (let y = 8; y < window.innerHeight; y += 24) {
       raster += 1;
       const oben = document.elementFromPoint(x, y);
@@ -185,6 +261,7 @@ function messenImBrowser() {
   }
 
   return { flaechen, ueberlappungen, verdeckt, ausserhalb, wahlKarten, imTod,
+    kompakterTod: Boolean(totenschirm && totenschirm.classList.contains('spectating')),
     totAnteil: raster > 0 ? +(tot / raster * 100).toFixed(1) : null };
 }
 
@@ -193,6 +270,7 @@ function messenImBrowser() {
  * gibt – die meisten davon entstehen beim selben Level-Up.
  */
 const FAELLE = [
+  // --- Klassenwahl (Runde 6) --------------------------------------------
   { name: 'wahl', w: 1280, h: 720, zustand: { level: 10, playerClass: 'core' } },
   { name: 'wahl-punkte', w: 1280, h: 720, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
   { name: 'wahl-punkte-schmal', w: 900, h: 640, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
@@ -207,16 +285,82 @@ const FAELLE = [
   { name: 'wahl-ladung', w: 1280, h: 720, zustand: { level: 24, playerClass: 'sniper', punkte: 4, signature: 72 } },
   { name: 'wahl-touch', w: 900, h: 500, touch: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
   { name: 'upgrades-zehn', w: 1280, h: 720, zustand: { level: 24, playerClass: 'storm', punkte: 6 } },
-  { name: 'ruhig', w: 1280, h: 720, zustand: { level: 9, playerClass: 'core' } }
+  { name: 'ruhig', w: 1280, h: 720, zustand: { level: 9, playerClass: 'core' } },
+
+  // --- Tod und Zuschauen (Runde 7) --------------------------------------
+  // Der Death-Screen schrumpft beim Zuschauen, während darunter weitergespielt
+  // wird – zwei Zustände übereinander, die es vorher nicht gab.
+  { name: 'tod', w: 1280, h: 720, zustand: { tot: true } },
+  { name: 'tod-flach', w: 1280, h: 600, zustand: { tot: true } },
+  { name: 'tod-hoch', w: 900, h: 1180, zustand: { tot: true } },
+  { name: 'zuschauen', w: 1280, h: 720, zustand: { tot: true, zuschauen: true } },
+  { name: 'zuschauen-flach', w: 1280, h: 600, zustand: { tot: true, zuschauen: true } },
+  { name: 'zuschauen-21-9', w: 2560, h: 1080, zustand: { tot: true, zuschauen: true } },
+  { name: 'zuschauen-touch', w: 844, h: 390, touch: true, zustand: { tot: true, zuschauen: true } },
+  { name: 'zuschauen-wahl', w: 1280, h: 720, zustand: { level: 10, playerClass: 'core', punkte: 4, tot: true, zuschauen: true } },
+
+  // --- Der obere Bereich: alles gleichzeitig -----------------------------
+  // Onboarding, Event-Banner, Bounty und Achievement-Popup teilen sich die
+  // Mitte oben. Was passiert, wenn drei zusammen kommen?
+  { name: 'oben-event', w: 1280, h: 720, zustand: { event: 'overcharge' } },
+  { name: 'oben-event-bounty', w: 1280, h: 720, zustand: { event: 'overcharge', bounty: true } },
+  { name: 'oben-alles', w: 1280, h: 720, zustand: { event: 'fracture', bounty: true, achievements: ['fivestreak'] } },
+  { name: 'oben-alles-wahl', w: 1280, h: 720, zustand: { level: 10, playerClass: 'core', punkte: 4, event: 'fracture', bounty: true, achievements: ['fivestreak'] } },
+  { name: 'oben-alles-schmal', w: 900, h: 640, zustand: { event: 'fracture', bounty: true, achievements: ['fivestreak'] } },
+  { name: 'oben-alles-touch', w: 390, h: 844, touch: true, zustand: { event: 'fracture', bounty: true, achievements: ['fivestreak'] } },
+
+  // --- Mobil (R3 ist lange her) -----------------------------------------
+  { name: 'mobil-hoch', w: 390, h: 844, touch: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
+  { name: 'mobil-quer', w: 844, h: 390, touch: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
+  { name: 'mobil-tablet', w: 820, h: 1180, touch: true, zustand: { level: 24, playerClass: 'storm', punkte: 6 } },
+  { name: 'mobil-klein-quer', w: 667, h: 375, touch: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } }
 ];
 
-/** Ab hier gilt eine tote Fläche als Fehler – gemessen ohne Wahl sind es 1,4 %. */
+/**
+ * Startscreen und Unterseiten. Andere Frage als im Spiel, deshalb eigene Liste:
+ * Hier geht es um Erreichbarkeit, nicht um Kollision.
+ */
+const START_FAELLE = [];
+for (const [w, h, label, touch] of [
+  [1280, 900, 'desktop', false],
+  [1280, 620, 'flach', false],
+  [2560, 1080, '21-9', false],
+  [390, 844, 'handy', true],
+  [844, 390, 'handy-quer', true],
+  [820, 1180, 'tablet', true]
+]) {
+  for (const seite of ['start', 'profil', 'achievements', 'bestenliste', 'einstellungen']) {
+    START_FAELLE.push({ name: `seite-${seite}-${label}`, w, h, touch, seite });
+  }
+}
+
+/**
+ * Ab hier gilt eine tote Fläche als Fehler – gemessen ohne Wahl sind es 1,4 %.
+ *
+ * **Nur für Zeigergeräte.** Auf Touch misst die Kennzahl das Falsche: Dort
+ * wird nicht über den Canvas gezielt, sondern über die Sticks, und die beiden
+ * belegen allein schon 20 % eines 844×390-Schirms. Sie sind die Bedienung,
+ * nicht ihr Hindernis. Der Wert wird trotzdem gemeldet – nur nicht bewertet.
+ */
 const TOT_GRENZE = 32;
 
 async function main() {
   const browser = await chromium.launch({ executablePath: EXE, args: ['--use-gl=swiftshader', '--no-sandbox'] });
   const befunde = [];
-  for (const fall of FAELLE) {
+
+  /**
+   * Sofort ausgeben, nicht erst am Ende: Der volle Durchlauf dauert Minuten,
+   * und ein Werkzeug, das so lange schweigt, benutzt niemand zweimal.
+   */
+  const melden = (b) => {
+    befunde.push(b);
+    const flaeche = b.tot === null ? '' : `tote Fläche ${b.tot} %`;
+    console.log(`${b.probleme.length ? 'FEHLER' : 'ok    '} ${b.fall.padEnd(26)} ${b.fenster.padEnd(11)} ${flaeche}`);
+    for (const p of b.probleme) console.log(`         · ${p}`);
+  };
+
+  /** Eine Seite mit Zustand und Fenstergröße öffnen. */
+  const oeffnen = async (fall) => {
     const page = await browser.newPage({
       viewport: { width: fall.w, height: fall.h },
       ...(fall.touch ? { hasTouch: true, isMobile: true } : {})
@@ -224,47 +368,98 @@ async function main() {
     const fehler = [];
     page.on('pageerror', (e) => fehler.push(String(e).slice(0, 140)));
     await page.addInitScript(
-      `try{localStorage.setItem('project-maze-quality','low');localStorage.setItem('project-maze-view','${fall.sicht ?? 'fest'}');}catch{};`
-      + `window.__zustand = ${JSON.stringify(fall.zustand)};`
+      `try{localStorage.setItem('project-maze-quality','low');localStorage.setItem('project-maze-view','${fall.sicht ?? 'fest'}');`
+      + `localStorage.setItem('project-maze-onboarding-done','');}catch{};`
+      + `window.__zustand = ${JSON.stringify(fall.zustand ?? {})};`
     );
     await page.addInitScript(SHIM);
     await page.goto(URL, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('#join-button:not([disabled])', { timeout: 60_000 });
+    return { page, fehler };
+  };
+
+  // --- Startscreen und Unterseiten --------------------------------------
+  for (const fall of START_FAELLE) {
+    try {
+    const { page, fehler } = await oeffnen(fall);
+    if (fall.seite !== 'start') {
+      await page.click(`[data-goto="${fall.seite}"]`);
+      await page.waitForTimeout(350);
+    }
+    const messung = await page.evaluate(messenStartscreen, fall.seite);
+    if (SHOTS) await page.screenshot({ path: `.probe/ui-${fall.name}.png` });
+    await page.close();
+    melden({
+      fall: fall.name, fenster: `${fall.w}×${fall.h}`, tot: null,
+      probleme: [...fehler.map((f) => `Skriptfehler: ${f}`), ...messung.probleme]
+    });
+    } catch (error) {
+      // Ein Fall, der gar nicht erst hochkommt, ist der schwerste Befund –
+      // aber er darf die restliche Matrix nicht abbrechen.
+      melden({ fall: fall.name, fenster: `${fall.w}×${fall.h}`, tot: null,
+        probleme: [`kommt nicht hoch: ${String(error).split('\n')[0].slice(0, 120)}`] });
+    }
+  }
+
+  // --- Spiel-HUD ---------------------------------------------------------
+  for (const fall of FAELLE) {
+    try {
+    const { page, fehler } = await oeffnen(fall);
     await page.fill('#player-name', fall.name.slice(0, 18));
     await page.click('#join-button');
+    // Touch im Hochformat ist kein Spielzustand: Das Spiel blendet das HUD aus
+    // und zeigt „Bitte Gerät drehen". Statt auf ein HUD zu warten, das
+    // absichtlich nicht kommt, wird genau dieser Zustand geprüft.
+    if (fall.touch && fall.h > fall.w) {
+      await page.waitForTimeout(2500);
+      const hinweis = await page.evaluate(() => {
+        const n = document.querySelector('.rotate-notice');
+        const hud = document.querySelector('#hud');
+        return { sichtbar: Boolean(n) && getComputedStyle(n).display !== 'none',
+          hudAus: Boolean(hud) && getComputedStyle(hud).visibility === 'hidden' };
+      });
+      if (SHOTS) await page.screenshot({ path: `.probe/ui-${fall.name}.png` });
+      await page.close();
+      const p = [];
+      if (!hinweis.sichtbar) p.push('Drehen-Hinweis fehlt im Hochformat');
+      if (!hinweis.hudAus) p.push('HUD bleibt im Hochformat sichtbar');
+      melden({ fall: fall.name, fenster: `${fall.w}×${fall.h}`, tot: null, probleme: p });
+      continue;
+    }
     await page.waitForSelector('#hud:not([hidden])', { timeout: 60_000 });
     await page.waitForTimeout(3000);
     const messung = await page.evaluate(messenImBrowser);
     if (SHOTS) await page.screenshot({ path: `.probe/ui-${fall.name}.png` });
     await page.close();
 
-    const zeile = [];
-    for (const f of fehler) zeile.push(`Skriptfehler: ${f}`);
-    // Der Death-Screen liegt bewusst über allem – seine Treffer sind kein Befund.
-    const echt = (name) => !(messung.imTod && (name === 'Death-Karte' || messung.imTod));
-    for (const u of messung.ueberlappungen) if (echt(u.a) && echt(u.b)) zeile.push(`${u.a} überlappt ${u.b} (${u.ox}×${u.oy} px)`);
-    for (const v of messung.verdeckt) if (echt(v.name)) zeile.push(`${v.name} verdeckt durch ${Object.keys(v.durch).join(', ')}`);
+    const zeile = fehler.map((f) => `Skriptfehler: ${f}`);
+    // Der Death-Screen liegt bewusst über allem – in seiner großen Fassung
+    // sind Verdeckungen kein Befund, in der kompakten schon.
+    const grossImTod = messung.imTod && !messung.kompakterTod;
+    for (const u of messung.ueberlappungen) {
+      if (grossImTod && (u.a === 'Death-Karte' || u.b === 'Death-Karte')) continue;
+      zeile.push(`${u.a} überlappt ${u.b} (${u.ox}×${u.oy} px)`);
+    }
+    for (const v of messung.verdeckt) {
+      if (grossImTod && Object.keys(v.durch).every((d) => d === 'Death-Karte')) continue;
+      zeile.push(`${v.name} verdeckt durch ${Object.keys(v.durch).join(', ')}`);
+    }
     for (const a of messung.ausserhalb) zeile.push(`${a.name} ragt aus dem Bild (${JSON.stringify(a)})`);
     if (messung.wahlKarten && messung.wahlKarten.sichtbar < messung.wahlKarten.gesamt) {
       zeile.push(`Klassenwahl nur ${messung.wahlKarten.sichtbar}/${messung.wahlKarten.gesamt} Karten sichtbar`);
     }
-    if (messung.totAnteil !== null && messung.totAnteil > TOT_GRENZE) {
+    if (!fall.touch && messung.totAnteil !== null && messung.totAnteil > TOT_GRENZE) {
       zeile.push(`${messung.totAnteil} % der Bildfläche nimmt keine Klicks an (Grenze ${TOT_GRENZE} %)`);
     }
-    befunde.push({ fall: fall.name, fenster: `${fall.w}×${fall.h}`, tot: messung.totAnteil, probleme: zeile });
+    melden({ fall: fall.name, fenster: `${fall.w}×${fall.h}`, tot: messung.totAnteil, probleme: zeile });
+    } catch (error) {
+      melden({ fall: fall.name, fenster: `${fall.w}×${fall.h}`, tot: null,
+        probleme: [`kommt nicht hoch: ${String(error).split('\n')[0].slice(0, 120)}`] });
+    }
   }
   await browser.close();
 
-  let kaputt = 0;
-  for (const b of befunde) {
-    if (b.probleme.length === 0) {
-      console.log(`ok    ${b.fall.padEnd(20)} ${b.fenster.padEnd(11)} tote Fläche ${b.tot === null ? '– (tot)' : b.tot + ' %'}`);
-      continue;
-    }
-    kaputt += 1;
-    console.log(`FEHLER ${b.fall.padEnd(19)} ${b.fenster.padEnd(11)} tote Fläche ${b.tot === null ? '– (tot)' : b.tot + ' %'}`);
-    for (const p of b.probleme) console.log(`         · ${p}`);
-  }
+  const kaputt = befunde.filter((b) => b.probleme.length > 0).length;
   console.log(`\n${befunde.length - kaputt}/${befunde.length} Fälle ohne Befund.`);
   process.exitCode = kaputt > 0 ? 1 : 0;
 }

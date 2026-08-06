@@ -219,3 +219,114 @@
   .class-choices small { margin-top: 4px; }
   .class-selection > p { display: none; }
 }
+
+/* ================================================================== *
+ * Runde 7: der Prüfstand über den Rest
+ * ================================================================== */
+
+/* ------------------------------------------------------------------ *
+ * G1 – Auf dem Handy im Querformat war die halbe Navigation weg
+ * ------------------------------------------------------------------ */
+/*
+ * 844×390 ist die **einzige** Ausrichtung, in der auf dem Handy gespielt wird
+ * (Hochformat zeigt den Drehen-Hinweis). Genau dort lagen drei der vier
+ * Navigationseinträge unter dem Bildrand: Profil halb sichtbar, Achievements,
+ * Bestenliste und Einstellungen gar nicht. Erreichbar nur durch Scrollen der
+ * Bühne, und nichts sagte, dass da noch etwas kommt.
+ *
+ * Auf flachen Fenstern stehen die vier Wege deshalb zweispaltig und ohne die
+ * erklärende Zeile – aus vier Reihen werden zwei, das spart rund 110 px und
+ * bringt alles ins Bild.
+ */
+@media (max-height: 620px) {
+  .start-nav { grid-template-columns: 1fr 1fr; }
+  .start-nav span { display: none; }
+  .start-nav button { grid-template-areas: 'titel marke pfeil'; padding: 9px 11px; }
+}
+
+/* ------------------------------------------------------------------ *
+ * G2 – Die Touch-Sticks standen schon auf dem Startscreen
+ * ------------------------------------------------------------------ */
+/*
+ * `.touch-control { display: block }` hängt allein am Zeigertyp, nicht am
+ * Spielzustand. Auf dem Startscreen lagen dadurch zwei Bedienringe über der
+ * Bühne, ohne Funktion.
+ */
+#app:not(.playing) .touch-control { display: none; }
+
+/* ------------------------------------------------------------------ *
+ * G3 – Zuschauen war auf dem Handy fast blind
+ * ------------------------------------------------------------------ */
+/*
+ * Die kompakte Death-Karte (Paket 14) ist für den Schreibtisch gemacht: 272 ×
+ * 347 px. Auf 844×390 sind das 29 % der Fläche, zusammen mit dem HUD **40,5 %**
+ * – und sie sitzt unten links, wo der Bewegungs-Stick liegt.
+ *
+ * Auf Touch und auf sehr flachen Fenstern bleibt deshalb nur, was man wirklich
+ * braucht: Respawn, Countdown und der Weg zurück. Das Loadout kann man nach dem
+ * Wiedereinstieg wählen, die Bilanz steht ohnehin im Profil. Und sie rückt in
+ * die Mitte zwischen die beiden Sticks, statt auf einem davon zu liegen.
+ */
+@media (pointer: coarse), (max-height: 560px) {
+  .death-screen.spectating { place-items: end center; }
+  .death-screen.spectating .death-card {
+    width: min(260px, calc(100vw - 24px));
+    margin: 0 0 max(var(--edge-y), env(safe-area-inset-bottom)) 0;
+    padding: 10px 12px;
+  }
+  .death-screen.spectating .eyebrow,
+  .death-screen.spectating .death-summary,
+  .death-screen.spectating .core-loadout,
+  .death-screen.spectating > .death-card > p { display: none; }
+  .death-screen.spectating h2 { font-size: 15px; }
+  .death-screen.spectating .death-card button { height: 34px; }
+}
+
+/* ------------------------------------------------------------------ *
+ * G4 – Die Klassenwahl lag auf dem Auto-Knopf
+ * ------------------------------------------------------------------ */
+/*
+ * Auf sehr flachen Touch-Screens rücken Modul, Repel und Auto in eine eigene
+ * Spalte rechts (`mobile.css`, 170 px vom Rand). Die rechte Spur der
+ * Klassenwahl war mit 165 px zu schmal und lag 52 px darauf.
+ */
+@media (pointer: coarse) and (max-height: 430px) {
+  .class-selection { --wahl-rechts: 240px; }
+}
+
+/* ------------------------------------------------------------------ *
+ * G5 – Der Onboarding-Hinweis deckte die Seitenpanels
+ * ------------------------------------------------------------------ */
+/*
+ * Er ist 520 px breit und sitzt mittig oben – zwischen Spielerkarte (250) und
+ * Bestenliste (278) bleiben auf 900 px Breite nur 372 px. Gemessen deckte er
+ * je rund 35 px der beiden Panels.
+ *
+ * Er bleibt, wo er ist – oben in Blickrichtung –, passt sich aber in die freie
+ * Spur zwischen den beiden Panels ein, statt sie zu überdecken. Drei Zeilen
+ * Text statt zwei sind der Preis; ein verdecktes Level-Abzeichen wäre teurer.
+ */
+@media (max-width: 1180px) {
+  .onboarding { width: min(520px, max(260px, calc(100vw - 2 * var(--edge-x) - 540px))); }
+}
+
+/* ------------------------------------------------------------------ *
+ * G6 – Im Handy-Querformat blieb die Navigation trotzdem angeschnitten
+ * ------------------------------------------------------------------ */
+/*
+ * Zwei Spalten haben zwei der vier Einträge gerettet, nicht alle vier: Bei
+ * 390 px Höhe kosten Logo, Schriftzug, Namensfeld und Play-Knopf zusammen mehr
+ * als der Schirm hat.
+ *
+ * Auf so flachen Schirmen trägt der Startscreen deshalb keine Marke mehr,
+ * sondern nur noch seine Funktion. Der Schriftzug bleibt – er sagt, wo man
+ * ist –, das Logo geht.
+ */
+@media (max-height: 430px) {
+  .start-logo-wrap { display: none; }
+  .start-card h1 { font-size: 34px; }
+  .start-primary { gap: 6px; }
+  #player-name { height: 44px; }
+  .play-button { height: 46px; margin-top: 2px; }
+  .start-status { margin-top: 6px; }
+}
