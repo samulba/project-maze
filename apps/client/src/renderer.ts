@@ -20,6 +20,7 @@ import { QUALITY_TIERS, type QualitySettings, type QualityTier } from './quality
 import { type RecoilState, startRecoil, stepRecoil } from './recoil';
 import type { RenderQuality } from './perf-metrics';
 import { signatureLabel, signatureRatio } from './signature';
+import { DEFAULT_VIEW_MODE, computeViewport, type ViewMode, type WorldView } from './viewport';
 import type { ClientThemeId } from './themes';
 
 interface Palette {
@@ -167,6 +168,9 @@ export class GameRenderer {
   private showCrosshair=false;
   private scale=1;
   private viewport={x:0,y:0,width:1280,height:720};
+  /** Sichtbarer Weltausschnitt – bei festem 16:9 immer 1600x900 (viewport.ts). */
+  private worldView:WorldView={width:GAME.visibleWorldWidth,height:GAME.visibleWorldHeight};
+  private viewMode:ViewMode=DEFAULT_VIEW_MODE;
   private time=0;
   private wallsSignature='';
   private knownShapes=new Map<string,ShapeSnapshot>();
@@ -405,6 +409,18 @@ export class GameRenderer {
    */
   setSelfPredictor(predictor:SelfPredictor|null):void{this.selfPredictor=predictor}
 
+  /**
+   * Sichtfeld-Modus umstellen (Sams Rand-Befund). Wirkt sofort, auch mitten im
+   * Spiel: Maske, Skalierung und die HUD-Variablen werden neu gesetzt.
+   */
+  setViewMode(mode:ViewMode):void{
+    if(mode===this.viewMode)return;
+    this.viewMode=mode;
+    if(this.initialized)this.resizeViewport();
+  }
+
+  get currentViewMode():ViewMode{return this.viewMode}
+
   setInput(pointer:Vector2,primary:boolean,secondary:boolean,showCrosshair:boolean):void{
     this.pointer=pointer;this.primary=primary;this.secondary=secondary;this.showCrosshair=showCrosshair;
   }
@@ -586,7 +602,7 @@ export class GameRenderer {
     this.shakeAmplitude*=Math.exp(-6.5*delta);
     if(this.shakeAmplitude<.15)this.shakeAmplitude=0;
     if(camera){
-      this.scale=this.viewport.height/GAME.visibleWorldHeight;
+      this.scale=this.viewport.height/this.worldView.height;
       this.world.scale.set(this.scale);
       const shakeX=(Math.random()-.5)*2*this.shakeAmplitude;
       const shakeY=(Math.random()-.5)*2*this.shakeAmplitude;
@@ -793,25 +809,22 @@ export class GameRenderer {
   }
 
   /**
-   * Letterbox für das feste 16:9-Sichtfeld.
+   * Letterbox und Weltausschnitt. Die Rechnung selbst liegt in `viewport.ts`
+   * und ist dort über eine Matrix aus Fenstergrößen getestet – hier bleibt nur
+   * das Übertragen auf Maske, Skalierung und HUD.
    *
    * Zwei Dinge erzeugten hier sichtbare Striche an den Bildschirmrändern:
    * ein gezeichneter Rahmen genau auf der Maskenkante (dessen Strich je zur
    * Hälfte innen und außen lag) und krumme Pixelwerte aus der Zentrierung.
    * Der Rahmen ist ersatzlos weg – die Balken sollen nicht auffallen – und
-   * alle Kanten liegen jetzt auf ganzen Pixeln.
+   * alle Kanten liegen auf ganzen Pixeln.
    */
   private resizeViewport():void{
     const screenWidth=Math.max(1,Math.round(this.app.screen.width||window.innerWidth));
     const screenHeight=Math.max(1,Math.round(this.app.screen.height||window.innerHeight));
-    const width=Math.max(1,Math.floor(Math.min(screenWidth,screenHeight*16/9)));
-    const height=Math.max(1,Math.floor(width*9/16));
-    this.viewport={
-      x:Math.floor((screenWidth-width)/2),
-      y:Math.floor((screenHeight-height)/2),
-      width,
-      height
-    };
+    const computed=computeViewport(screenWidth,screenHeight,this.viewMode);
+    this.viewport=computed.rect;
+    this.worldView=computed.world;
     this.viewportMask.clear().rect(this.viewport.x,this.viewport.y,this.viewport.width,this.viewport.height).fill(0xffffff);
     this.drawViewportEdge();
     // Das HUD hängt sich auf breiten Bildschirmen an diese Werte, damit die

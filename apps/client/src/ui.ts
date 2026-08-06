@@ -19,6 +19,7 @@ import {
   type UpgradeSlotId
 } from './family-upgrades';
 import { signatureLabel, signatureRatio } from './signature';
+import { spectatedName } from './spectator';
 import { DEFAULT_THEME, applyTheme, type ClientThemeId } from './themes';
 
 export interface JoinOptions {
@@ -88,6 +89,8 @@ export class GameUI {
   private readonly deathScreen: HTMLElement;
   private readonly deathKiller: HTMLElement;
   private readonly deathStats: HTMLElement;
+  /** Kurzfassung derselben Zahlen – ersetzt die Kachelwand beim Zuschauen. */
+  private readonly deathSummary: HTMLElement;
   private readonly respawnButton: HTMLButtonElement;
   private readonly respawnCountdown: HTMLElement;
   private readonly upgradeButtons = new Map<UpgradeSlotId, HTMLButtonElement>();
@@ -150,6 +153,9 @@ export class GameUI {
                     <label class="start-quality"><span>GRAFIK</span><select id="quality-select"></select></label>
                     <button class="start-fullscreen" id="fullscreen-toggle" type="button" hidden>VOLLBILD</button>
                   </div>
+                  <div class="start-display">
+                    <label class="start-quality"><span>SICHTFELD</span><select id="view-select"></select></label>
+                  </div>
                   <label class="start-switch"><input type="checkbox" id="prediction-toggle" /><span>VORHERSAGE</span><small>Bewegung sofort statt nach der Serverantwort</small></label>
                 </div>
               </details>
@@ -207,6 +213,7 @@ export class GameUI {
               <h2>ELIMINIERT</h2>
               <p id="death-killer">Eliminiert von Arena</p>
               <div class="death-stats" id="death-stats"></div>
+              <p class="death-summary" id="death-summary"></p>
               <button id="respawn-button" type="button" disabled>RESPAWN</button>
               <span id="respawn-countdown">Respawn verfügbar in 2.5s</span>
               <button id="exit-to-start" type="button">ZUM STARTSCREEN</button>
@@ -257,6 +264,7 @@ export class GameUI {
     this.deathScreen = this.require('#death-screen');
     this.deathKiller = this.require('#death-killer');
     this.deathStats = this.require('#death-stats');
+    this.deathSummary = this.require('#death-summary');
     this.respawnButton = this.require<HTMLButtonElement>('#respawn-button');
     this.respawnCountdown = this.require('#respawn-countdown');
     this.vignette = this.require('#damage-vignette');
@@ -514,10 +522,17 @@ export class GameUI {
   private updateDeathScreen(snapshot: WorldSnapshot, self: PlayerSnapshot): void {
     this.deathScreen.hidden = !self.dead;
     if (!self.dead) return;
+    // Beim Zuschauen ist der Death-Screen im Weg: Er legt sich abgedunkelt und
+    // weichgezeichnet über genau das, was man sehen soll. Dann schrumpft die
+    // Karte in die untere Ecke und gibt die Arena frei – Respawn, Countdown und
+    // der Weg zum Startscreen bleiben dabei sichtbar und klickbar.
+    this.deathScreen.classList.toggle('spectating', spectatedName(snapshot) !== null);
     const remaining = Math.max(0, self.canRespawnAt - snapshot.serverTime);
     const aliveSeconds = Math.max(0, Math.round((Date.now() - this.runStartedAt) / 1000));
     const aliveText = aliveSeconds >= 60 ? `${Math.floor(aliveSeconds / 60)}m ${aliveSeconds % 60}s` : `${aliveSeconds}s`;
     this.deathKiller.textContent = `Eliminiert von ${self.killerName || 'Arena'}`;
+    // Dieselben Zahlen in einer Zeile statt in sechs Kacheln.
+    this.deathSummary.textContent = `LEVEL ${self.deathLevel} · ${self.kills} KILLS · ${self.score.toLocaleString('de-DE')} SCORE · ${aliveText}`;
     this.deathStats.innerHTML = `<div><span>Erreicht</span><b>Level ${self.deathLevel}</b></div><div><span>Neustart</span><b>Level ${self.respawnLevel}</b></div><div><span>Score</span><b>${self.score.toLocaleString('de-DE')}</b></div><div><span>Kills</span><b>${self.kills}</b></div><div><span>Überlebt</span><b>${aliveText}</b></div><div><span>Beste Streak</span><b>${self.bestStreak}</b></div>`;
     this.respawnButton.disabled = remaining > 0;
     const autoInSeconds = Math.max(0, Math.ceil((self.autoRespawnAt - snapshot.serverTime) / 1000));

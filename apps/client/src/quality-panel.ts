@@ -1,4 +1,10 @@
 import {
+  DEFAULT_VIEW_MODE,
+  VIEW_MODE_LABELS,
+  readViewMode,
+  type ViewMode
+} from './viewport';
+import {
   DEFAULT_CHOICE,
   DEFAULT_TIER,
   QUALITY_LABELS,
@@ -12,9 +18,11 @@ import {
 } from './quality';
 
 const STORAGE_KEY = 'project-maze-quality';
+const VIEW_KEY = 'project-maze-view';
 
 export interface QualityHost {
   setQuality(tier: QualityTier): void;
+  setViewMode(mode: ViewMode): void;
 }
 
 /**
@@ -27,6 +35,7 @@ export interface QualityHost {
  */
 export class QualityControl {
   private readonly select: HTMLSelectElement;
+  private readonly viewSelect: HTMLSelectElement;
   private readonly fullscreen: HTMLButtonElement;
   private readonly probe = new QualityProbe();
   private choice: QualityChoice = DEFAULT_CHOICE;
@@ -40,6 +49,7 @@ export class QualityControl {
     private readonly storage: Pick<Storage, 'getItem' | 'setItem'> = window.localStorage
   ) {
     this.select = root.querySelector<HTMLSelectElement>('#quality-select')!;
+    this.viewSelect = root.querySelector<HTMLSelectElement>('#view-select')!;
     this.fullscreen = root.querySelector<HTMLButtonElement>('#fullscreen-toggle')!;
     this.choice = readChoice(this.readStored());
 
@@ -57,6 +67,7 @@ export class QualityControl {
       this.apply();
     });
 
+    this.setupViewMode();
     this.setupFullscreen();
     this.apply();
     requestAnimationFrame(this.frame);
@@ -110,6 +121,35 @@ export class QualityControl {
     this.automatic = naechste;
     if (this.choice === 'auto') this.apply();
   };
+
+  /**
+   * Sichtfeld: festes 16:9 (bisher) oder bildschirmfüllend bei gleicher
+   * sichtbarer Weltfläche. Der Unterschied zeigt sich nur auf Schirmen, die
+   * nicht 16:9 sind – auf 16:9 rechnen beide Modi dasselbe.
+   */
+  private setupViewMode(): void {
+    let gespeichert: string | null = null;
+    try { gespeichert = this.storage.getItem(VIEW_KEY); } catch { /* ohne Speicher: Standard */ }
+    const modus = readViewMode(gespeichert);
+    for (const wert of ['fest', 'flaechengleich'] as ViewMode[]) {
+      const option = document.createElement('option');
+      option.value = wert;
+      option.textContent = VIEW_MODE_LABELS[wert];
+      this.viewSelect.append(option);
+    }
+    this.viewSelect.value = modus;
+    this.host.setViewMode(modus);
+    this.viewSelect.addEventListener('change', () => {
+      const gewaehlt = readViewMode(this.viewSelect.value);
+      try { this.storage.setItem(VIEW_KEY, gewaehlt); } catch { /* nur diese Sitzung */ }
+      this.host.setViewMode(gewaehlt);
+    });
+  }
+
+  /** Modus, mit dem der Renderer starten soll – vor dem ersten Frame bekannt. */
+  static initialViewMode(storage: Pick<Storage, 'getItem'> = window.localStorage): ViewMode {
+    try { return readViewMode(storage.getItem(VIEW_KEY)); } catch { return DEFAULT_VIEW_MODE; }
+  }
 
   /**
    * Vollbild über die Fullscreen-API. F11 macht der Browser selbst – der
