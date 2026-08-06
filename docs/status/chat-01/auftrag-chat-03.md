@@ -2,6 +2,10 @@
 
 **Ausgestellt: 2026-08-06 (2. Fassung) · Basis: aktueller `origin/main`**
 
+> Neu im Chat? Lies zuerst `docs/status/chat-03/UEBERGABE.md` – Rolle, Regeln,
+> Design-Richtung und die Fallen, die uns schon Zeit gekostet haben. Danach
+> diese Datei.
+
 R1/R2/R4 ist gemerged – Handlungsfeld 1 ist damit client-seitig durch. Der
 eigentliche Fund deines Pakets war nicht der Vollbild-Knopf, sondern dass die
 Renderauflösung auf dem Startwert klebte: ein Zoom- oder Monitorwechsel ändert

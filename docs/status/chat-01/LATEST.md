@@ -60,6 +60,28 @@ Kommt als Nächstes dazu: `FAMILY_UPGRADES_ENABLED` (02, Default aus).
   setzen, falls noch nicht; den neuen hellen Look auf www.mazers.de ansehen;
   Momentum, Wucht und Spectator beurteilen
 
+## ⚠ Live hängt zurück (Befund 06.08.)
+
+Sams `/health` von www.mazers.de meldet `commit: d8568b6` – das ist „K2
+Profil-Tab gemerged" vom 05.08., **zwölf Commits hinter `main`**. Nicht live
+sind unter anderem: der Diep-Design-Umbau, 03s R1/R2/R4 und 04s Lastprobe.
+Konsequenz: Alles, was Sam in den letzten zwei Tagen an der Optik beurteilt
+hat, war der alte Stand. Ursachensuche liegt bei 04 (Vorrang im Auftrag),
+Railway-Zugriff hat nur Sam.
+
+Daraus gelernt und sofort umgesetzt: `/health` meldete die Signature-Flags
+gar nicht. `signatureRapid` und `signatureImpact` stehen jetzt im
+`features`-Block – die offene Frage „hat Sam die Flags gesetzt?" war mit dem
+bisherigen Endpunkt schlicht nicht beantwortbar.
+
+## Übergabedokumente für 02/03/04 (06.08.)
+
+Sam setzt die drei Arbeits-Chats neu auf. Damit ein frischer Chat ohne
+Rückfragen weiterarbeiten kann, liegt das Rollenwissen jetzt in Git statt im
+Chatverlauf: `docs/status/chat-0X/UEBERGABE.md`, je Chat eine Datei mit Revier,
+eisernen Regeln, Architektur-Kurzabriss und der Fallenliste seines Reviers.
+Die drei Auftragsdateien verweisen in der Kopfzeile darauf.
+
 ## Notizen der Zentrale (Aufträge ausgegeben, Wartestand)
 
 - **`CLIENT_PREDICTION.md` korrigiert** (Abschnitt 4 + Kurzcheck): Die Doku

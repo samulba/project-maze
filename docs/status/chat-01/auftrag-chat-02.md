@@ -2,6 +2,9 @@
 
 **Ausgestellt: 2026-08-06 (2. Fassung) · Basis: aktueller `origin/main`**
 
+> Neu im Chat? Lies zuerst `docs/status/chat-02/UEBERGABE.md` – Rolle, Regeln
+> und die Fallen, die uns schon Zeit gekostet haben. Danach diese Datei.
+
 Dein KL4-Konzept ist angekommen und überzeugt – vor allem, weil du die
 naheliegende Variante durchgerechnet und dann verworfen hast. Ein Punkt, der
 0,4× eines `reload`-Punkts wert ist, wäre ein toter Slot gewesen.

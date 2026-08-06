@@ -454,7 +454,10 @@ app.get('/health', (_request: Request, response: Response) => {
     debugTools: ENABLE_DEV_TOOLS,
     // Macht die Feature-Schalter von außen prüfbar – sonst sieht man einer
     // falsch geschriebenen ENV-Variable nie an, dass sie nicht greift.
-    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED },
+    // Jedes Flag, das Spielgefühl verändert, gehört hier hinein: /health ist das
+    // Testprotokoll, wenn Sam sagt „geht nicht". Die Signatures fehlten – genau
+    // die, deren Wirkung gerade beurteilt werden soll.
+    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED },
     persistence: persistenceStats(game),
     auth: authStatus(),
     clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),

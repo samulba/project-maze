@@ -2,6 +2,10 @@
 
 **Ausgestellt: 2026-08-06 (2. Fassung) · Basis: aktueller `origin/main`**
 
+> Neu im Chat? Lies zuerst `docs/status/chat-04/UEBERGABE.md` – Rolle, Regeln,
+> Sicherheitsauflagen und die Fallen, die uns schon Zeit gekostet haben.
+> Danach diese Datei.
+
 Paket 10 ist gemerged. Der wichtigste Teil war nicht die Lastprobe, sondern
 dass du dem eigenen Messergebnis nicht geglaubt hast: „alle Schalter an kostet
 nichts" war ein blinder Lasttest, kein Serverbefund. Die `welcome`-Falle bei
@@ -17,6 +21,42 @@ Physik. Das wird das Thema, sobald echte Spieler dazukommen.
 Die Dämpfer-Frage habe ich an 02 weitergegeben (1,5 Prozentpunkte
 Tickbudget – kein Problem). Ein A/B-Lauf mit temporärem Flag kommt nur, wenn
 02 die exakte Zahl anfordert.
+
+## VORRANG: Der Live-Stand hängt 12 Commits zurück
+
+Sam hat mir am 06.08. den `/health` von www.mazers.de geschickt:
+
+```
+"commit":"d8568b6","build":"sprint-b2+static-renderers"
+```
+
+`d8568b6` ist **„K2 Profil-Tab gemerged"** vom 05.08., 21:44 Uhr. Seitdem sind
+zwölf Commits auf `main` gelandet, die live **nicht** ankommen – darunter der
+komplette Diep-Design-Umbau, 03s R1/R2/R4 (Vollbild, Letterbox,
+Qualitätsstufen) und deine eigene Lastprobe. Sam hat also tagelang eine alte
+Seite beurteilt, und unsere Annahme „main ist live" war in dieser Zeit falsch.
+
+Das ist dein Revier und geht vor allem anderen:
+
+1. **Finde heraus, warum der Auto-Deploy stehengeblieben ist.** Erste
+   Verdächtige laut unserer Fallenliste: Railway-Watch-Paths (leer sollten sie
+   sein) und fehlgeschlagene Builds, die als „kein Deploy" durchgehen. Sag
+   klar, was du prüfen kannst und wofür du Sam brauchst – du kommst an die
+   Railway-Oberfläche nicht heran, ich auch nicht.
+2. **Bau eine Warnung, die das künftig von selbst meldet.** Ein stiller
+   Deploy-Stopp darf uns nicht noch einmal zwölf Commits kosten. Mein
+   Vorschlag, deine Entscheidung: `/health` trägt bereits `commit` – ein
+   kleiner Abgleich gegen den erwarteten Stand (CI-Schritt, der nach dem Push
+   pollt, oder ein Feld `commitAge`) reicht. Halte es klein; die Diagnose ist
+   wichtiger als die Automatik.
+3. **Notiere im Bericht, was die zwölf Commits für deine Messungen bedeuten.**
+   Deine Lastprobe lief lokal, die ist unberührt. Aber jede Aussage über „live"
+   aus den letzten zwei Tagen steht unter Vorbehalt.
+
+**Neu von 01 dazu:** Ich habe `/health` um die fehlenden Flags erweitert –
+`signatureRapid` und `signatureImpact` standen nicht im `features`-Block,
+obwohl genau deren Wirkung gerade beurteilt werden soll. Sobald der Deploy
+wieder läuft, ist im `/health` ablesbar, ob die beiden an sind.
 
 ## Das Paket: Perf-Report um `tier` erweitern + Balance-Läufe verdichten
 
