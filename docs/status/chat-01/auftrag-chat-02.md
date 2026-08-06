@@ -1,67 +1,71 @@
 # Auftrag für Chat 02 – Server-Gameplay
 
-**Ausgestellt: 2026-08-06 (5. Fassung) · Basis: aktueller `origin/main`**
+**Ausgestellt: 2026-08-06 (6. Fassung) · Basis: aktueller `origin/main`**
 
 > Neu im Chat? Lies zuerst `docs/status/chat-02/UEBERGABE.md` – Rolle, Regeln
 > und die Fallen, die uns schon Zeit gekostet haben. Danach diese Datei.
 
-KL2 Precision ist gemerged (686 Tests grün). Zum dritten Mal in Folge hast du
-die Vorgabe nicht einfach umgesetzt, sondern durchgerechnet und dann korrigiert
-– und die Zahl war jedes Mal überzeugend. Diesmal: Der Masterplan wollte
-Schaden **und** Tempo **und** Größe steigen lassen. Ein voll ausgebauter Lancer
-trägt 127,9 Schaden, der dünnste voll auf Leben ausgebaute Gegner seiner Stufe
-hat 148 Leben – jeder Ladefaktor über 1,16× ist ein Ein-Schuss-Tod aus voller
-Entfernung. Und ein Tempobonus hätte deinen eigenen Deckel aus Paket 14
-ausgehebelt, ausgerechnet für die Familie, deren Kugeln vorher gar nicht
-ausweichbar waren.
+KL2 Control ist gemerged (707 Tests grün). **Klassen 3.0 ist damit mechanisch
+vollständig** – alle vier Familien haben ihre Signature, gebaut von dir, in
+vier Runden. Der Schnitt war richtig: Budget und Drohnen jetzt, Deployables als
+Vorschlag, damit die Wire-Form unangetastet bleibt.
 
-Dass die Ladung den Schaden stattdessen vom Klick-Sockel auf den heutigen Wert
-führt und der volle Ausschlag Größe und Durchschlag kauft, ist die bessere
-Mechanik als die im Plan. Das DPS-Optimum bei 58 % Ladung ist genau das
-Entscheidungsfenster, das die Familie braucht.
+Am stärksten fand ich, dass beide Zahlen aus den Werten der Klasse fallen und
+sich im Mittel nichts ändert – was sich ändert, ist die **Verteilung**. Wer
+eine Weile nichts verliert, stellt eine ausgelöschte Flotte sofort wieder hin;
+wer zweimal kurz hintereinander verliert, steht ohne Nachschub da. Das ist die
+Management-Handlung, die ein Zeitgeber prinzipiell nicht leisten kann.
 
-**Die Bezeichnungen habe ich an 03 weitergegeben:** `signatureRate` =
-Ladetempo, `signaturePower` = Ladewucht.
+## Etwas, das dich betrifft: deine Pakete lagen dunkel
 
-**Drei Schalter warten auf Sams Urteil** und sind noch aus:
-`PROJECTILE_SPEED_V2`, `FAMILY_UPGRADES_ENABLED`, `SIGNATURE_PRECISION_ENABLED`.
-Sein Urteil kann Zahlen nachziehen – bau nicht darauf auf, als wäre es
-entschieden.
+`PROJECTILE_SPEED_V2` war als Opt-in gebaut, wie unsere Regel es vorschreibt.
+Ergebnis: Sam hat **zweimal** „die Kugeln sind viel zu schnell" gemeldet,
+während dein Paket fertig und getestet auf `main` lag und keine einzige Kugel
+angefasst hat. Niemand hatte den Schalter umgelegt.
 
-## Das Paket: KL2 Control – Einheiten-Budget
+Ich habe daraus die Regel geändert (steht in meiner UEBERGABE): Default aus
+gilt beim Mergen; sobald das Paket integriert ist und nichts mehr blockiert,
+stellt **01** auf Opt-out um. Alle vier Signature-Flags, die Familien-Upgrades
+und das Projektiltempo stehen jetzt auf an.
 
-Die letzte Familie. Damit ist Klassen 3.0 mechanisch vollständig und der Weg
-zu KL5 frei.
+Beim Umstellen habe ich dein Tempo-Paket gleich eine Stufe schärfer gezogen,
+weil zwei Runden ins Leere gelaufen waren: **Dämpfer 0,70 → 0,60, Deckel
+2,6/1,8 → 2,0/1,35.** Deinen Boden habe ich nicht angefasst – er tut genau das,
+wofür du ihn gebaut hast, und Fortress bleibt bei 450 px/s unverändert. Das
+obere Ende fällt damit von 4,36× auf 1,62× Spielertempo. **Wenn du diese Zahlen
+für falsch hältst, sag es** – ich habe sie nach Sams Ungeduld gewählt, nicht
+nach einer Messung.
 
-Die Signature laut Masterplan: **Drohnen und neue Deployables teilen ein
-gemeinsames Budget** (Mini-Turm, Verlangsamungsfeld), Umschichten mitten im
-Kampf ist die Kernhandlung. Spielgefühl: Gebiet vorbereiten, Werkzeuge
-dirigieren – die Stärke liegt im Management, nicht im Klicken.
+## Das Paket: KL5 – die Balance-Runde, die das alles zusammenbindet
 
-Wie bei den drei anderen: eigenes Flag, Default aus, gemeinsames Snapshot-Feld
-`signature` (0–100), ein Test belegt, dass ohne Flag alles beim Alten bleibt.
+Vier Signatures, Familien-Upgrades und ein neues Projektiltempo sind seit heute
+gleichzeitig live. **Keine dieser Wirkungen ist zusammen mit den anderen
+gemessen worden.** Genau dafür ist KL5 im Masterplan vorgesehen, und jetzt ist
+der Zeitpunkt.
 
-**Vier Dinge, die diesmal von Anfang an dazugehören:**
+04 hat dir das Werkzeug gebaut, das bisher fehlte: `--seed` im Lasttest, mit
+einem eigenen Zufallsstrom je Client. Damit treffen beide Seiten eines A/B
+dieselben Entscheidungen und lassen sich **paarweise** vergleichen, statt zwei
+unabhängige Stichproben gegeneinanderzuhalten. Ohne das war die letzte Messung
+an der Streuung gescheitert – Control-K/D schwankte zwischen zwei identischen
+Läufen von 0,43 bis 1,23.
 
-1. **Deployables sind neue Entitäten im Snapshot.** Das ist der erste
-   Signature-Umbau, der die Wire-Form anfasst. Bau nichts in `packages/shared`
-   auf Verdacht – liefer mir im Bericht einen **exakten Vorschlag** (Feldnamen,
-   Typen, Verhalten unter `SNAPSHOT_DELTAS`), und sag dazu, was du serverlokal
-   mit Cast überbrückt hast. Wenn der Vorschlag steht, baue ich ihn ein oder
-   gebe ihn dir frei, wie bei KL4.
-2. **03 muss sie zeichnen können.** Ein Mini-Turm, den niemand sieht, ist kein
-   Feature. Beschreib im Bericht, was der Client braucht, damit ich es
-   weitergeben kann – Position, Zustand, Restlebensdauer, wem er gehört.
-3. **Kosten nennen.** Deployables sind zusätzliche Entitäten in Kollision und
-   Snapshot, und 04s Befund steht: Der Flaschenhals ist der Snapshot-Versand,
-   nicht die Physik. Nenn die Kosten je Einheit und hochgerechnet.
-4. **Bots müssen das Budget benutzen.** Sonst wird Control für Bots schlechter
-   und die Balance verschiebt sich still – dieselbe Falle wie beim Vorhalt in
-   Paket 14 und beim Laden in Paket 15, die du beide Male richtig gesehen hast.
+Was ich wissen will:
 
-Wenn das zu groß für ein Paket ist: **Budget und Drohnen zuerst, Deployables
-danach.** Das Umschichten funktioniert auch mit nur einer Einheitenart, und
-dann bleibt die Wire-Änderung außen vor. Sag im Bericht, wie du geschnitten
-hast.
+1. **Ist jede Familie am Spielgefühl erkennbar?** Das ist die Messlatte aus dem
+   Masterplan. Übersetze sie in Zahlen, die du messen kannst – Pickrate, K/D,
+   Überlebenszeit, Trefferquote, wie oft eine Signature überhaupt zum Tragen
+   kommt.
+2. **Dominiert eine?** Mit den Schwellen, die du für die Dominanzprüfung schon
+   definiert hast.
+3. **Was hat mein schärferes Projektiltempo angerichtet?** Ich habe an deinen
+   Zahlen gedreht, ohne zu messen. Miss es nach und widersprich mir, wenn es
+   Schaden anrichtet – bei Precision zuerst, die Familie hängt am Tempo.
+
+Abstimmung mit 04 läuft über mich: Wenn du Läufe brauchst, die deren Revier
+berühren, schreib es in den Bericht, ich gebe es weiter.
+
+**Wenn du dabei Balance-Werte ändern willst: erst Zahlen, dann Code** – wie
+immer, und es hat jedes Mal funktioniert.
 
 Statusbericht wie gehabt nach `docs/status/chat-02/`.

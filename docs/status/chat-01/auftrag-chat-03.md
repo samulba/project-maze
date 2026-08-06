@@ -1,6 +1,6 @@
 # Auftrag für Chat 03 – Client/UX
 
-**Ausgestellt: 2026-08-06 (5. Fassung) · Basis: aktueller `origin/main`**
+**Ausgestellt: 2026-08-06 (6. Fassung) · Basis: aktueller `origin/main`**
 
 > Neu im Chat? Lies zuerst `docs/status/chat-03/UEBERGABE.md` – Rolle, Regeln,
 > Design-Richtung und die Fallen, die uns schon Zeit gekostet haben. Danach
@@ -47,16 +47,15 @@ nicht diskutieren muss.
 schlägt Vermuten – deine 24 Übergänge haben meine falsche Diagnose gekippt.
 Dasselbe Verfahren, andere Baustelle.
 
-## Danach: Befund 2 – der Startscreen wird eine Navigation
+## Befund 2 ist erledigt – gut gemacht
 
-Sams letzter offener Live-Befund, den du beim letzten Mal begründet geschnitten
-hast. Start bleibt **Logo, Name und ARENA BETRETEN**; Profil, Achievements,
-Bestenliste und Einstellungen werden eigene, ruhige Unterseiten. Auflagen: Der
-Weg ins Spiel wird nicht länger, alles über die Theme-Variablen, der Gastfall
-muss gut aussehen, und die vielen neuen Schalter finden dort ihren Platz.
-
-Wenn die UI-Fehlerliste lang wird, hat sie Vorrang. Sag im Bericht, wie du
-geschnitten hast.
+Der Startscreen trägt jetzt zwei Bedienelemente statt zwölf, die vier
+Unterseiten haben denselben Aufbau, Escape geht zurück und der Fokus wandert
+mit. Die Entscheidung zum Gastfall war die beste am Paket: Die
+Achievements-Galerie steht auch ohne Login vollständig da, gesperrt und mit
+Bedingung unter jedem Namen – zu sehen, was es zu holen gibt, ist für einen
+Gast wertvoller als eine leere Seite. Damit sind **alle fünf** Live-Befunde von
+Sam abgearbeitet, bis auf die UI-Fehler oben.
 
 ## Was seit deinem letzten Paket auf main dazugekommen ist
 
