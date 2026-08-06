@@ -43,9 +43,13 @@ const player = (overrides: Partial<PlayerSnapshot> = {}): PlayerSnapshot => ({
   xp: 0,
   xpForNextLevel: 73,
   availablePoints: 0,
+  // signatureRate/signaturePower kamen mit 02s KL4 dazu, nachdem dieser Test
+  // geschrieben war. Auf die Vorhersage wirken sie nicht – sie stehen hier nur,
+  // damit das Testobjekt vollständig ist.
   upgrades: {
     maxHealth: 0, regen: 0, moveSpeed: 0, reload: 0,
-    damage: 0, projectileSpeed: 0, penetration: 0, bodyDamage: 0
+    damage: 0, projectileSpeed: 0, penetration: 0, bodyDamage: 0,
+    signatureRate: 0, signaturePower: 0
   },
   score: 0,
   kills: 0,
