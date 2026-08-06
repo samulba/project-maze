@@ -60,7 +60,33 @@ Kommt als Nächstes dazu: `FAMILY_UPGRADES_ENABLED` (02, Default aus).
   setzen, falls noch nicht; den neuen hellen Look auf www.mazers.de ansehen;
   Momentum, Wucht und Spectator beurteilen
 
-## Runde 3 gemerged (06.08. abends) – 588 Tests grün
+## Runde 3 vollständig (06.08. abends) – 628 Tests grün
+
+**03 Paket 13 – N2 Client-Prediction + KL4-UI** ist dazugekommen. Die
+Vorhersage importiert `ACCELERATION_SCALE` aus shared statt die Zahl
+abzuschreiben und ist gegen den echten Server gemessen: Rechenfehler ~3
+Einheiten Median, eingesparter Rückstand 39 Einheiten bei 120 ms RTT, keine
+Hartkorrektur in 75 s. Schalter im Startscreen statt ENV, damit sich beide
+Zustände ohne Deploy vergleichen lassen.
+
+**Integrationsnaht, von 01 zusammengesetzt:** 03 hat auf `de7546c` gebaut,
+also vor 02s KL4. Die neuen Upgrade-IDs `signatureRate`/`signaturePower`
+fehlten im Testobjekt von `prediction.test.ts` und brachen den Typecheck.
+
+**Die Betriebssperre ist weg:** `Digit0` bildet jetzt auf Index 9 ab.
+`FAMILY_UPGRADES_ENABLED` darf eingeschaltet werden, sobald dieser Stand live
+ist.
+
+**Der Design-Rückbau hat den Merge überstanden** – 03s neue Flächen hängen an
+den Theme-Variablen und sind von selbst mitgewandert. Per Screenshot geprüft.
+
+**Alle drei Chats haben ihren Vorrang nicht gesehen** (Kugeln bei 02, die drei
+Live-Befunde bei 03). Die Anweisungen landeten in Git, nachdem die Chats
+gestartet waren. Lehre für die Zentrale: Ein Auftrag, der nach dem Start eines
+Chats geschrieben wird, erreicht ihn nicht mehr – bei laufenden Chats muss die
+Änderung über Sam gehen.
+
+## Runde 3, erster Teil (02 und 04) – 588 Tests grün
 
 - **02 Paket 13 – KL4 Server:** Familien-Upgrades hinter
   `FAMILY_UPGRADES_ENABLED`, Variante B. Die Familiensperre hängt **auch ohne
