@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { exitCodeFor, formatReport, parseArgs, quantile, readSelf, summarize } from './loadtest.mjs';
+import {
+  clientRandom,
+  exitCodeFor,
+  formatReport,
+  mulberry32,
+  parseArgs,
+  quantile,
+  readSelf,
+  summarize
+} from './loadtest.mjs';
 
 const report = (overrides = {}) => ({
   target: 'ws://localhost:2567',
@@ -58,6 +67,46 @@ describe('loadtest arguments', () => {
     expect(() => parseArgs(['--unbekannt', '1'])).toThrow(/Unbekannte Option/);
     expect(() => parseArgs(['clients'])).toThrow(/Unbekanntes Argument/);
     expect(() => parseArgs(['--url'])).toThrow(/braucht einen Wert/);
+  });
+});
+
+describe('loadtest seed', () => {
+  it('leaves the clients on Math.random when no seed is given', () => {
+    expect(parseArgs([]).seed).toBeUndefined();
+    expect(clientRandom(undefined, 0)).toBe(Math.random);
+  });
+
+  it('accepts a seed like any other numeric option', () => {
+    expect(parseArgs(['--seed', '42']).seed).toBe(42);
+    expect(parseArgs(['--seed=7']).seed).toBe(7);
+  });
+
+  it('repeats the same sequence for the same seed', () => {
+    const draw = (seed) => Array.from({ length: 8 }, mulberry32(seed));
+    expect(draw(42)).toEqual(draw(42));
+    expect(draw(42)).not.toEqual(draw(43));
+  });
+
+  it('stays inside [0,1) so index arithmetic can never leave the array', () => {
+    const rnd = mulberry32(12345);
+    for (let index = 0; index < 5_000; index += 1) {
+      const value = rnd();
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThan(1);
+    }
+  });
+
+  it('gives each client its own stream, so join order cannot shuffle the draw', () => {
+    // Ein gemeinsamer Strom waere wertlos: Wer zuerst zieht, haengt daran, in
+    // welcher Reihenfolge die Sockets antworten - genau das Timing, das ein
+    // Seed nicht kontrolliert.
+    const first = clientRandom(1000, 0);
+    const second = clientRandom(1000, 1);
+    expect(Array.from({ length: 5 }, first)).not.toEqual(Array.from({ length: 5 }, second));
+
+    // Derselbe Client zieht dieselbe Folge, egal wann er drankommt.
+    expect(Array.from({ length: 5 }, clientRandom(1000, 3)))
+      .toEqual(Array.from({ length: 5 }, clientRandom(1000, 3)));
   });
 });
 
