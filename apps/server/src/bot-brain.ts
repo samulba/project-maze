@@ -10,7 +10,7 @@ import type { ActiveModuleId, PassiveModifierId } from '@project-maze/shared/gam
 import { bountyTargetIdFor } from './arena-systems.js';
 import { tunedStatsFor } from './combat-tuning.js';
 import { MazeGame } from './game.js';
-import { activateModule, cancelRepairFor, equipLoadout } from './loadout-system.js';
+import { REPAIR_MOVE_LIMIT, activateModule, cancelRepairFor, equipLoadout } from './loadout-system.js';
 import { distanceSquared, normalize } from './physics.js';
 import { compensatedLeadFactor, projectileSpeedEnabled } from './projectile-speed.js';
 import { hasLineOfSight } from './world.js';
@@ -427,7 +427,14 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
           .filter((drone) => drone.ownerId !== player.id && distanceSquared(drone.position, player.position) < 150 * 150).length;
         wantsModule = nearbyDrones >= 2 || enemyDistance < 130;
       }
-      if (wantsModule && activateModule(game, player.id, now)) {
+      const rolling = Math.hypot(player.velocity.x, player.velocity.y) > REPAIR_MOVE_LIMIT;
+      if (wantsModule && loadout.module === 'repair' && rolling) {
+        // Erst anhalten, dann reparieren. Ein Zyklus, der in Fahrt beginnt,
+        // stirbt im selben Tick – frueher verbrannte der Bot damit still seine
+        // Abklingzeit, seit dieser Runde weist die Aktivierung ihn zurueck.
+        brain.holdUntil = now + 600;
+        brain.nextModuleTryAt = now + 150;
+      } else if (wantsModule && activateModule(game, player.id, now)) {
         if (loadout.module === 'repair') brain.holdUntil = now + 3_800;
         brain.nextModuleTryAt = now + 1_200;
       } else if (wantsModule) {

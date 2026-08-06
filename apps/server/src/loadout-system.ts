@@ -1,8 +1,10 @@
 import {
   ACTIVE_MODULE_DEFINITIONS,
+  BARRIER_FRONT_DOT,
   DEFAULT_ACTIVE_MODULE,
   DEFAULT_PASSIVE_MODIFIER,
   PASSIVE_MODIFIER_DEFINITIONS,
+  REPULSE_RADIUS,
   type ActiveModuleId,
   type GameplayWorldExtension,
   type PassiveModifierId,
@@ -67,15 +69,33 @@ interface LoadoutState {
   dashUntil: number;
 }
 
+/** Ein laufender Rueckstoss auf dem **Getroffenen**, nicht auf dem Ausloeser. */
+interface Shove {
+  direction: Vector2;
+  /** Mittleres Tempo; der Stoss laeuft mit 2x los und auf 0 aus. */
+  speed: number;
+  startedAt: number;
+  endsAt: number;
+}
+
 interface GameLoadoutState {
   players: Map<string, LoadoutState>;
+  shoves: Map<string, Shove>;
+  /**
+   * Fahren statt springen. Steht **am Spiel**, nicht am Aufruf: Als Parameter
+   * von `activateModule` hat ihn die Bot-Steuerung schlicht vergessen, und
+   * damit sprangen genau die Gegner weiter, ueber die sich Sam beschwert hat.
+   */
+  dashTravel: boolean;
+  /** Dasselbe fuer den Rueckstoss des Repulse. */
+  repulseTravel: boolean;
 }
 
 const states = new WeakMap<MazeGame, GameLoadoutState>();
 const stateFor = (game: MazeGame): GameLoadoutState => {
   const existing = states.get(game);
   if (existing) return existing;
-  const created: GameLoadoutState = { players: new Map() };
+  const created: GameLoadoutState = { players: new Map(), shoves: new Map(), dashTravel: false, repulseTravel: false };
   states.set(game, created);
   return created;
 };
@@ -165,22 +185,21 @@ export function equipLoadout(
   return true;
 }
 
-/**
- * Frontwinkel der Barriere als Skalarprodukt. 0,28 entspricht rund ±74°.
- * Steht hier, damit der Client den Bogen nicht schaetzen muss.
- */
-export const BARRIER_FRONT_DOT = 0.28;
-/** Wirkradius des Repulse. Der Client zeichnet den Ring damit. */
-export const REPULSE_RADIUS = 195;
+// BARRIER_FRONT_DOT und REPULSE_RADIUS liegen seit dieser Runde in
+// `shared/gameplay` – der Client zeichnet Ring und Bogen aus derselben Zahl,
+// statt sie abzuschreiben. Hier nur noch weitergereicht, damit bestehende
+// Server-Importe nicht auf zwei Quellen zeigen.
+export { BARRIER_FRONT_DOT, REPULSE_RADIUS };
 /** Tempo der Dash-Fahrt. Mal `activeMs` ergibt dieselbe Strecke wie bisher. */
 export const DASH_SPEED = 1_050;
+/**
+ * Ab dieser Geschwindigkeit bricht ein Reparaturzyklus ab. Eine Zahl, zwei
+ * Stellen: Der Schritt bricht damit ab – und die Aktivierung weist damit
+ * zurueck, statt einen Zyklus zu starten, der im selben Tick wieder stirbt.
+ */
+export const REPAIR_MOVE_LIMIT = 40;
 
-export function activateModule(
-  game: MazeGame,
-  playerId: string,
-  now = Date.now(),
-  dashTravel = false
-): boolean {
+export function activateModule(game: MazeGame, playerId: string, now = Date.now()): boolean {
   const internals = game as unknown as LoadoutInternals;
   const player = internals.players.get(playerId);
   if (!player || player.dead) return false;
@@ -188,6 +207,7 @@ export function activateModule(
   const loadout = loadoutFor(game, playerId);
   const definition = ACTIVE_MODULE_DEFINITIONS[loadout.activeModule];
   if (now < loadout.readyAt || now < loadout.activeUntil) return false;
+  const { dashTravel, repulseTravel } = stateFor(game);
 
   let dashDirection: Vector2 | null = null;
   if (loadout.activeModule === 'dash') {
@@ -195,7 +215,16 @@ export function activateModule(
     dashDirection = Math.hypot(movement.x, movement.y) > 0.12 ? normalize(movement) : normalize(player.aim);
     if (Math.hypot(dashDirection.x, dashDirection.y) < 0.01) return false;
   }
-  if (loadout.activeModule === 'repair' && player.health >= player.maxHealth - 0.5) return false;
+  if (loadout.activeModule === 'repair') {
+    if (player.health >= player.maxHealth - 0.5) return false;
+    // **Ein Zyklus, der in Fahrt beginnt, hat nie existiert.** Der Schritt
+    // bricht ihn im selben Tick wieder ab (`velocity > REPAIR_MOVE_LIMIT`), und
+    // was der Client davon sieht, ist ausschliesslich die Abklingzeit: gemessen
+    // `repairing = true` in **0 von 20 Ticks** bei laufenden 17 s Abklingzeit.
+    // Also gar nicht erst starten – dann bleibt das Modul bereit, statt sich
+    // unsichtbar zu verbrauchen.
+    if (Math.hypot(player.velocity.x, player.velocity.y) > REPAIR_MOVE_LIMIT) return false;
+  }
 
   player.invulnerable = false;
   player.invulnerableUntil = 0;
@@ -233,8 +262,28 @@ export function activateModule(
       if (target.id === player.id || target.dead || distanceSquared(target.position, player.position) > radius * radius) continue;
       const direction = normalize({ x: target.position.x - player.position.x, y: target.position.y - player.position.y });
       const strength = 520 * (1 - Math.min(1, Math.sqrt(distanceSquared(target.position, player.position)) / radius) * 0.4);
-      target.velocity.x += direction.x * strength;
-      target.velocity.y += direction.y * strength;
+      if (repulseTravel) {
+        // **Derselbe Fehler wie beim Dash, nur andersherum.** Der Stoss wird
+        // als Geschwindigkeit gesetzt – und die Bewegungsintegration zieht sie
+        // im naechsten Tick wieder auf die Eingabe zurueck. Gemessen: Ein
+        // Getroffener legt **44 px** zurueck und steht nach 200 ms wieder, bei
+        // 195 px Wirkradius und 12 s Abklingzeit. 44 px sind ein Tankdurchmesser
+        // und weniger, als er in derselben Zeit zu Fuss geht.
+        //
+        // Dieselbe Zahl, ueber die Wirkdauer getragen statt sofort
+        // wegintegriert: `strength` mal `activeMs`. Der Stoss laeuft mit 2x los
+        // und auf 0 aus, addiert sich zur eigenen Bewegung (der Getroffene
+        // behaelt die Kontrolle) und endet an Waenden.
+        stateFor(game).shoves.set(target.id, {
+          direction,
+          speed: strength,
+          startedAt: now,
+          endsAt: now + definition.activeMs
+        });
+      } else {
+        target.velocity.x += direction.x * strength;
+        target.velocity.y += direction.y * strength;
+      }
     }
     for (const drone of internals.drones.values()) {
       if (drone.ownerId === player.id || distanceSquared(drone.position, player.position) > radius * radius) continue;
@@ -269,43 +318,69 @@ export function activateModule(
 }
 
 /**
- * Der Dash faehrt, statt zu springen. Standardmaessig aus: Er aendert das
- * Spielgefuehl (die Fahrt ist unterbrechbar und an Waenden sichtbar) und
- * gehoert zusammen mit 03s Spur eingeschaltet, nicht davor.
+ * Haengt das Modulsystem an.
+ *
+ * `dashTravel`: Der Dash faehrt, statt zu springen. `repulseTravel`: Der
+ * Rueckstoss wird getragen, statt von der Bewegungsintegration gefressen zu
+ * werden. Beide Schalter stehen danach **am Spiel** und nicht am einzelnen
+ * Aufruf – siehe `GameLoadoutState.dashTravel`.
  */
-export function tuneLoadoutSystem<T extends MazeGame>(game: T, dashTravel = false): T {
+export function tuneLoadoutSystem<T extends MazeGame>(game: T, dashTravel = false, repulseTravel = false): T {
   const internals = game as unknown as LoadoutInternals;
+  const state = stateFor(game);
+  state.dashTravel = dashTravel;
+  state.repulseTravel = repulseTravel;
 
-  if (dashTravel) {
+  if (dashTravel || repulseTravel) {
     const originalStepPlayer = internals.stepPlayer.bind(internals);
     internals.stepPlayer = (player: RuntimePlayer, dt: number, now: number): void => {
       const loadout = loadoutFor(game, player.id);
-      const dashing = loadout.dashUntil > now && loadout.dashDirection && !player.dead;
+      const dashing = dashTravel && loadout.dashUntil > now && loadout.dashDirection && !player.dead;
       // Startpunkt **vor** dem Originalschritt merken: Der bewegt den Tank
       // bereits anhand seiner Geschwindigkeit. Wer danach nochmal vom Ergebnis
       // aus rechnet, legt die Strecke zweimal zurueck – der erste Anlauf
       // dieses Tests hat 360 statt 189 px gemessen.
       const from = dashing ? { ...player.position } : null;
       originalStepPlayer(player, dt, now);
-      if (!dashing || !loadout.dashDirection) {
-        if (loadout.dashUntil !== 0 && loadout.dashUntil <= now) {
-          loadout.dashUntil = 0;
-          loadout.dashDirection = null;
-        }
+
+      if (dashing && loadout.dashDirection) {
+        // Die Fahrt ueberschreibt die Bewegungsintegration, statt sie zu
+        // ergaenzen: Sonst zoege `moveVectorToward` das Dash-Tempo sofort in
+        // Richtung der Eingabe, und aus der Fahrt wuerde ein Schlenker.
+        // `moveCircle` bleibt drin – ein Dash endet an der Wand, sichtbar.
+        const step = moveCircle(
+          from ?? player.position,
+          { x: loadout.dashDirection.x * DASH_SPEED, y: loadout.dashDirection.y * DASH_SPEED },
+          dt,
+          GAME.playerRadius
+        );
+        player.position = step.position;
+        player.velocity = { x: loadout.dashDirection.x * DASH_SPEED, y: loadout.dashDirection.y * DASH_SPEED };
+      } else if (loadout.dashUntil !== 0 && loadout.dashUntil <= now) {
+        loadout.dashUntil = 0;
+        loadout.dashDirection = null;
+      }
+
+      if (!repulseTravel) return;
+      const shove = state.shoves.get(player.id);
+      if (!shove) return;
+      if (player.dead || shove.endsAt <= now) {
+        state.shoves.delete(player.id);
         return;
       }
-      // Die Fahrt ueberschreibt die Bewegungsintegration, statt sie zu
-      // ergaenzen: Sonst zoege `moveVectorToward` das Dash-Tempo sofort in
-      // Richtung der Eingabe, und aus der Fahrt wuerde ein Schlenker.
-      // `moveCircle` bleibt drin – ein Dash endet an der Wand, sichtbar.
-      const step = moveCircle(
-        from ?? player.position,
-        { x: loadout.dashDirection.x * DASH_SPEED, y: loadout.dashDirection.y * DASH_SPEED },
+      // Anders als die Dash-Fahrt **addiert** sich der Stoss zur eigenen
+      // Bewegung: Wer gestossen wird, verliert die Kontrolle nicht, er wird
+      // getragen. Linear auslaufend von 2x auf 0 – dasselbe Integral wie
+      // `speed x Wirkdauer`, aber ohne den harten Abriss am Ende.
+      const remaining = (shove.endsAt - now) / Math.max(1, shove.endsAt - shove.startedAt);
+      const speed = shove.speed * 2 * Math.max(0, Math.min(1, remaining));
+      const pushed = moveCircle(
+        player.position,
+        { x: shove.direction.x * speed, y: shove.direction.y * speed },
         dt,
         GAME.playerRadius
       );
-      player.position = step.position;
-      player.velocity = { x: loadout.dashDirection.x * DASH_SPEED, y: loadout.dashDirection.y * DASH_SPEED };
+      player.position = pushed.position;
     };
   }
 
@@ -363,7 +438,7 @@ export function tuneLoadoutSystem<T extends MazeGame>(game: T, dashTravel = fals
         if (loadout.repairEndsAt > 0 && loadout.repairEndsAt <= now) cancelRepair(loadout);
         continue;
       }
-      if (Math.hypot(player.velocity.x, player.velocity.y) > 40) {
+      if (Math.hypot(player.velocity.x, player.velocity.y) > REPAIR_MOVE_LIMIT) {
         cancelRepair(loadout);
         continue;
       }
@@ -399,7 +474,8 @@ export function tuneLoadoutSystem<T extends MazeGame>(game: T, dashTravel = fals
 
   const originalRemovePlayer = game.removePlayer.bind(game);
   game.removePlayer = ((id: string): void => {
-    stateFor(game).players.delete(id);
+    state.players.delete(id);
+    state.shoves.delete(id);
     originalRemovePlayer(id);
   }) as T['removePlayer'];
 

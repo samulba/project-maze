@@ -205,6 +205,18 @@ const FAMILY_UPGRADE_BRANCHES: SignatureFamily[] = FAMILY_UPGRADES_ENABLED
 // dritte Anlauf desselben Fehlers. `false`/`0`/`off` stellt den Sprung zurück.
 const DASH_TRAVEL_ENABLED = !['false', '0', 'off']
   .includes((process.env.DASH_TRAVEL_ENABLED ?? '').trim().toLowerCase());
+/**
+ * Der Rueckstoss des Repulse wird ueber die Wirkdauer getragen, statt sofort
+ * von der Bewegungsintegration gefressen zu werden. Ohne den Schalter legt ein
+ * Getroffener gemessene **44 px** zurueck – einen Tankdurchmesser, bei 195 px
+ * Wirkradius und 12 s Abklingzeit. Mit ihm ist es dieselbe Stossstaerke, aber
+ * ueber die 260 ms Wirkdauer: rund 107 px auf 100 px Abstand.
+ *
+ * Standardmaessig **aus**, anders als die Dash-Fahrt: Die trug dieselbe Strecke
+ * nur anders aus, das hier ist eine Verdopplung der Wirkung – eine
+ * Balance-Entscheidung, und die trifft 01.
+ */
+const REPULSE_TRAVEL_ENABLED = (process.env.REPULSE_TRAVEL_ENABLED ?? '').trim().toLowerCase() === 'true';
 const PROJECTILE_SPEED_V2 = !['false', '0', 'off']
   .includes((process.env.PROJECTILE_SPEED_V2 ?? '').trim().toLowerCase());
 /**
@@ -304,7 +316,8 @@ const encodedGame = tuneSnapshotEncoding(
                   )
                 )
               ,
-                DASH_TRAVEL_ENABLED
+                DASH_TRAVEL_ENABLED,
+                REPULSE_TRAVEL_ENABLED
               )
             )
           ),
@@ -440,7 +453,7 @@ wss.on('connection', (socket, request) => {
       }
       if (message.type === 'activateModule' && playerId) {
         const parsed = activateModuleSchema.safeParse(message);
-        if (parsed.success) activateModule(game, playerId, now, DASH_TRAVEL_ENABLED);
+        if (parsed.success) activateModule(game, playerId, now);
         return;
       }
       if (message.type === 'debug' && playerId) {
@@ -586,7 +599,7 @@ app.get('/health', (_request: Request, response: Response) => {
     // Jedes Flag, das Spielgefühl verändert, gehört hier hinein: /health ist das
     // Testprotokoll, wenn Sam sagt „geht nicht". Die Signatures fehlten – genau
     // die, deren Wirkung gerade beurteilt werden soll.
-    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, dashTravel: DASH_TRAVEL_ENABLED, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED },
+    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, dashTravel: DASH_TRAVEL_ENABLED, repulseTravel: REPULSE_TRAVEL_ENABLED, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED },
     persistence: persistenceStats(game),
     auth: authStatus(),
     clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),
