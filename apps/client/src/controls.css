@@ -115,3 +115,26 @@
 }
 #volume:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 42%, transparent); }
 #volume:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 42%, transparent); }
+
+/* ------------------------------------------------------------------ *
+ * Gesperrte Upgrade-Plätze (KL4)
+ * ------------------------------------------------------------------ */
+/*
+ * Die beiden Familien-Slots sind ohne Familie gesperrt. Sichtbar bleiben sie
+ * trotzdem: Wer auf Level 9 sieht, dass da noch etwas kommt, versteht die
+ * Familienwahl besser als jemand, dem zwei Knöpfe plötzlich zuwachsen. Der
+ * gesperrte Zustand ist bewusst matt statt bunt – er soll erklären, nicht
+ * werben, und der Grund steht im `title`.
+ */
+.upgrade-list button.locked {
+  border-style: dashed;
+  border-color: var(--line);
+  opacity: .58;
+  cursor: not-allowed;
+}
+.upgrade-list button.locked:hover {
+  border-color: var(--line);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--text) 3.5%, transparent);
+}
+.upgrade-list button.locked kbd { opacity: .7; }

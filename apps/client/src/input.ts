@@ -1,10 +1,9 @@
 import {
   GAME,
-  UPGRADE_IDS,
   type InputMessage,
-  type UpgradeId,
   type Vector2
 } from '@project-maze/shared';
+import { UPGRADE_SLOT_IDS, type UpgradeSlotId } from './family-upgrades';
 import {
   AIM_TUNING,
   MOVE_TUNING,
@@ -63,7 +62,7 @@ export class InputController {
   constructor(
     canvas: HTMLCanvasElement,
     getWorldAim: (pointer: Vector2) => Vector2,
-    onUpgrade: (upgrade: UpgradeId) => void,
+    onUpgrade: (upgrade: UpgradeSlotId) => void,
     onAutoFireChanged: (enabled: boolean) => void
   ) {
     this.getWorldAim = getWorldAim;
@@ -78,8 +77,11 @@ export class InputController {
         onAutoFireChanged(this.autoFire);
       }
       if (!event.repeat && event.code.startsWith('Digit')) {
-        const index = Number(event.code.slice(5)) - 1;
-        const upgrade = UPGRADE_IDS[index];
+        // Der zehnte Platz liegt auf der 0: `Number('Digit0'.slice(5)) - 1` wäre
+        // -1, und die Taste bliebe tot. Solange es weniger als zehn Werte gibt,
+        // greift der Zugriff ins Leere und es passiert schlicht nichts.
+        const index = event.code === 'Digit0' ? 9 : Number(event.code.slice(5)) - 1;
+        const upgrade = UPGRADE_SLOT_IDS[index];
         if (upgrade) onUpgrade(upgrade);
       }
     });

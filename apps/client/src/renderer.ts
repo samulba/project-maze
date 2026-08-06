@@ -57,6 +57,12 @@ interface MotionView<T> {
 interface ShockRing { position:Vector2; life:number; maxLife:number; maxRadius:number; color:number; width:number; }
 /** Bruch-Umriss an der Stelle, an der eine Wand aufgeht (`closing:false`) oder sich schließt. */
 interface WallFlash { x:number; y:number; width:number; height:number; life:number; maxLife:number; closing:boolean; }
+/**
+ * Quelle der vorhergesagten eigenen Position (N2, `prediction.ts`). Liefert
+ * `null`, solange keine Vorhersage läuft – dann bleibt es bei der Interpolation
+ * auf die Serverposition. Der Renderer kennt bewusst nur diese eine Methode.
+ */
+export interface SelfPredictor { sample(): { position:Vector2 }|null }
 interface FloatingLabel { text:Text; life:number; maxLife:number; velocityY:number; }
 
 const SHAPE_REWARDS:Record<string,number>={square:18,triangle:45,pentagon:120};
@@ -74,6 +80,13 @@ const RECOIL_BARREL=5;
 const RECOIL_BODY=0;
 const MUZZLE_BLIP_SECONDS=.07;
 const MAX_MUZZLE_BLIPS=24;
+/**
+ * Nachlauf auf die vorhergesagte eigene Position. Deutlich straffer als die
+ * 42 der Interpolation: Die Vorhersage ist bereits stetig und für den aktuellen
+ * Moment gerechnet, hier soll nur noch der kleine Versatz beim Wandkontakt
+ * geglättet werden – kein zweites Mal Verzögerung obendrauf.
+ */
+const PREDICTED_SELF_RESPONSE=110;
 
 class FloatingNumbers {
   readonly container=new Container();
@@ -182,6 +195,8 @@ export class GameRenderer {
   private knownWalls=new Map<string,Wall>();
   private wallsInitialized=false;
   private lastSelfPosition:Vector2|null=null;
+  /** Client-Prediction (N2). `null` = aus, dann zeichnet der Renderer wie bisher. */
+  private selfPredictor:SelfPredictor|null=null;
   private readonly wallFlashes:WallFlash[]=[];
   private readonly muzzleBlips:MuzzleBlip[]=[];
 
@@ -383,6 +398,13 @@ export class GameRenderer {
     if(self&&this.wellInsideView(position,self.position))this.shake(4);
   }
 
+  /**
+   * Vorhersage der eigenen Position an- oder abmelden (N2). Wirkt sofort, auch
+   * mitten im Spiel: Ohne Quelle fällt der eigene Tank ab dem nächsten Frame
+   * wieder auf die interpolierte Serverposition zurück.
+   */
+  setSelfPredictor(predictor:SelfPredictor|null):void{this.selfPredictor=predictor}
+
   setInput(pointer:Vector2,primary:boolean,secondary:boolean,showCrosshair:boolean):void{
     this.pointer=pointer;this.primary=primary;this.secondary=secondary;this.showCrosshair=showCrosshair;
   }
@@ -527,10 +549,16 @@ export class GameRenderer {
     // Beim Zuschauen hängt die Kamera am beobachteten Spieler; `selfId` bleibt
     // unverändert, damit HUD, Death-Screen und Respawn weiter den eigenen Tank meinen.
     const camera=(this.spectatorId?this.playerViews.get(this.spectatorId):undefined)??self;
+    // Beim Zuschauen sagt die eigene Eingabe nichts über den beobachteten Tank
+    // aus – dann bleibt es auch für den eigenen Tank bei der Interpolation.
+    const selfPrediction=this.spectatorId?null:this.selfPredictor?.sample()??null;
     for(const view of this.playerViews.values()){
       const age=clamp((now-view.snapshotAt)/1000,0,.09);
-      const predicted={x:view.target.x+view.velocity.x*age,y:view.target.y+view.velocity.y*age};
-      const factor=1-Math.exp(-(view.isSelf?42:24)*delta);
+      const own=view.isSelf?selfPrediction:null;
+      const predicted=own
+        ?{x:own.position.x,y:own.position.y}
+        :{x:view.target.x+view.velocity.x*age,y:view.target.y+view.velocity.y*age};
+      const factor=1-Math.exp(-(own?PREDICTED_SELF_RESPONSE:view.isSelf?42:24)*delta);
       view.current.x+=(predicted.x-view.current.x)*factor;
       view.current.y+=(predicted.y-view.current.y)*factor;
       if(view.isSelf&&this.showCrosshair){

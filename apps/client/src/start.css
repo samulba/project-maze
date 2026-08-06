@@ -237,6 +237,29 @@
   background: color-mix(in srgb, var(--text) 9%, transparent);
 }
 .start-fullscreen[hidden] { display: none; }
+/* Vorhersage-Schalter (N2). Gleiche Schriftgrade wie die Zeile darüber; die
+   Beschreibung steht darunter, weil „Vorhersage" allein nichts erklärt. */
+.start-switch {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 9px;
+  margin-top: 12px;
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  cursor: pointer;
+}
+.start-switch > input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.start-switch > small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: none;
+}
 .start-sound > input { grid-column: 1 / -1; }
 /* Das Loadout wird hier hineingezogen – ohne eigenen Rahmen, es ist schon drin. */
 .start-settings-body .core-loadout {
