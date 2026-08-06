@@ -191,15 +191,25 @@
   /* Die Spalte ist exakt so breit wie das Rad. Mit `1fr` konnte das Rad seine
      Spur überlaufen und sich über die Karte schieben – das war die Ursache
      hinter „Klassen-Karte überlappt Klassenrad". */
-  grid-template-columns: min(52vh, 520px) minmax(0, 300px);
+  /*
+   * `minmax(0, …)`: Die Spur darf ihre Wunschbreite haben, wenn Platz ist, und
+   * schrumpft sonst – ein festes Maß würde die Karte überlaufen.
+   *
+   * 520 px sind der geprüfte Deckel. Ein Versuch mit 660 warf die Matrix auf
+   * drei Kollisionen zurück (Bestenliste, Onboarding, Event-Banner) – die
+   * Ursache war nicht die Größe, sondern das Ausblenden ohne `visibility`
+   * (siehe unten). Nachdem das behoben war, habe ich den Versuch nicht
+   * wiederholt: Ein größeres Rad auf großen Schirmen ist möglich, aber
+   * ungemessen, und ungemessen bleibt es draußen.
+   */
+  grid-template-columns: minmax(0, min(52vh, 520px)) minmax(0, 300px);
   align-items: center;
   gap: 14px;
 }
 /* Maße in `vh`, nicht in Prozent: Eine Prozenthöhe in einem Container mit
    automatischer Höhe wird ignoriert – das war die zweite Ursache. */
 .class-overlay .codex-wheel {
-  width: min(52vh, 520px);
-  max-width: 100%;
+  width: 100%;
   padding: 10px;
   border-radius: 18px;
   /* Nur so viel Fläche wie das Rad braucht – der Kreis, nicht das Quadrat. */
@@ -274,9 +284,16 @@
 :root:has(.class-overlay:not([hidden])) .achievement-popup,
 :root:has(.class-overlay:not([hidden])) .network-pill,
 :root:has(.class-overlay:not([hidden])) .class-selection {
+  /*
+   * `visibility` zusätzlich zur Deckkraft: Ein Element mit `opacity: 0` ist
+   * weiterhin da – es nimmt Platz, es kann getroffen werden, und während der
+   * Überblendung ist sein Zustand mehrdeutig. Der Prüfstand hat genau daraus
+   * zweimal eine Kollision gemeldet, die im Bild keine war. Zurücktreten soll
+   * heißen: weg, nicht fast weg.
+   */
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity .16s;
 }
 
 /*
@@ -317,8 +334,8 @@
   :root:has(.class-overlay:not([hidden])) .player-panel,
   :root:has(.class-overlay:not([hidden])) .core-ability {
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
-    transition: opacity .16s;
   }
   .class-overlay {
     padding: 10px;
@@ -326,7 +343,7 @@
   }
   /* Ohne HUD daneben darf das Rad die Fläche nutzen, die es braucht – und die
      Karte rückt daneben statt darunter, weil Querformat breit ist und flach. */
-  .class-overlay.codex { grid-template-columns: min(78vh, 400px) minmax(0, 260px); gap: 10px; }
+  .class-overlay.codex { grid-template-columns: minmax(0, min(78vh, 420px)) minmax(0, 260px); gap: 10px; }
   .class-overlay .codex-wheel { pointer-events: auto; width: 100%; }
   .class-overlay .codex-card { max-height: 94vh; }
 }

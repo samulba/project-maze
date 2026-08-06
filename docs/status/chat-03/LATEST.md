@@ -50,7 +50,7 @@ Knoten, die Karte und der Schließen-Knopf.
 | | tote Fläche |
 |---|---|
 | normales Spiel | 1,3 % |
-| **mit offenem Rad** | **8,7 %** |
+| **mit offenem Rad** | **8,5 %** |
 | zum Vergleich: Klassenwahl vor Paket 16 | 35,3 % |
 
 **Auf kleinen Schirmen ist das Rad eine Leseansicht.** Unter 1000 px Breite,
@@ -89,7 +89,15 @@ härteste, was wir haben.
 |---|---|
 | erster | 2 / 12 |
 | nach dem Zurücktreten des HUD | 9 / 13 |
-| nach der Geometrie-Reparatur | **13 / 13** |
+| nach der Geometrie-Reparatur | 13 / 13 |
+| nach der Vergrößerung des Rades | 7 / 13 |
+| nach dem deterministischen Zurücktreten | **13 / 13** |
+
+Der abschließende Durchlauf über die ganze Matrix – alle Fenstergrößen, alle
+Zustände, Startseiten, Handy, Tablet, mit und ohne Rad – steht bei
+**75 / 75 Fällen ohne Befund**. Die drei Regressionen, die der Prüfstand in
+Paket 17 an meinen eigenen früheren Paketen gefunden hat, sind damit weiterhin
+zu, und das Rad hat keine neue dazugelegt.
 
 **Der teuerste Fehler war meiner und stand zwei Runden lang im Code:** Das
 Overlay trägt beide Klassen am selben Element (`class="class-overlay codex"`).
@@ -98,6 +106,16 @@ nichts trifft. Die Overlay-Geometrie hat nie gegriffen; ich habe stattdessen
 zweimal an Symptomen nachgebessert. Gefunden hat es erst eine Messung der
 tatsächlichen Boxen, nachdem ich aufgehört habe, aus dem Quelltext zu
 schließen. Dieselbe Lehre wie bei den Rändern in Paket 14, nur teurer bezahlt.
+
+**Der zweite Fehler war subtiler und lehrreicher.** Nach der Geometrie-Reparatur
+stand die Matrix auf 13/13; ein größeres Rad brachte sie auf 7/13 zurück, mit
+Kollisionen gegen Panels, die nachweislich ausgeblendet waren – ich habe die
+Deckkraft im Browser gemessen, sie war 0. Die Rücknahme der Vergrößerung half
+**nicht**: 11/13. Die Ursache war nicht die Größe, sondern das Ausblenden
+selbst: Ein Element mit `opacity: 0` ist weiterhin da, nimmt Platz und ist
+während der Überblendung mehrdeutig. Mit `visibility: hidden` dazu steht die
+Matrix wieder auf 13/13 – und zwar aus dem richtigen Grund. Zurücktreten heißt
+jetzt weg, nicht fast weg.
 
 Der Prüfstand hat außerdem zwei Bequemlichkeiten dazubekommen: `ONLY=<text>`
 engt die Matrix beim Reparieren ein, und die tote Fläche wird in der
@@ -127,19 +145,24 @@ Leseansicht gemeldet, aber nicht bewertet – dort ist sie Absicht.
 
 ## Abweichungen und Grenzen
 
-1. **Kein Sprung von der Wahlkarte ins Rad.** Wer auf Level 10 die Wahl vor
+1. **Das Rad ist auf 520 px gedeckelt, obwohl auf großen Schirmen Platz wäre.**
+   Der Versuch mit 660 px steht oben; nachdem die eigentliche Ursache gefunden
+   war, habe ich ihn nicht wiederholt, um die Matrix nicht ein drittes Mal
+   umzuwerfen. Ein größeres Rad auf 1920 und Ultrawide ist eine Zeile und ein
+   Durchlauf – aber einer, den ich nicht mehr gemacht habe.
+2. **Kein Sprung von der Wahlkarte ins Rad.** Wer auf Level 10 die Wahl vor
    sich hat, muss `C` drücken, statt auf der Karte „mehr" zu tippen. Der Weg
    wäre eine Zeile, aber die Wahlkarte hat nach Paket 16 gerade so viel Platz,
    dass ich dort nichts hinzufügen wollte, ohne es zu messen.
-2. **Das Rad zeigt keine Zahlen.** Kein Vergleich zweier Klassen, keine
+3. **Das Rad zeigt keine Zahlen.** Kein Vergleich zweier Klassen, keine
    Balken wie auf den Wahlkarten. Das war eine Entscheidung: Die Karten tragen
    die Werte, das Rad trägt den Zusammenhang. Wenn Sam beides an einem Ort
    will, gehört es in ein eigenes Paket.
-3. **Nur Chromium.** `:has()` trägt inzwischen die halbe HUD-Logik und ist auf
+4. **Nur Chromium.** `:has()` trägt inzwischen die halbe HUD-Logik und ist auf
    Sams Gerät ungeprüft.
-4. **Der Klassenwechsel ist im Prüfstand nicht abgebildet.** Dass der
+5. **Der Klassenwechsel ist im Prüfstand nicht abgebildet.** Dass der
    hervorgehobene Pfad beim Aufstieg mitwandert, ist über `setCurrent` gebaut
    und im Browser einmal von Hand gesehen, aber nicht als Fall festgehalten.
-5. **Die Enzyklopädie ist nur im Gastfall geprüft** – wie alle
+6. **Die Enzyklopädie ist nur im Gastfall geprüft** – wie alle
    Startscreen-Fälle, weil lokal keine Anmeldung eingerichtet ist. Sie hängt
    allerdings an keiner Verbindung: Der Baum steht im Client.

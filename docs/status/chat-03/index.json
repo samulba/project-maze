@@ -197,7 +197,7 @@
       "branch": "claude/chat-03-client-ux-mazers-yu57ca",
       "basis": "main@43c879d",
       "status": "offen",
-      "tests": "15 neu / 728 gesamt; Pruefstand von 63 auf 75 Faelle, Rad-Faelle 2/12 -> 13/13",
+      "tests": "15 neu / 728 gesamt; Pruefstand von 63 auf 75 Faelle: Rad-Faelle 2/12 -> 13/13, Gesamtmatrix 75/75 ohne Befund",
       "braucht_von_01": [
         "Merge",
         "Screenshots an Sam: Enzyklopaedie und Overlay",
