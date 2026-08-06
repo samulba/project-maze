@@ -1,191 +1,153 @@
-# 15 – R5: Die Perf-Kette trägt, und sie hat jetzt eine Auswertung
+# 16 – Die Seite lud dreimal zu viele Bytes
 
 | | |
 | --- | --- |
-| **Auftrag** | `docs/status/chat-01/auftrag-chat-04.md` (5. Fassung, 2026-08-06) |
+| **Auftrag** | keiner – Reaktion auf Sams Befund „ich merke einfach viel zu wenig davon" |
 | **Branch** | `claude/chat-04-infra-betrieb-ihx0xz` |
-| **Basis** | `origin/main` (`43c879d`) |
-| **Tests** | `npm run check` grün – 53 Dateien, 731 Tests (18 neu) |
+| **Basis** | `origin/main` (`999d66e`) |
+| **Tests** | `npm run check` grün – 54 Dateien, 745 Tests (14 neu) |
 | **Status** | **offen – wartet auf Review und Merge** |
 
----
+## Warum dieses Paket
 
-# TEIL 1: Trägt die Kette? Ja.
+01s Kurswechsel benennt das Problem, und er benennt dabei mein Revier:
 
-Der Auftrag sagt: erst prüfen, ob überhaupt Daten ankommen, bevor ausgebaut
-wird. Der Verdacht war, dass der Client kaum oder gar nicht sendet
-(`clientMetrics.samples: 0` bei `acceptedTotal: 1`).
+> Die letzten Runden gingen an Prüfstände, Balance-Läufe, Telemetrie und
+> Deploy-Wachen – alles richtig, nichts davon sichtbar.
 
-**Der Verdacht trifft nicht zu. Der Client sendet, und der Server nimmt an.**
+Das stimmt, und die letzten fünf Pakete von mir waren genau das. Also habe ich
+**keine weitere Telemetrie gebaut**, sondern die einzige Sache in meinem Revier
+gesucht, die Sam unmittelbar merkt: wie schnell die Seite lädt.
 
-## Wie ich das geprüft habe
+Und da lag etwas.
 
-Nicht durch Nachbauen der Sendelogik – dabei prüft man die eigene Annahme statt
-des Clients. Stattdessen ein echter Durchlauf: Chromium über Playwright,
-gebauter Client, echter Server, echte Zeiten. Der Browser betritt die Arena und
-spielt gut drei Minuten.
+## Der Befund
 
-```
-Arena betreten, warte auf den ersten Bericht (fruehestens 120 s) …
-  [120s] [POST /client-metrics] -> 204
-  [140s] {"samples":1,"acceptedTotal":1,"rejectedTotal":0}
-  [180s] [POST /client-metrics] -> 204
-  [200s] {"samples":2,"acceptedTotal":2,"rejectedTotal":0}
-
-=> DIE KETTE TRAEGT: 2 Bericht(e) angenommen.
-```
-
-Zwei Berichte im erwarteten 60-Sekunden-Takt, beide mit `204` angenommen,
-**keiner verworfen**. Schema, Rate-Limit, Aggregation und Export funktionieren
-so, wie sie sollen.
-
-## Warum es trotzdem nach „kaputt" aussah
-
-Drei Dinge kommen zusammen, und keines davon ist ein Fehler:
-
-**1. Der erste Bericht kommt frühestens nach 120 Sekunden.** Der Client wärmt
-60 s auf (Shader, Nachladen) und misst dann 60 s, bevor er zum ersten Mal
-sendet. Danach einmal pro Minute.
-
-**2. Die Zähler leben nur im Arbeitsspeicher.** Jeder Deploy setzt sie auf
-null. Am 06.08. wurde sehr oft deployt – ein niedriger `acceptedTotal` sagt
-dann mehr über die letzte Deploy-Zeit als über den Client.
-
-**3. `samples: 0` bei `acceptedTotal: 1` ist kein Widerspruch**, sondern die
-Auskunft „der eine Bericht ist älter als das 15-Minuten-Fenster". Also: Vor
-über einer Viertelstunde hat jemand lange genug gespielt, seitdem niemand mehr.
-
-**Es ist damit kein Befund für 03.** Die Client-Seite arbeitet wie
-spezifiziert.
-
-## Der eigentliche Engpass – und er ist eine Entscheidung, keine Panne
-
-**Ein Spieler muss zwei Minuten ununterbrochen in der Arena sein, um einen
-einzigen Datenpunkt zu erzeugen.** Wer nach 90 Sekunden aufhört, hinterlässt
-keine Spur; wer die Verbindung verliert, fängt von vorn an.
-
-Für eine Seite, auf der gerade wenige Leute kurz reinschauen, heißt das: Die
-Datenmenge bleibt sehr klein, ganz ohne dass etwas defekt ist. Das ist der
-Grund, warum die Messlatte bis heute unbeantwortet ist.
-
-Zwei Stellschrauben, beide in 03s Revier – **ich habe nichts davon geändert**:
-
-- **Aufwärmphase kürzen** (60 s → z. B. 20 s). Die Aufwärmzeit soll Shader und
-  Nachladen ausblenden; 20 s dürften dafür reichen. Ergäbe einen ersten Bericht
-  nach 80 statt 120 Sekunden.
-- **Beim Verlassen der Seite senden.** `sende()` benutzt bereits
-  `keepalive: true` – ein Bericht im `visibilitychange`-Handler auf `hidden`
-  würde genau die Sitzungen retten, die heute komplett verlorengehen. Der
-  Server nimmt Teilfenster an, solange 30 Frames beisammen sind.
-
-Meine Empfehlung ist die zweite: Sie kostet die kürzeste Sitzung nichts und
-hebt die Ausbeute vermutlich am deutlichsten. **Beides ist eine Entscheidung
-für 01/03, kein Fehler, den ich reparieren würde.**
-
----
-
-# TEIL 2: Die Auswertung
-
-## Ein Fund vorweg: `/metrics?format=json` ließ die Client-Daten weg
-
-Der Prometheus-Text hatte sie, das JSON-Format nicht. Ausgerechnet das Format,
-das für Werkzeuge gedacht ist, hätte also verlangt, den Textexport zu parsen.
-Behoben: `telemetryReport()` trägt jetzt einen `client`-Block mit derselben
-Aggregation.
-
-Bewusst unabhängig von `?subject=` – die Berichte kommen aus Browsern und
-kennen weder Mensch/Bot noch eine Klasse.
-
-## `npm run perf:live`
-
-```bash
-npm run perf:live -- --url https://www.mazers.de
-npm run perf:live -- --url http://localhost:2567 --json
-```
-
-Beantwortet die Messlatte aus dem MASTERPLAN – **FPS-p95 ≥ 55 auf dem
-Referenz-Altgerät, keine Hänger über 100 ms** – getrennt nach Geräteklasse,
-Renderpfad und Qualitätsstufe:
+`express.static` komprimiert nicht. Der Browser fragt bei jedem Abruf nach
+`Accept-Encoding: gzip, deflate, br` – der Server hat die Frage ignoriert und
+das volle Bundle geschickt:
 
 ```
-GERAET  RENDERPFAD     STUFE     BERICHTE  FPS p50  FPS p95 SCHLECHT. HAENGER  <30fps    MPx
-────────────────────────────────────────────────────────────────────────────────────────────
-high    webgl          high             1    144.0    120.0     120.0     0.0    0.00   3.69
-low     webgl-kompat   low              6     42.0     27.0      27.0     3.0    1.00   1.05
-
-MESSLATTE (MASTERPLAN): FPS-p95 >= 55, keine Haenger ueber 100 ms
-
-  ✘ low/webgl-kompat/low             6 Berichte — FPS-p95 27 < 55, Haenger 3
-
-  URTEIL: Messlatte VERFEHLT — siehe die markierten Zeilen.
+GET /assets/index-*.js
+  Accept-Encoding: gzip, deflate, br
+  → 200, Content-Length: 643983      (kein Content-Encoding)
 ```
 
-## Drei Festlegungen
+**Über die Leitung gingen 926 KB, nötig wären 218 KB.** Das ist der Unterschied
+zwischen „ist sofort da" und „lädt spürbar" – und er trifft ausgerechnet den
+ersten Eindruck, jedes Mal aufs Neue, am stärksten auf Mobilfunk.
 
-**1. „Referenz-Altgerät" ist `deviceClass=low` ODER `quality=webgl-kompat`.**
-Der Software-Renderpfad ist per Definition der alte PC – dort läuft WebGL ohne
-Grafikkarte, auch wenn die Maschine sonst kräftig ist. Nur auf `deviceClass` zu
-schauen würde genau die Fälle übersehen, um die es geht.
+Dass es niemandem auffiel, hat einen Grund: **`apps/client/nginx.conf` hat
+`gzip on`.** Der Compose-Pfad war also immer in Ordnung. Nur läuft
+www.mazers.de nicht über nginx, sondern über den Node-Server im
+Single-Service-Betrieb – und dort gab es die Schicht nicht. Zwei Betriebsarten,
+eine davon seit jeher unkomprimiert.
 
-**2. Es gibt drei Ausgänge, und zwei davon sind kein Bestehen.**
+## Was gebaut wurde
 
-| Ausgang | Wann |
+| | über die Leitung |
 | --- | --- |
-| `ERFUELLT` | alle ausreichend belegten Altgerät-Buckets halten die Latte |
-| `VERFEHLT` | mindestens einer reißt sie |
-| `UNBEANTWORTET` | keine Daten, nur starke Geräte, oder zu dünne Stichprobe |
+| vorher | **926 KB** |
+| gzip | 261 KB |
+| brotli | **218 KB** (−76 %) |
 
-**`UNBEANTWORTET` ist ausdrücklich kein Bestehen.** Eine leere Auswertung sieht
-sonst aus wie ein grüner Test – dieselbe Falle wie beim blinden Lasttest und
-beim gecachten `/health`. Ein Bucket unter fünf Berichten wird deshalb nicht
-bewertet, sondern als „zu wenig Daten" ausgewiesen.
+Gemessen am größten Einzelbrocken: `643 983` → `157 427` Bytes.
 
-**3. Der Leerfall erklärt sich selbst.** Kommen keine Berichte an, nennt das
-Skript die Ursachen in der Reihenfolge, in der man sie prüft – zuerst „hat
-jemand lange genug gespielt", dann „wurde der Server neu gestartet", dann
-„wurden Berichte verworfen", und erst danach „der Client sendet nicht, das ist
-ein Fall für 03". Genau die Reihenfolge, die mir hier eine Fehldiagnose erspart
-hätte.
+**`scripts/precompress.mjs`** legt beim Build neben jede Textdatei eine `.br`-
+und eine `.gz`-Fassung. Ohne neue Abhängigkeit – `zlib` steckt in Node.
+
+**`apps/server/src/static-assets.ts`** liefert sie aus, wenn der Browser sie
+akzeptiert, und fällt sonst still auf das Original zurück.
+
+## Die eine Entscheidung, die hier zählt
+
+**Komprimiert wird beim Build, nicht zur Laufzeit.** Die naheliegende Lösung
+wäre die `compression`-Middleware gewesen – drei Zeilen statt zweier Dateien.
+Sie ist hier trotzdem die falsche:
+
+Dieser Prozess ist ein **Spielserver mit 40 Hz Tick**, und der Tick-Abstand
+liegt schon heute bei 26–28 ms über dem 25-ms-Soll. Ein 630-KB-Bundle zur
+Laufzeit zu gzippen kostet 15 bis 25 ms CPU – **einen ganzen Tick, jedes Mal,
+wenn jemand die Seite lädt.** Ein einzelner Seitenaufruf hätte für alle in der
+Arena einen Ruckler erzeugt. Ausgerechnet beim Betreten des Spiels.
+
+Vorkomprimiert kostet die Auslieferung **nichts** und komprimiert obendrein
+stärker, weil die Rechenzeit beim Build keine Rolle spielt (Brotli auf Stufe 11
+statt der Laufzeit-Voreinstellung).
+
+## Vier Dinge, die leicht schiefgehen
+
+**1. Der Content-Type darf nicht von der Endung kommen.** Wer
+`app.js.br` ausliefert und den Typ aus dem Dateinamen ableitet, schickt
+`application/brotli` – und der Browser weigert sich, das als Skript
+auszuführen. Der Typ kommt deshalb aus der **Originalendung**.
+
+**2. `Vary: Accept-Encoding` gehört auf jede Antwort**, auch auf die
+unkomprimierte. Ohne den Header liefert ein Proxy die Brotli-Antwort an einen
+Client aus, der sie nicht lesen kann. Ist als Test hinterlegt.
+
+**3. Kein Verzeichniswechsel nach oben.** Der angefragte Pfad wird aufgelöst
+und danach geprüft, dass das Ergebnis wirklich unterhalb des Client-Ordners
+liegt. `/../../etc/passwd.js` läuft ins Leere – ebenfalls getestet.
+
+**4. Ein vergessener Build-Schritt macht die Seite langsamer, nie kaputt.**
+Fehlt die `.br`-Datei, geht das Original raus wie vorher.
 
 ## Verifiziert
 
-- **Die Kette end-to-end** im echten Browser, siehe oben.
-- **18 neue Tests**, darunter jeder der drei Ausgänge und ausdrücklich die
-  Fälle, in denen das Werkzeug **nicht** „bestanden" sagen darf: keine Daten,
-  nur starke Geräte, zu dünne Stichprobe.
-- **Gegen einen laufenden Server gefahren**, mit eingespeisten Berichten für
-  ein schwaches und ein starkes Gerät. Das Urteil `VERFEHLT` kam mit der
-  richtigen Begründung.
-- **Dabei aufgefallen:** Das Rate-Limit greift (`429` ab dem zweiten Bericht
-  je Minute und IP) – wie vorgesehen, aber gut zu wissen, wenn jemand von Hand
-  Berichte einspeist.
+Gegen einen laufenden Server, alle vier Fälle:
+
+| Anfrage | Ergebnis |
+| --- | --- |
+| `Accept-Encoding: gzip, deflate, br` | `br`, 157 427 Bytes, `Content-Type: text/javascript` |
+| `Accept-Encoding: gzip` | `gzip`, 190 101 Bytes |
+| ohne `Accept-Encoding` | Original, 643 983 Bytes, `Vary` gesetzt |
+| Inhalt dekomprimiert | identisch mit dem Original |
+
+Dazu **14 neue Tests**, darunter die vier Fallen oben und die Fälle, in denen
+gar nichts komprimiert ausgeliefert werden darf.
+
+## Grenzen
+
+- **`index.html` selbst wird nicht vorkomprimiert ausgeliefert.** Sie geht über
+  den SPA-Fallback, nicht über diese Schicht. Bei 1 749 Bytes wäre der Gewinn
+  rund 800 Bytes – das ist die Komplexität nicht wert, und den Fallback dafür
+  anzufassen wäre Routing-Risiko für nichts.
+- **Der Compose-Pfad ist unberührt.** Dort komprimiert nginx weiterhin selbst.
+- Bilder und Schriften bleiben außen vor – die sind bereits komprimiert.
 
 ## Bewusste Abweichungen
 
-**Ich habe `apps/client/src` nicht angefasst**, obwohl der Engpass dort liegt.
-Der Auftrag sagt: melden, nicht reparieren. Die beiden Vorschläge stehen oben.
+**Dieses Paket war nicht beauftragt**, und es ist bewusst *kein*
+Telemetrie-Paket. Nach 01s Kurswechsel wäre noch eine Messschicht das Gegenteil
+dessen, was gerade gebraucht wird. Wenn 01 die Reihenfolge anders sieht: Das
+Paket ist in sich abgeschlossen und blockiert nichts.
 
-**Der `client`-Block im JSON-Export war nicht beauftragt.** Ohne ihn hätte das
-Auswertungswerkzeug den Prometheus-Text parsen müssen – das wäre ein Werkzeug
-gewesen, das bei der nächsten Formatänderung still falsch rechnet.
+**Ich habe die Trefferquote-Telemetrie weiterhin nicht angefangen** (offen aus
+Bericht 13). Sie wäre der nächste Schritt für eine Zahl beim Projektiltempo –
+und genau die Sorte unsichtbare Arbeit, die gerade zurückstehen soll.
 
 ## Von 01 gebraucht
 
-1. **Merge**, dann steht `npm run perf:live` zur Verfügung.
-2. **Entscheidung für 03:** Aufwärmphase kürzen und/oder beim Verlassen der
-   Seite senden. Ohne das eine oder andere bleibt die Datenmenge so klein, dass
-   die Messlatte auf absehbare Zeit `UNBEANTWORTET` bleibt – nicht weil etwas
-   kaputt ist, sondern weil kaum jemand zwei Minuten am Stück spielt.
-3. **Die Messlatte ist weiterhin unbeantwortet**, und das ist nach diesem Paket
-   eine belastbare Aussage statt einer Vermutung: Es liegen schlicht noch keine
-   Berichte von einem Altgerät vor.
-4. **Weiterhin offen, weiterhin nicht ungefragt begonnen:** die Trefferquote als
-   Telemetrie (Bericht 13) – der einzige Weg zu einer Zahl beim Projektiltempo.
+1. **Merge.** Danach ist die Seite beim nächsten Deploy dreimal schneller
+   geladen – ohne dass jemand etwas umstellen muss.
+2. **Zum Nachprüfen nach dem Deploy**, ein Befehl:
+   ```bash
+   curl -sI -H 'Accept-Encoding: br' https://www.mazers.de/assets/<datei>.js \
+     | grep -i 'content-encoding\|content-length'
+   ```
+   Steht dort kein `Content-Encoding`, lief der Build ohne `precompress`.
+3. **Falls Railway einen eigenen Build-Befehl gesetzt hat** (`npm ci && npm run
+   build` laut `DEPLOY.md`), greift der Schritt automatisch – er hängt an
+   `npm run build`. Sollte dort etwas anderes stehen, muss `npm run precompress`
+   ergänzt werden.
 
 ## Für Sam
 
-Wenn du das nächste Mal eine Weile spielst: **Bleib zwei Minuten am Stück in
-der Arena**, dann erzeugst du einen Perf-Datenpunkt. Danach `npm run perf:live
--- --url https://www.mazers.de` (oder sag Bescheid, dann werte ich aus).
-Besonders wertvoll wäre eine Runde auf einem schwachen Gerät – genau dort steht
-die Messlatte, und genau von dort fehlen bisher alle Daten.
+Das ist eines der wenigen Dinge aus meinem Revier, die du direkt merken
+solltest: **Die Seite sollte nach dem nächsten Deploy spürbar schneller
+aufgehen**, besonders beim ersten Besuch und auf dem Handy. Statt 926 KB gehen
+218 KB über die Leitung.
+
+Wenn sich nichts ändert, sag Bescheid – dann ist der Build-Schritt bei Railway
+nicht mitgelaufen, und das steht oben unter Punkt 2 zum Nachprüfen.
