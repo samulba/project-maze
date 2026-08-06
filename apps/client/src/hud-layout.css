@@ -1,0 +1,221 @@
+/*
+ * HUD-Layout: die Reparaturen aus der UI-Fehlersuche.
+ *
+ * Anlass war Sams „ES GIBT VIELE UI PROBLEME z.B. beim aussuchen der klasse".
+ * Die Ursache ist nicht ein einzelner Fehler, sondern dass in den letzten
+ * Runden viel dazugekommen ist – Familien-Slots, Ladebalken, Modul-Panel,
+ * Onboarding, Event-Banner – und jedes Stück für sich geprüft wurde, nie alle
+ * zusammen. Diese Datei sammelt die Regeln, die das Zusammenspiel richten, an
+ * einer Stelle statt verstreut in `style.css` und `mobile.css`.
+ *
+ * Sie wird als **letzte** eingebunden und gewinnt damit gegen die dortigen
+ * Kurzfassungen.
+ */
+
+/* ------------------------------------------------------------------ *
+ * F1 – Die Klassenwahl schluckte Klicks
+ * ------------------------------------------------------------------ */
+/*
+ * Gemessen: Mit offener Klassenwahl nahmen 35 % der Bildfläche keine Klicks
+ * mehr an, zusammen mit dem Upgrade-Panel 48 % – gegen 1,4 % im normalen
+ * Spiel. Die Wahl erscheint auf Level 10 mitten im Gefecht; wer dann in die
+ * untere Bildhälfte zielt, feuert nicht mehr.
+ *
+ * Der Rahmen, die Überschrift und die Lücken zwischen den Karten brauchen
+ * keine Klicks – nur die Karten selbst. Also gibt der Container sie weiter.
+ */
+.class-selection { pointer-events: none; }
+.class-choices button { pointer-events: auto; }
+
+/* ------------------------------------------------------------------ *
+ * F2 – Die Klassenwahl lag unter allem anderen
+ * ------------------------------------------------------------------ */
+/*
+ * Sie hatte `z-index: 8`, während Onboarding-Coach (26), Arena-Event-Banner
+ * (28) und Modul-Panel (32) darüber liegen. Die wichtigste Entscheidung des
+ * Spiels lag damit unter jedem Hinweis. Sie steigt über das Beiwerk, bleibt
+ * aber unter dem Modul-Panel – das ist eine Bedienung und muss erreichbar
+ * bleiben.
+ */
+.class-selection { z-index: 30; }
+
+/*
+ * Und das Beiwerk weicht, solange eine Wahl ansteht: Der Onboarding-Coach
+ * erklärt die ersten Schritte, das Event-Banner meldet eine Zone – beides kann
+ * zehn Sekunden warten, die Spezialisierung nicht.
+ */
+:root:has(.class-selection:not([hidden])) .onboarding,
+:root:has(.class-selection:not([hidden])) .arena-event-banner,
+:root:has(.class-selection:not([hidden])) .bounty-banner { opacity: 0; transition: opacity .18s; }
+
+/* ------------------------------------------------------------------ *
+ * F3 – Klassenwahl und Upgrade-Panel kämpften um dieselbe Fläche
+ * ------------------------------------------------------------------ */
+/*
+ * Beide erscheinen beim **selben** Level-Up: Level 10 bringt die
+ * Spezialisierung und einen Upgrade-Punkt. Unter rund 1100 px Breite oder
+ * 700 px Höhe deckte die zentrierte Wahlkarte das Upgrade-Panel, die
+ * Spielerkarte und die Bestenliste (gemessen bei 900×640 und 1280×600).
+ *
+ * Statt zu zentrieren steht die Wahl jetzt in einer **Spur**: Links bleibt
+ * Platz für das Upgrade-Panel, sobald es sichtbar ist, rechts immer für
+ * Minimap und Auto-Knopf. Innerhalb der Spur ist sie zentriert und höchstens
+ * so breit wie bisher – auf großen Schirmen ändert sich also nichts.
+ */
+.class-selection {
+  --wahl-links: 0px;
+  --wahl-rechts: 210px;
+  left: calc(var(--edge-x) + var(--wahl-links));
+  right: calc(var(--edge-x) + var(--wahl-rechts));
+  width: auto;
+  /* Vier Karten in einer Reihe brauchen mehr Breite als drei – sonst laufen
+     Beschreibung und Balken über den Kartenrand hinaus. */
+  max-width: 820px;
+  margin-inline: auto;
+  translate: none;
+  /* Höhe deckeln, statt in eine zweite Reihe zu wachsen: Bei drei Karten und
+     einer vierten darunter wurde die Karte 460 px hoch und reichte bis in die
+     Spielerkarte. Jetzt wird innen gescrollt. */
+  max-height: min(44vh, 320px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+/* Auf flachen Fenstern reicht der Deckel oben bis in die Bestenliste – dort
+   eine Stufe strenger. */
+@media (max-height: 700px) {
+  .class-selection { max-height: 34vh; }
+}
+:root:has(.upgrade-panel:not([hidden])) .class-selection { --wahl-links: 300px; }
+
+/* Auf schmalen Fenstern ist das Upgrade-Panel schmaler – die Spur auch. */
+@media (max-width: 900px) {
+  :root:has(.upgrade-panel:not([hidden])) .class-selection { --wahl-links: 268px; }
+  .class-selection { --wahl-rechts: 165px; }
+}
+
+/*
+ * Touch: Dort ist das Upgrade-Panel ein Bottom-Sheet und liegt nicht links –
+ * die linke Spur entfällt, dafür sitzt die Wahl höher, weil unten die Sticks
+ * liegen.
+ */
+@media (pointer: coarse) {
+  :root:has(.upgrade-panel:not([hidden])) .class-selection { --wahl-links: 0px; }
+}
+
+/*
+ * Unten sitzt das Modul-Panel (SPACE · DASH). Mit 48 px Abstand lag die
+ * Wahlkarte 12 px darauf – gemessen in jedem Fenster, vom 900er bis zum
+ * Ultrawide. 84 px lassen es frei.
+ *
+ * Nur für Zeigergeräte: Auf Touch steht die Wahl ohnehin deutlich höher, weil
+ * dort unten die Sticks und die Aktionsknöpfe liegen (`mobile.css`). Diese
+ * Regel dort mitzuziehen hätte sie genau auf Auto- und Repel-Knopf gesetzt.
+ */
+@media (pointer: fine) {
+  .class-selection { bottom: calc(var(--edge-y) + 84px); }
+}
+
+/* ------------------------------------------------------------------ *
+ * F4 – Das Upgrade-Panel wuchs aus dem Bild
+ * ------------------------------------------------------------------ */
+/*
+ * Mit den Familien-Slots hat es zehn statt acht Reihen. Gemessen bei 900×500
+ * ragte es 242 px unter die Unterkante – die letzten Werte waren nicht mehr
+ * erreichbar. Auf dem Weg dorthin deckte es außerdem den Killfeed.
+ *
+ * Deckel plus innerer Bildlauf: Der Kopf mit der Punktzahl bleibt stehen, die
+ * Liste scrollt. Damit ist jede Reihe erreichbar, egal wie viele dazukommen.
+ */
+/*
+ * Nur für Zeigergeräte: Auf Touch ist das Panel ein Bottom-Sheet mit eigener
+ * Deckelung, das geschlossen absichtlich unter dem Bildrand liegt.
+ */
+@media (pointer: fine) {
+  .upgrade-panel {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    /* Zwei Grenzen: der Bildrand und die Spalte oben links. Ohne die zweite
+       schiebt sich das Panel bei zehn Reihen über den Killfeed. */
+    max-height: min(calc(100% - var(--edge-y) * 2 - 90px), 48vh);
+  }
+  .upgrade-panel .upgrade-list {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    padding-right: 2px;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * F5 – Die Death-Karte ragte über den Bildrand
+ * ------------------------------------------------------------------ */
+/*
+ * Mit dem eingezogenen Loadout ist sie 673 px hoch. Auf 1280×720 stand sie
+ * damit über der Statuspille und war oben und unten angeschnitten. Sie
+ * scrollt jetzt innen, statt zu wachsen.
+ */
+/* Oben bleibt Platz für die Statuspille: Die Karte begann sonst auf 16 px und
+   schnitt Verbindung und Ping an. */
+.death-screen:not(.spectating) { padding: 58px 20px 20px; }
+.death-screen:not(.spectating) .death-card {
+  max-height: calc(100% - 78px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* ------------------------------------------------------------------ *
+ * F6 – Das Upgrade-Panel schob sich über den Killfeed
+ * ------------------------------------------------------------------ */
+/*
+ * Die linke Spalte wächst von oben (Spielerkarte, Killfeed), das Upgrade-Panel
+ * von unten. Mit zehn Reihen treffen sie sich. Der Killfeed ist von beidem das
+ * Entbehrliche – er wird gedeckelt, und auf flachen Fenstern weicht er ganz,
+ * wie er es unter 900 px Breite schon tut.
+ *
+ * Die neueste Meldung steht oben (`renderKillfeed` dreht die Liste), abgeschnitten
+ * wird also die älteste – die richtige Richtung.
+ */
+.killfeed { max-height: 22vh; overflow: hidden; }
+@media (max-height: 700px) {
+  .killfeed { display: none; }
+}
+
+/* ------------------------------------------------------------------ *
+ * F7 – Zwei von vier Klassen lagen unter dem Sichtrand
+ * ------------------------------------------------------------------ */
+/*
+ * In der schmaleren Spur passen nur zwei Karten nebeneinander; die anderen
+ * beiden rutschen in eine zweite Reihe und damit unter den Höhendeckel. Wer
+ * nicht scrollt, sieht die halbe Auswahl nicht – und dass es weitergeht, sagt
+ * ihm niemand.
+ *
+ * Auf engem Raum tragen die Karten deshalb nur noch das, was die Entscheidung
+ * trägt: Familie, Name und ab wann. Beschreibung und Balken sind die Beigabe
+ * für den Fall, dass Platz da ist. So passen alle vier ohne Bildlauf.
+ */
+/*
+ * Immer genau eine Reihe. `repeat(auto-fit, minmax(150px, 1fr))` legte bei
+ * 620 px Breite drei Karten nebeneinander und die vierte darunter – zusammen
+ * mit dem Höhendeckel lag damit **eine von vier Klassen unter dem Sichtrand**,
+ * auch auf 1920×1080. Die Spalten teilen sich jetzt die Breite, statt eine
+ * Mindestbreite zu erzwingen.
+ */
+.class-choices {
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-template-columns: none;
+}
+/* Ohne `min-width: 0` behalten Grid-Spalten die Mindestbreite ihres Inhalts –
+   Text und Balken schoben sich dann über die Nachbarkarte. */
+.class-choices button,
+.class-choices button > * { min-width: 0; }
+.class-choices button { overflow: hidden; }
+.class-choices strong,
+.class-choices span { overflow-wrap: anywhere; }
+
+@media (max-height: 760px), (max-width: 1180px) {
+  .class-choices span,
+  .class-choice-bars { display: none; }
+  .class-choices button { min-height: 0; padding: 10px 12px; }
+  .class-choices small { margin-top: 4px; }
+  .class-selection > p { display: none; }
+}

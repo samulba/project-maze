@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 03
-
-> Kopie von `16-ui-fehlersuche.md`. Diese Datei zeigt immer das jüngste
-> fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 16 – UI-Fehlersuche: sieben Befunde, alle repariert
 
 **Branch:** `claude/chat-03-client-ux-mazers-yu57ca` · **Basis:** `origin/main` @ `7ecbc90` · **Status: OFFEN – wartet auf Merge**
