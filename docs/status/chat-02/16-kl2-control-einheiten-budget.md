@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 02
-
-> Kopie von `16-kl2-control-einheiten-budget.md`. Diese Datei zeigt immer das
-> jüngste fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 16 – KL2 Control: Einheiten-Budget
 
 **Branch:** `claude/chat-02-server-gameplay-w1i4o8` (neu von `origin/main`, nachdem Paket 15 gemerged war)

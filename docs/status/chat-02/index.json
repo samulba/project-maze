@@ -6,7 +6,7 @@
     "apps/client"
   ],
   "aktualisiert": "2026-08-06",
-  "latest": "15-kl2-precision-ladeschuss.md",
+  "latest": "16-kl2-control-einheiten-budget.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -165,13 +165,29 @@
       "datei": "15-kl2-precision-ladeschuss.md",
       "branch": "claude/chat-02-server-gameplay-w1i4o8",
       "basis": "main@c9aeb2b",
-      "status": "offen",
+      "status": "in main",
       "tests": "15 neu / 654 gesamt",
       "braucht_von_01": [
         "Entscheidung: Bleibt der volle Ausschlag der 'andere' Schuss (Groesse+Durchschlag), oder faellt Lancers Grundschaden? Nur Letzteres macht den Masterplan-Ladeschuss moeglich. Lancer traegt 127,9 Schaden gegen 148 HP des duennsten Gegners seiner Stufe - jeder Ladefaktor ueber 1,16x ist ein Ein-Schuss-Tod",
         "Fuer 03: die beiden KL4-Bezeichnungen fuer Precision heissen Ladetempo (signatureRate) und Ladewucht (signaturePower). Nicht 'Ladebonus' - der Slot hebt bewusst nicht den Schaden",
         "Precision ist ab sofort fuer die KL4-Slots freigegeben, sobald beide Flags an sind. Fuer Control bleibt die Frage aus Paket 13 offen",
         "Aufgeraeumt: SIGNATURE_RAPID_ENABLED und SIGNATURE_IMPACT_ENABLED standen nach dem Merge von Paket 13 doppelt in .env.example und DEPLOYMENT.md"
+      ]
+    },
+    {
+      "nr": 16,
+      "titel": "KL2 Control: Einheiten-Budget (Drohnen; Deployables als Vorschlag)",
+      "datei": "16-kl2-control-einheiten-budget.md",
+      "branch": "claude/chat-02-server-gameplay-w1i4o8",
+      "basis": "main@07155a8",
+      "status": "offen",
+      "tests": "14 neu / 668 gesamt",
+      "braucht_von_01": [
+        "Shared: DeployableSnapshot + DEPLOYABLE_KINDS + WorldSnapshot.deployables - exakter Vorschlag im Bericht, inkl. Verhalten unter SNAPSHOT_DELTAS. Nichts davon serverlokal mit Cast ueberbrueckt",
+        "Entscheidung: harte Obergrenze von zwei Deployables je Spieler. Gemessen kostet eine zusaetzliche Entitaet 287 B je Snapshot = 337 KB/s bei 30 Hz und 40 Clients - 16 Stueck waeren gut die Haelfte des heutigen Snapshots",
+        "Fuer 03: die Control-Bezeichnungen heissen Nachschub (signatureRate) und Einheitenstaerke (signaturePower). Damit haengen alle vier Familien an den KL4-Slots",
+        "Die Eingabe fuer Deployables (neue Client-Nachricht deploy mit Position und kind, plus Positionspruefung und Rate-Limit) ist ein eigenes Paket - nicht nebenbei",
+        "Offen aus Paket 13 erledigt: Precision und Control oeffnen sich jetzt automatisch, sobald ihr Signature-Flag an ist"
       ]
     }
   ]
