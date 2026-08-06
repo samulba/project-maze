@@ -153,16 +153,16 @@ const FAMILY_UPGRADE_BRANCHES: SignatureFamily[] = FAMILY_UPGRADES_ENABLED
     ].filter(Boolean) as SignatureFamily[])
   : [];
 /**
- * Rate-Limits und Missbrauchsschutz. Standardmäßig an; `false` schaltet sie
- * vollständig ab (dann verhält sich der Server wie vor dem Modul).
- */
-/**
- * Projektiltempo 2.0: Daempfer fuer alle Zweige, ein mit dem Level fallender
- * Deckel und ein Boden, unter den keine Kugel faellt. Dazu ein flacheres
- * Upgrade und ein Vorhalt-Ausgleich fuer die Bots. Standardmaessig aus – ohne
+ * Projektiltempo 2.0: Dämpfer für alle Zweige, ein mit dem Level fallender
+ * Deckel und ein Boden, unter den keine Kugel fällt. Dazu ein flacheres
+ * Upgrade und ein Vorhalt-Ausgleich für die Bots. Standardmäßig aus – ohne
  * den Schalter fliegen die Kugeln exakt wie bisher.
  */
 const PROJECTILE_SPEED_V2 = process.env.PROJECTILE_SPEED_V2 === 'true';
+/**
+ * Rate-Limits und Missbrauchsschutz. Standardmäßig an; `false` schaltet sie
+ * vollständig ab (dann verhält sich der Server wie vor dem Modul).
+ */
 const RATE_LIMITS_ENABLED = rateLimitsEnabled();
 const allowedOrigins = ALLOWED_ORIGIN === '*'
   ? null
