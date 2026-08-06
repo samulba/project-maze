@@ -34,6 +34,7 @@ import { SpectatorBanner } from './spectator';
 import { StartBackdrop } from './start-backdrop';
 import { StartLeaderboard } from './start-leaderboard';
 import { StartNav } from './start-nav';
+import { ClassCodex, ClassOverlay } from './class-codex';
 import { DEFAULT_THEME, applyTheme } from './themes';
 import { GameUI, type JoinOptions } from './ui';
 import './style.css';
@@ -52,6 +53,7 @@ import './auth.css';
 import './profile.css';
 // Zuletzt: sammelt die Layout-Reparaturen aus der UI-Fehlersuche und muss
 // gegen die Kurzfassungen in style.css und mobile.css gewinnen.
+import './class-tree.css';
 import './hud-layout.css';
 
 let socket: WebSocket | null = null;
@@ -124,6 +126,10 @@ ui.adoptStartSettings();
 // Startseite und Unterseiten (Befund 2). Muss vor den Panels laufen, damit
 // deren Flächen schon in der richtigen Seite hängen.
 const startNav = new StartNav(ui.root);
+// Enzyklopädie (KL3). Sie hängt an keiner Verbindung – der Klassenbaum steht
+// im Client, sie funktioniert also auch ohne Server und ohne Anmeldung.
+const codexHost = ui.root.querySelector<HTMLElement>('[data-codex-body]');
+if (codexHost) new ClassCodex(codexHost);
 const startBackdrop = new StartBackdrop(document.querySelector<HTMLCanvasElement>('#start-backdrop')!);
 startBackdrop.start();
 ui.onStartScreenGone(() => startBackdrop.stop());
@@ -144,6 +150,9 @@ void authReady.then((client) => {
   client.onChange((user) => profilePanel.setUser(user));
   profilePanel.setUser(client.user);
 });
+// Das Rad im Spiel (Taste C). Es hält nichts an und schluckt keine Klicks,
+// die ins Spielfeld gehören – siehe class-codex.ts.
+const classOverlay = new ClassOverlay(ui.root.querySelector<HTMLElement>('#hud') ?? ui.root);
 const spectator = new SpectatorBanner(ui.root);
 const onboarding = new OnboardingCoach(ui.root);
 const achievements = new AchievementPopups(ui.root);
@@ -206,8 +215,17 @@ input = new InputController(
   renderer.app.canvas,
   (pointer) => renderer.screenPointToWorldAim(pointer),
   sendUpgrade,
-  (enabled) => ui.setAutoFire(enabled)
+  (enabled) => ui.setAutoFire(enabled),
+  () => classOverlay.toggle()
 );
+// Esc schließt das Rad. Nur wenn es offen ist – sonst nähme es dem Browser
+// eine Taste weg, die er im Vollbild selbst braucht.
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && classOverlay.isOpen) {
+    event.preventDefault();
+    classOverlay.setOpen(false);
+  }
+});
 input.setEnabled(false);
 
 renderer.app.ticker.add(() => {
@@ -382,6 +400,7 @@ function updateWorld(snapshot: WorldSnapshot): void {
   const self = snapshot.players.find((player) => player.id === snapshot.selfId) ?? null;
   if (self) {
     playSnapshotAudio(snapshot, self);
+    classOverlay.setCurrent(self.playerClass);
     const extended = snapshot as WorldSnapshot & Partial<GameplayWorldExtension>;
     const gameplay = extended.gameplay?.[self.id];
     if (predictionEnabled) {
