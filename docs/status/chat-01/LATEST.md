@@ -60,19 +60,40 @@ Kommt als Nächstes dazu: `FAMILY_UPGRADES_ENABLED` (02, Default aus).
   setzen, falls noch nicht; den neuen hellen Look auf www.mazers.de ansehen;
   Momentum, Wucht und Spectator beurteilen
 
-## ⚠ Live hängt zurück (Befund 06.08.)
+## Betriebsstand – zwei Fakten von Sam (06.08., merken)
 
-Sams `/health` von www.mazers.de meldet `commit: d8568b6` – das ist „K2
-Profil-Tab gemerged" vom 05.08., **zwölf Commits hinter `main`**. Nicht live
-sind unter anderem: der Diep-Design-Umbau, 03s R1/R2/R4 und 04s Lastprobe.
-Konsequenz: Alles, was Sam in den letzten zwei Tagen an der Optik beurteilt
-hat, war der alte Stand. Ursachensuche liegt bei 04 (Vorrang im Auftrag),
-Railway-Zugriff hat nur Sam.
+1. **`SIGNATURE_RAPID_ENABLED` und `SIGNATURE_IMPACT_ENABLED` sind in Railway
+   gesetzt.** Die Frage ist damit erledigt und wird nicht wieder gestellt.
+   Momentum und Wucht sind live wirksam – der Code dafür steckt seit
+   `d8568b6` im Build.
+2. **Railway deployt normal.** Sam hat die Deploy-Historie geprüft.
 
-Daraus gelernt und sofort umgesetzt: `/health` meldete die Signature-Flags
-gar nicht. `signatureRapid` und `signatureImpact` stehen jetzt im
-`features`-Block – die offene Frage „hat Sam die Flags gesetzt?" war mit dem
-bisherigen Endpunkt schlicht nicht beantwortbar.
+## Wie `/health` uns angelogen hat (Lehrstück 06.08.)
+
+Ein `/health` zeigte `commit: d8568b6`, zwölf Commits hinter `main`. Ich habe
+daraus einen Deploy-Stillstand geschlossen und ihn 04 als Vorrang in den
+Auftrag geschrieben. **Falsch** – siehe oben. Der Fehler war, aus einem
+einzelnen Feld eines Endpunkts, der drei kaputte Freshness-Signale hatte, eine
+Betriebsstörung abzuleiten.
+
+Alle drei repariert (`apps/server/src/index.ts`):
+
+- **`/health` hatte kein `Cache-Control`.** Express liefert `res.json()` mit
+  ETag; ein Browser-Tab zeigt nach dem Neuladen den alten Rumpf. Ausgerechnet
+  unser Testprotokoll kam aus dem Cache. Jetzt `no-store`.
+- **`build` ist ein Festwert** aus Sprint B (`sprint-b2+static-renderers`) und
+  sieht nur aus wie eine Build-Kennung. Bleibt stehen, ist jetzt als Etikett
+  kommentiert.
+- **`commit` allein reicht nicht:** Wird ein Deploy durch eine
+  Variablenänderung ausgelöst, kann dieselbe Abbildung mit derselben
+  Git-Variable erneut starten. Neu daneben: **`startedAt`** (Prozessstart über
+  `process.uptime()`) und **`deploymentId`**.
+- Dazu die fehlenden Flags: `signatureRapid` und `signatureImpact` stehen jetzt
+  im `features`-Block.
+
+**Regel für die Zukunft:** Ein alter `commit` im `/health` ist ab jetzt ein
+Verdacht, kein Befund – erst gegen `startedAt` und die Deploy-Historie halten,
+bevor daraus ein Auftrag wird.
 
 ## Übergabedokumente für 02/03/04 (06.08.)
 

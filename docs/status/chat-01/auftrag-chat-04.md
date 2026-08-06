@@ -22,41 +22,38 @@ Die Dämpfer-Frage habe ich an 02 weitergegeben (1,5 Prozentpunkte
 Tickbudget – kein Problem). Ein A/B-Lauf mit temporärem Flag kommt nur, wenn
 02 die exakte Zahl anfordert.
 
-## VORRANG: Der Live-Stand hängt 12 Commits zurück
+## Kleiner Vorlauf: `/health` hat uns einmal angelogen
 
-Sam hat mir am 06.08. den `/health` von www.mazers.de geschickt:
+Am 06.08. zeigte ein `/health` von www.mazers.de `commit: d8568b6` – „K2
+Profil-Tab" vom Vortag, zwölf Commits hinter `main`. Ich habe daraus einen
+Deploy-Stillstand geschlossen. **Das war falsch:** Railway deployt normal, Sam
+hat es an der Deploy-Historie gegengeprüft.
 
-```
-"commit":"d8568b6","build":"sprint-b2+static-renderers"
-```
+Bevor du daraus ein Paket machst – das ist schon repariert. Der Endpunkt hatte
+zwei Wege, veraltet auszusehen, beide von mir behoben (01, `index.ts`):
 
-`d8568b6` ist **„K2 Profil-Tab gemerged"** vom 05.08., 21:44 Uhr. Seitdem sind
-zwölf Commits auf `main` gelandet, die live **nicht** ankommen – darunter der
-komplette Diep-Design-Umbau, 03s R1/R2/R4 (Vollbild, Letterbox,
-Qualitätsstufen) und deine eigene Lastprobe. Sam hat also tagelang eine alte
-Seite beurteilt, und unsere Annahme „main ist live" war in dieser Zeit falsch.
+1. **Kein `Cache-Control`.** Express liefert `res.json()` mit ETag aus; ein
+   Browser-Tab zeigt nach dem Neuladen den alten Rumpf. Ausgerechnet unser
+   Testprotokoll kam damit aus dem Cache. Jetzt `no-store`.
+2. **`build` ist tot.** Der String `sprint-b2+static-renderers` steht seit
+   Sprint B als Festwert im Code und sieht nur aus wie eine Build-Kennung. Er
+   bleibt aus Kompatibilität stehen, ist aber als Etikett kommentiert.
 
-Das ist dein Revier und geht vor allem anderen:
+Neu und für dich beim Messen nützlich: **`startedAt`** (Prozessstart, aus
+`process.uptime()`) und **`deploymentId`** (`RAILWAY_DEPLOYMENT_ID`). `commit`
+allein genügt nicht – wird ein Deploy durch eine Variablenänderung ausgelöst,
+kann dieselbe Abbildung mit derselben Git-Variable erneut starten. `startedAt`
+verrät das.
 
-1. **Finde heraus, warum der Auto-Deploy stehengeblieben ist.** Erste
-   Verdächtige laut unserer Fallenliste: Railway-Watch-Paths (leer sollten sie
-   sein) und fehlgeschlagene Builds, die als „kein Deploy" durchgehen. Sag
-   klar, was du prüfen kannst und wofür du Sam brauchst – du kommst an die
-   Railway-Oberfläche nicht heran, ich auch nicht.
-2. **Bau eine Warnung, die das künftig von selbst meldet.** Ein stiller
-   Deploy-Stopp darf uns nicht noch einmal zwölf Commits kosten. Mein
-   Vorschlag, deine Entscheidung: `/health` trägt bereits `commit` – ein
-   kleiner Abgleich gegen den erwarteten Stand (CI-Schritt, der nach dem Push
-   pollt, oder ein Feld `commitAge`) reicht. Halte es klein; die Diagnose ist
-   wichtiger als die Automatik.
-3. **Notiere im Bericht, was die zwölf Commits für deine Messungen bedeuten.**
-   Deine Lastprobe lief lokal, die ist unberührt. Aber jede Aussage über „live"
-   aus den letzten zwei Tagen steht unter Vorbehalt.
+**Wenn du magst, nimm das eine mit:** ein CI-Schritt, der nach einem Push auf
+`main` `/health` pollt, bis `commit` dem gepushten Stand entspricht, und sonst
+laut wird. Klein halten – das ist Absicherung, keine Baustelle. Wenn dein
+eigentliches Paket dadurch wackelt, lass es weg und sag es im Bericht.
 
-**Neu von 01 dazu:** Ich habe `/health` um die fehlenden Flags erweitert –
-`signatureRapid` und `signatureImpact` standen nicht im `features`-Block,
-obwohl genau deren Wirkung gerade beurteilt werden soll. Sobald der Deploy
-wieder läuft, ist im `/health` ablesbar, ob die beiden an sind.
+**Ebenfalls neu von 01:** `signatureRapid` und `signatureImpact` stehen jetzt
+im `features`-Block. Sie fehlten, obwohl genau deren Wirkung gerade beurteilt
+wird. **Beide Variablen sind in Railway gesetzt** (von Sam bestätigt) – ab dem
+nächsten Deploy ist das auch von außen ablesbar.
 
 ## Das Paket: Perf-Report um `tier` erweitern + Balance-Läufe verdichten
 

@@ -439,6 +439,11 @@ installSignalHandlers(gracefulShutdown);
 
 app.get('/health', (_request: Request, response: Response) => {
   const draining = gracefulShutdown.isShuttingDown();
+  // Ohne diesen Header antwortet Express mit ETag, und ein Browser-Tab zeigt
+  // nach dem Neuladen den alten Stand. Genau daran haben wir am 06.08. einen
+  // Deploy-Stillstand diagnostiziert, den es nicht gab: /health ist unser
+  // Testprotokoll und darf als einziger Endpunkt nie aus dem Cache kommen.
+  response.setHeader('Cache-Control', 'no-store');
   // Während des Drainens 503, damit der Loadbalancer keinen Traffic mehr schickt.
   return response.status(draining ? 503 : 200).json({
     ok: !draining,
@@ -449,7 +454,16 @@ app.get('/health', (_request: Request, response: Response) => {
     version: '1.0.0-alpha',
     // Zeigt, welcher Stand wirklich ausgeliefert wird – Railway setzt die Variable beim Build.
     commit: (process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT ?? 'unbekannt').slice(0, 7),
+    // `build` ist ein von Hand gepflegtes Etikett aus Sprint B und steht seither
+    // still – es sagt nichts über die Aktualität aus, auch wenn es so aussieht.
     build: 'sprint-b2+static-renderers',
+    // Die beiden hier sagen es wirklich. `commit` allein reicht nicht: Wird ein
+    // Deploy durch eine Variablenänderung ausgelöst, kann dieselbe Abbildung mit
+    // derselben Git-Variable erneut starten. `startedAt` zeigt unabhängig davon,
+    // wann dieser Prozess hochgekommen ist – frisch deployt heißt frisch
+    // gestartet.
+    deploymentId: (process.env.RAILWAY_DEPLOYMENT_ID ?? 'lokal').slice(0, 8),
+    startedAt: new Date(Date.now() - Math.round(process.uptime() * 1000)).toISOString(),
     snapshotRate: GAME.snapshotRate,
     debugTools: ENABLE_DEV_TOOLS,
     // Macht die Feature-Schalter von außen prüfbar – sonst sieht man einer
