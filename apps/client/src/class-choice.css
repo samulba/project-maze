@@ -13,3 +13,39 @@
 .class-choices button[data-branch="precision"] .class-choice-bars b { background:linear-gradient(90deg,#bd8041,#ffc66f); }
 .class-choices button[data-branch="control"] .class-choice-bars b { background:linear-gradient(90deg,#369c78,#73e3bd); }
 .class-choices button[data-branch="impact"] .class-choice-bars b { background:linear-gradient(90deg,#b94f61,#ff8192); }
+
+/* ------------------------------------------------------------------ *
+ * Bild des Tanks auf der Wahlkarte
+ * ------------------------------------------------------------------ *
+ * Sam, 06.08.: „Es fehlen auch Bilder, wenn man die Tanks auswählen will."
+ * Das SVG kommt aus `class-preview.ts` und zeichnet aus denselben Werten wie
+ * der Renderer. Die Farbe folgt dem Zweig der Klasse, damit schon der Farbwert
+ * sagt, in welche Richtung man abbiegt.
+ */
+.class-choice-preview {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 78px;
+  margin: 0 0 8px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  color: var(--accent);
+}
+.class-choice-preview svg { width: 74px; height: 74px; overflow: visible; }
+.class-preview-hull { fill: currentColor; stroke: color-mix(in srgb, #fff 38%, transparent); stroke-width: 3; }
+.class-preview-barrels { fill: color-mix(in srgb, currentColor 55%, #6c7386); }
+.class-preview-drone { fill: currentColor; opacity: .62; }
+
+/* Jede Familie hat ihre Farbe – dieselbe Zuordnung wie die Rollennamen. */
+[data-branch=rapid]   .class-choice-preview { color: #6f7ad6; }
+[data-branch=precision] .class-choice-preview { color: #58b0e8; }
+[data-branch=control] .class-choice-preview { color: #5aa882; }
+[data-branch=impact]  .class-choice-preview { color: #c4626f; }
+
+/* Auf schmalen und niedrigen Fenstern ist das Spielfeld wichtiger als das
+   Bild – die Karten müssen vollständig sichtbar bleiben (Befund G3/G4). */
+@media (max-height: 560px), (max-width: 720px) {
+  .class-choice-preview { height: 54px; margin-bottom: 6px; }
+  .class-choice-preview svg { width: 50px; height: 50px; }
+}

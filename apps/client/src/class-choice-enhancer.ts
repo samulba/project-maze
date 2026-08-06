@@ -1,5 +1,6 @@
 import { CLASS_DEFINITIONS, type PlayerClass } from '@project-maze/shared';
 import { classBalanceMetrics } from '@project-maze/shared/balance';
+import { classPreviewSvg } from './class-preview';
 
 const percent = (value: number): number => Math.max(6, Math.min(100, Math.round(value)));
 
@@ -33,7 +34,15 @@ function enhanceButton(button: HTMLButtonElement): void {
     row.innerHTML = `<span>${label}</span><i><b style="width:${width}%"></b></i>`;
     bars.append(row);
   }
+  // Das Bild des Tanks, gezeichnet aus denselben Werten wie im Spiel. Es steht
+  // vor dem Rollennamen: Sam wählt auf Level 10 unter Beschuss, und eine Form
+  // ist in einer Zehntelsekunde erfasst, ein Wort nicht.
+  const preview = document.createElement('figure');
+  preview.className = 'class-choice-preview';
+  preview.innerHTML = classPreviewSvg(playerClass);
+
   button.prepend(role);
+  button.prepend(preview);
   button.append(bars);
 }
 
