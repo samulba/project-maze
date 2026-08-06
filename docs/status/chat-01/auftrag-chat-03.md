@@ -30,7 +30,53 @@ heller Arena-Boden `0xcdcdcd` mit Gitter, Konturen in abgedunkelter Füllfarbe
 Rot `0xf14e54`, UI in `color-scheme:light`. Grundlook-Änderungen nur nach
 Screenshot-Freigabe durch Sam über 01.
 
-## Das Paket: N2 Client-Prediction
+## VORRANG (Sam, 06.08. live): drei Befunde aus dem Spiel
+
+N2 rutscht dahinter. Das hier hat Sam beim Spielen gestört, in seinen Worten:
+
+**1. „Die Ränder links rechts sind jetzt nur noch fetter ingame, das ist nicht
+responsive!"**
+
+Ich habe es nachgestellt (Screenshot-Pipeline, 2560×1080): Das Spielfeld steht
+als schmale Spalte in der Mitte, links und rechts je rund ein Viertel der
+Breite ist tote Fläche – und die HUD-Elemente (Spielerkarte, Killfeed, TOP
+PLAYERS, Minimap, DASH) liegen **in** diesen toten Bändern, weil sie am
+Fenster hängen und nicht am Spielfeld. Auf dem Stand vor R2 lief die Arena
+randlos über die volle Breite.
+
+Der Masterplan hat die feste 16:9-Sicht mit Fairness begründet (wer breiter
+sieht, sieht Gegner früher). Sam hat das jetzt am lebenden Objekt anders
+beurteilt, und sein Urteil zählt. Sag mir, was du für richtig hältst:
+Sichtfeld mitwachsen lassen (randlos, Fairness gibt nach), oder 16:9 halten
+und die Bänder gestalten statt sie leer zu lassen. **In beiden Fällen gilt:
+Das HUD gehört an das Spielfeld gebunden, nicht an das Fenster.** Das ist der
+Teil, der unabhängig von der Grundsatzfrage falsch ist.
+
+**2. „Der HOMESCREEN – dass man da direkt alle Achievements + Leaderboard
+sieht, ist komplett kake. Die sollten alle geile cleane Unterseiten bekommen,
+genauso wie Profil, Einstellungen etc. Nicht alles auf eine Seite
+reinballern."**
+
+Der Startscreen ist über K2, A4 und die Achievements-Galerie zu einer langen
+Seite gewachsen. Bau ihn zu einer Navigation um: Start bleibt Logo, Name und
+**ARENA BETRETEN** – nichts sonst. Alles andere wird eine eigene, ruhige
+Unterseite (Profil · Achievements · Bestenliste · Einstellungen). Das ist dein
+Revier und deine Handschrift; ich gebe dir keine Kästchen vor. Zwei Auflagen:
+der Weg ins Spiel wird **nicht** länger als heute, und die Unterseiten laufen
+über die Theme-Variablen.
+
+**3. „‚Du siehst Killer zu' funktioniert nicht so geil, weil ja drüber immer
+das Popup ist und ich gar nichts sehe."**
+
+Bestätigt, ich sehe es auf seinem Screenshot: Das Banner „DU SIEHST NOVA ZU"
+steht oben, aber die große ELIMINIERT-Karte liegt mittig im Bild und verdeckt
+genau das, was man zusehen soll. Der Zuschauermodus nach dem Tod ist damit
+funktionslos. Löse den Konflikt – die Karte kompakt an den Rand, oder sie
+zieht sich nach ein paar Sekunden zusammen, oder Zuschauen ist ein bewusster
+Schritt aus dem Death-Screen heraus. Respawn und „ZUM STARTSCREEN" müssen
+jederzeit erreichbar bleiben.
+
+## Danach: N2 Client-Prediction
 
 Das größte verbleibende Feel-Paket (`docs/CLIENT_PREDICTION.md`;
 `lastProcessedInput ?? -1`). Der Server setzt das Feld bereits immer.

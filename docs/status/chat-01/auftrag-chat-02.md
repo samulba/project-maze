@@ -30,7 +30,44 @@ naheliegende Variante durchgerechnet und dann verworfen hast. Ein Punkt, der
    Drive-by-Commit sein soll; sie ist aber Teil derselben Änderung, weil erst
    die Familiensperre den Aufhänger erzeugt.
 
-## Das Paket: KL4 Server-Seite
+## VORRANG (Sam, 06.08. live): Die Kugeln sind viel zu schnell
+
+Wörtlich: *„die KUGELN sind noch immer VIEL VIEL VIEL zu schnell, umso stärker
+man wird umso langsamer müssen auch die Kugeln werden, sonst ist das komplett
+unfair – und die sind overall einfach viel zu schnell!"*
+
+Das ist Sams Urteil aus dem Livespiel und schlägt KL4. Zwei getrennte
+Forderungen, verwechsle sie nicht:
+
+1. **Grundtempo runter, spürbar.** Der Dämpfer steht heute bei `0.75`
+   (Precision `0.9`) in `projectileSpeedScaleFor`. Er hat nicht gereicht.
+   `projectileLife` wird im selben Maß verlängert, die Reichweite bleibt also
+   konstant – das Muster hältst du bei.
+2. **Umkehr der Skalierung: Wer stärker wird, verschießt langsamere Kugeln.**
+   Heute ist es genau andersherum – `projectileSpeed` als Upgrade rechnet
+   `(1 + upgrades.projectileSpeed * 0.04)`, also schneller mit jedem Punkt.
+   Sams Begründung ist Fairness: Gegen einen hochgelevelten Gegner ist eine
+   schnelle Kugel nicht mehr ausweichbar.
+
+**Das ist ein Eingriff ins Fundament, deshalb will ich vor dem Code deinen
+Kopf:** Ein Upgrade, das den eigenen Wert *verschlechtert*, ist ein toter Slot –
+dasselbe Argument, mit dem du die naheliegende KL4-Variante verworfen hast.
+Denkbare Auflösungen, deine Wahl und deine Zahlen:
+
+- `projectileSpeed` wird zu „Reichweite/Präzision" umgedeutet und das Tempo
+  koppelt an Level statt an das Upgrade,
+- oder das Upgrade fällt weg und der Slot wird neu belegt,
+- oder Tempo skaliert mit Level nach unten und das Upgrade bremst diesen
+  Abfall, statt ihn umzukehren.
+
+Liefer mir **erst eine kurze Analyse mit Zahlen** (wie heute, wie nach deinem
+Vorschlag, was das für Ausweichbarkeit und Trefferquote bedeutet), dann den
+Code. Hinter Flag, Default aus, wie üblich. Wenn du eine Messung dafür baust:
+Formen vorher wegräumen, sie wachsen während des Laufs nach.
+
+KL4 (unten) bleibt danach dran, nicht gestrichen.
+
+## Danach: KL4 Server-Seite
 
 1. Familiensperre in `applyUpgrade` (kein Slot ohne passende Familie kaufbar,
    Core gesperrt), Skalierung an Momentum und Wucht nach deinen Zahlen.
