@@ -6,7 +6,7 @@
     "apps/client"
   ],
   "aktualisiert": "2026-08-06",
-  "latest": "19-impact-warum.md",
+  "latest": "20-faehigkeiten-sichtbar.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -230,7 +230,7 @@
       "datei": "19-impact-warum.md",
       "branch": "claude/chat-02-server-gameplay-w1i4o8",
       "basis": "main@43c879d",
-      "status": "offen",
+      "status": "in main",
       "tests": "kein Code",
       "braucht_von_01": [
         "Fuenf Minuten Rammer von Sam - die Frage, die keine Messung beantwortet: Kann ein Mensch den Koerperkontakt halten? Alles Weitere haengt daran",
@@ -238,6 +238,23 @@
         "Die Ursache: Impact bringt doppeltes Leben und ein Siebtel der Projektil-Feuerkraft (16 gegen 119 DPS) - der ganze Schaden haengt am Kontakt. Gemessen 42 Kontakt-Ticks in 36 Simulationsminuten, also rund eine Sekunde Kontakt. resolvePlayerCollisions schiebt beide Seiten symmetrisch auseinander, bevor der Schaden faellt",
         "71 % der Kontakte trafen Anfaengergeschuetzte, gegen die die Wucht per Bauart nicht wirkt - die Signature kommt fast nie zum Zug. Das erklaert, warum Impact als einzige Familie auf das Einschalten der Signatures nicht reagiert hat (0,23 -> 0,21)",
         "KEIN Nachschaerfen der Wucht - sie ist nicht zu schwach, sie kommt nicht zum Zug. Falls Sam den Kontakt nicht halten kann: Freigabe fuer einen Blick auf die massenabhaengige Aufloesung in resolvePlayerCollisions. Der Eingriff beruehrt die Bewegungsintegration und damit 03s Vorhersage"
+      ]
+    },
+    {
+      "nr": 20,
+      "titel": "Faehigkeiten sichtbar machen: Dash faehrt statt zu springen + Protokoll-Audit",
+      "datei": "20-faehigkeiten-sichtbar.md",
+      "branch": "claude/chat-02-server-gameplay-w1i4o8",
+      "basis": "main@999d66e",
+      "status": "offen",
+      "tests": "4 neu / 718 gesamt",
+      "braucht_von_01": [
+        "BEFUND: Der Dash IST ein Teleport - die ganzen 189 px werden in einem einzigen Aufruf zurueckgelegt, die 180 ms activeMs sind danach nur ein Zustandsfenster. 03 kann daran mit Trails nichts reparieren, weil es keine Bewegung gibt. Gefixt hinter DASH_TRAVEL_ENABLED (Default aus): dieselbe Strecke ueber 7 Ticks, also fuenf bis sechs Snapshots",
+        "Freigabe erbeten: REPULSE_RADIUS (195) und BARRIER_FRONT_DOT (0,28) nach shared/gameplay. Beide sind heute Serverliterale, die 03 sonst abschreibt - null Snapshot-Kosten",
+        "moduleDirection (Vector2, optional) erst auf Zuruf von 03: Mit der Fahrt kann der Client die Richtung aus zwei Positionen selbst bilden, das Feld erspart nur den ersten Frame",
+        "DASH_TRAVEL_ENABLED gehoert zusammen mit 03s Spur an, nicht davor. Serverseitig blockiert nichts",
+        "Mein Fehler aus Paket 14: .env.example hatte einen Kommentarblock fuer PROJECTILE_SPEED_V2, aber keine Variablenzeile - wer die Datei kopiert, hat den Schalter nie gesehen. Ergaenzt",
+        "KL5 ruht wie angeordnet. Einziger dringender Balance-Punkt bleibt Impact (K/D 0,21, Ursache: Kontakt kommt nie zustande) - nichts gebaut"
       ]
     }
   ]

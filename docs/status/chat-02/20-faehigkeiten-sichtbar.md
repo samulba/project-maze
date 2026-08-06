@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 02
-
-> Kopie von `20-faehigkeiten-sichtbar.md`. Diese Datei zeigt immer das
-> jüngste fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 20 – Fähigkeiten sichtbar machen: die Protokollseite
 
 **Branch:** `claude/chat-02-server-gameplay-w1i4o8` · **Basis:** `origin/main` @ `999d66e`
