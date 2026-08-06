@@ -63,6 +63,7 @@ import {
   profileUpdateHandler,
   tunePersistence
 } from './persistence.js';
+import { DEFAULT_BUDGET, tuneControlSignature } from './signature-control.js';
 import { DEFAULT_CHARGE, tunePrecisionSignature } from './signature-precision.js';
 import { DEFAULT_MOMENTUM, tuneRapidBots, tuneRapidSignature } from './signature-rapid.js';
 import { DEFAULT_WUCHT, tuneImpactSignature } from './signature-impact.js';
@@ -141,6 +142,13 @@ const SIGNATURE_IMPACT_ENABLED = process.env.SIGNATURE_IMPACT_ENABLED === 'true'
  */
 const SIGNATURE_PRECISION_ENABLED = process.env.SIGNATURE_PRECISION_ENABLED === 'true';
 /**
+ * Klassen 3.0, vierte Familie: Einheiten-Budget für CONTROL. Der Zeitgeber, der
+ * verlorene Drohnen ersetzt, wird durch ein Nachschub-Konto abgelöst: volles
+ * Budget = eine komplette Flotte. Im Mittel dasselbe Tempo wie heute, aber wer
+ * zweimal kurz hintereinander verliert, steht ohne Nachschub da.
+ */
+const SIGNATURE_CONTROL_ENABLED = process.env.SIGNATURE_CONTROL_ENABLED === 'true';
+/**
  * Klassen 3.0, KL4: Familien-Upgrades. Die beiden Slots `signatureRate` und
  * `signaturePower` werden kaufbar, und die Signature-Stärke wandert aus dem
  * Festwert in die Punkte-Ökonomie (Sockel + Punkte). Standardmäßig aus – ohne
@@ -158,7 +166,8 @@ const FAMILY_UPGRADE_BRANCHES: SignatureFamily[] = FAMILY_UPGRADES_ENABLED
   ? ([
       SIGNATURE_RAPID_ENABLED ? 'rapid' : null,
       SIGNATURE_IMPACT_ENABLED ? 'impact' : null,
-      SIGNATURE_PRECISION_ENABLED ? 'precision' : null
+      SIGNATURE_PRECISION_ENABLED ? 'precision' : null,
+      SIGNATURE_CONTROL_ENABLED ? 'control' : null
     ].filter(Boolean) as SignatureFamily[])
   : [];
 /**
@@ -211,6 +220,9 @@ const encodedGame = tuneSnapshotEncoding(
                     tuneRapidBots(
                       tuneBotBrain(
                         tuneClassMechanics(
+                          // Einheiten-Budget ausserhalb von tuneDrones: Es
+                          // bezahlt und verstaerkt die fertige Einheit.
+                          tuneControlSignature(
                           tuneDrones(
                             // Momentum direkt um das Kampf-Tuning: Dort entsteht
                             // der Cooldown, den die Signature verkürzt.
@@ -248,6 +260,10 @@ const encodedGame = tuneSnapshotEncoding(
                               DEFAULT_WUCHT,
                               FAMILY_UPGRADES_ENABLED
                             )
+                          ),
+                          SIGNATURE_CONTROL_ENABLED,
+                          DEFAULT_BUDGET,
+                          FAMILY_UPGRADES_ENABLED
                           )
                         ),
                         BOT_PACING_ENABLED ? DEFAULT_BOT_PACING : null
@@ -538,7 +554,7 @@ app.get('/health', (_request: Request, response: Response) => {
     // Jedes Flag, das Spielgefühl verändert, gehört hier hinein: /health ist das
     // Testprotokoll, wenn Sam sagt „geht nicht". Die Signatures fehlten – genau
     // die, deren Wirkung gerade beurteilt werden soll.
-    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, signaturePrecision: SIGNATURE_PRECISION_ENABLED },
+    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED },
     persistence: persistenceStats(game),
     auth: authStatus(),
     clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),
