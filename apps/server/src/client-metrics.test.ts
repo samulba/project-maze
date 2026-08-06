@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   CLIENT_DEVICE_CLASSES,
+  CLIENT_QUALITY_TIERS,
   CLIENT_RENDER_PATHS,
   clientMetricsHandler,
   clientMetricsSchema,
@@ -86,6 +87,36 @@ describe('report validation', () => {
     expect(post(report({ dpr: 99 })).body).toEqual({ error: 'Ungültiger Bericht.' });
   });
 
+  it('accepts the quality tier as its own field', () => {
+    expect(post(report({ tier: 'low' })).status).toBe(204);
+    const bucket = clientMetricsSummary().buckets[0];
+    expect(bucket?.quality).toBe('webgl');
+    expect(bucket?.tier).toBe('low');
+    // Die Stufe steht neben dem Renderpfad, nicht in ihm.
+    expect(bucket?.quality).not.toContain('low');
+  });
+
+  it('still accepts reports from clients that predate the tier field', () => {
+    // Das Schema ist strikt; ohne `optional` wäre jeder ältere Client dauerhaft
+    // abgewiesen – und eine 400 fällt im Spiel niemandem auf.
+    const { tier: _tier, ...withoutTier } = report({ tier: 'high' });
+    expect(post(withoutTier).status).toBe(204);
+    expect(clientMetricsSummary().buckets[0]?.tier).toBe('unknown');
+    expect(clientMetricsSummary().tierCoercedTotal).toBe(0);
+  });
+
+  it('bends an unknown tier to "unknown" instead of dropping the whole report', () => {
+    expect(post(report({ tier: 'ultra' as never })).status).toBe(204);
+    const summary = clientMetricsSummary();
+    // Der Bericht bleibt verwertbar …
+    expect(summary.acceptedTotal).toBe(1);
+    expect(summary.buckets[0]?.tier).toBe('unknown');
+    expect(summary.buckets[0]?.fpsP50).toBe(60);
+    // … und das Zurechtbiegen bleibt sichtbar statt still.
+    expect(summary.tierCoercedTotal).toBe(1);
+    expect(clientMetricsText()).toContain('maze_client_tier_coerced_total 1');
+  });
+
   it('answers 404 while telemetry is switched off', () => {
     process.env.TELEMETRY_ENABLED = 'false';
     expect(post(report()).status).toBe(404);
@@ -146,11 +177,32 @@ describe('aggregation', () => {
   it('keeps the label space small no matter what arrives', () => {
     for (const deviceClass of CLIENT_DEVICE_CLASSES) {
       for (const quality of CLIENT_RENDER_PATHS) {
-        recordClientMetrics(report({ deviceClass, quality }));
+        for (const tier of CLIENT_QUALITY_TIERS) {
+          recordClientMetrics(report({ deviceClass, quality, tier }));
+        }
       }
     }
-    // Vier Geräteklassen mal vier Renderpfade – mehr kann es nie werden.
-    expect(clientMetricsSummary().buckets).toHaveLength(16);
+    // Vier Geräteklassen mal vier Renderpfade mal vier Stufen – mehr kann es
+    // nie werden, und das ist die Obergrenze, nicht der Normalfall.
+    expect(clientMetricsSummary().buckets).toHaveLength(64);
+  });
+
+  it('refuses to let a manipulated client invent new label values', () => {
+    // Ein Client, der sich Stufen ausdenkt, darf den Export nicht aufblähen:
+    // alle erfundenen Werte fallen auf dieselbe `unknown`-Reihe zusammen.
+    for (const invented of ['ultra', 'potato', 'mid ', 'MID', '"}\nmaze_fake 1', 'x'.repeat(500)]) {
+      expect(post(report({ tier: invented as never })).status).toBe(204);
+    }
+    const summary = clientMetricsSummary();
+    expect(summary.buckets).toHaveLength(1);
+    expect(summary.buckets[0]?.tier).toBe('unknown');
+    expect(summary.acceptedTotal).toBe(6);
+
+    // Und der Export bleibt eine einzige Zeile je Serie – keine Injektion.
+    const text = clientMetricsText();
+    expect(lineFor(text, 'maze_client_fps_p50')).toHaveLength(1);
+    expect(text).not.toContain('maze_fake');
+    expect(text).not.toContain('ultra');
   });
 
   it('survives far more reports than the buffer holds', () => {
@@ -173,11 +225,11 @@ describe('prometheus export', () => {
 
     expect(text).toContain('# TYPE maze_client_fps_p50 gauge');
     expect(lineFor(text, 'maze_client_fps_p50'))
-      .toEqual(['maze_client_fps_p50{deviceClass="low",quality="webgl-kompat"} 28']);
+      .toEqual(['maze_client_fps_p50{deviceClass="low",quality="webgl-kompat",tier="unknown"} 28']);
     expect(lineFor(text, 'maze_client_fps_p95'))
-      .toEqual(['maze_client_fps_p95{deviceClass="low",quality="webgl-kompat"} 18']);
-    expect(text).toContain('maze_client_low_fps_ratio{deviceClass="low",quality="webgl-kompat"} 1');
-    expect(text).toContain('maze_client_reports_total{deviceClass="low",quality="webgl-kompat"} 1');
+      .toEqual(['maze_client_fps_p95{deviceClass="low",quality="webgl-kompat",tier="unknown"} 18']);
+    expect(text).toContain('maze_client_low_fps_ratio{deviceClass="low",quality="webgl-kompat",tier="unknown"} 1');
+    expect(text).toContain('maze_client_reports_total{deviceClass="low",quality="webgl-kompat",tier="unknown"} 1');
     expect(text.endsWith('\n')).toBe(true);
   });
 
@@ -186,8 +238,8 @@ describe('prometheus export', () => {
     recordClientMetrics(report({ frameHangs: 10 }));
     const text = clientMetricsText();
 
-    expect(text).toContain('maze_client_frame_hangs{deviceClass="high",quality="webgl"} 4');
-    expect(text).toContain('maze_client_frame_hangs_total{deviceClass="high",quality="webgl"} 14');
+    expect(text).toContain('maze_client_frame_hangs{deviceClass="high",quality="webgl",tier="unknown"} 4');
+    expect(text).toContain('maze_client_frame_hangs_total{deviceClass="high",quality="webgl",tier="unknown"} 14');
   });
 
   it('stays valid while nothing has been reported yet', () => {

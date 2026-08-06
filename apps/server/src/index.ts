@@ -449,7 +449,15 @@ app.get('/health', (_request: Request, response: Response) => {
     version: '1.0.0-alpha',
     // Zeigt, welcher Stand wirklich ausgeliefert wird – Railway setzt die Variable beim Build.
     commit: (process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT ?? 'unbekannt').slice(0, 7),
+    // ACHTUNG: fester Text im Quelltext, keine Build-Information. Er ändert
+    // sich nur, wenn jemand ihn hier ändert, und beweist deshalb nichts über
+    // den laufenden Stand – dafür ist `commit` da, und daneben `uptimeSeconds`.
     build: 'sprint-b2+static-renderers',
+    // Wie lange dieser Prozess schon läuft. Das ist die einzige Alterangabe,
+    // die ohne die Railway-Variable auskommt: Steht hier ein Wert von Tagen,
+    // hat es seit Tagen keinen Deploy gegeben – auch dann, wenn `commit` etwas
+    // anderes behauptet, weil die Variable irgendwo fest verdrahtet wurde.
+    uptimeSeconds: Math.round(process.uptime()),
     snapshotRate: GAME.snapshotRate,
     debugTools: ENABLE_DEV_TOOLS,
     // Macht die Feature-Schalter von außen prüfbar – sonst sieht man einer

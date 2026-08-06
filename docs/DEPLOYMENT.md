@@ -62,6 +62,8 @@ docker build -f apps/client/Dockerfile --build-arg VITE_WS_URL=wss://maze.exampl
 | `ARENA_DIRECTOR_ENABLED` | `true` | `true`/`false` | Dynamische Bot-Population: Zielgröße richtet sich nach der Zahl der Menschen (1 → 8 Bots, je weiterem −1, Minimum 3), höchstens eine Änderung alle 5 s. Bots verschwinden nur tot oder weit außer Sicht. Bei `false` bleibt die Population starr bei `BOT_COUNT` – dem Verhalten vor dem Direktor. |
 | `SHORT_NET_IDS` | `false` | `true`/`false` | Ersetzt Entitäts-UUIDs im Snapshot durch fortlaufende Zahlen. Gemessen mit 40 Clients: zusätzlich rund 16 % weniger Bytes gegenüber `SNAPSHOT_DELTAS` allein. **Setzt einen Client voraus, der Zahlen als Entitäts-ID akzeptiert – und der seine eigene ID aus `snapshot.selfId` nimmt, nicht aus der `welcome`-Nachricht** (die trägt weiterhin die UUID; siehe unten). |
 | `SPECTATOR_ENABLED` | `false` | `true`/`false` | Toter Spieler sieht bis zum Respawn live seinem Killer zu: Der Snapshot wird aus dessen Perspektive gebaut, `selfId` bleibt die eigene. **Setzt einen Client voraus, der die Kamera auf `spectatorTargetId` zentriert** – sonst steht die Kamera auf der Leiche und der Bildschirm bleibt leer. |
+| `SIGNATURE_RAPID_ENABLED` | `false` | `true`/`false` | Signature „Momentum" der Rapid-Familie: schnelleres Nachladen, je länger die Klasse in Bewegung bleibt. Reine Serverwirkung, kein Client nötig. Nur der exakte Wert `true` schaltet ein. In `/health` unter `features.signatureRapid` ablesbar – **vor jeder Beurteilung dort prüfen, ob der Schalter überhaupt greift.** |
+| `SIGNATURE_IMPACT_ENABLED` | `false` | `true`/`false` | Signature „Wucht" der Impact-Familie: mehr Rammschaden. Reine Serverwirkung, kein Client nötig. Nur der exakte Wert `true` schaltet ein. In `/health` unter `features.signatureImpact` ablesbar. |
 | `ACHIEVEMENTS_ENABLED` | `false` | `true`/`false` | Serverseitige Achievement-Engine. Rein beobachtend, Fortschritt nur im Arbeitsspeicher und nur je Verbindung. Ohne den Schalter wird die Schicht nicht angehängt und der Server verhält sich exakt wie vorher. |
 | `NODE_ENV` | – | `production` | Von Compose gesetzt; schaltet Express in den Produktionsmodus. |
 
@@ -297,3 +299,49 @@ Request:
    `balance-report-<run>` hochgeladen und 30 Tage aufbewahrt
 4. Ein zweiter Job baut beide Container-Images (mit GitHub-Actions-Cache) und
    validiert `docker-compose.yml`
+
+### Deploy-Wache
+
+Ein dritter Job, `deploy-watch`, läuft **nur nach einem Push auf `main`**. Er
+pollt `/health`, bis dort der gepushte Commit steht, und schlägt nach 15 Minuten
+fehl, wenn er ausbleibt (`scripts/deploy-watch.mjs`).
+
+Der Job hängt an keinem anderen. Wird er rot, heißt das **nicht**, dass der Code
+kaputt ist, sondern dass der Stand nicht live angekommen ist – zwei sehr
+verschiedene Dinge.
+
+Das Ziel lässt sich ohne Codeänderung über die Repository-Variable `HEALTH_URL`
+umstellen; ohne sie gilt `https://www.mazers.de/health`.
+
+**Warum es den Job gibt.** Am 05.08. blieb der Auto-Deploy stehen. Zwölf
+Commits landeten auf `main`, ohne live anzukommen – darunter ein kompletter
+Design-Umbau –, und zwei Tage lang wurde eine Seite beurteilt, die es so nicht
+mehr gab. Jeder einzelne Push war grün. **Ein grüner Push ist eben kein Beweis,
+dass der Stand live ist**; das beweist nur `/health` mit dem erwarteten Commit.
+
+Meldet der Job „live steht noch `<alter Commit>`", ist der Fehler nicht im
+Repository zu suchen, sondern in Railway:
+
+1. **Watch-Paths** – ein Muster, das auf nichts passt, überspringt jeden Deploy
+   stillschweigend („No changes to watched files"). Leer heißt „alles
+   beobachten" und ist der richtige Zustand.
+2. **Auto-Deploy aus** oder GitHub-Repo abgehängt – dann steht in der
+   Deployments-Liste zum Zeitpunkt des Pushes gar kein Eintrag.
+3. **Fehlgeschlagener Build** – dann steht dort ein roter Eintrag, und das
+   Build-Log sagt, warum. Railway behält in dem Fall den alten Stand.
+
+### Wenn `/health` und der Augenschein sich widersprechen
+
+`commit` kommt aus `RAILWAY_GIT_COMMIT_SHA`. Ist diese Variable irgendwo von
+Hand als Service-Variable gesetzt, überschreibt sie den echten Wert und `/health`
+meldet dauerhaft denselben Commit – auch nach erfolgreichen Deploys. Umgekehrt
+kann ein Deploy laufen, ohne dass sich am Server etwas ändert.
+
+Zwei Felder helfen beim Auseinanderhalten:
+
+- **`uptimeSeconds`** ist die Laufzeit des Prozesses und kommt ohne jede
+  Railway-Variable aus. Steht dort ein Wert von Tagen, hat es seit Tagen keinen
+  Deploy gegeben – ganz gleich, was `commit` behauptet.
+- **`build`** ist ein **fester Text im Quelltext** und keine Build-Information.
+  Er ändert sich nur, wenn ihn jemand von Hand ändert, und taugt deshalb nicht
+  als Beleg dafür, welcher Stand läuft.

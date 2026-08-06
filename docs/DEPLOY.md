@@ -37,6 +37,8 @@ Der Server findet `apps/client/dist` automatisch und liefert ihn aus.
 | `SHORT_NET_IDS` | aus | Kurze numerische Entitäts-IDs statt UUIDs im Snapshot; braucht einen passenden Client |
 | `SPECTATOR_ENABLED` | aus | Nach dem Tod live dem Killer zusehen; braucht einen passenden Client |
 | `ACHIEVEMENTS_ENABLED` | aus | Achievement-Engine im Server (beobachtend, In-Memory, noch ohne Client-Anzeige) |
+| `SIGNATURE_RAPID_ENABLED` | aus | Signature „Momentum" der Rapid-Familie (schnelleres Nachladen in Bewegung); reine Serverwirkung. In `/health` unter `features.signatureRapid` prüfbar |
+| `SIGNATURE_IMPACT_ENABLED` | aus | Signature „Wucht" der Impact-Familie (mehr Rammschaden); reine Serverwirkung. In `/health` unter `features.signatureImpact` prüfbar |
 | `RATE_LIMITS_ENABLED` | an | Rate-Limits je IP und Verbindung; `false` schaltet sie ab |
 | `RATE_LIMIT_CONNECTIONS_PER_IP` | `5` | Gleichzeitige Verbindungen je IP – hinter Mobilfunk-NAT ggf. erhöhen |
 | `RATE_LIMIT_JOINS_PER_MINUTE` | `20` | Beitritte je IP und Minute |

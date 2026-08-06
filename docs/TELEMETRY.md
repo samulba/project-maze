@@ -486,7 +486,7 @@ gleitendes **15-Minuten-Fenster** und exportiert das Ergebnis über `/metrics`.
 ```json
 { "fpsP50": 60, "fpsP95": 45, "frameHangs": 2, "dpr": 2,
   "viewportW": 1920, "viewportH": 1080,
-  "deviceClass": "high", "quality": "webgl" }
+  "deviceClass": "high", "quality": "webgl", "tier": "mid" }
 ```
 
 Antwort `204` ohne Inhalt · `400` bei ungültigem Bericht (ohne Begründung –
@@ -500,39 +500,68 @@ den kleineren der beiden Werte als Rand und zählt vertauschte Berichte in
 `maze_client_reports_inverted_total` – ein stiller Client-Fehler bleibt so
 sichtbar, ohne dass Daten verloren gehen.
 
-**Zwei Label-Achsen mit festem Vokabular**, mehr entsteht nie:
+**Drei Label-Achsen mit festem Vokabular**, mehr entsteht nie:
 
 | Label | Werte |
 | --- | --- |
 | `deviceClass` | `low`, `mid`, `high`, `unknown` |
 | `quality` | `webgl`, `webgl-kompat`, `webgpu`, `unknown` |
+| `tier` | `high`, `mid`, `low`, `unknown` |
 
 `quality` ist der Renderpfad, der im Client tatsächlich hochgekommen ist –
 genau die Labels aus `renderer.ts`. **`webgl-kompat` ist der Software-Pfad und
 damit exakt der „alte PC"**, um den es geht.
 
+`tier` ist die Qualitätsstufe aus der Automatik des Clients (R4) und eine
+**eigene Achse neben `quality`**, kein kombiniertes Label `webgl-mid`. So lässt
+sich über Stufen hinweg aggregieren, ohne Labels zerlegen zu müssen – die Frage
+„wie schnell läuft WebGL insgesamt" bleibt eine Summe über `tier`.
+
+Das Feld ist **optional**: Clients vor R4 kennen es nicht, und ihre Berichte
+bleiben gültig – sie landen unter `tier="unknown"`. Ein Wert außerhalb des
+Vokabulars führt **nicht** zu einer `400`, sondern wird auf `unknown`
+zurückgebogen und in `maze_client_tier_coerced_total` gezählt. Das ist Absicht:
+Eine `400` fällt im Spiel niemandem auf, und ein dauerhaft abgewiesener Client
+liefert stillschweigend gar keine Perf-Daten mehr. Ein erfundener Wert kostet
+so nur sich selbst statt den ganzen Bericht – und das Zurechtbiegen bleibt am
+Zähler sichtbar.
+
+Die drei Achsen sind bei 4 × 4 × 4 = **64 Kombinationen** hart gedeckelt, und
+exportiert werden nur die, die im Fenster tatsächlich belegt sind. Die 64 ist
+die Obergrenze, nicht der Normalfall: Ein manipulierter Client kann keine neuen
+Labelwerte erfinden, weil jeder Wert unmittelbar vor der Ausgabe noch einmal
+gegen seine Whitelist gehalten wird.
+
 ### Metriken
 
 ```text
-maze_client_fps_p50{deviceClass,quality}           Gauge   Bildrate bei mittlerer Framedauer
-maze_client_fps_p95{deviceClass,quality}           Gauge   Bildrate am langsamen Rand
-maze_client_fps_worst{deviceClass,quality}         Gauge   schlechtester Randwert im Fenster
-maze_client_frame_hangs{deviceClass,quality}       Gauge   Frames über 100 ms je Bericht (Median)
-maze_client_low_fps_ratio{deviceClass,quality}     Gauge   Anteil der Berichte unter 30 fps am Rand
-maze_client_dpr{deviceClass,quality}               Gauge   Pixelverhältnis (Median)
-maze_client_megapixels{deviceClass,quality}        Gauge   Sichtfläche (Median)
-maze_client_bucket_samples{deviceClass,quality}    Gauge   Berichte je Kombination im Fenster
-maze_client_window_samples                         Gauge   Berichte im Fenster insgesamt
-maze_client_reports_total{deviceClass,quality}     Counter angenommene Berichte
-maze_client_frame_hangs_total{deviceClass,quality} Counter summierte Hänger
-maze_client_reports_rejected_total{reason}         Counter verworfene Berichte
-maze_client_reports_inverted_total                 Counter Berichte mit vertauschten Perzentilen
+maze_client_fps_p50{deviceClass,quality,tier}           Gauge   Bildrate bei mittlerer Framedauer
+maze_client_fps_p95{deviceClass,quality,tier}           Gauge   Bildrate am langsamen Rand
+maze_client_fps_worst{deviceClass,quality,tier}         Gauge   schlechtester Randwert im Fenster
+maze_client_frame_hangs{deviceClass,quality,tier}       Gauge   Frames über 100 ms je Bericht (Median)
+maze_client_low_fps_ratio{deviceClass,quality,tier}     Gauge   Anteil der Berichte unter 30 fps am Rand
+maze_client_dpr{deviceClass,quality,tier}               Gauge   Pixelverhältnis (Median)
+maze_client_megapixels{deviceClass,quality,tier}        Gauge   Sichtfläche (Median)
+maze_client_bucket_samples{deviceClass,quality,tier}    Gauge   Berichte je Kombination im Fenster
+maze_client_window_samples                              Gauge   Berichte im Fenster insgesamt
+maze_client_reports_total{deviceClass,quality,tier}     Counter angenommene Berichte
+maze_client_frame_hangs_total{deviceClass,quality,tier} Counter summierte Hänger
+maze_client_reports_rejected_total{reason}              Counter verworfene Berichte
+maze_client_reports_inverted_total                      Counter Berichte mit vertauschten Perzentilen
+maze_client_tier_coerced_total                          Counter Berichte mit unbekannter Qualitätsstufe
 ```
 
 Die eine Zahl, auf die es ankommt:
 
 ```promql
 maze_client_low_fps_ratio{quality="webgl-kompat"}
+```
+
+Mit der Stufe daneben wird daraus die eigentlich interessante Frage – ruckelt es
+noch, **obwohl** die Automatik schon heruntergeschaltet hat?
+
+```promql
+maze_client_low_fps_ratio{quality="webgl-kompat",tier="low"}
 ```
 
 Steigt sie, ruckelt es auf den schwachen Geräten – unabhängig davon, wie flüssig
