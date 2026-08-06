@@ -12,7 +12,7 @@
   max-width: 100%;
   margin-top: 8px;
   padding: 9px 11px 9px 9px;
-  border: 1px solid color-mix(in srgb, var(--flame) 34%, var(--line));
+  border: 1px solid color-mix(in srgb, #f0c265 34%, var(--line));
   border-radius: 10px;
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   box-shadow: 0 8px 24px var(--shadow);
@@ -29,14 +29,14 @@
   width: 22px;
   height: 22px;
   border-radius: 7px;
-  color: var(--flame);
-  background: color-mix(in srgb, var(--flame) 14%, transparent);
+  color: #f0c265;
+  background: color-mix(in srgb, #f0c265 14%, transparent);
   font-size: 12px;
   line-height: 1;
 }
 .achievement-body { display: grid; gap: 1px; min-width: 0; }
 .achievement-eyebrow {
-  color: var(--flame);
+  color: #f0c265;
   font-size: 8px;
   font-weight: 850;
   letter-spacing: .14em;

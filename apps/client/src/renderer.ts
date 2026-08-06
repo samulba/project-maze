@@ -35,7 +35,7 @@ const PALETTES:Record<ClientThemeId,Palette>={
   // Richtungskorrektur (Sam, 2026-08-06): „zu düster" – die Grundtöne sind
   // gegenüber der Neon-raus-Fassung rund eine Stufe heller. Die Farbwelt
   // bleibt; nur die Fläche atmet mehr Licht.
-  midnight:{background:0xcdcdcd,outside:0xb7b7b7,grid:0xc2c2c2,border:0x8f8f8f,wall:0x9b9b9b,wallEdge:0x7c7c7c,self:0x00b2e1,enemy:0xf14e54,barrel:0x999999,projectile:0x00b2e1,drone:0x00b2e1,square:0xffe869,triangle:0xfc7677,pentagon:0x768dfc,label:0x3d3d3d},
+  midnight:{background:0x151a26,outside:0x0d1019,grid:0x202636,border:0x3c4356,wall:0x293040,wallEdge:0x40485c,self:0x6f7ad6,enemy:0xc4626f,barrel:0x9aa1b2,projectile:0xdfe4f0,drone:0x5c8b84,square:0x5a6489,triangle:0x8d8065,pentagon:0x82687e,label:0xd6dae6},
   void:{background:0x030407,outside:0x000000,grid:0x111317,border:0x31343b,wall:0x181b20,wallEdge:0x343942,self:0xb8ff6a,enemy:0xff5c76,barrel:0xdde2e8,projectile:0xffffff,drone:0x65e7c2,square:0x6b7c8f,triangle:0xffb84d,pentagon:0xc77dff,label:0xf1f3f5},
   classic:{background:0xe8ebf0,outside:0xcbd0da,grid:0xd5d9e1,border:0x818a9b,wall:0xaab1bf,wallEdge:0x7e8798,self:0x536dfe,enemy:0xf14e63,barrel:0x727b8d,projectile:0x343a46,drone:0x2ba887,square:0x6f7ee8,triangle:0xe5a044,pentagon:0xbd5c9d,label:0x252a34},
   neon:{background:0x0b0620,outside:0x050210,grid:0x241154,border:0x8a3df0,wall:0x1d1040,wallEdge:0x9b52ff,self:0x35e8ff,enemy:0xff3d9e,barrel:0xd9c2ff,projectile:0xf2fbff,drone:0x7bff7d,square:0x5f6dff,triangle:0xffc247,pentagon:0xc85cff,label:0xf4f0ff}
@@ -59,21 +59,6 @@ interface ShockRing { position:Vector2; life:number; maxLife:number; maxRadius:n
 interface WallFlash { x:number; y:number; width:number; height:number; life:number; maxLife:number; closing:boolean; }
 interface FloatingLabel { text:Text; life:number; maxLife:number; velocityY:number; }
 
-/**
- * Zeichensprache der Arena (Sams Entscheid 2026-08-05: so nah wie möglich an
- * Diep.io als Startbasis). `outline>0` schaltet auf Konturen in abgedunkelter
- * Füllfarbe um – das prägende Diep-Merkmal.
- */
-const STYLE={floor:'grid' as 'grid'|'dots'|'checker'|'plain',wall3d:false,outline:3,outlineColor:0x555555,shadows:false};
-
-/** Abgedunkelte Variante einer Füllfarbe für Diep-artige Konturen. */
-const darken=(color:number,factor=.72):number=>{
-  const r=Math.round(((color>>16)&0xff)*factor);
-  const g=Math.round(((color>>8)&0xff)*factor);
-  const b=Math.round((color&0xff)*factor);
-  return (r<<16)|(g<<8)|b;
-};
-
 const SHAPE_REWARDS:Record<string,number>={square:18,triangle:45,pentagon:120};
 /** Obergrenze der Overcharge-Funken pro Sekunde – unabhängig von der Zahl der Geschosse. */
 const OVERCHARGE_SPARKS_PER_SECOND=48;
@@ -96,9 +81,7 @@ class FloatingNumbers {
   private readonly pool:Text[]=[];
   spawn(position:Vector2,value:string,color:number,size=13):void{
     if(this.active.length>=48)return;
-    // Heller Umriss statt schwarzem: Die Zahlen sind dunkel und stehen auf dem
-    // hellen Arena-Boden – ein schwarzer Rand würde sie zu Klumpen machen.
-    const text=this.pool.pop()??new Text({text:'',style:{fill:0xffffff,fontSize:13,fontWeight:'700',fontFamily:'Inter, system-ui, sans-serif',stroke:{color:0xffffff,width:3,alpha:.7}}});
+    const text=this.pool.pop()??new Text({text:'',style:{fill:0xffffff,fontSize:13,fontWeight:'700',fontFamily:'Inter, system-ui, sans-serif',stroke:{color:0x000000,width:3,alpha:.55}}});
     text.text=value;
     text.style.fontSize=size;
     text.style.fill=color;
@@ -392,11 +375,10 @@ export class GameRenderer {
     const view=this.playerViews.get(guardianId);
     if(!view)return;
     const position={...view.current};
-    // Abgedunkeltes Gold: volles 0xf4c866 verschwindet auf dem hellen Boden.
-    this.particles.burst(position,darken(GUARDIAN_COLOR,.62),30,340,.7);
-    this.particles.burst(position,darken(0xffe3a0,.55),14,170,.5);
-    this.rings.push({position:{...position},life:.7,maxLife:.7,maxRadius:180,color:darken(GUARDIAN_COLOR,.62),width:5});
-    this.rings.push({position:{...position},life:1,maxLife:1,maxRadius:280,color:darken(0xffe3a0,.55),width:2});
+    this.particles.burst(position,GUARDIAN_COLOR,30,340,.7);
+    this.particles.burst(position,0xffe3a0,14,170,.5);
+    this.rings.push({position:{...position},life:.7,maxLife:.7,maxRadius:180,color:GUARDIAN_COLOR,width:5});
+    this.rings.push({position:{...position},life:1,maxLife:1,maxRadius:280,color:0xffe3a0,width:2});
     const self=snapshot.players.find(player=>player.id===snapshot.selfId);
     if(self&&this.wellInsideView(position,self.position))this.shake(4);
   }
@@ -440,8 +422,7 @@ export class GameRenderer {
       if(!player.dead&&!previous.dead&&player.health<previous.health-.01&&player.deaths===previous.deaths){
         view.flashUntil=now+130;
         const amount=Math.round(previous.health-player.health);
-        // Dunkle Töne: Schadenszahlen stehen auf dem hellen Arena-Boden.
-        if(amount>=1)this.numbers.spawn({x:view.current.x,y:view.current.y-26},`-${amount}`,isSelf?0xd01c34:0x8a5a12,isSelf?14:12);
+        if(amount>=1)this.numbers.spawn({x:view.current.x,y:view.current.y-26},`-${amount}`,isSelf?0xff8091:0xffe9b0,isSelf?14:12);
       }
       if(player.dead&&!previous.dead){
         const color=this.ownerColor(player.id);
@@ -525,10 +506,10 @@ export class GameRenderer {
       if(current&&current.health<previous.health)this.particles.burst(current.position,this.shapeColor(current),3,85,.18);
       if(!current&&!suppressed&&self&&this.wellInsideView(previous.position,self.position)){
         const elite=previousElites.has(id);
-        this.particles.burst(previous.position,elite?darken(0xf4c866,.62):this.shapeColor(previous),elite?22:10,elite?260:170,elite?.55:.38);
-        if(elite)this.rings.push({position:{...previous.position},life:.55,maxLife:.55,maxRadius:110,color:darken(0xf4c866,.62),width:4});
+        this.particles.burst(previous.position,elite?0xf4c866:this.shapeColor(previous),elite?22:10,elite?260:170,elite?.55:.38);
+        if(elite)this.rings.push({position:{...previous.position},life:.55,maxLife:.55,maxRadius:110,color:0xf4c866,width:4});
         const reward=SHAPE_REWARDS[previous.kind]??0;
-        if(reward>0)this.numbers.spawn(previous.position,`+${elite?reward+260:reward}`,0x8a5a12,elite?15:12);
+        if(reward>0)this.numbers.spawn(previous.position,`+${elite?reward+260:reward}`,0xf3c45f,elite?15:12);
       }
     }
     this.knownShapes=shapes;
@@ -814,20 +795,12 @@ export class GameRenderer {
 
   private drawBackground():void{
     this.background.clear().rect(0,0,GAME.worldWidth,GAME.worldHeight).fill(this.palette.background);
-    if(STYLE.floor==='grid'){
-      for(let x=0;x<=GAME.worldWidth;x+=80)this.background.moveTo(x,0).lineTo(x,GAME.worldHeight);
-      for(let y=0;y<=GAME.worldHeight;y+=80)this.background.moveTo(0,y).lineTo(GAME.worldWidth,y);
-      this.background.stroke({color:this.palette.grid,width:1});
-      for(let x=0;x<=GAME.worldWidth;x+=400)this.background.moveTo(x,0).lineTo(x,GAME.worldHeight);
-      for(let y=0;y<=GAME.worldHeight;y+=400)this.background.moveTo(0,y).lineTo(GAME.worldWidth,y);
-      this.background.stroke({color:this.palette.grid,alpha:.85,width:2});
-    }else if(STYLE.floor==='dots'){
-      for(let x=80;x<GAME.worldWidth;x+=80)for(let y=80;y<GAME.worldHeight;y+=80)this.background.circle(x,y,2).fill({color:this.palette.grid,alpha:.9});
-    }else if(STYLE.floor==='checker'){
-      for(let x=0;x<GAME.worldWidth;x+=200)for(let y=0;y<GAME.worldHeight;y+=200){
-        if(((x+y)/200)%2===0)this.background.rect(x,y,200,200).fill({color:this.palette.grid,alpha:.5});
-      }
-    }
+    for(let x=0;x<=GAME.worldWidth;x+=80)this.background.moveTo(x,0).lineTo(x,GAME.worldHeight);
+    for(let y=0;y<=GAME.worldHeight;y+=80)this.background.moveTo(0,y).lineTo(GAME.worldWidth,y);
+    this.background.stroke({color:this.palette.grid,width:1});
+    for(let x=0;x<=GAME.worldWidth;x+=400)this.background.moveTo(x,0).lineTo(x,GAME.worldHeight);
+    for(let y=0;y<=GAME.worldHeight;y+=400)this.background.moveTo(0,y).lineTo(GAME.worldWidth,y);
+    this.background.stroke({color:this.palette.grid,alpha:.85,width:2});
     this.background.rect(14,14,GAME.worldWidth-28,GAME.worldHeight-28).stroke({color:this.palette.border,alpha:.3,width:16});
     this.background.rect(0,0,GAME.worldWidth,GAME.worldHeight).stroke({color:this.palette.border,width:7});
   }
@@ -835,17 +808,9 @@ export class GameRenderer {
   private drawWalls(snapshot:WorldSnapshot):void{
     this.walls.clear();
     for(const wall of snapshot.walls){
-      if(STYLE.wall3d){
-        // Erhabene Blöcke: weicher Bodenschatten, dunklere Frontkante, helle Deckfläche.
-        this.walls.roundRect(wall.x+7,wall.y+12,wall.width,wall.height,10).fill({color:0x000000,alpha:.2});
-        this.walls.roundRect(wall.x,wall.y+8,wall.width,wall.height,10).fill(this.palette.wallEdge);
-        this.walls.roundRect(wall.x,wall.y,wall.width,wall.height,10).fill(this.palette.wall);
-        if(STYLE.outline>0)this.walls.roundRect(wall.x,wall.y,wall.width,wall.height,10).stroke({color:darken(this.palette.wall),width:STYLE.outline});
-      }else{
-        if(STYLE.shadows)this.walls.roundRect(wall.x+3,wall.y+4,wall.width,wall.height,10).fill({color:0x000000,alpha:.32});
-        this.walls.roundRect(wall.x,wall.y,wall.width,wall.height,10).fill(this.palette.wall).stroke(STYLE.outline>0?{color:darken(this.palette.wall),width:STYLE.outline}:{color:this.palette.wallEdge,width:3});
-        if(STYLE.outline<=0)this.walls.roundRect(wall.x+4,wall.y+4,wall.width-8,Math.max(4,wall.height*.28),8).fill({color:0xffffff,alpha:.045});
-      }
+      this.walls.roundRect(wall.x+3,wall.y+4,wall.width,wall.height,10).fill({color:0x000000,alpha:.32});
+      this.walls.roundRect(wall.x,wall.y,wall.width,wall.height,10).fill(this.palette.wall).stroke({color:this.palette.wallEdge,width:3});
+      this.walls.roundRect(wall.x+4,wall.y+4,wall.width-8,Math.max(4,wall.height*.28),8).fill({color:0xffffff,alpha:.045});
     }
   }
 
@@ -857,8 +822,7 @@ export class GameRenderer {
       const position={x:shape.position.x+shape.velocity.x*snapshotAge,y:shape.position.y+shape.velocity.y*snapshotAge};
       const sides=shape.kind==='square'?4:shape.kind==='triangle'?3:5;
       const color=this.shapeColor(shape);
-      if(STYLE.shadows)this.shapes.ellipse(position.x,position.y+shape.radius*.55,shape.radius*.95,shape.radius*.4).fill({color:0x000000,alpha:.14});
-      this.shapes.poly(translated(polygon(sides,shape.radius,shape.rotation),position)).fill(color).stroke(STYLE.outline>0?{color:darken(color),width:STYLE.outline}:{color:0xffffff,alpha:.12,width:2});
+      this.shapes.poly(translated(polygon(sides,shape.radius,shape.rotation),position)).fill(color).stroke({color:0xffffff,alpha:.12,width:2});
       if(shape.health<shape.maxHealth){
         const width=shape.radius*2;
         this.shapes.roundRect(position.x-width/2,position.y+shape.radius+7,width,4,2).fill({color:0x000000,alpha:.45});
@@ -868,9 +832,7 @@ export class GameRenderer {
     this.projectiles.clear();
     for(const view of this.projectileViews.values()){
       const color=this.ownerColor(view.snapshot.ownerId);
-      const outline=STYLE.outline>0?darken(color):view.snapshot.ownerId===this.selfId?0xe9edff:0xffd5db;
-      const outlineWidth=STYLE.outline>0?Math.min(STYLE.outline,2.5):1.5;
-      const outlineAlpha=STYLE.outline>0?1:.7;
+      const outline=view.snapshot.ownerId===this.selfId?0xe9edff:0xffd5db;
       const speed=Math.hypot(view.velocity.x,view.velocity.y);
       if(speed>60){
         const trail=Math.min(30,speed*.032);
@@ -878,7 +840,7 @@ export class GameRenderer {
         this.projectiles.moveTo(tail.x,tail.y).lineTo(view.current.x,view.current.y).stroke({color,alpha:.3,width:Math.max(2,view.snapshot.radius*.9)});
       }
       this.projectiles.circle(view.current.x,view.current.y,view.snapshot.radius+3).fill({color,alpha:.14});
-      this.projectiles.circle(view.current.x,view.current.y,view.snapshot.radius).fill(color).stroke({color:outline,alpha:outlineAlpha,width:outlineWidth});
+      this.projectiles.circle(view.current.x,view.current.y,view.snapshot.radius).fill(color).stroke({color:outline,alpha:.7,width:1.5});
       this.projectiles.circle(view.current.x-view.snapshot.radius*.22,view.current.y-view.snapshot.radius*.22,Math.max(1.2,view.snapshot.radius*.28)).fill({color:0xffffff,alpha:.48});
     }
     this.drones.clear();
@@ -887,7 +849,7 @@ export class GameRenderer {
       const angle=Math.atan2(view.velocity.y,view.velocity.x)||view.snapshot.angle;
       const speed=Math.hypot(view.velocity.x,view.velocity.y);
       if(speed>90)this.drones.moveTo(view.current.x-view.velocity.x/speed*16,view.current.y-view.velocity.y/speed*16).lineTo(view.current.x,view.current.y).stroke({color,alpha:.2,width:3});
-      this.drones.poly(translated(polygon(3,13,angle),view.current)).fill(color).stroke(STYLE.outline>0?{color:darken(color),width:Math.min(STYLE.outline,2.5)}:{color:0xffffff,alpha:.3,width:2});
+      this.drones.poly(translated(polygon(3,13,angle),view.current)).fill(color).stroke({color:0xffffff,alpha:.3,width:2});
     }
   }
 
@@ -897,7 +859,6 @@ export class GameRenderer {
     rotating.addChild(barrels,body,detail,flash,shield);root.addChild(rotating);
     const healthBack=new Graphics();const healthFill=new Graphics();const signatureBar=new Graphics();root.addChild(healthBack,healthFill,signatureBar);
     const name=new Text({text:'',style:{fill:this.palette.label,fontSize:12,fontWeight:'600',fontFamily:'Inter, system-ui, sans-serif'}});name.anchor.set(.5);name.position.set(0,-42);root.addChild(name);
-    if(STYLE.shadows){const shadow=new Graphics();shadow.ellipse(0,16,25,9).fill({color:0x000000,alpha:.16});root.addChildAt(shadow,0);}
     const view:PlayerView={root,rotating,body,barrels,detail,shield,flash,healthBack,healthFill,signatureBar,name,current:{...player.position},target:{...player.position},velocity:{...player.velocity},angle:player.angle,targetAngle:player.angle,snapshot:player,snapshotAt:now,classId:player.playerClass,isSelf,isGuardian:player.id===this.guardianId,flashUntil:0,recoil:{offset:0,velocity:0},recoilDirection:{x:1,y:0}};
     root.position.set(player.position.x,player.position.y);this.redrawPlayer(view,true);return view;
   }
@@ -927,9 +888,7 @@ export class GameRenderer {
       if(ratio>0)view.signatureBar.roundRect(-25,38,50*ratio,2,1).fill(this.palette.self);
     }
     view.name.text=view.isGuardian?GUARDIAN_NAME:`${player.name}${player.isBot?' · BOT':''}`;
-    // Gold liest sich auf dem hellen Boden nicht (Kontrast ~1:1) – das Label
-    // trägt daher die abgedunkelte Guardian-Farbe, die Hülle bleibt golden.
-    view.name.style.fill=view.isGuardian?darken(GUARDIAN_COLOR,.52):view.isSelf?this.palette.label:this.palette.enemy;
+    view.name.style.fill=view.isGuardian?GUARDIAN_COLOR:view.isSelf?this.palette.label:this.palette.enemy;
     view.name.style.fontSize=view.isGuardian?14:12;
     view.name.style.fontWeight=view.isGuardian?'800':'600';
   }
@@ -937,7 +896,6 @@ export class GameRenderer {
   private drawClassBarrels(graphics:Graphics,playerClass:PlayerClass,color:number):void{
     const definition=CLASS_DEFINITIONS[playerClass];
     if(definition.barrelCount<=0)return;
-    const barrelStroke=STYLE.outline>0?{color:darken(this.palette.barrel),width:STYLE.outline}:{color,alpha:.36,width:2};
     const precision=definition.branch==='precision';
     const impact=definition.branch==='impact';
     const height=precision?12:impact?16:14;
@@ -949,7 +907,7 @@ export class GameRenderer {
         for(const[x,y]of corners){
           points.push(x*Math.cos(angle)-y*Math.sin(angle),x*Math.sin(angle)+y*Math.cos(angle));
         }
-        graphics.poly(points).fill(this.palette.barrel).stroke(barrelStroke);
+        graphics.poly(points).fill(this.palette.barrel).stroke({color,alpha:.36,width:2});
       }
       return;
     }
@@ -959,12 +917,12 @@ export class GameRenderer {
       const start=impact?1:4;
       graphics.roundRect(start,y-height/2,definition.barrelLength,height,precision?3:4)
         .fill(this.palette.barrel)
-        .stroke(barrelStroke);
+        .stroke({color,alpha:.36,width:2});
     }
   }
 
   private drawClassHull(body:Graphics,detail:Graphics,playerClass:PlayerClass,color:number):void{
-    const outline=STYLE.outline>0?{color:darken(color),width:STYLE.outline}:{color:0xffffff,alpha:.38,width:3};
+    const outline={color:0xffffff,alpha:.38,width:3};
     const subtle={color:0xffffff,alpha:.22,width:2};
     switch(playerClass){
       case'core':
@@ -1109,7 +1067,7 @@ export class GameRenderer {
         break;
       case'comet':
         body.circle(4,0,19).fill(color).stroke(outline);
-        body.poly([-2,-16,-26,0,-2,16]).fill({color,alpha:.85}).stroke(STYLE.outline>0?{color:darken(color),width:STYLE.outline}:{color:0xffffff,alpha:.2,width:2});
+        body.poly([-2,-16,-26,0,-2,16]).fill({color,alpha:.85}).stroke({color:0xffffff,alpha:.2,width:2});
         detail.circle(8,0,7).fill({color:0xffffff,alpha:.24});
         detail.poly([-6,-8,-18,0,-6,8]).fill({color:0xffffff,alpha:.14});
         break;

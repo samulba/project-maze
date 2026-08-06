@@ -103,8 +103,7 @@ export class GameplayEffects {
       if (player.dead) continue;
       const position = this.toScreen(player.position, self, viewport);
       const gameplay = snapshot.gameplay?.[player.id];
-      // Gleiche Identitätsfarben wie im Renderer (Diep-Basis): Cyan/Rot.
-      const color = player.id === snapshot.selfId ? 0x00b2e1 : 0xf14e54;
+      const color = player.id === snapshot.selfId ? 0x7d88ff : 0xe7677b;
 
       if (player.id === snapshot.arenaGuardianId) {
         const pulse = 1 + Math.sin(this.time * 2.6) * 0.05;

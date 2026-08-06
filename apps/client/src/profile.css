@@ -143,11 +143,11 @@
 /* Freigeschaltet ist die Ausnahme, nicht der Normalfall – deshalb trägt nur
    dieser Zustand Farbe. */
 .profile-badge.unlocked {
-  border-color: color-mix(in srgb, var(--flame) 34%, var(--line));
+  border-color: color-mix(in srgb, #e0b464 34%, var(--line));
   color: var(--text);
-  background: color-mix(in srgb, var(--flame) 9%, transparent);
+  background: color-mix(in srgb, #e0b464 9%, transparent);
 }
-.profile-badge.unlocked i { color: var(--flame); }
+.profile-badge.unlocked i { color: #e0b464; }
 
 @media (max-width: 900px) {
   .profile-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }

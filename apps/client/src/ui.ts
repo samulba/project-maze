@@ -557,15 +557,13 @@ export class GameUI {
       y: height / 2 + ((position.y - self.position.y) / halfWorldHeight) * (height / 2)
     });
     context.clearRect(0, 0, width, height);
-    // Die Minimap trägt dieselbe Farbsprache wie die Arena (Diep-Basis): heller
-    // Grund, dunklere Wände – sonst klebt eine schwarze Insel im hellen HUD.
-    context.fillStyle = 'rgba(198,198,198,.92)';
+    context.fillStyle = 'rgba(7,10,18,.88)';
     context.fillRect(0, 0, width, height);
     context.save();
     context.beginPath();
     context.rect(0, 0, width, height);
     context.clip();
-    context.fillStyle = 'rgba(0,0,0,.22)';
+    context.fillStyle = 'rgba(255,255,255,.13)';
     for (const wall of snapshot.walls) {
       const topLeft = toRadar({ x: wall.x, y: wall.y });
       context.fillRect(topLeft.x, topLeft.y, (wall.width / halfWorldWidth) * (width / 2), (wall.height / halfWorldHeight) * (height / 2));
@@ -586,7 +584,7 @@ export class GameUI {
       if (!elite && shape.kind !== 'pentagon') continue;
       const point = toRadar(shape.position);
       context.beginPath();
-      context.fillStyle = elite ? '#a8760f' : 'rgba(90,110,200,.7)';
+      context.fillStyle = elite ? '#f4c866' : 'rgba(207,110,181,.55)';
       context.arc(point.x, point.y, elite ? 2.6 : 1.6, 0, Math.PI * 2);
       context.fill();
     }
@@ -596,12 +594,12 @@ export class GameUI {
       const bounty = player.id === extended.bountyTargetId;
       const guardian = player.id === extended.arenaGuardianId;
       context.beginPath();
-      context.fillStyle = player.id === self.id ? '#00b2e1' : guardian ? '#a8760f' : bounty ? '#b8860b' : '#f14e54';
+      context.fillStyle = player.id === self.id ? '#8c95ff' : guardian ? '#f4c866' : bounty ? '#f3c45f' : '#ef7181';
       context.arc(point.x, point.y, player.id === self.id ? 3.4 : guardian ? 3.6 : bounty ? 3 : 2, 0, Math.PI * 2);
       context.fill();
       if (bounty || guardian) {
         context.beginPath();
-        context.strokeStyle = 'rgba(168,118,15,.85)';
+        context.strokeStyle = 'rgba(243,196,95,.8)';
         context.lineWidth = 1;
         context.arc(point.x, point.y, guardian ? 6 : 5, 0, Math.PI * 2);
         context.stroke();
@@ -613,7 +611,7 @@ export class GameUI {
     const zonelessStyle = event && !arenaEventStyle(event.kind).zoned ? arenaEventStyle(event.kind) : null;
     context.strokeStyle = zonelessStyle
       ? cssColor(zonelessStyle.ring, event?.phase === 'active' ? 0.8 : 0.45)
-      : 'rgba(0,0,0,.25)';
+      : 'rgba(255,255,255,.18)';
     context.strokeRect(0.5, 0.5, width - 1, height - 1);
   }
 

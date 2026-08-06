@@ -21,13 +21,20 @@ Letterbox-Rand zeichnet mit `palette.outside` und passte sich von selbst an –
 das war gut gebaut. Bitte ab jetzt konsequent über die Variablen gehen, das
 Standard-Theme ist hell.
 
-## Design-Basis hat sich geändert (bitte zuerst lesen)
+## Design-Basis: der helle Look ist zurückgebaut (bitte zuerst lesen)
 
-Sam hat entschieden: **Startbasis ist der Look, der Diep.io am nächsten
-kommt.** Umgesetzt auf main, verbindlich im MASTERPLAN („Design-Richtung"):
-heller Arena-Boden `0xcdcdcd` mit Gitter, Konturen in abgedunkelter Füllfarbe
-(`STYLE`-Block + `darken()` in `renderer.ts`), selbst Cyan `0x00b2e1`, Gegner
-Rot `0xf14e54`, UI in `color-scheme:light`. Grundlook-Änderungen nur nach
+Falls du irgendwo noch vom „Diep-Look" liest – der ist Geschichte. Sam hat den
+hellen Grundlook live gesehen und verworfen; **01 hat ihn am 06.08.
+zurückgebaut** (Revert von `77f8a3f`). Der Grundlook ist wieder der dunkle
+Stand: `:root` dunkel (`--bg:#151a26`, `--text:#e8ebf3`, Akzent `#6f7ad6`),
+kein `STYLE`-Block und kein `darken()` mehr im `renderer.ts`.
+
+Deine Elemente aus R1/R2/R4 (Grafikstufe, Vollbild-Knopf, Letterbox) haben den
+Rückbau überlebt und hängen an den Theme-Variablen – **bitte weiter über die
+Variablen gehen**, dann trägt so ein Wechsel dich nicht mehr mit.
+
+Merksatz aus dem MASTERPLAN, der beide Richtungswechsel überlebt hat: **ruhig
+und minimalistisch JA, düster NEIN.** Grundlook-Änderungen nur nach
 Screenshot-Freigabe durch Sam über 01.
 
 ## VORRANG (Sam, 06.08. live): drei Befunde aus dem Spiel
@@ -44,13 +51,33 @@ PLAYERS, Minimap, DASH) liegen **in** diesen toten Bändern, weil sie am
 Fenster hängen und nicht am Spielfeld. Auf dem Stand vor R2 lief die Arena
 randlos über die volle Breite.
 
-Der Masterplan hat die feste 16:9-Sicht mit Fairness begründet (wer breiter
-sieht, sieht Gegner früher). Sam hat das jetzt am lebenden Objekt anders
-beurteilt, und sein Urteil zählt. Sag mir, was du für richtig hältst:
-Sichtfeld mitwachsen lassen (randlos, Fairness gibt nach), oder 16:9 halten
-und die Bänder gestalten statt sie leer zu lassen. **In beiden Fällen gilt:
-Das HUD gehört an das Spielfeld gebunden, nicht an das Fenster.** Das ist der
-Teil, der unabhängig von der Grundsatzfrage falsch ist.
+**Sams Nachtrag, und der verschiebt die Diagnose:** *„immer wenn ich
+Vollbildmodus wechsle oder in keinem bin, gibt es die – also es gibt viele
+Bugs."* Es ist also nicht in erster Linie die Ultrawide-Grundsatzfrage,
+sondern **ein Fehler rund um den Vollbildwechsel und den Fensterbetrieb**.
+Genau das war R1s Auftrag („auf `fullscreenchange`, `orientationchange`,
+`visualViewport.resize` und devicePixelRatio-Wechsel reagieren"), und es hält
+offensichtlich nicht.
+
+Fang bei der Reproduktion an, nicht beim Umbau: rein und raus aus dem
+Vollbild, im Fenster, Fenstergröße ziehen, Zoomstufe wechseln, zweiter
+Monitor. Sag im Bericht, welcher dieser Wege die Bänder erzeugt und warum –
+mein Verdacht ist eine Reihenfolge zwischen `fullscreenchange` und dem
+Neuberechnen von Auflösung, Maske und Letterbox, aber das ist geraten und du
+misst es.
+
+Drei Dinge, die dabei mit auf den Tisch gehören:
+
+1. **Das HUD hängt am Fenster, nicht am Spielfeld.** Deshalb landen
+   Spielerkarte, Killfeed, TOP PLAYERS und Minimap in der toten Fläche, sobald
+   es eine gibt. Das ist unabhängig von der Ursache falsch.
+2. **Die Grundsatzfrage bleibt offen:** Der Masterplan hat die feste
+   16:9-Sicht mit Fairness begründet (wer breiter sieht, sieht Gegner früher).
+   Wenn deine Messung zeigt, dass die Bänder auch bei korrektem Verhalten
+   bleiben, sag mir, was du für richtig hältst – Sichtfeld mitwachsen lassen
+   oder 16:9 halten und die Bänder gestalten.
+3. **Kein Bug ohne Test.** Was du reproduzieren kannst, kannst du auch
+   festnageln, damit es nicht ein drittes Mal wiederkommt.
 
 **2. „Der HOMESCREEN – dass man da direkt alle Achievements + Leaderboard
 sieht, ist komplett kake. Die sollten alle geile cleane Unterseiten bekommen,

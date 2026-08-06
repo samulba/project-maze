@@ -20,45 +20,45 @@
   gap: 9px;
   height: 40px;
   padding: 0 15px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid rgba(255, 255, 255, .13);
   border-radius: 11px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--strong) 80%, transparent);
+  color: #d3d8e8;
+  background: rgba(255, 255, 255, .045);
   cursor: pointer;
   font-size: 12px;
   font-weight: 700;
   transition: border-color .18s, background .18s, color .18s;
 }
 .start-auth-button:hover {
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  color: var(--text);
-  background: var(--strong);
+  border-color: rgba(255, 255, 255, .26);
+  color: #fff;
+  background: rgba(255, 255, 255, .08);
 }
 .start-auth-button svg { flex: 0 0 auto; }
 
 .start-auth-hint {
   flex-basis: 100%;
-  color: var(--faint);
+  color: #6d748a;
   text-align: center;
   font-size: 9px;
   letter-spacing: .04em;
 }
 
-.start-auth-user { color: var(--muted); font-size: 11px; }
-.start-auth-user b { color: var(--text); font-weight: 700; }
+.start-auth-user { color: #a7adc4; font-size: 11px; }
+.start-auth-user b { color: #fff; font-weight: 700; }
 
 .start-auth-link {
   padding: 4px 9px;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(255, 255, 255, .1);
   border-radius: 8px;
-  color: var(--faint);
+  color: #7d859b;
   background: transparent;
   cursor: pointer;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .06em;
 }
-.start-auth-link:hover { border-color: var(--line-strong); color: var(--text); }
+.start-auth-link:hover { border-color: rgba(255, 255, 255, .22); color: #d3d8e8; }
 
 /* Wenig Höhe: Der Hinweis fällt weg, der Knopf wird kompakter. */
 @media (max-height: 700px) {

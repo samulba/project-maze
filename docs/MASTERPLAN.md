@@ -25,29 +25,34 @@ Klasse verändert wirklich, WIE man spielt – nicht nur Zahlen.
 
 ---
 
-## Design-Richtung (verbindlich, Stand 2026-08-06)
+## Design-Richtung (verbindlich, Stand 2026-08-06 abends)
 
-Sams Entscheid nach zwei Screenshot-Runden (12 Varianten): **Startbasis ist
-der Look, der Diep.io am nächsten kommt.** Konkret (Standard-Theme
-`midnight`, umgesetzt von 01 am 06.08.):
+**Der Grundlook ist der dunkle Stand, wie er vor dem Diep-Umbau war.** Sam hat
+den hellen Diep-Look live gesehen und verworfen („das ist kake, zurück zum
+alten"); 01 hat ihn am 06.08. zurückgebaut (Revert von `77f8a3f`, Look-Stand
+entspricht `d8568b6`).
 
-- **Arena:** helles Grau `0xcdcdcd` mit dezentem Gitter, Außenbereich eine
-  Stufe dunkler. Wände grau mit dunklerer Kontur.
-- **Konturen:** alles Spielrelevante (Hüllen, Rohre, Formen, Projektile,
-  Drohnen, Wände) trägt eine 3px-Kontur in **abgedunkelter Füllfarbe**
-  (`darken()`, Faktor 0.72) – das prägende Diep-Merkmal. Gesteuert über den
-  `STYLE`-Block in `renderer.ts` (floor/outline/wall3d/shadows).
-- **Farben:** selbst `0x00b2e1` (Diep-Blau), Gegner `0xf14e54`, Quadrate gelb
-  `0xffe869`, Dreiecke rot `0xfc7677`, Fünfecke blauviolett `0x768dfc`.
-- **UI:** `:root` ist hell (`color-scheme:light`, weiße Karten, dunkle
-  Schrift); die Wahl-Themes void/neon/classic bleiben unangetastet.
+- **UI:** `:root` ist dunkel (`color-scheme:dark`, `--bg:#151a26`,
+  `--text:#e8ebf3`, Akzent `#6f7ad6`). Die Wahl-Themes void/neon/classic
+  bleiben wie sie sind.
+- **Arena:** dunkler Boden mit dezentem Gitter, Außenbereich abgesetzt; keine
+  abgedunkelten Konturen an allen Spielobjekten mehr (der `STYLE`-Block und
+  `darken()` sind mit dem Revert verschwunden).
 
-Frühere Historie: „Neon raus" → „zu düster – so will ich das gar nicht"
-(Richtungsumkehr) → Paletten- und Stilrunden → Diep-Entscheid. Es gilt
-weiterhin: **ruhig und minimalistisch JA, düster NEIN.** Jedes Design-Paket
-prüft gegen „klar & freundlich-technisch" und gegen die Referenz-Screenshots
-der Diep-Basis, nicht gegen „dark & moody". Design-Änderungen am Grundlook
-nur nach Screenshot-Freigabe durch Sam.
+**Was das nicht heißt:** „dark & moody" ist weiterhin nicht das Ziel. Der
+Merksatz bleibt **ruhig und minimalistisch JA, düster NEIN** – Sam hat auf dem
+Weg hierher einmal „zu düster, so will ich das gar nicht" gesagt, und der
+Grundton wurde daraufhin eine Stufe angehoben. Genau dieser angehobene dunkle
+Stand ist jetzt die Basis.
+
+**Historie, damit niemand im Kreis läuft:** „Neon raus" → „zu düster"
+(Grundton angehoben) → Paletten- und Stilrunden → Diep-Basis hell (12
+Varianten, von Sam abgenommen) → **live verworfen, zurückgebaut**. Ein
+erneuter Vorstoß Richtung hell braucht mehr als eine Screenshot-Runde am
+Standbild; der helle Look sah in der Vorschau gut aus und im Spiel nicht.
+
+Design-Änderungen am Grundlook weiterhin nur nach Screenshot-Freigabe durch
+Sam.
 
 ## Handlungsfeld 1 – Überall sauber: Responsive & Performance
 

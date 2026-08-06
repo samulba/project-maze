@@ -51,26 +51,27 @@ hat sich Konflikte in `start.css` und `controls.css` eingehandelt.
 
 ## Die Design-Richtung (verbindlich)
 
-Sam hat nach zwölf Varianten in zwei Screenshot-Runden entschieden:
-**Startbasis ist der Look, der Diep.io am nächsten kommt.** Verbindlich
-festgehalten im `docs/MASTERPLAN.md` unter „Design-Richtung":
+**Der Grundlook ist dunkel.** Verbindlich festgehalten im `docs/MASTERPLAN.md`
+unter „Design-Richtung": `:root` dunkel (`color-scheme:dark`, `--bg:#151a26`,
+`--text:#e8ebf3`, Akzent `#6f7ad6`), Arena dunkel mit dezentem Gitter, die
+Wahl-Themes void/neon/classic unangetastet.
 
-- **Arena:** helles Grau `0xcdcdcd` mit dezentem Gitter, Außenbereich eine
-  Stufe dunkler. Wände grau mit dunklerer Kontur.
-- **Konturen:** alles Spielrelevante trägt eine 3px-Kontur in **abgedunkelter
-  Füllfarbe** (`darken()`, Faktor 0.72) – das prägende Diep-Merkmal.
-  Gesteuert über den `STYLE`-Block in `renderer.ts`.
-- **Farben:** selbst `0x00b2e1`, Gegner `0xf14e54`, Quadrate `0xffe869`,
-  Dreiecke `0xfc7677`, Fünfecke `0x768dfc`.
-- **UI:** `:root` ist hell (`color-scheme:light`). Die Wahl-Themes
-  void/neon/classic bleiben dunkel und unangetastet.
+**Die Geschichte dazu solltest du kennen, sonst läufst du im Kreis:**
+„Neon raus" → Sam: „zu düster, so will ich das gar nicht" (Grundton eine Stufe
+angehoben) → Paletten- und Stilrunden → ein heller Diep-Look, den Sam nach
+zwölf Varianten am Standbild abgenommen hat → **im Spiel verworfen und am
+06.08. zurückgebaut**. Der helle Look sah in der Vorschau gut aus und live
+nicht. Wer das nächste Mal Richtung hell will, braucht mehr als Standbilder.
 
-**Geh konsequent über die Theme-Variablen, nie über Festwerte.** Dunkle
-Festwerte wie `#141926` oder `#cfd4e4` im CSS sind der Fehler, der beim
-letzten Merge Konflikte erzeugt hat. Prüfe jede neue Fläche gegen „klar &
-freundlich-technisch", nicht gegen „dark & moody" – und achte auf Kontrast:
-ein Hell-Umbau hat vier Stellen unlesbar gemacht (Guardian-Label,
-Schadenszahlen, Gold-Effekte, Kleinschrift am Startscreen).
+Der Merksatz, der beide Wechsel überlebt hat: **ruhig und minimalistisch JA,
+düster NEIN.**
+
+**Geh konsequent über die Theme-Variablen, nie über Festwerte.** Genau das ist
+der Grund, warum der Rückbau billig war: Was an `var(--…)` hing, ist
+mitgewandert, ohne dass es jemand anfassen musste. Was Festwerte trug, hat
+Konflikte erzeugt. Und achte auf Kontrast – beim Hell-Umbau waren vier Stellen
+unlesbar geworden (Guardian-Label, Schadenszahlen, Gold-Effekte, Kleinschrift
+am Startscreen).
 
 ## Fallen, die uns schon Zeit gekostet haben
 

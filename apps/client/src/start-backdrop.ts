@@ -25,7 +25,7 @@ export interface BackdropShape {
  * Spielfeld. Der Marken-Akzent ist hier bewusst raus: Auf dem Startscreen
  * leuchtet nur der Knopf.
  */
-const SHAPE_COLORS = ['#a8a8a8', '#b3ad8f', '#9fa3bc', '#adadad'] as const;
+const SHAPE_COLORS = ['#565f85', '#877a60', '#7d6379', '#4d5470'] as const;
 const GRID_FINE = 68;
 const GRID_COARSE = 340;
 
@@ -166,13 +166,13 @@ export class StartBackdrop {
     context.clearRect(0, 0, this.width, this.height);
 
     context.lineWidth = 1;
-    context.strokeStyle = 'rgba(0,0,0,.035)';
+    context.strokeStyle = 'rgba(255,255,255,.028)';
     context.beginPath();
     for (let x = 0; x <= this.width; x += GRID_FINE) { context.moveTo(x, 0); context.lineTo(x, this.height); }
     for (let y = 0; y <= this.height; y += GRID_FINE) { context.moveTo(0, y); context.lineTo(this.width, y); }
     context.stroke();
 
-    context.strokeStyle = 'rgba(40,50,80,.06)';
+    context.strokeStyle = 'rgba(150,160,200,.05)';
     context.beginPath();
     for (let x = 0; x <= this.width; x += GRID_COARSE) { context.moveTo(x, 0); context.lineTo(x, this.height); }
     for (let y = 0; y <= this.height; y += GRID_COARSE) { context.moveTo(0, y); context.lineTo(this.width, y); }
