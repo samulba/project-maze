@@ -14,8 +14,11 @@ import { z } from 'zod';
  * 1. **Anonym.** Kein Token, keine ID, keine IP – gespeichert wird
  *    ausschließlich die Aggregation. Ein einzelner Bericht ist nach dem
  *    Verarbeiten nicht mehr einer Person zuzuordnen.
- * 2. **Begrenzte Kardinalität.** Nur zwei Label-Achsen mit festem Vokabular:
- *    Geräteklasse und Renderpfad. Vier mal vier Kombinationen, mehr nicht.
+ * 2. **Begrenzte Kardinalität.** Drei Label-Achsen mit festem Vokabular:
+ *    Geräteklasse, Renderpfad und Qualitätsstufe. Vier mal vier mal vier
+ *    Kombinationen, mehr nicht – und exportiert werden nur die, die im Fenster
+ *    tatsächlich belegt sind. Die 64 ist die harte Obergrenze, nicht der
+ *    Normalfall.
  * 3. **Unvertrauenswürdige Quelle.** Die Route ist offen, also sind die Zahlen
  *    ein Indiz und kein Beweis. Strikte Validierung, Rate-Limit und ein
  *    begrenztes Fenster halten den Schaden klein; wer sie bewusst verfälschen
@@ -37,6 +40,19 @@ export type ClientDeviceClass = (typeof CLIENT_DEVICE_CLASSES)[number];
  */
 export const CLIENT_RENDER_PATHS = ['webgl', 'webgl-kompat', 'webgpu', 'unknown'] as const;
 export type ClientRenderPath = (typeof CLIENT_RENDER_PATHS)[number];
+
+/**
+ * Qualitätsstufe aus der Automatik des Clients (R4). Bewusst eine **eigene
+ * Achse** neben `quality` statt eines kombinierten Labels `webgl-mid`: So lässt
+ * sich über Stufen hinweg aggregieren, ohne Labels zerlegen zu müssen.
+ *
+ * `unknown` ist der Platz für ältere Clients, die das Feld noch nicht schicken –
+ * und für alles, was ein manipulierter Client hineinschreibt. Das Vokabular ist
+ * abgeschlossen; ein fremder Wert wird auf `unknown` zurückgebogen und nicht
+ * durchgereicht, sonst könnte ein einziger Client den Export beliebig aufblähen.
+ */
+export const CLIENT_QUALITY_TIERS = ['high', 'mid', 'low', 'unknown'] as const;
+export type ClientQualityTier = (typeof CLIENT_QUALITY_TIERS)[number];
 
 /** Gleitendes Fenster. Bei einem Bericht je Minute und Client sind 15 Minuten
  * genug Stichproben, ohne dass die Zahlen an gestrigen Geräten hängen. */
@@ -66,7 +82,18 @@ export const clientMetricsSchema = z.object({
   viewportW: z.number().int().min(160).max(20_000),
   viewportH: z.number().int().min(120).max(20_000),
   deviceClass: z.enum(CLIENT_DEVICE_CLASSES),
-  quality: z.enum(CLIENT_RENDER_PATHS)
+  quality: z.enum(CLIENT_RENDER_PATHS),
+  /**
+   * Qualitätsstufe, optional: Clients vor R4 kennen das Feld nicht, und ein
+   * `.strict()`-Schema würde ihre Berichte sonst mit 400 abweisen.
+   *
+   * `.catch()` statt harter Ablehnung ist Absicht. Ein dauerhaft abgelehnter
+   * Client fällt im Spiel nicht auf – die 400 wäre unsichtbar, und wir hätten
+   * schlicht keine Perf-Daten mehr, ohne es zu merken. Ein unbekannter Wert
+   * kostet deshalb nur sich selbst: er wird zu `unknown`, der Rest des Berichts
+   * bleibt verwertbar. Sichtbar bleibt es über `maze_client_tier_coerced_total`.
+   */
+  tier: z.enum(CLIENT_QUALITY_TIERS).catch('unknown').optional()
 }).strict();
 
 export type ClientMetricsReport = z.infer<typeof clientMetricsSchema>;
@@ -77,6 +104,7 @@ interface ClientSample {
   at: number;
   deviceClass: ClientDeviceClass;
   quality: ClientRenderPath;
+  tier: ClientQualityTier;
   /** Der größere der beiden gemeldeten FPS-Werte. */
   fpsMedian: number;
   /** Der kleinere – der langsame Rand, unabhängig davon, wie herum der Client zählt. */
@@ -93,6 +121,12 @@ interface ClientMetricsState {
   accepted: number;
   /** Berichte, deren beide FPS-Werte vertauscht ankamen (Client-Fehler). */
   inverted: number;
+  /**
+   * Berichte, deren `tier` kein erlaubter Wert war und auf `unknown`
+   * zurückgebogen wurde. Ohne diesen Zähler wäre das Verwerfen unsichtbar –
+   * genau der Fehler, den die weiche Annahme oben vermeiden soll.
+   */
+  tierCoerced: number;
   rejected: Map<RejectionReason, number>;
   hangsTotal: Map<string, number>;
   reportsTotal: Map<string, number>;
@@ -104,6 +138,7 @@ const createState = (): ClientMetricsState => ({
   size: 0,
   accepted: 0,
   inverted: 0,
+  tierCoerced: 0,
   rejected: new Map(),
   hangsTotal: new Map(),
   reportsTotal: new Map()
@@ -127,7 +162,14 @@ export const clientMetricsEnabled = (): boolean => {
   return value === 'true' || value === '1' || value === 'yes';
 };
 
-const bucketKey = (deviceClass: string, quality: string): string => `${deviceClass}|${quality}`;
+const bucketKey = (deviceClass: string, quality: string, tier: string): string =>
+  `${deviceClass}|${quality}|${tier}`;
+/** Zerlegt einen Bucket-Schlüssel wieder in seine drei Achsen. Die Werte
+ * stammen ausnahmslos aus den Whitelists und enthalten daher kein `|`. */
+const splitKey = (key: string): [string, string, string] => {
+  const [deviceClass, quality, tier] = key.split('|');
+  return [deviceClass ?? 'unknown', quality ?? 'unknown', tier ?? 'unknown'];
+};
 const bump = (counter: Map<string, number>, key: string, by = 1): void => {
   counter.set(key, (counter.get(key) ?? 0) + by);
 };
@@ -145,10 +187,14 @@ export function recordClientMetrics(report: ClientMetricsReport, now = Date.now(
   const fpsSlow = Math.min(report.fpsP50, report.fpsP95);
   if (report.fpsP95 > report.fpsP50) state.inverted += 1;
 
+  // Fehlt das Feld (Client vor R4), ist die Stufe schlicht unbekannt.
+  const tier: ClientQualityTier = report.tier ?? 'unknown';
+
   const sample: ClientSample = {
     at: now,
     deviceClass: report.deviceClass,
     quality: report.quality,
+    tier,
     fpsMedian,
     fpsSlow,
     frameHangs: report.frameHangs,
@@ -163,7 +209,7 @@ export function recordClientMetrics(report: ClientMetricsReport, now = Date.now(
   }
   state.index = (state.index + 1) % CAPACITY;
 
-  const key = bucketKey(report.deviceClass, report.quality);
+  const key = bucketKey(report.deviceClass, report.quality, tier);
   state.accepted += 1;
   bump(state.reportsTotal, key);
   bump(state.hangsTotal, key, report.frameHangs);
@@ -183,6 +229,7 @@ const round = (value: number, digits = 2): number => {
 export interface ClientBucketReport {
   deviceClass: ClientDeviceClass;
   quality: ClientRenderPath;
+  tier: ClientQualityTier;
   samples: number;
   /** Median über die gemeldeten Mittelwerte. */
   fpsP50: number;
@@ -203,6 +250,8 @@ export interface ClientMetricsSummary {
   samples: number;
   acceptedTotal: number;
   invertedTotal: number;
+  /** Berichte mit unbekannter Qualitätsstufe, die auf `unknown` fielen. */
+  tierCoercedTotal: number;
   rejectedTotal: number;
   rejected: Record<string, number>;
   buckets: ClientBucketReport[];
@@ -215,7 +264,7 @@ export function clientMetricsSummary(now = Date.now()): ClientMetricsSummary {
   for (let index = 0; index < state.size; index += 1) {
     const sample = state.samples[index];
     if (!sample || sample.at < cutoff) continue;
-    const key = bucketKey(sample.deviceClass, sample.quality);
+    const key = bucketKey(sample.deviceClass, sample.quality, sample.tier);
     const list = grouped.get(key);
     if (list) list.push(sample);
     else grouped.set(key, [sample]);
@@ -228,10 +277,15 @@ export function clientMetricsSummary(now = Date.now()): ClientMetricsSummary {
     const hangs = list.map((sample) => sample.frameHangs).sort((a, b) => a - b);
     const dprs = list.map((sample) => sample.dpr).sort((a, b) => a - b);
     const pixels = list.map((sample) => sample.pixels).sort((a, b) => a - b);
-    const [deviceClass, quality] = key.split('|') as [ClientDeviceClass, ClientRenderPath];
+    const [deviceClass, quality, tier] = splitKey(key) as [
+      ClientDeviceClass,
+      ClientRenderPath,
+      ClientQualityTier
+    ];
     buckets.push({
       deviceClass,
       quality,
+      tier,
       samples: list.length,
       fpsP50: round(quantile(medians, 0.5), 1),
       fpsP95: round(quantile(slows, 0.5), 1),
@@ -242,7 +296,12 @@ export function clientMetricsSummary(now = Date.now()): ClientMetricsSummary {
       megapixelsMedian: round(quantile(pixels, 0.5) / 1_000_000, 2)
     });
   }
-  buckets.sort((a, b) => a.deviceClass.localeCompare(b.deviceClass) || a.quality.localeCompare(b.quality));
+  buckets.sort(
+    (a, b) =>
+      a.deviceClass.localeCompare(b.deviceClass) ||
+      a.quality.localeCompare(b.quality) ||
+      a.tier.localeCompare(b.tier)
+  );
 
   const rejected: Record<string, number> = {};
   let rejectedTotal = 0;
@@ -257,14 +316,27 @@ export function clientMetricsSummary(now = Date.now()): ClientMetricsSummary {
     samples: buckets.reduce((total, bucket) => total + bucket.samples, 0),
     acceptedTotal: state.accepted,
     invertedTotal: state.inverted,
+    tierCoercedTotal: state.tierCoerced,
     rejectedTotal,
     rejected,
     buckets
   };
 }
 
-const label = (deviceClass: string, quality: string): string =>
-  `{deviceClass="${deviceClass}",quality="${quality}"}`;
+/**
+ * Baut das Labelset. Jeder Wert wird gegen seine Whitelist gehalten, bevor er
+ * in den Export geht – dies ist die letzte Stelle vor der Ausgabe, und sie
+ * verlässt sich nicht darauf, dass weiter oben schon geprüft wurde. Was nicht
+ * im Vokabular steht, wird zu `unknown`; damit ist die Zahl der Zeitreihen
+ * durch 4 × 4 × 4 gedeckelt, egal was ein Client schickt.
+ */
+const allow = <T extends string>(allowed: readonly T[], value: string): T =>
+  (allowed as readonly string[]).includes(value) ? (value as T) : ('unknown' as T);
+
+const label = (deviceClass: string, quality: string, tier: string): string =>
+  `{deviceClass="${allow(CLIENT_DEVICE_CLASSES, deviceClass)}",` +
+  `quality="${allow(CLIENT_RENDER_PATHS, quality)}",` +
+  `tier="${allow(CLIENT_QUALITY_TIERS, tier)}"}`;
 
 /**
  * Prometheus-Block für `/metrics`. Eigenes Rendern statt eines Imports aus
@@ -280,8 +352,8 @@ export function clientMetricsText(now = Date.now()): string {
     '# TYPE maze_client_reports_total counter'
   ];
   for (const [key, count] of state.reportsTotal) {
-    const [deviceClass, quality] = key.split('|');
-    lines.push(`maze_client_reports_total${label(deviceClass ?? 'unknown', quality ?? 'unknown')} ${count}`);
+    const [deviceClass, quality, tier] = splitKey(key);
+    lines.push(`maze_client_reports_total${label(deviceClass, quality, tier)} ${count}`);
   }
   lines.push(
     '# HELP maze_client_reports_rejected_total Verworfene Client-Berichte je Grund.',
@@ -293,7 +365,10 @@ export function clientMetricsText(now = Date.now()): string {
   lines.push(
     '# HELP maze_client_reports_inverted_total Berichte mit vertauschten FPS-Perzentilen.',
     '# TYPE maze_client_reports_inverted_total counter',
-    `maze_client_reports_inverted_total ${summary.invertedTotal}`
+    `maze_client_reports_inverted_total ${summary.invertedTotal}`,
+    '# HELP maze_client_tier_coerced_total Berichte mit unbekannter Qualitaetsstufe, auf "unknown" zurueckgebogen.',
+    '# TYPE maze_client_tier_coerced_total counter',
+    `maze_client_tier_coerced_total ${summary.tierCoercedTotal}`
   );
 
   if (summary.buckets.length === 0) return `${lines.join('\n')}\n`;
@@ -311,7 +386,9 @@ export function clientMetricsText(now = Date.now()): string {
   for (const [name, help, field] of series) {
     lines.push(`# HELP ${name} ${help}`, `# TYPE ${name} gauge`);
     for (const bucket of summary.buckets) {
-      lines.push(`${name}${label(bucket.deviceClass, bucket.quality)} ${bucket[field] as number}`);
+      lines.push(
+        `${name}${label(bucket.deviceClass, bucket.quality, bucket.tier)} ${bucket[field] as number}`
+      );
     }
   }
   lines.push(
@@ -319,8 +396,8 @@ export function clientMetricsText(now = Date.now()): string {
     '# TYPE maze_client_frame_hangs_total counter'
   );
   for (const [key, count] of state.hangsTotal) {
-    const [deviceClass, quality] = key.split('|');
-    lines.push(`maze_client_frame_hangs_total${label(deviceClass ?? 'unknown', quality ?? 'unknown')} ${count}`);
+    const [deviceClass, quality, tier] = splitKey(key);
+    lines.push(`maze_client_frame_hangs_total${label(deviceClass, quality, tier)} ${count}`);
   }
   return `${lines.join('\n')}\n`;
 }
@@ -345,6 +422,12 @@ export function clientMetricsHandler(): (request: Request, response: Response) =
       response.status(400).json({ error: 'Ungültiger Bericht.' });
       return;
     }
+    // Ein zurechtgebogener `tier` darf nicht lautlos passieren: `.catch()` hat
+    // den Bericht gerettet, aber der Client meldet dann etwas, das wir nicht
+    // kennen – das gehört in den Export, nicht in die Stille.
+    const rawTier: unknown = (request.body as { tier?: unknown } | null | undefined)?.tier;
+    if (rawTier !== undefined && rawTier !== parsed.data.tier) state.tierCoerced += 1;
+
     recordClientMetrics(parsed.data);
     response.status(204).end();
   };

@@ -82,3 +82,27 @@ jobs:
 
       - name: Validate compose stack
         run: docker compose config --quiet
+
+  # Ein grüner Push ist kein Beweis, dass der Stand live ist. Am 05.08. blieb
+  # der Auto-Deploy stehen und zwölf Commits lang merkte es niemand – dieser
+  # Job hätte beim ersten davon Alarm geschlagen.
+  #
+  # Läuft nur nach einem Push auf main (nur der wird deployt) und hängt an
+  # keinem anderen Job: Schlägt er fehl, ist die Aussage „der Stand ist nicht
+  # live", nicht „der Code ist kaputt".
+  deploy-watch:
+    name: Kommt der Stand live an?
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Auf den erwarteten Commit in /health warten
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+          # Über eine Repository-Variable umstellbar, ohne die Datei zu ändern.
+          HEALTH_URL: ${{ vars.HEALTH_URL || 'https://www.mazers.de/health' }}
+          TIMEOUT_SECONDS: '900'
+        run: node scripts/deploy-watch.mjs

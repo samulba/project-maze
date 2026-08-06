@@ -454,16 +454,20 @@ app.get('/health', (_request: Request, response: Response) => {
     version: '1.0.0-alpha',
     // Zeigt, welcher Stand wirklich ausgeliefert wird – Railway setzt die Variable beim Build.
     commit: (process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT ?? 'unbekannt').slice(0, 7),
-    // `build` ist ein von Hand gepflegtes Etikett aus Sprint B und steht seither
-    // still – es sagt nichts über die Aktualität aus, auch wenn es so aussieht.
+    // ACHTUNG: fester Text im Quelltext, keine Build-Information. Er ändert
+    // sich nur, wenn jemand ihn hier ändert, und beweist deshalb nichts über
+    // den laufenden Stand – dafür ist `commit` da, und daneben `uptimeSeconds`.
     build: 'sprint-b2+static-renderers',
-    // Die beiden hier sagen es wirklich. `commit` allein reicht nicht: Wird ein
-    // Deploy durch eine Variablenänderung ausgelöst, kann dieselbe Abbildung mit
-    // derselben Git-Variable erneut starten. `startedAt` zeigt unabhängig davon,
-    // wann dieser Prozess hochgekommen ist – frisch deployt heißt frisch
-    // gestartet.
+    // Wie lange dieser Prozess schon läuft. Das ist die einzige Alterangabe,
+    // die ohne die Railway-Variable auskommt: Steht hier ein Wert von Tagen,
+    // hat es seit Tagen keinen Deploy gegeben – auch dann, wenn `commit` etwas
+    // anderes behauptet, weil die Variable irgendwo fest verdrahtet wurde.
+    uptimeSeconds: Math.round(process.uptime()),
+    // 01 und 04 hatten unabhängig voneinander dieselbe Idee; `uptimeSeconds`
+    // hat gewonnen, weil die Deploy-Wache darauf zugreift. `deploymentId` sagt
+    // etwas anderes und bleibt deshalb: welche Auslieferung hier läuft. Wenn
+    // die sich ändert und `commit` nicht, ist die Git-Variable fest verdrahtet.
     deploymentId: (process.env.RAILWAY_DEPLOYMENT_ID ?? 'lokal').slice(0, 8),
-    startedAt: new Date(Date.now() - Math.round(process.uptime() * 1000)).toISOString(),
     snapshotRate: GAME.snapshotRate,
     debugTools: ENABLE_DEV_TOOLS,
     // Macht die Feature-Schalter von außen prüfbar – sonst sieht man einer
