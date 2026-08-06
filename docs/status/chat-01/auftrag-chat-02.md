@@ -1,70 +1,59 @@
 # Auftrag für Chat 02 – Server-Gameplay
 
-**Ausgestellt: 2026-08-06 (3. Fassung) · Basis: aktueller `origin/main`**
+**Ausgestellt: 2026-08-06 (4. Fassung) · Basis: aktueller `origin/main`**
 
 > Neu im Chat? Lies zuerst `docs/status/chat-02/UEBERGABE.md` – Rolle, Regeln
 > und die Fallen, die uns schon Zeit gekostet haben. Danach diese Datei.
 
-KL4 ist gemerged (588 Tests grün auf `main`). Zwei Dinge daraus haben mich
-überzeugt: dass die Familiensperre **auch ohne Flag** hängt – die Slots wären
-sonst allein durch die Shared-Erweiterung kaufbar gewesen, gefunden von deinem
-eigenen Test –, und `FAMILY_UPGRADE_BRANCHES`, das die Slots nur für Familien
-öffnet, deren Signature wirklich läuft. Ein Punktegrab wäre schlimmer gewesen
-als ein fehlendes Feature. Auch die Korrektur am Konzept (Impact-Festwert bei
-6 Punkten, nicht bei 5) ist notiert.
+Projektiltempo 2.0 ist gemerged (639 Tests grün). Das war die beste Analyse,
+die in diesem Projekt bisher geliefert wurde: Du hast den naheliegenden Weg –
+kräftigerer globaler Dämpfer – durchgerechnet und mit einer Zahl erledigt, die
+niemand von uns auf dem Schirm hatte (Fortress-Projektil 450 px/s gegen 447
+px/s Spielertempo). Dass das Problem die **Spreizung** ist und nicht der
+Mittelwert, hat Sams zweite Forderung sauber getroffen. Und dass Precision
+seine Sonderbehandlung verliert, weil die Kugel dort als einzige gar nicht
+ausweichbar war, ist eine Revision deiner eigenen früheren Entscheidung – genau
+so soll das laufen.
 
-**Deine Betriebswarnung ist angekommen und weitergegeben:**
-`FAMILY_UPGRADES_ENABLED=true` bleibt aus, bis 03 die `Digit0`-Zuordnung
-geliefert hat. Sam weiß es.
+Eine Kleinigkeit habe ich beim Merge korrigiert: Der neue Flag-Block war
+zwischen den Kommentar von `RATE_LIMITS_ENABLED` und die Konstante geraten.
 
-## Das Paket: Projektiltempo (Sams Vorrang, den du noch nicht gesehen hast)
+**Der Schalter ist noch aus.** Sam beurteilt zuerst live, ob sich das Tempo
+jetzt richtig anfühlt. Sein Urteil kann Zahlen nachziehen – bau nicht darauf
+auf, als wäre es entschieden.
 
-Diese Anweisung lag noch nicht in Git, als du angefangen hast – kein Versäumnis
-von dir. Sie ist jetzt das Wichtigste, was du bauen kannst. Sam, wörtlich, nach
-einer Livepartie:
+## Das Paket: KL2 Precision – Ladeschuss
 
-> *„Die KUGELN sind noch immer VIEL VIEL VIEL zu schnell, umso stärker man wird
-> umso langsamer müssen auch die Kugeln werden, sonst ist das komplett unfair –
-> und die sind overall einfach viel zu schnell!"*
+N2 ist gemerged, damit ist die Reihenfolge aus dem MASTERPLAN erfüllt:
+**Rapid → Impact → Precision (nach N2) → Control.** Precision ist dran.
 
-Zwei getrennte Forderungen, verwechsle sie nicht:
+Die Signature laut Masterplan: **Halten lädt den Schuss auf** (Schaden, Tempo
+und Größe steigen), ein Sofortklick ist ein schwacher Schuss. Spielgefühl:
+Timing und Positionsspiel statt Klick-Spam – wer spammt, produziert nur
+Schwachschüsse.
 
-**1. Grundtempo runter, spürbar.** Der Dämpfer steht bei `0.75` (Precision
-`0.9`) in `projectileSpeedScaleFor`. Er hat nicht gereicht. `projectileLife`
-wird im selben Maß verlängert, die Reichweite bleibt also konstant – das Muster
-hältst du bei.
+Wie bei Rapid und Impact: hinter einem eigenen Flag, Default aus, gemeinsames
+Snapshot-Feld `signature` (0–100), ein Test belegt, dass ohne Flag alles beim
+Alten bleibt.
 
-**2. Umkehr der Skalierung: Wer stärker wird, verschießt langsamere Kugeln.**
-Heute ist es genau andersherum – `projectileSpeed` rechnet
-`(1 + upgrades.projectileSpeed * 0.04)`, also schneller mit jedem Punkt. Sams
-Begründung ist Fairness: Gegen einen hochgelevelten Gegner ist eine schnelle
-Kugel nicht mehr ausweichbar.
+**Drei Dinge, die diesmal von Anfang an dazugehören:**
 
-**Ich will vor dem Code deinen Kopf.** Ein Upgrade, das den eigenen Wert
-verschlechtert, ist ein toter Slot – dasselbe Argument, mit dem du die
-naheliegende KL4-Variante verworfen hast. Denkbare Auflösungen, deine Wahl und
-deine Zahlen:
+1. **Der Ladeschuss trifft direkt auf dein eigenes Projektiltempo 2.0.** Ein
+   aufgeladener Schuss soll schneller fliegen – aber über dem Deckel liegt er
+   dann trotzdem nicht, und genau der Deckel war Sams Anliegen. Sag im Bericht,
+   wie du das auflöst: Ladung hebt den Deckel an, oder Ladung wirkt auf Schaden
+   und Größe statt auf Tempo. Ich habe eine Vermutung, aber du hast die Zahlen.
+2. **Der Slot `signatureRate`/`signaturePower` existiert schon** (KL4).
+   Precision bekommt seine Wörter, sobald diese Signature steht – nenn mir im
+   Bericht die beiden Bezeichnungen, dann gebe ich sie an 03 weiter
+   (Vorschlag aus dem Masterplan: Ladetempo / Ladebonus).
+3. **Bots müssen laden können.** Sonst wird Precision für Bots schlechter, und
+   das verschiebt die Balance still – dieselbe Falle wie beim Vorhalt, den du
+   diesmal richtig ausgeglichen hast.
 
-- `projectileSpeed` wird zu „Reichweite/Präzision" umgedeutet, das Tempo
-  koppelt an Level statt an das Upgrade,
-- oder der Slot fällt weg und wird neu belegt,
-- oder das Tempo fällt mit dem Level und das Upgrade **bremst diesen Abfall**,
-  statt ihn umzukehren.
-
-Liefer **erst eine kurze Analyse mit Zahlen** – wie heute, wie nach deinem
-Vorschlag, was das für Ausweichbarkeit und Trefferquote bedeutet –, dann den
-Code. Hinter Flag, Default aus.
-
-Zwei Dinge, die du dabei im Blick behältst:
-
-- **Precision zahlt pro Fehlschuss eine ganze Ladephase.** Das war deine eigene
-  Begründung für den milderen Dämpfer dort. Eine Umkehr, die Precision hart
-  trifft, macht die Familie unspielbar – nenn die Zahl für sie getrennt.
-- **Bots schießen auch.** Wenn die Kugeln langsamer werden, treffen die Bots
-  schlechter, und das Pacing verschiebt sich still. Sag im Bericht, was deine
-  Messung dazu zeigt.
-
-Für eine Messung: Formen vorher wegräumen (`internals.shapes.clear()`), sie
-wachsen während des Laufs nach.
+Wenn du die Machbarkeit anders einschätzt als der Masterplan – etwa weil
+Halten-und-Loslassen über das Netz schlechter funktioniert, als es sich liest –
+dann sag das **vor** dem Bau. Ein Konzept mit Zahlen ist genauso wertvoll wie
+Code.
 
 Statusbericht wie gehabt nach `docs/status/chat-02/`.
