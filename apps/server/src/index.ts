@@ -71,6 +71,7 @@ import { hardenSimulation } from './simulation-hardening.js';
 import { tuneSpectator } from './spectator.js';
 import { tuneSnapshotEncoding } from './snapshot-encoding.js';
 import { createGracefulShutdown, installSignalHandlers } from './shutdown.js';
+import { servePrecompressed } from './static-assets.js';
 import { metricsHandler, tuneTelemetry } from './telemetry.js';
 
 function integerEnvironment(name: string, fallback: number, minimum: number, maximum: number): number {
@@ -609,6 +610,9 @@ const CLIENT_DIST = process.env.CLIENT_DIST !== undefined
   : existsSync(path.join(defaultClientDist, 'index.html')) ? defaultClientDist : '';
 if (CLIENT_DIST) {
   const clientRoot = path.resolve(CLIENT_DIST);
+  // Vor express.static: Gibt es eine vorkomprimierte Fassung, geht die raus.
+  // Fehlt sie, faellt es still auf das Original zurueck.
+  app.use(servePrecompressed(clientRoot));
   app.use(express.static(clientRoot));
   app.use((request: Request, response: Response, next: () => void) => {
     if (request.method !== 'GET') return next();

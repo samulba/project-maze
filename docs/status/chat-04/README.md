@@ -25,6 +25,7 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 | # | Paket | Branch | Commit | Tests | Status |
 | --- | --- | --- | --- | --- | --- |
+| [16](./16-ladezeit-vorkomprimiert.md) | Client vorkomprimiert ausliefern – 926 KB → 218 KB über die Leitung | `claude/chat-04-infra-betrieb-ihx0xz` | `PLATZ16` | 745 ✔ | **offen** |
 | [15](./15-r5-perf-kette-und-auswertung.md) | R5: Perf-Kette end-to-end belegt, `npm run perf:live`, `client` im JSON-Export | `claude/chat-04-infra-betrieb-ihx0xz` | `77aff36` | 731 ✔ | **offen** |
 | [14](./14-startlevel-fuer-familienbilanzen.md) | `--start-level` im Lasttest – Zulieferung für 02s Familienbilanzen | `claude/chat-04-infra-betrieb-ihx0xz` | `d67ea43` | 713 ✔ | **offen** |
 | [13](./13-deploy-wache-projektiltempo.md) | Deploy-Wache mit drei Fällen, Projektiltempo gepaart gemessen | `claude/chat-04-infra-betrieb-ihx0xz` | `b8fd1a1` | 707 ✔ | **offen** |
@@ -74,6 +75,13 @@ warum etwas so gebaut ist, wie es gebaut ist.
   Lebensdauer um 12–17 %. **Unbelegt bleibt jede Aussage über Rapids K/D**
   (Differenzen −0,03 / +0,63 / +0,92). Für 02 heißt das: Wer die Signature nach
   ihrem K/D-Effekt auslegt, legt sie nach einer Zahl aus, die wir nicht haben.
+- **Sichtbar statt messbar (Bericht 16):** `express.static` komprimierte nicht –
+  über die Leitung gingen **926 KB statt 218 KB**, obwohl jeder Browser
+  `Accept-Encoding: br` mitschickt. Der Compose-Pfad war in Ordnung (nginx
+  komprimiert), der Single-Service-Betrieb auf Railway nicht. Behoben durch
+  Vorkompression beim Build – bewusst **nicht** per `compression`-Middleware:
+  Ein 630-KB-Bundle zur Laufzeit zu gzippen kostet einen ganzen 25-ms-Tick,
+  also einen Ruckler für alle in der Arena pro Seitenaufruf.
 - **R5 beantwortet, soweit es geht (Bericht 15):** Die Perf-Kette **trägt** –
   end-to-end im echten Browser belegt, zwei Berichte im 60-s-Takt, keiner
   verworfen. Der Verdacht „der Client sendet nicht" trifft nicht zu, es ist
