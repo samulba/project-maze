@@ -45,12 +45,26 @@ import { MazeGame } from './game.js';
  * 1271 px weit.
  */
 
+/*
+ * Zweite Runde (01, 06.08. abends): Sam hat nach dem ersten Paket erneut „die
+ * Kugeln sind noch immer zu schnell" gemeldet – aller Wahrscheinlichkeit nach,
+ * ohne dass die Werte hier je gegriffen haben, weil der Schalter aus war. Mit
+ * dem Umstellen auf Default-an kommt deshalb gleich eine Stufe mehr: Dämpfer
+ * 0,70 → 0,60, Deckel 2,6/1,8 → 2,0/1,35.
+ *
+ * Der Boden schützt das dabei, was 02s Analyse geschützt haben wollte: Er ist
+ * `min(heutiges Tempo, 1,25× Spielertempo)`, also macht keine dieser Senkungen
+ * eine langsame Klasse unfähig, ein fliehendes Ziel einzuholen – sie kann eine
+ * Kugel nie unter das heutige Tempo drücken. Die Senkung wirkt dort, wo sie
+ * wirken soll: am oberen Ende.
+ */
+
 /** Dämpfer auf das Rohtempo, für alle Zweige gleich. */
-export const PROJECTILE_SPEED_DAMPER = 0.7;
+export const PROJECTILE_SPEED_DAMPER = 0.6;
 /** Deckel als Vielfaches des schnellsten Spielers – auf Level 1 … */
-export const PROJECTILE_SPEED_CAP_HIGH = 2.6;
+export const PROJECTILE_SPEED_CAP_HIGH = 2.0;
 /** … und auf `GAME.maxLevel`. Dazwischen linear. */
-export const PROJECTILE_SPEED_CAP_LOW = 1.8;
+export const PROJECTILE_SPEED_CAP_LOW = 1.35;
 /**
  * Untergrenze als Vielfaches des schnellsten Spielers. Eine Kugel unter diesem
  * Verhältnis holt ein fliehendes Ziel praktisch nicht mehr ein.

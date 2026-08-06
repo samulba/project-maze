@@ -167,7 +167,13 @@ const FAMILY_UPGRADE_BRANCHES: SignatureFamily[] = FAMILY_UPGRADES_ENABLED
  * Upgrade und ein Vorhalt-Ausgleich für die Bots. Standardmäßig aus – ohne
  * den Schalter fliegen die Kugeln exakt wie bisher.
  */
-const PROJECTILE_SPEED_V2 = process.env.PROJECTILE_SPEED_V2 === 'true';
+// Opt-out, nicht Opt-in (01, 06.08.): Als Opt-in hat dieses Paket Sam nie
+// erreicht – er hat zweimal „die Kugeln sind zu schnell" gemeldet, während der
+// Schalter aus war und die Kugeln unverändert flogen. Ein Fix, den erst jemand
+// von Hand einschalten muss, ist für ihn kein Fix. `false`, `0` oder `off`
+// stellen das alte Tempo wieder her.
+const PROJECTILE_SPEED_V2 = !['false', '0', 'off']
+  .includes((process.env.PROJECTILE_SPEED_V2 ?? '').trim().toLowerCase());
 /**
  * Rate-Limits und Missbrauchsschutz. Standardmäßig an; `false` schaltet sie
  * vollständig ab (dann verhält sich der Server wie vor dem Modul).
