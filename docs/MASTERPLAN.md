@@ -88,6 +88,76 @@ Klassenbaum, der 29-mal denselben Kreis zeigt, erklärt nichts, und eine
 Balance-Runde über Klassen, die sich gleich anfühlen, misst das falsche
 Problem.
 
+## KLASSEN 4.0 – „Jeder Tank ein Charakter" (v5-Kern, Sams Direktauftrag 06.08. nachts)
+
+Sam, wörtlich: mehr Auswahl schon bei der ersten Klasse · mehr als drei Stufen
+nach oben · mehr Level · jeder Tank sein eigener Spielstil · besser
+ausbalanciert · überall ein Bild vom Tank statt Name+Beschreibung · die
+Wahl-UI beim ersten Level-Up ist ultrakacke. **Umsetzung durch 01 selbst, in
+Wellen, ohne Umweg über die Arbeits-Chats.** Die Chats 02/03/04 sind
+angehalten, bis 01 sie wieder einbindet.
+
+### Progression (Welle A)
+
+| | vorher | **jetzt** |
+|---|---|---|
+| Max-Level | 45 | **60** |
+| Wahlstufen | 10 / 24 / 38 | **5 / 15 / 28 / 42** (vier statt drei, erste nach ~2 Minuten) |
+| Upgrade-Cap je Slot | 8 | **10** |
+| Basis-Slots | 8 | **10** (+ Reichweite `projectileRange` +6 %/P · + Fähigkeit `moduleCooldown` −5 %/P auf Modul-Abklingzeit) |
+| Slots gesamt | 10 | **12** (10 Basis + 2 Familie) |
+
+Wire-Regel wie bei KL4: neue IDs werden **angehängt**, die bestehenden Indizes
+bleiben. `availableClassChoices` lernt Apex-Klassen (`apexOf`-Feld): erreichbar
+aus **jeder** Klasse der Familie ab L42, nicht nur aus einem Pfad.
+
+### Der Baum: 6 Familien, 45 Klassen (Welle A)
+
+Erste Wahl auf **Level 5 zwischen sechs Familien**:
+
+| Familie | Signature | Spielstil | Warum Spam verliert |
+|---|---|---|---|
+| RAPID | Momentum | Druck in Bewegung | Stillstand baut ab |
+| PRECISION | Ladeschuss | der eine perfekte Treffer | Klick-Spam = Schwachschüsse |
+| CONTROL | Einheiten-Budget | dirigieren statt klicken | Stärke liegt im Management |
+| IMPACT | Wucht | Anlauf und Aufprall | ohne Bewegung keine Wucht |
+| **SPECTER (neu)** | **Tarnung** – nicht schießen baut Tarnung auf (bis ~85 % unsichtbar), der Erstschlag aus voller Tarnung trägt Bonus; jeder Schuss enttarnt | Hinterhalt, Winkel, Geduld | Dauerfeuer = dauerhaft sichtbar |
+| **TEMPEST (neu)** | **Hitze** – Feuern heizt auf (+Schaden bis +40 %), bei 100 Überhitzung: 1,2 s Zwangspause | Burst-Fenster, Risikomanagement | Dauerfeuer bestraft sich selbst |
+
+Struktur je Familie: Starter (L5) → 2 Wege (L15) → 2 Wege (L28) → **Apex (L42)**.
+Bestand: 29 Klassen behalten Namen, Familien und Eltern; nur die Stufen wandern
+(10→5, 24→15, 38→28). Neu: 4 Apex für die Altfamilien (**Vortex** rapid ·
+**Eclipse** precision · **Sovereign** control · **Leviathan** impact) und zwei
+komplette Linien: **Specter → Wraith/Shade → Mirage/Revenant → Eidolon** und
+**Tempest → Scorch/Surge → Inferno/Overload → Cataclysm**. Gesamt **45**.
+
+### Perks – jede Klasse ihr Alleinstellungsmerkmal (Welle B)
+
+Ab L15 trägt jede Klasse genau **einen benannten Perk** aus einem Baukasten von
+~14 Mechaniken (Ricochet, Splitter beim Kill, Vollstrecker, Blutpanzer, Dornen,
+Schildring, Doppelschlag, Drohnen-Nova, Sprengfalle beim Dash, Adrenalin,
+Frostschuss, …), parametrisiert je Klasse. Der Perk steht auf der Wahlkarte und
+im Rad. Datenhaltung in shared, Umsetzung als eine `tunePerks`-Schicht.
+
+### Sichtbarkeit (Welle B)
+
+Rumpf-Geometrie wandert nach shared: **eine Quelle** für Renderer, Wahlkarte,
+Rad, Death-Screen. Jede Klasse erhält ihren eigenen Umriss (Familien-Grundform
++ Stufen-Aufbauten + Klassen-Merkmal); Abnahme bleibt der Blindtest über alle
+45. Tank-Bild überall, wo eine Klasse benannt wird.
+
+### Wahl-UI (Welle B)
+
+Der L5-Moment wird eine bewusste Wahl: großformatige Karten mit Bild,
+Signature-Satz, Perk-Zeile und „führt zu →", Grid sitzt auf allen
+Prüfstand-Formaten inkl. Touch. Das Spiel pausiert nicht.
+
+### Balance (Welle C)
+
+Neue Klassen aus Familien-Basiskurven abgeleitet; Messung mit `--seed` +
+`--start-level`, Dominanzprüfung, eingefrorener Abzug. Sams Live-Urteil
+steuert die Zahlenrunde.
+
 ## Handlungsfeld 1 – Überall sauber: Responsive & Performance
 
 **Ist:** Fullscreen-Wechsel buggy, Artefakte/Striche an den Rändern großer
