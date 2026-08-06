@@ -50,6 +50,9 @@ import './onboarding.css';
 import './achievements.css';
 import './auth.css';
 import './profile.css';
+// Zuletzt: sammelt die Layout-Reparaturen aus der UI-Fehlersuche und muss
+// gegen die Kurzfassungen in style.css und mobile.css gewinnen.
+import './hud-layout.css';
 
 let socket: WebSocket | null = null;
 let joinOptions: JoinOptions | null = null;
