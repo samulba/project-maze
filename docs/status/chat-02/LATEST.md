@@ -114,7 +114,7 @@ zuerst gehört deine Entscheidung über die Zahlen dazu.
 
 04s `--seed` funktioniert wie versprochen: eigener Zufallsstrom je Client, beide
 Seiten treffen dieselben Entscheidungen. Aufbau: je Konfiguration ein frischer
-Server, 32 Clients, 300 s, zwei Läufe, danach `/metrics?format=json`, nach
+Server, 32 Clients, 300 s, **drei Läufe**, danach `/metrics?format=json`, nach
 Familien aggregiert (`.probe/kl5-ab.mjs`).
 
 ```
