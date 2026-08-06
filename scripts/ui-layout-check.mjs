@@ -163,7 +163,9 @@ function messenImBrowser() {
     '.spectator-banner': 'Zuschauerband',
     '.points-badge': 'Punkte-Badge',
     '.move-stick': 'Bewegungs-Stick',
-    '.aim-stick': 'Ziel-Stick'
+    '.aim-stick': 'Ziel-Stick',
+    '.class-overlay .codex-card': 'Klassen-Karte',
+    '.class-overlay .codex-wheel': 'Klassenrad'
   };
   const sichtbar = (e) => {
     if (!e || e.hidden) return false;
@@ -249,10 +251,16 @@ function messenImBrowser() {
   // ganze Fläche belegt – das ist Absicht und wird nicht gemessen.
   const totenschirm = document.querySelector('#death-screen');
   const imTod = totenschirm && !totenschirm.hidden;
+  // Leseansicht des Klassenrades: Dort tritt die Bedienung bewusst zurück –
+  // die tote Fläche misst dann nicht mehr, was sie messen soll.
+  const rad = document.querySelector('.class-overlay');
+  const spielerkarte = document.querySelector('#player-panel');
+  const leseansicht = Boolean(rad && !rad.hidden && spielerkarte
+    && Number(getComputedStyle(spielerkarte).opacity) < 0.05);
   const canvas = document.querySelector('canvas');
   const kompakt = totenschirm && totenschirm.classList.contains('spectating');
   let tot = 0, raster = 0;
-  if (!imTod || kompakt) for (let x = 8; x < window.innerWidth; x += 24) {
+  if ((!imTod || kompakt) && !leseansicht) for (let x = 8; x < window.innerWidth; x += 24) {
     for (let y = 8; y < window.innerHeight; y += 24) {
       raster += 1;
       const oben = document.elementFromPoint(x, y);
@@ -308,6 +316,22 @@ const FAELLE = [
   { name: 'oben-alles-wahl', w: 1280, h: 720, zustand: { level: 10, playerClass: 'core', punkte: 4, event: 'fracture', bounty: true, achievements: ['fivestreak'] } },
   { name: 'oben-alles-schmal', w: 900, h: 640, zustand: { event: 'fracture', bounty: true, achievements: ['fivestreak'] } },
   { name: 'oben-alles-touch', w: 390, h: 844, touch: true, zustand: { event: 'fracture', bounty: true, achievements: ['fivestreak'] } },
+
+  // --- Das Rad (KL3) ----------------------------------------------------
+  // Ein Vollbild-Overlay auf 844×390 ist die härteste Prüfung, die es gibt –
+  // und es öffnet mitten im Gefecht, also mit allem anderen zusammen.
+  { name: 'rad', w: 1280, h: 720, rad: true, zustand: {} },
+  { name: 'rad-punkte', w: 1280, h: 720, rad: true, zustand: { level: 24, playerClass: 'storm', punkte: 6 } },
+  { name: 'rad-wahl', w: 1280, h: 720, rad: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
+  { name: 'rad-flach', w: 1280, h: 600, rad: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
+  { name: 'rad-schmal', w: 900, h: 640, rad: true, zustand: { level: 24, playerClass: 'storm', punkte: 6 } },
+  { name: 'rad-21-9', w: 2560, h: 1080, rad: true, zustand: {} },
+  { name: 'rad-1080', w: 1920, h: 1080, rad: true, zustand: { level: 38, playerClass: 'gatling' } },
+  { name: 'rad-4-3', w: 1280, h: 1024, rad: true, zustand: {} },
+  { name: 'rad-tot', w: 1280, h: 720, rad: true, zustand: { tot: true } },
+  { name: 'rad-touch', w: 844, h: 390, touch: true, rad: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
+  { name: 'rad-touch-klein', w: 667, h: 375, touch: true, rad: true, zustand: {} },
+  { name: 'rad-oben-alles', w: 1280, h: 720, rad: true, zustand: { event: 'fracture', bounty: true, achievements: ['fivestreak'] } },
 
   // --- Mobil (R3 ist lange her) -----------------------------------------
   { name: 'mobil-hoch', w: 390, h: 844, touch: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
@@ -378,8 +402,12 @@ async function main() {
     return { page, fehler };
   };
 
+  // Mit `ONLY=<text>` lässt sich die Matrix auf passende Fälle einengen – beim
+  // Reparieren will man nicht jedes Mal alle 75 abwarten.
+  const nurWenn = (name) => !process.env.ONLY || name.includes(process.env.ONLY);
+
   // --- Startscreen und Unterseiten --------------------------------------
-  for (const fall of START_FAELLE) {
+  for (const fall of START_FAELLE.filter((f) => nurWenn(f.name))) {
     try {
     const { page, fehler } = await oeffnen(fall);
     if (fall.seite !== 'start') {
@@ -402,7 +430,7 @@ async function main() {
   }
 
   // --- Spiel-HUD ---------------------------------------------------------
-  for (const fall of FAELLE) {
+  for (const fall of FAELLE.filter((f) => nurWenn(f.name))) {
     try {
     const { page, fehler } = await oeffnen(fall);
     await page.fill('#player-name', fall.name.slice(0, 18));
@@ -428,6 +456,12 @@ async function main() {
     }
     await page.waitForSelector('#hud:not([hidden])', { timeout: 60_000 });
     await page.waitForTimeout(3000);
+    // Das Rad ist ein Zustand wie jeder andere – es wird geöffnet und dann
+    // zusammen mit allem übrigen gemessen.
+    if (fall.rad) {
+      await page.keyboard.press('KeyC');
+      await page.waitForTimeout(600);
+    }
     const messung = await page.evaluate(messenImBrowser);
     if (SHOTS) await page.screenshot({ path: `.probe/ui-${fall.name}.png` });
     await page.close();

@@ -16,7 +16,7 @@
  * Klassen und `hidden` daran.
  */
 
-export const START_PAGES = ['start', 'profil', 'achievements', 'bestenliste', 'einstellungen'] as const;
+export const START_PAGES = ['start', 'klassen', 'profil', 'achievements', 'bestenliste', 'einstellungen'] as const;
 export type StartPage = (typeof START_PAGES)[number];
 
 export interface StartPageInfo {
@@ -33,6 +33,9 @@ export interface StartPageInfo {
  * (Bestenliste), dann die Technik.
  */
 export const START_NAV: readonly StartPageInfo[] = [
+  // Zuerst, weil es die Frage beantwortet, die man vor dem ersten Spiel hat:
+  // Was werde ich eigentlich?
+  { id: 'klassen', label: 'Klassen', hint: 'Alle 29 Klassen und ihre Signature' },
   { id: 'profil', label: 'Profil', hint: 'Konto, Bestwerte, Anzeigename' },
   { id: 'achievements', label: 'Achievements', hint: 'Alles, was es zu holen gibt' },
   { id: 'bestenliste', label: 'Bestenliste', hint: 'Die besten Läufe' },

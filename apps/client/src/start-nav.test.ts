@@ -10,9 +10,18 @@ import { START_NAV, START_PAGES, isStartPage, pageAfterBack, resolvePage } from 
  */
 
 describe('Seitenmodell des Startscreens', () => {
-  it('kennt genau fünf Seiten, mit dem Start an erster Stelle', () => {
+  it('kennt die Startseite und je eine Unterseite, Start an erster Stelle', () => {
     expect(START_PAGES[0]).toBe('start');
-    expect(START_PAGES).toHaveLength(5);
+    // Start plus genau die Seiten, zu denen die Navigation führt – eine Seite
+    // ohne Weg dorthin wäre tot, ein Weg ohne Seite führte ins Leere.
+    expect(START_PAGES).toHaveLength(START_NAV.length + 1);
+    expect([...START_PAGES].slice(1).sort()).toEqual(START_NAV.map((e) => e.id).sort());
+  });
+
+  it('führt die Klassen als ersten Weg, noch vor dem Profil', () => {
+    // Vor dem ersten Spiel ist „was werde ich eigentlich?" die Frage, nicht
+    // „wie stehen meine Bestwerte?".
+    expect(START_NAV[0]?.id).toBe('klassen');
   });
 
   it('führt jeden Navigationseintrag auf eine echte Seite', () => {

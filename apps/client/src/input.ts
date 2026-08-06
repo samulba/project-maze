@@ -63,13 +63,19 @@ export class InputController {
     canvas: HTMLCanvasElement,
     getWorldAim: (pointer: Vector2) => Vector2,
     onUpgrade: (upgrade: UpgradeSlotId) => void,
-    onAutoFireChanged: (enabled: boolean) => void
+    onAutoFireChanged: (enabled: boolean) => void,
+    /** Taste C: Klassenbaum auf und zu (KL3). */
+    onToggleClassTree: () => void = () => {}
   ) {
     this.getWorldAim = getWorldAim;
     canvas.tabIndex = 0;
 
     window.addEventListener('keydown', (event) => {
-      if (isEditableTarget(event.target) || !this.enabled) return;
+      if (isEditableTarget(event.target)) return;
+      // VOR der `enabled`-Prüfung: Das Rad soll auch im Tod und beim Zuschauen
+      // aufgehen – da liest man es am ehesten, und es greift nicht ins Spiel ein.
+      if (!event.repeat && event.code === 'KeyC') onToggleClassTree();
+      if (!this.enabled) return;
       this.keys.add(event.code);
       if (event.code === 'ArrowUp' || event.code === 'ArrowDown' || event.code === 'ArrowLeft' || event.code === 'ArrowRight') event.preventDefault();
       if (!event.repeat && event.code === 'KeyE') {

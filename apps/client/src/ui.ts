@@ -166,8 +166,13 @@ export class GameUI {
                 ${START_NAV.map((eintrag) => `<button type="button" data-goto="${eintrag.id}"><strong>${eintrag.label}</strong><span>${eintrag.hint}</span><small data-nav-badge ${navBadgeHook[eintrag.id] ?? ''}></small><i aria-hidden="true"></i></button>`).join('')}
               </nav>
 
-              <p class="start-note"><span>WASD</span><span>LINKS FEUER</span><span>RECHTS DROHNEN</span><span>ALPHA 1.0</span></p>
+              <p class="start-note"><span>WASD</span><span>LINKS FEUER</span><span>RECHTS DROHNEN</span><span>C KLASSEN</span></p>
             </form>
+
+            <section class="start-page start-page-wide" data-view="klassen" hidden>
+              ${seitenkopf('Klassen')}
+              <div class="start-page-body" data-codex-body></div>
+            </section>
 
             <section class="start-page" data-view="profil" hidden>
               ${seitenkopf('Profil')}

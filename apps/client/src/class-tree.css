@@ -1,0 +1,349 @@
+/*
+ * Das Rad (MASTERPLAN KL3) – an beiden Orten dasselbe Bauteil: Enzyklopädie
+ * auf dem Startscreen und Overlay im Spiel auf Taste `C`.
+ *
+ * Farben kommen aus den Theme-Variablen; die vier Familien bekommen je einen
+ * Ton, damit man einen Zweig auf einen Blick verfolgen kann. Die Töne sind
+ * dieselben wie auf den Wahlkarten (`class-choice.css`), damit dort und hier
+ * dasselbe Blau „Dauerfeuer" heißt.
+ */
+
+/*
+ * Die Klassenseite ist breiter als die anderen Unterseiten: Ein Rad mit 29
+ * Knoten in 430 px ist ein Punkthaufen. Die übrigen Seiten bleiben schmal –
+ * dort ist Fließtext, und der liest sich schmal besser.
+ */
+.start-page-wide { width: min(980px, 100%); }
+
+.codex {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+  align-items: start;
+  gap: 18px;
+}
+/* Das Rad ist quadratisch: Ohne Höhenbegrenzung ragt es aus dem Sichtbereich
+   der Seite, und der äußerste Ring wird angeschnitten. */
+.codex-wheel { min-width: 0; max-width: min(100%, 58vh); justify-self: center; }
+.codex-card { min-width: 0; }
+
+/* Unter 900 px passt kein Nebeneinander mehr – dann Rad oben, Karte darunter. */
+@media (max-width: 900px) {
+  .codex { grid-template-columns: minmax(0, 1fr); }
+}
+
+.wheel { width: 100%; }
+.wheel-svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+.wheel-ring {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+.wheel-edge {
+  stroke: var(--line);
+  stroke-width: 2.5;
+  opacity: .5;
+}
+/* Der eigene Weg ist die einzige Linie, die leuchtet. */
+.wheel-edge.on-path { stroke: var(--accent); stroke-width: 5; opacity: 1; }
+
+.wheel-node { cursor: pointer; }
+.wheel-node:focus { outline: none; }
+.wheel-node:focus-visible .wheel-dot { stroke: var(--text); stroke-width: 5; }
+.wheel-dot {
+  fill: color-mix(in srgb, var(--surface) 92%, transparent);
+  stroke: var(--line-strong);
+  stroke-width: 2.5;
+  transition: fill .14s, stroke .14s;
+}
+.wheel-node:hover .wheel-dot { stroke: var(--text); }
+.wheel-label {
+  fill: var(--faint);
+  font-family: inherit;
+  font-size: 21px;
+  font-weight: 800;
+  pointer-events: none;
+}
+.wheel-node.ring-0 .wheel-label,
+.wheel-node.ring-1 .wheel-label { fill: var(--muted); font-size: 25px; }
+
+/* Familienfarben – gleiche Zuordnung wie auf den Wahlkarten. */
+.branch-rapid .wheel-dot { stroke: #5b8cff; }
+.branch-precision .wheel-dot { stroke: #e0a44a; }
+.branch-control .wheel-dot { stroke: #46b98d; }
+.branch-impact .wheel-dot { stroke: #d2606f; }
+.wheel-edge.branch-rapid.on-path { stroke: #5b8cff; }
+.wheel-edge.branch-precision.on-path { stroke: #e0a44a; }
+.wheel-edge.branch-control.on-path { stroke: #46b98d; }
+.wheel-edge.branch-impact.on-path { stroke: #d2606f; }
+
+/* Nicht mehr erreichbar: da, aber leise. Verstecken wäre falsch – man soll
+   sehen, was man mit der Wahl aufgegeben hat. */
+.wheel-node:not(.is-reachable) .wheel-dot { opacity: .34; }
+.wheel-node:not(.is-reachable) .wheel-label { opacity: .38; }
+
+.wheel-node.on-path .wheel-dot { fill: color-mix(in srgb, var(--accent) 18%, var(--surface)); }
+.wheel-node.is-current .wheel-dot { fill: var(--accent); stroke: var(--text); stroke-width: 4; }
+.wheel-node.is-current .wheel-label { fill: var(--text); }
+.wheel-node.is-selected .wheel-dot { stroke: var(--text); stroke-width: 5; }
+.wheel-node.is-selected .wheel-label { fill: var(--text); }
+
+/* ------------------------------------------------------------------ *
+ * Die Karte: Spielstil, Signature, wohin es führt
+ * ------------------------------------------------------------------ */
+.wheel-card {
+  display: grid;
+  /* Ohne `min-width: 0` drückt eine lange „Führt zu"-Zeile die Karte über ihre
+     Spalte hinaus – und damit auf das Rad daneben. */
+  min-width: 0;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+}
+.wheel-card-head { display: grid; gap: 2px; }
+.wheel-card-head em {
+  color: var(--accent);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 850;
+  letter-spacing: .16em;
+}
+.wheel-card.branch-rapid .wheel-card-head em { color: #5b8cff; }
+.wheel-card.branch-precision .wheel-card-head em { color: #e0a44a; }
+.wheel-card.branch-control .wheel-card-head em { color: #46b98d; }
+.wheel-card.branch-impact .wheel-card-head em { color: #d2606f; }
+.wheel-card-head strong { color: var(--text); font-size: 19px; font-weight: 850; letter-spacing: -.01em; }
+.wheel-card-head small { color: var(--faint); font-size: 9px; font-weight: 800; letter-spacing: .12em; }
+.wheel-card-text { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.wheel-card-text.muted { color: var(--faint); }
+
+/* Der Block, um den es im Auftrag eigentlich geht. */
+.wheel-signature {
+  display: grid;
+  gap: 6px;
+  padding: 11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.wheel-signature-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.wheel-signature-head span { color: var(--accent); font-size: 11px; font-weight: 850; letter-spacing: .14em; }
+.wheel-signature-head small { color: var(--faint); font-size: 9px; font-weight: 700; }
+.wheel-signature p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.wheel-signature b {
+  margin-right: 6px;
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.wheel-card > * { min-width: 0; }
+.wheel-card-next { margin: 0; color: var(--faint); font-size: 10px; font-weight: 700; overflow-wrap: anywhere; }
+.wheel-card-locked { margin: 0; color: var(--danger); font-size: 10px; font-weight: 700; }
+
+/* ------------------------------------------------------------------ *
+ * Overlay im Spiel
+ * ------------------------------------------------------------------ */
+/*
+ * Zwei Dinge aus der UI-Fehlersuche, hier von Anfang an: Die Fläche gibt
+ * Klicks an die Arena weiter (nur Rad, Karte und Schließen nehmen sie), und
+ * das Spiel läuft weiter – keine Abdunklung, die den Blick nimmt, nur so viel
+ * Fläche wie nötig.
+ */
+.class-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  /*
+   * Ein Raster mit `place-content: center` – vorher stand hier ein Block mit
+   * `align-content`, das dort gar nichts tut. Genau daraus kamen die
+   * Überlappungen zwischen Rad und Karte.
+   */
+  display: grid;
+  place-content: center;
+  /*
+   * KEIN Schleier über dem Bild. „Das Spiel läuft weiter" und „ich sehe nichts
+   * mehr" wären ein Widerspruch – das Rad legt sich auf zwei eigene Flächen,
+   * der Rest der Arena bleibt sichtbar und bedienbar.
+   *
+   * Die Ränder halten die Bedienung frei: links Spielerkarte und
+   * Upgrade-Panel, rechts die Knopfspalte, unten das Modul-Panel.
+   */
+  padding: calc(var(--edge-y) + 8px) calc(var(--edge-x) + 108px) calc(var(--edge-y) + 96px) calc(var(--edge-x) + 312px);
+  background: none;
+  pointer-events: none;
+}
+.class-overlay[hidden] { display: none !important; }
+/*
+ * Klicks nimmt nur, was auch etwas tut: die Knoten selbst, die Karte und der
+ * Schließen-Knopf. Die Fläche zwischen den Speichen gehört der Arena – genau
+ * der Fehler, der bei der Klassenwahl 35 % des Bildes lahmgelegt hat.
+ */
+.class-overlay .codex-wheel { pointer-events: none; }
+.class-overlay .wheel-node,
+.class-overlay .codex-card,
+.class-overlay-close { pointer-events: auto; }
+
+.class-overlay.codex {
+  /* Die Spalte ist exakt so breit wie das Rad. Mit `1fr` konnte das Rad seine
+     Spur überlaufen und sich über die Karte schieben – das war die Ursache
+     hinter „Klassen-Karte überlappt Klassenrad". */
+  /*
+   * `minmax(0, …)`: Die Spur darf ihre Wunschbreite haben, wenn Platz ist, und
+   * schrumpft sonst – ein festes Maß würde die Karte überlaufen.
+   *
+   * 520 px sind der geprüfte Deckel. Ein Versuch mit 660 warf die Matrix auf
+   * drei Kollisionen zurück (Bestenliste, Onboarding, Event-Banner) – die
+   * Ursache war nicht die Größe, sondern das Ausblenden ohne `visibility`
+   * (siehe unten). Nachdem das behoben war, habe ich den Versuch nicht
+   * wiederholt: Ein größeres Rad auf großen Schirmen ist möglich, aber
+   * ungemessen, und ungemessen bleibt es draußen.
+   */
+  grid-template-columns: minmax(0, min(52vh, 520px)) minmax(0, 300px);
+  align-items: center;
+  gap: 14px;
+}
+/* Maße in `vh`, nicht in Prozent: Eine Prozenthöhe in einem Container mit
+   automatischer Höhe wird ignoriert – das war die zweite Ursache. */
+.class-overlay .codex-wheel {
+  width: 100%;
+  padding: 10px;
+  border-radius: 18px;
+  /* Nur so viel Fläche wie das Rad braucht – der Kreis, nicht das Quadrat. */
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--bg) 92%, transparent) 62%, transparent 72%);
+}
+.class-overlay .codex-card {
+  align-self: center;
+  min-width: 0;
+  max-height: 82vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--strong);
+  box-shadow: 0 14px 40px var(--shadow);
+}
+.class-overlay-close {
+  position: absolute;
+  top: clamp(10px, 2vh, 22px);
+  right: clamp(10px, 2vw, 26px);
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  color: var(--muted);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 15px;
+}
+.class-overlay-close:hover { border-color: var(--line-strong); color: var(--text); }
+.class-overlay-hint {
+  margin: 10px 0 0;
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-align: center;
+}
+
+/* Wenig Platz: Die Karte trägt den Inhalt, die Beschreibung entfällt – die
+   Signature bleibt, sie ist der Grund für die Seite. */
+@media (max-height: 620px), (max-width: 760px) {
+  .class-overlay .wheel-card { padding: 10px; gap: 7px; }
+  .class-overlay .wheel-card-text { display: none; }
+  .class-overlay .wheel-card-head strong { font-size: 15px; }
+}
+
+/* Auf der Qualitätsstufe „niedrig" fallen die Ringlinien weg – sie sind
+   Orientierung, kein Inhalt. */
+:root[data-quality='low'] .wheel-ring { display: none; }
+
+/* ------------------------------------------------------------------ *
+ * Das Rad und das HUD teilen sich den Platz
+ * ------------------------------------------------------------------ */
+/*
+ * Der Prüfstand hat zehn von zwölf Rad-Fällen beanstandet, und die Ursache war
+ * meine eigene Entscheidung: Ohne Schleier bleibt das ganze HUD stehen – und
+ * stößt mit Rad und Karte zusammen.
+ *
+ * Die Auflösung folgt der Frage „was braucht man in den Sekunden, in denen man
+ * liest?". Leben und Bedienung: ja. Bestenliste, Killfeed, Minimap, Banner,
+ * Onboarding: nein – die treten zurück und kommen beim Schließen wieder.
+ * Auch die Klassenwahl weicht: Man liest das Rad, **um** zu entscheiden; beide
+ * gleichzeitig wären zwei Antworten auf dieselbe Frage.
+ */
+:root:has(.class-overlay:not([hidden])) .leaderboard,
+:root:has(.class-overlay:not([hidden])) .killfeed,
+:root:has(.class-overlay:not([hidden])) .minimap,
+:root:has(.class-overlay:not([hidden])) .onboarding,
+:root:has(.class-overlay:not([hidden])) .arena-event-banner,
+:root:has(.class-overlay:not([hidden])) .bounty-banner,
+:root:has(.class-overlay:not([hidden])) .achievement-popup,
+:root:has(.class-overlay:not([hidden])) .network-pill,
+:root:has(.class-overlay:not([hidden])) .class-selection {
+  /*
+   * `visibility` zusätzlich zur Deckkraft: Ein Element mit `opacity: 0` ist
+   * weiterhin da – es nimmt Platz, es kann getroffen werden, und während der
+   * Überblendung ist sein Zustand mehrdeutig. Der Prüfstand hat genau daraus
+   * zweimal eine Kollision gemeldet, die im Bild keine war. Zurücktreten soll
+   * heißen: weg, nicht fast weg.
+   */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/*
+ * Was bleibt, bekommt seine Spur: Das Rad rückt zwischen Upgrade-Panel (links),
+ * Minimap-Spalte (rechts) und Modul-Panel (unten) – dieselbe Technik wie bei
+ * der Klassenwahl, dieselben Zahlen.
+ */
+
+
+
+
+/*
+ * Touch: Hier geht die Rechnung nicht auf. Auf 844×390 belegen die beiden
+ * Sticks allein 20 % der Fläche, dazu Modul, Repel und Auto – für ein Rad mit
+ * 29 Knoten bleibt nichts übrig, das man lesen könnte.
+ *
+ * Deshalb ist das Rad auf Touch eine **Leseansicht**: Die Bedienung tritt mit
+ * zurück, und der Hinweis sagt, was das heißt. Das Spiel läuft weiter – der
+ * Server hält nicht an –, aber man fährt in diesen Sekunden nicht. Das ist
+ * eine bewusste Entscheidung und keine übersehene Kollision.
+ */
+/*
+ * Unterhalb dieser Größe geht die Rechnung nicht auf: Zwischen Spielerkarte,
+ * Upgrade-Panel, Knopfspalte und Modul bleibt für ein Rad mit 29 Knoten nichts
+ * übrig, das man lesen könnte. Dann ist das Rad eine **Leseansicht** – die
+ * Bedienung tritt mit zurück, und der Hinweis sagt, was das heißt.
+ *
+ * Das Spiel läuft weiter, der Server hält nicht an; man fährt in diesen
+ * Sekunden nur nicht. Eine bewusste Entscheidung, keine übersehene Kollision.
+ */
+@media (pointer: coarse), (max-width: 1000px), (max-height: 620px) {
+  :root:has(.class-overlay:not([hidden])) .touch-control,
+  :root:has(.class-overlay:not([hidden])) .core-ability,
+  :root:has(.class-overlay:not([hidden])) .secondary-action,
+  :root:has(.class-overlay:not([hidden])) .auto-fire,
+  :root:has(.class-overlay:not([hidden])) .points-badge,
+  :root:has(.class-overlay:not([hidden])) .upgrade-panel,
+  :root:has(.class-overlay:not([hidden])) .player-panel,
+  :root:has(.class-overlay:not([hidden])) .core-ability {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .class-overlay {
+    padding: 10px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+  }
+  /* Ohne HUD daneben darf das Rad die Fläche nutzen, die es braucht – und die
+     Karte rückt daneben statt darunter, weil Querformat breit ist und flach. */
+  .class-overlay.codex { grid-template-columns: minmax(0, min(78vh, 420px)) minmax(0, 260px); gap: 10px; }
+  .class-overlay .codex-wheel { pointer-events: auto; width: 100%; }
+  .class-overlay .codex-card { max-height: 94vh; }
+}

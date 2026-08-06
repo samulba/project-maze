@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 03
-
-> Kopie von `18-kl3-das-rad.md`. Diese Datei zeigt immer das jüngste fertige
-> Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 18 – KL3: der Klassenbaum als Rad, an zwei Orten
 
 **Branch:** `claude/chat-03-client-ux-mazers-yu57ca` · **Basis:** `origin/main` @ `43c879d` · **Status: OFFEN – wartet auf Merge**
