@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { GAME, type PlayerClass } from '@project-maze/shared';
 import { ACTIVE_MODULE_DEFINITIONS } from '@project-maze/shared/gameplay';
+import { DEFAULT_BOT_PACING, tuneBotBrain } from './bot-brain';
+import { tuneClassMechanics } from './class-mechanics';
 import { tuneCombatScaling } from './combat-tuning';
+import { tuneDrones } from './drone-tuning';
 import { MazeGame } from './game';
 import { DASH_SPEED, activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system';
 
@@ -49,7 +52,7 @@ describe('dash – fahren statt springen', () => {
   it('springt ohne Schalter in einem einzigen Tick', () => {
     const { game, id, player } = setup(false);
     const before = player.position.x;
-    expect(activateModule(game, id, 100_100, false)).toBe(true);
+    expect(activateModule(game, id, 100_100)).toBe(true);
     // Der ganze Weg ist schon zurueckgelegt, bevor ein einziger Tick lief.
     expect(player.position.x - before).toBeGreaterThan(150);
   });
@@ -57,7 +60,7 @@ describe('dash – fahren statt springen', () => {
   it('verteilt dieselbe Strecke über die Wirkdauer', () => {
     const { game, internals, id, player } = setup(true);
     const before = player.position.x;
-    expect(activateModule(game, id, 100_100, true)).toBe(true);
+    expect(activateModule(game, id, 100_100)).toBe(true);
     // Vor dem ersten Tick hat sich nichts bewegt – die Fahrt beginnt erst.
     expect(player.position.x).toBe(before);
 
@@ -83,14 +86,48 @@ describe('dash – fahren statt springen', () => {
     // anstoßen. Der Sprung nahm den Endpunkt und fragte nicht nach dem Weg.
     const { game, internals, id, player } = setup(true);
     player.position = { x: GAME.worldWidth - GAME.playerRadius - 40, y: 2200 };
-    activateModule(game, id, 100_100, true);
+    activateModule(game, id, 100_100);
     track(game, internals, player, DASH.activeMs / 1000, 100_100);
     expect(player.position.x).toBeLessThanOrEqual(GAME.worldWidth - GAME.playerRadius + 1e-6);
   });
 
+  it('fährt auch, wenn die Bot-Steuerung ihn auslöst', () => {
+    // **Der Fehler, den dieses Paket abräumt.** Die Fahrt hing am vierten
+    // Parameter von `activateModule` – den setzte nur der Spieler-Pfad in
+    // `index.ts`. Die Bot-Steuerung (`bot-brain.ts`) rief ohne ihn auf und ließ
+    // damit genau die Gegner springen, über die sich Sam beschwert hat: In der
+    // Arena sind fast alle Dashes Bot-Dashes. Der Schalter steht jetzt am Spiel.
+    const game = tuneLoadoutSystem(
+      tuneBotBrain(tuneClassMechanics(tuneDrones(tuneCombatScaling(new MazeGame(1)))), DEFAULT_BOT_PACING),
+      true
+    );
+    const internals = game as unknown as Internals;
+    internals.shapes.clear();
+    const [id, bot] = [...internals.players.entries()][0]!;
+    bot.playerClass = 'storm';
+    bot.level = GAME.maxLevel;
+    bot.position = { ...OPEN_GROUND };
+    bot.velocity = { x: 0, y: 0 };
+    bot.move = { x: 1, y: 0 };
+    bot.aim = { x: 200, y: 0 };
+    bot.invulnerable = true;
+    expect(equipLoadout(game, id, 'dash', 'standard', 100_000)).toBe(true);
+    bot.invulnerable = false;
+    bot.invulnerableUntil = 0;
+
+    const before = bot.position.x;
+    // Genau der Aufruf aus bot-brain.ts – ohne jedes Fahr-Argument.
+    expect(activateModule(game, id, 101_000)).toBe(true);
+    expect(bot.position.x).toBe(before);
+
+    const steps = track(game, internals, bot, DASH.activeMs / 1000, 101_000);
+    expect(steps.length).toBeGreaterThanOrEqual(7);
+    expect(bot.position.x - before).toBeGreaterThan(DASH_SPEED * (DASH.activeMs / 1000) - DASH_SPEED * DT);
+  });
+
   it('lässt die Fahrt nach der Wirkdauer enden', () => {
     const { game, internals, id, player } = setup(true);
-    activateModule(game, id, 100_100, true);
+    activateModule(game, id, 100_100);
     track(game, internals, player, DASH.activeMs / 1000 + 0.2, 100_100);
     const afterDash = player.position.x;
     // Danach zaehlt wieder die normale Bewegung – kein Dauer-Dash.

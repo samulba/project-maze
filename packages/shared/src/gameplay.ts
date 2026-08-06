@@ -173,6 +173,20 @@ export interface WireGameplayWorldExtension
 export const DEFAULT_ACTIVE_MODULE: ActiveModuleId = 'dash';
 export const DEFAULT_PASSIVE_MODIFIER: PassiveModifierId = 'standard';
 
+/**
+ * Wirkradius des Repulse in Weltpixeln. Steht hier und nicht nur im Server,
+ * damit der Client den Ring zeichnen kann, ohne die Zahl abzuschreiben – die
+ * zweite Zahlenquelle ist der Fehler, den `ACCELERATION_SCALE` uns beigebracht
+ * hat. Kostet kein Byte im Snapshot: Der Wert ändert sich nie.
+ */
+export const REPULSE_RADIUS = 195;
+/**
+ * Frontwinkel der Barriere als Skalarprodukt zwischen Blickrichtung des
+ * Verteidigers und Richtung des Angreifers. 0,28 entspricht rund ±74°.
+ * Alles darunter kommt an der Barriere vorbei.
+ */
+export const BARRIER_FRONT_DOT = 0.28;
+
 export const ACHIEVEMENT_IDS = [
   'firstStreak5',
   'guardianSlayer',

@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 02
-
-> Kopie von `21-unsichtbare-faehigkeiten.md`. Diese Datei zeigt immer das
-> jüngste fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 21 – Die restlichen unsichtbaren Fähigkeiten
 
 **Branch:** `claude/chat-02-server-gameplay-w1i4o8` · **Basis:** `origin/main` @ `4b28dd2`

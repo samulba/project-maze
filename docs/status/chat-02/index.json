@@ -6,7 +6,7 @@
     "apps/client"
   ],
   "aktualisiert": "2026-08-06",
-  "latest": "20-faehigkeiten-sichtbar.md",
+  "latest": "21-unsichtbare-faehigkeiten.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -246,7 +246,7 @@
       "datei": "20-faehigkeiten-sichtbar.md",
       "branch": "claude/chat-02-server-gameplay-w1i4o8",
       "basis": "main@999d66e",
-      "status": "offen",
+      "status": "gemerged",
       "tests": "4 neu / 718 gesamt",
       "braucht_von_01": [
         "BEFUND: Der Dash IST ein Teleport - die ganzen 189 px werden in einem einzigen Aufruf zurueckgelegt, die 180 ms activeMs sind danach nur ein Zustandsfenster. 03 kann daran mit Trails nichts reparieren, weil es keine Bewegung gibt. Gefixt hinter DASH_TRAVEL_ENABLED (Default aus): dieselbe Strecke ueber 7 Ticks, also fuenf bis sechs Snapshots",
@@ -255,6 +255,24 @@
         "DASH_TRAVEL_ENABLED gehoert zusammen mit 03s Spur an, nicht davor. Serverseitig blockiert nichts",
         "Mein Fehler aus Paket 14: .env.example hatte einen Kommentarblock fuer PROJECTILE_SPEED_V2, aber keine Variablenzeile - wer die Datei kopiert, hat den Schalter nie gesehen. Ergaenzt",
         "KL5 ruht wie angeordnet. Einziger dringender Balance-Punkt bleibt Impact (K/D 0,21, Ursache: Kontakt kommt nie zustande) - nichts gebaut"
+      ]
+    },
+    {
+      "nr": 21,
+      "titel": "Die restlichen unsichtbaren Faehigkeiten: Bot-Dash, Repair, Repulse",
+      "datei": "21-unsichtbare-faehigkeiten.md",
+      "branch": "claude/chat-02-server-gameplay-w1i4o8",
+      "basis": "main@4b28dd2",
+      "status": "offen",
+      "tests": "9 neu / 772 gesamt",
+      "braucht_von_01": [
+        "MEIN FEHLER AUS PAKET 20: Die Dash-Fahrt hing am vierten Parameter von activateModule - den setzte nur der Spieler-Pfad in index.ts, die Bot-Steuerung rief ohne ihn auf. Mit eingeschaltetem DASH_TRAVEL_ENABLED sprangen die Bots weiter, gemessen 189,0 px in einem Aufruf - und in der Arena sind fast alle Dashes Bot-Dashes. Der Schalter steht jetzt am Spiel, der Parameter ist ersatzlos weg",
+        "ENTSCHEIDUNG erbeten zu REPULSE_TRAVEL_ENABLED (neu, Default aus): Ein Getroffener legt heute gemessene 44 px zurueck und steht nach 200 ms wieder - ein Tankdurchmesser bei 195 px Wirkradius und 12 s Abklingzeit, weniger als er in derselben Zeit zu Fuss geht. Ursache ist dieselbe wie beim Dash: Der Stoss wird als Geschwindigkeit gesetzt und von der Bewegungsintegration binnen 200 ms gefressen. Gegenprobe: Dieselbe Pulswelle wirft eine Drohne 340 px weit. Mit Schalter: dieselbe Stossstaerke ueber die 260 ms Wirkdauer, rund 107 px. Das ist eine Verdopplung der Wirkung, also deine Entscheidung",
+        "OHNE FLAG gebaut: Repair weist die Aktivierung in Fahrt zurueck, statt einen Zyklus zu starten, der im selben Tick stirbt. Gemessen repairing=true in 0 von 20 Ticks bei 16,5 s laufender Abklingzeit - das Modul verbrannte sich unsichtbar, und das ist der Normalfall (wer flieht, drueckt in Fahrt). Die Bot-Steuerung haelt jetzt an, bevor sie repariert; ohne das haetten die Bots nie mehr repariert",
+        "Freigabe umgesetzt: REPULSE_RADIUS und BARRIER_FRONT_DOT liegen in shared/gameplay, Server re-exportiert",
+        "Nebenbei: Die Standard-Spalte in DEPLOYMENT.md stand bei sieben Schaltern noch auf false, obwohl sie in index.ts Opt-out sind. Korrigiert",
+        "Geprueft und NICHT repariert (Begruendungen im Bericht): Barrier, Repair-Vorlauf, Dash-Schadensabschlag, alle vier Signatures. Offen gelassen: Ein Schuss auf Tuchfuehlung erzeugt kein sichtbares Projektil - Treffer als Snapshot-Ereignis waere eine Wire-Aenderung und gehoert in einen eigenen Auftrag",
+        "KL5 ruht weiter"
       ]
     }
   ]
