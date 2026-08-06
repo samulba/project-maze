@@ -95,6 +95,42 @@ verweigern – ein Tippfehler in `BOT_COUNT` legt keinen Server lahm.
 | `MAZE_WS_URL` | `ws://localhost:8080/ws` | Wird als Build-Argument `VITE_WS_URL` durchgereicht. |
 | `MAZE_TAG` | `local` | Tag beider Images. |
 
+## Auslieferung des Clients: vorkomprimiert
+
+`npm run build` legt am Ende neben jede Textdatei in `apps/client/dist` eine
+`.br`- und eine `.gz`-Fassung (`scripts/precompress.mjs`). Der Server liefert
+sie aus, wenn der Browser sie akzeptiert.
+
+| | über die Leitung |
+| --- | --- |
+| ohne Kompression | **926 KB** |
+| gzip | 261 KB |
+| brotli | **218 KB** (−76 %) |
+
+**Warum beim Build und nicht zur Laufzeit.** Die naheliegende Lösung wäre die
+`compression`-Middleware. Sie ist hier die falsche: Dieser Prozess ist ein
+Spielserver mit 40 Hz Tick, und der Tick-Abstand liegt schon heute über dem
+25-ms-Soll. Ein 630-KB-Bundle zur Laufzeit zu gzippen kostet 15 bis 25 ms CPU –
+einen ganzen Tick, jedes Mal, wenn jemand die Seite lädt. Ein Ruckler für alle
+in der Arena, ausgelöst durch einen einzigen Seitenaufruf. Vorkomprimiert
+kostet die Auslieferung nichts und komprimiert obendrein stärker.
+
+**Fehlt der Build-Schritt, passiert nichts Schlimmes:** Ohne `.br`/`.gz` geht
+das Original raus wie vorher. Die Seite wird langsamer, nie kaputt.
+
+**Der Compose-Pfad ist davon unberührt** – dort liefert nginx aus und
+komprimiert selbst (`gzip on` in `apps/client/nginx.conf`). Die vorkomprimierten
+Dateien betreffen den Single-Service-Betrieb, also Railway.
+
+Prüfen lässt es sich mit einem Kopf-Abruf:
+
+```bash
+curl -sI -H 'Accept-Encoding: br' https://www.mazers.de/assets/<datei>.js \
+  | grep -i 'content-encoding\|content-length'
+```
+
+Steht dort kein `Content-Encoding`, lief der Build ohne `precompress`.
+
 ## Zwei Betriebsarten
 
 **Ein Origin (Standard, empfohlen).** nginx terminiert TLS, liefert den Client
