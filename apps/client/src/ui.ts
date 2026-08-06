@@ -1,16 +1,23 @@
 import {
   CLASS_DEFINITIONS,
   GAME,
-  UPGRADE_IDS,
   availableClassChoices,
   xpAtLevelStart,
   type PlayerClass,
   type PlayerSnapshot,
-  type UpgradeId,
   type WorldSnapshot
 } from '@project-maze/shared';
 import type { ArenaEventKind } from '@project-maze/shared/gameplay';
 import { arenaEventStyle, cssColor } from './arena-event-style';
+import {
+  FAMILY_LOCK_HINT,
+  UPGRADE_SLOT_IDS,
+  familyUpgradeLabel,
+  familyUpgradeLocked,
+  isFamilyUpgrade,
+  upgradeHotkeyLabel,
+  type UpgradeSlotId
+} from './family-upgrades';
 import { signatureLabel, signatureRatio } from './signature';
 import { DEFAULT_THEME, applyTheme, type ClientThemeId } from './themes';
 
@@ -19,7 +26,12 @@ export interface JoinOptions {
   theme: ClientThemeId;
 }
 
-const upgradeLabels: Record<UpgradeId, string> = {
+/**
+ * `Partial`, damit die Tabelle nicht bricht, wenn `UPGRADE_IDS` in `shared`
+ * um die beiden Familien-Slots wächst – die tragen ihre Beschriftung ohnehin
+ * aus der Klasse, nicht von hier.
+ */
+const upgradeLabels: Partial<Record<UpgradeSlotId, string>> = {
   maxHealth: 'Max. Leben',
   regen: 'Regeneration',
   moveSpeed: 'Bewegung',
@@ -29,6 +41,10 @@ const upgradeLabels: Record<UpgradeId, string> = {
   penetration: 'Durchschlag',
   bodyDamage: 'Körperschaden'
 };
+
+/** Beschriftung eines Platzes – Familien-Slots hängen an der Klasse. */
+const slotLabel = (id: UpgradeSlotId, playerClass: PlayerClass): string =>
+  isFamilyUpgrade(id) ? familyUpgradeLabel(playerClass, id) : upgradeLabels[id] ?? id;
 
 export class GameUI {
   readonly root: HTMLDivElement;
@@ -68,7 +84,7 @@ export class GameUI {
   private readonly deathStats: HTMLElement;
   private readonly respawnButton: HTMLButtonElement;
   private readonly respawnCountdown: HTMLElement;
-  private readonly upgradeButtons = new Map<UpgradeId, HTMLButtonElement>();
+  private readonly upgradeButtons = new Map<UpgradeSlotId, HTMLButtonElement>();
   private readonly vignette: HTMLElement;
   private entered = false;
   private wasBooting = false;
@@ -87,7 +103,7 @@ export class GameUI {
 
   constructor(
     onJoin: (options: JoinOptions) => void,
-    onUpgrade: (upgrade: UpgradeId) => void,
+    onUpgrade: (upgrade: UpgradeSlotId) => void,
     onAutoFire: () => boolean,
     onClassChoice: (playerClass: PlayerClass) => void,
     onRespawn: () => void
@@ -128,6 +144,7 @@ export class GameUI {
                     <label class="start-quality"><span>GRAFIK</span><select id="quality-select"></select></label>
                     <button class="start-fullscreen" id="fullscreen-toggle" type="button" hidden>VOLLBILD</button>
                   </div>
+                  <label class="start-switch"><input type="checkbox" id="prediction-toggle" /><span>VORHERSAGE</span><small>Bewegung sofort statt nach der Serverantwort</small></label>
                 </div>
               </details>
 
@@ -168,7 +185,7 @@ export class GameUI {
           <div class="upgrade-panel" id="upgrades" hidden>
             <div class="upgrade-header"><span>UPGRADES</span><b><span id="upgrade-points">0</span> PUNKTE</b><button class="sheet-close" id="upgrades-close" type="button" aria-label="Upgrades schließen">✕</button></div>
             <div class="upgrade-list">
-              ${UPGRADE_IDS.map((id, index) => `<button data-upgrade="${id}"><kbd>${index + 1}</kbd><span>${upgradeLabels[id]}</span><div class="upgrade-pips" data-pips="${id}">${Array.from({ length: GAME.maxUpgradeLevel }, () => '<i></i>').join('')}</div></button>`).join('')}
+              ${UPGRADE_SLOT_IDS.map((id, index) => `<button data-upgrade="${id}"${isFamilyUpgrade(id) ? ' hidden' : ''}><kbd>${upgradeHotkeyLabel(index)}</kbd><span data-upgrade-label="${id}">${slotLabel(id, 'core')}</span><div class="upgrade-pips" data-pips="${id}">${Array.from({ length: GAME.maxUpgradeLevel }, () => '<i></i>').join('')}</div></button>`).join('')}
             </div>
           </div>
 
@@ -258,7 +275,7 @@ export class GameUI {
     });
 
     root.querySelectorAll<HTMLButtonElement>('[data-upgrade]').forEach((button) => {
-      const upgrade = button.dataset.upgrade as UpgradeId;
+      const upgrade = button.dataset.upgrade as UpgradeSlotId;
       this.upgradeButtons.set(upgrade, button);
       button.addEventListener('click', () => onUpgrade(upgrade));
     });
@@ -403,15 +420,33 @@ export class GameUI {
     // Fläche über den Sticks stehen.
     if (noPoints) this.upgrades.classList.remove('sheet-open');
 
-    for (const id of UPGRADE_IDS) {
-      const currentLevel = self.upgrades[id];
+    // Cast, bis 01 die beiden Familien-Slots in `shared` aufgenommen hat
+    // (Muster wie bei `spectatorTargetId`). Danach fällt er ersatzlos weg.
+    const levels = self.upgrades as unknown as Partial<Record<UpgradeSlotId, number>>;
+    const familyLocked = familyUpgradeLocked(self.playerClass);
+    for (const id of UPGRADE_SLOT_IDS) {
+      const family = isFamilyUpgrade(id);
+      // Ein Familien-Slot erscheint erst, wenn der Server ihn selbst mitschickt.
+      // Solange `upgrades` ihn nicht kennt, würde ein Klick eine Nachricht
+      // auslösen, die der Server mit einer Fehlermeldung verwirft – ein Knopf
+      // ins Leere ist schlimmer als gar keiner.
+      const known = !family || levels[id] !== undefined;
+      const currentLevel = levels[id] ?? 0;
       const pips = this.root.querySelectorAll<HTMLElement>(`[data-pips="${id}"] i`);
       pips.forEach((pip, index) => pip.classList.toggle('filled', index < currentLevel));
       const button = this.upgradeButtons.get(id);
-      if (button) {
-        button.disabled = self.dead || self.availablePoints <= 0 || currentLevel >= GAME.maxUpgradeLevel;
-        button.title = currentLevel >= GAME.maxUpgradeLevel ? 'Maximum erreicht' : '';
+      if (!button) continue;
+      button.hidden = !known;
+      if (!known) continue;
+      if (family) {
+        const label = this.root.querySelector<HTMLElement>(`[data-upgrade-label="${id}"]`);
+        if (label) label.textContent = slotLabel(id, self.playerClass);
+        button.classList.toggle('locked', familyLocked);
       }
+      const locked = family && familyLocked;
+      const maxed = currentLevel >= GAME.maxUpgradeLevel;
+      button.disabled = self.dead || self.availablePoints <= 0 || maxed || locked;
+      button.title = locked ? FAMILY_LOCK_HINT : maxed ? 'Maximum erreicht' : '';
     }
 
     const healthRatio = self.health / Math.max(1, self.maxHealth);

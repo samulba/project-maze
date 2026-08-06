@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 03
-
-> Kopie von `13-client-prediction-kl4-ui.md`. Diese Datei zeigt immer das
-> jüngste fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 13 – N2: Client-Prediction + KL4-UI
 
 **Branch:** `claude/chat-03-client-ux-mazers-yu57ca` · **Basis:** `origin/main` @ `de7546c` · **Status: OFFEN – wartet auf Merge**

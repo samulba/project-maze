@@ -5,8 +5,8 @@
     "packages/shared",
     "apps/server"
   ],
-  "aktualisiert": "2026-08-05",
-  "latest": "12-fullscreen-letterbox-qualitaet.md",
+  "aktualisiert": "2026-08-06",
+  "latest": "13-client-prediction-kl4-ui.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -127,11 +127,25 @@
       "datei": "12-fullscreen-letterbox-qualitaet.md",
       "branch": "claude/project-maze-fullscreen-quality-o2q3n4",
       "basis": "main@d8568b6",
-      "status": "offen",
+      "status": "in main",
       "tests": "12 neu / 558 gesamt, Testmatrix ueber Fenster, Dichte und Stufen",
       "braucht_von_01": [
+        "an 04 offen: Feld \"tier\" im Perf-Bericht serverseitig erlauben (Kardinalitaet 4x4 bleibt)"
+      ]
+    },
+    {
+      "nr": 13,
+      "titel": "N2: Client-Prediction + KL4-UI (Digit0, Familien-Slots)",
+      "datei": "13-client-prediction-kl4-ui.md",
+      "branch": "claude/chat-03-client-ux-mazers-yu57ca",
+      "basis": "main@de7546c",
+      "status": "offen",
+      "tests": "48 neu / 606 gesamt, Drift gegen den echten Server bei 0/60/120 ms RTT, Browser-Probe",
+      "braucht_von_01": [
         "Merge",
-        "an 04 weiterreichen: Vorschlag fuer ein eigenes Feld 'tier' im Perf-Bericht statt kombinierter quality-Labels (Kardinalitaet 4x4 bleibt)"
+        "Entscheidung Sam: Vorhersage default-an? (Schalter im Startscreen, heute aus)",
+        "SIGNATURE_RATES nach packages/shared ziehen (Momentum-/Wucht-Raten stehen sonst doppelt: Server DEFAULT_MOMENTUM/DEFAULT_WUCHT, Client SIGNATURE_TUNING)",
+        "Rueckfrage an 02: Impact-Beschriftung - signatureRate = Aufprall-Erholung, signaturePower = Wucht-Skalierung?"
       ]
     }
   ]

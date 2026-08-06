@@ -7,11 +7,11 @@ import {
   type PlayerSnapshot,
   type RespawnMessage,
   type ServerMessage,
-  type UpgradeId,
   type UpgradeMessage,
   type WorldSnapshot
 } from '@project-maze/shared';
 import type { GameplayWorldExtension } from '@project-maze/shared/gameplay';
+import type { UpgradeSlotId } from './family-upgrades';
 import { GameAudio } from './audio';
 import { AuthClient, AUTH_TIMEOUT_MS, withTimeout } from './auth';
 import { AuthPanel } from './auth-panel';
@@ -25,6 +25,8 @@ import { GameplayUI } from './gameplay-ui';
 import { InputController } from './input';
 import { OnboardingCoach } from './onboarding-view';
 import { startPerfReporting } from './perf-metrics';
+import { PredictionEngine } from './prediction';
+import { PredictionToggle } from './prediction-panel';
 import { QualityControl } from './quality-panel';
 import { GameRenderer } from './renderer';
 import { SnapshotHydrator, isWireSnapshot, type WireServerMessage } from './snapshot-hydrator';
@@ -64,6 +66,10 @@ let lastClientErrorToastAt = 0;
 const audio = new GameAudio();
 const renderer = new GameRenderer();
 const hydrator = new SnapshotHydrator();
+// Client-Prediction (N2). Ausgeschaltet rechnet sie nicht mit, sie wird nicht
+// nur ausgeblendet – „Flag aus" soll heißen, dass nichts passiert.
+const prediction = new PredictionEngine();
+let predictionEnabled = false;
 
 // Der Login läuft parallel zum Renderer-Start und wird bewusst nirgends
 // abgewartet: Ohne Konfiguration liefert er `null`, und der Startscreen darf
@@ -77,6 +83,16 @@ function send(message: object): void {
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
 }
 
+/**
+ * Ein Upgrade anfordern. Der Cast überbrückt die beiden Familien-Slots (KL4),
+ * die `UPGRADE_IDS` in `shared` noch nicht kennt – 01 baut sie nach 02s Konzept
+ * ein, danach fällt er ersatzlos weg. Angeboten werden sie ohnehin erst, wenn
+ * der Server sie selbst im Snapshot führt (siehe `ui.ts`).
+ */
+function sendUpgrade(upgrade: UpgradeSlotId): void {
+  send({ type: 'upgrade', upgrade } satisfies Omit<UpgradeMessage, 'upgrade'> & { upgrade: UpgradeSlotId });
+}
+
 const ui = new GameUI(
   (options) => {
     audio.unlock();
@@ -85,10 +101,7 @@ const ui = new GameUI(
     ui.setJoinPending(true, 'Verbindung zur Arena wird hergestellt …');
     connect();
   },
-  (upgrade: UpgradeId) => {
-    const message: UpgradeMessage = { type: 'upgrade', upgrade };
-    send(message);
-  },
+  sendUpgrade,
   () => input?.toggleAutoFire() ?? false,
   (playerClass: PlayerClass) => {
     const message: ChooseClassMessage = { type: 'chooseClass', playerClass };
@@ -140,6 +153,11 @@ ui.setJoinPending(true, 'Grafik wird geladen …', 'booting');
 // an einem laufenden Grafikkontext nicht mehr ändern.
 const rendererReady = renderer.init(ui.root, QualityControl.initialTier());
 new QualityControl(ui.root, renderer, () => enteredGame && joined);
+new PredictionToggle(ui.root, (enabled) => {
+  predictionEnabled = enabled;
+  prediction.reset();
+  renderer.setSelfPredictor(enabled ? prediction : null);
+});
 // Sicherheitsnetz hinter den Init-Zeitlimits (3 Versuche à 6 s): Sollte trotzdem
 // etwas hängen, bleibt der Spieler nicht ohne Erklärung sitzen.
 const stuckNotice = window.setTimeout(() => ui.setJoinPending(true, GRAPHICS_HELP, 'failed'), 20_000);
@@ -175,7 +193,7 @@ const gameplayEffects = new GameplayEffects(renderer.app);
 input = new InputController(
   renderer.app.canvas,
   (pointer) => renderer.screenPointToWorldAim(pointer),
-  (upgrade) => send({ type: 'upgrade', upgrade } satisfies UpgradeMessage),
+  sendUpgrade,
   (enabled) => ui.setAutoFire(enabled)
 );
 input.setEnabled(false);
@@ -248,6 +266,9 @@ function connect(): void {
   // Neue Verbindung heißt neue Spieler-ID und damit eine frische Buchführung
   // auf Serverseite – der alte Cache passt dann zu nichts mehr.
   hydrator.reset();
+  // Auch die Sequenznummern beginnen von vorn; ein alter Puffer würde gegen
+  // eine Quittung geprüft, die zu einer anderen Verbindung gehört.
+  prediction.reset();
   ui.setConnection('connecting');
   joined = false;
   input?.setEnabled(false);
@@ -277,6 +298,7 @@ function connect(): void {
     socket = null;
     joined = false;
     currentSelfDead = true;
+    prediction.reset();
     previousSelf = null;
     previousProjectileIds.clear();
     previousModuleActiveUntil = 0;
@@ -310,6 +332,7 @@ function handleServerMessage(message: ServerMessage): void {
     // Deckt auch den Rejoin über einen bereits offenen Socket ab: Der Server
     // vergibt dabei eine neue Spieler-ID und sendet wieder volle Snapshots.
     hydrator.reset();
+    prediction.reset();
     previousSelf = null;
     previousProjectileIds.clear();
     previousModuleActiveUntil = 0;
@@ -349,6 +372,17 @@ function updateWorld(snapshot: WorldSnapshot): void {
     playSnapshotAudio(snapshot, self);
     const extended = snapshot as WorldSnapshot & Partial<GameplayWorldExtension>;
     const gameplay = extended.gameplay?.[self.id];
+    if (predictionEnabled) {
+      // Vor dem Renderer und vor dem HUD: Beide sollen im selben Frame denselben
+      // Stand sehen. `snapshot.walls` kommt aus dem Hydrator und trägt auch dann
+      // die aktuelle Wandliste, wenn der Server sie diesmal weggelassen hat.
+      const sample = prediction.reconcile(snapshot, self, gameplay?.passiveModifier);
+      // Der Füllstand der Signature wird mitgerechnet (Doku, Abschnitte 6/7) –
+      // gerundet, weil im Snapshot ebenfalls die gerundete Zahl steht.
+      if (sample?.signature !== null && sample?.signature !== undefined) {
+        self.signature = Math.round(sample.signature);
+      }
+    }
     if (
       gameplay &&
       gameplay.moduleActiveUntil > snapshot.serverTime &&
@@ -422,7 +456,11 @@ function playSnapshotAudio(snapshot: WorldSnapshot, self: PlayerSnapshot): void 
 
 window.setInterval(() => {
   if (!joined || currentSelfDead || !input || socket?.readyState !== WebSocket.OPEN) return;
-  socket.send(JSON.stringify(input.nextMessage()));
+  const message = input.nextMessage();
+  socket.send(JSON.stringify(message));
+  // Genau dieselbe Nachricht puffern, die rausgegangen ist – die Quittung des
+  // Servers nennt deren Sequenznummer, eine zweite Fassung passte nicht dazu.
+  if (predictionEnabled) prediction.record(message);
 }, 1000 / GAME.tickRate);
 
 window.setInterval(() => {
