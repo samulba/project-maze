@@ -1,190 +1,265 @@
-# 12 – Momentum sauber gemessen: `--seed` und ein gepaarter A/B
+# 13 – Deploy-Wache scharf gemacht, Projektiltempo gemessen
 
 | | |
 | --- | --- |
-| **Auftrag** | keiner – Fortsetzung aus eigenem Antrieb, nachdem Bericht 11 die alte Messung entwertet hatte |
+| **Auftrag** | `docs/status/chat-01/auftrag-chat-04.md` (4. Fassung, 2026-08-06) |
 | **Branch** | `claude/chat-04-infra-betrieb-ihx0xz` |
-| **Basis** | `origin/main` (`de7546c`) |
-| **Tests** | `npm run check` grün – 43 Dateien, 575 Tests (5 neu) |
+| **Basis** | `origin/main` (`7ecbc90`) |
+| **Tests** | `npm run check` grün – 52 Dateien, 707 Tests |
 | **Status** | **offen – wartet auf Review und Merge** |
 
-## Warum überhaupt
+---
 
-Bericht 11 hat gezeigt, dass die bisherige Balance-Messung nichts trägt: Der
-Aufbau „alle Schalter an gegen alle aus" misst die Serverlast mit, und die
-Streuung zwischen zwei identisch konfigurierten Läufen ist so groß wie der
-gesuchte Effekt. Damit war die Frage **„was macht Momentum eigentlich?"** offen
-– nicht beantwortet, sondern unbeantwortbar geworden.
+# TEIL 1: Die Deploy-Wache unterscheidet jetzt drei Fälle
 
-Dieser Bericht schließt die Lücke. Zwei Änderungen am Verfahren, dann dieselbe
-Frage noch einmal.
+Umgesetzt wie beauftragt. Die Wache wertet `uptimeSeconds` aus und trennt
+damit zwei Befunde, die sich dasselbe Symptom teilen:
 
-## Was am Werkzeug geändert wurde
-
-**`--seed` im Lasttest.** Die simulierten Clients wählen Klassen und Upgrades
-zufällig; ohne Seed hat jeder Lauf eine andere Familienbesetzung. Mit demselben
-Seed auf beiden Seiten einer Runde treffen sie dieselben Entscheidungen, und
-die Läufe lassen sich **paarweise** vergleichen statt als zwei unabhängige
-Stichproben.
-
-Je Client ein eigener Strom, abgeleitet aus Seed und Index – ein gemeinsamer
-Strom wäre wertlos, weil dann die Reihenfolge der Socket-Antworten bestimmt,
-wer wann zieht. Ohne `--seed` bleibt alles bei `Math.random`.
-
-**Ein Seed macht den Lauf nicht reproduzierbar**, und das steht so auch im Code:
-Netzwerk-Timing, der Zufall des Servers und die Bots des Arena-Direktors bleiben
-unberührt. Reproduzierbar wird allein, was die Clients *wollen*.
-
-## Der Aufbau
-
-Diesmal wandert **genau eine Variable**: `SIGNATURE_RAPID_ENABLED`. Alles
-andere ist über beide Seiten konstant – auch `ACHIEVEMENTS_ENABLED`,
-`SNAPSHOT_DELTAS`, `SHORT_NET_IDS` und `SPECTATOR_ENABLED`, die im alten
-Aufbau mitgewandert sind und ihn verdorben haben. `SIGNATURE_IMPACT_ENABLED`
-bleibt konstant aus, damit die Wirkung eindeutig Momentum zuzuordnen ist.
-
-Drei Runden, alternierend, je 10 Minuten, 40 Clients. Seeds 1001/1002/1003 –
-je Runde ein anderer, damit nicht dreimal dasselbe Spiel gemessen wird, aber
-innerhalb einer Runde beidseitig derselbe.
-
-**Die Maschine war diesmal frei** – kein Build, kein Test während der 63
-Minuten. Das war die selbst verursachte Einschränkung aus Bericht 11.
-
-## Lastkontrolle – zuerst, vor jeder Balance-Zahl
-
-| Konfiguration | Abstand p95 je Lauf | Bereich |
+| Befund | Ergebnis | Bedeutung |
 | --- | --- | --- |
-| Momentum AN | 35,87 · 35,70 · 35,80 ms | 35,70 – 35,87 |
-| Momentum AUS | 35,89 · 36,68 · 35,64 ms | 35,64 – 36,68 |
+| `commit` stimmt | **grün** | Der Stand ist live. |
+| `commit` stimmt nicht, Prozess frisch hochgekommen | **grün + Warnung** | Der Deploy **ist** angekommen, die Anzeige lügt. |
+| `commit` stimmt nicht, Prozess läuft seit Stunden | **rot** | Jetzt ist es wirklich ein Deploy-Stopp. |
 
-**Die Bereiche überlappen** – die beiden Konfigurationen laufen unter derselben
-Last, der Vergleich misst das Spiel und nicht die Maschine. Genau diese Prüfung
-hat der alte Aufbau nicht bestanden (35,3–36,1 gegen 32,9–33,5 ms, ohne
-Überlappung). Sie steht jetzt als Auflage in `docs/TELEMETRY.md`.
+„Frisch hochgekommen" wird an drei Signalen erkannt, nach Verlässlichkeit
+geordnet:
 
-## Was Momentum tut
+1. **Die Laufzeit ist zwischen zwei Abgriffen zurückgesprungen** – dann gab es
+   sicher einen Neustart.
+2. **`deploymentId` hat gewechselt** – 01s Feld, genau dafür gebaut.
+3. `uptimeSeconds` liegt unter `FRESH_UPTIME_SECONDS` (Standard 900 s) – dann
+   kann der Prozess nicht schon vor dem Push gelaufen sein.
 
-**Der belastbarste Befund – Rapid lebt länger:**
+Der mittlere Fall bleibt bewusst **grün** und meldet sich als
+GitHub-Warnung. Die Begründung steht im Auftrag und ich teile sie: Eine Wache,
+die dauerhaft rot steht, wird nach drei Tagen ignoriert – und meldet dann auch
+den echten Stillstand nicht mehr.
 
-| Runde | AUS | AN | Differenz |
-| --- | --- | --- | --- |
-| r1 (Seed 1001) | 80,9 s | 93,9 s | **+13,0 s** |
-| r2 (Seed 1002) | 74,6 s | 84,2 s | **+9,5 s** |
-| r3 (Seed 1003) | 78,3 s | 88,7 s | **+10,4 s** |
+Zwei Fälle bleiben rot: der Timeout mit altem Stand, und ein `/health` ohne
+Commit-Angabe. Ohne die kann die Wache nichts beweisen, und eine Wache, die im
+Zweifel grün meldet, ist schlimmer als keine.
 
-Alle drei Runden gleichgerichtet, und – wichtiger – **die Differenzen liegen
-eng beieinander** (9,5 bis 13,0 s, also +12 bis +17 %). Das ist der einzige
-Befund der ganzen Messreihe, bei dem sowohl Richtung als auch Größenordnung
-stabil sind. Momentum wirkt, und es wirkt auf die Familie, auf die es wirken
-soll.
+Die Laufzeit steht ab jetzt lesbar in jeder Zeile – „läuft seit 3.1 Tagen"
+statt „271844 s".
 
-**Konsistent in der Richtung, nicht in der Größe:**
+## Beim Testen gefunden: eine stille Falle in meinem eigenen Code
 
-| Kennzahl | Richtung | Differenzen |
-| --- | --- | --- |
-| Precision K/D | konsistent **niedriger** (3/3) | −1,55 · −0,49 · −2,44 |
-| Precision Kills/min | konsistent **niedriger** (3/3) | −0,86 · −0,43 · −1,69 |
-| Control K/D | konsistent **höher** (3/3) | +0,63 · +0,12 · +0,48 |
-| Rapid abgeschl. Leben | konsistent **höher** (3/3) | +9 · +13 · +16 |
-
-Dass **Precision** verliert, ist der plausibelste Nebeneffekt: Ein stärkeres
-Rapid tötet mehr von den Klassen, die ihm im Weg stehen. Die Größe schwankt
-allerdings um den Faktor 5 – belastbar ist hier die Richtung, nicht die Zahl.
-
-**Und der Befund, den ich erwartet hatte und nicht bekomme:**
-
-Rapids **K/D** ist **nicht** eindeutig. Die Einzelwerte:
-
-| | r1 | r2 | r3 |
-| --- | --- | --- | --- |
-| AUS | 1,50 | 0,92 | 0,36 |
-| AN | 1,47 | 1,55 | 1,29 |
-| Differenz | **−0,03** | +0,63 | +0,92 |
-
-In Runde 1 liegt Momentum minimal *darunter*. Auffällig ist etwas anderes: Die
-AUS-Seite schwankt zwischen 0,36 und 1,50, die AN-Seite nur zwischen 1,29 und
-1,55. Momentum scheint Rapids Abschneiden eher zu **stabilisieren** als es
-anzuheben – ein Muster, das drei Runden aber nicht belegen können.
-
-**Die alte Behauptung „Momentum verdoppelt Rapids K/D" bleibt damit unbelegt.**
-Sie ist auch nicht widerlegt; sie ist schlicht nicht das, was diese Messung
-zeigt.
-
-## Was gegen die eigenen Befunde spricht
-
-**1. Neun von zwanzig geprüften Kombinationen sind „3/3" – bei reinem Zufall
-wären fünf zu erwarten.** Fünf Familien × vier Kennzahlen ergeben zwanzig
-Tests, und drei gleiche Vorzeichen haben bei Zufall eine Wahrscheinlichkeit von
-¼. Neun liegt darüber, aber nicht weit. Wer aus dieser Liste einzelne Zeilen
-herausgreift, greift mit gut einem Drittel Wahrscheinlichkeit Rauschen heraus.
-
-Der Rapid-Lebensdauer-Befund steht besser da als die anderen – nicht wegen des
-Vorzeichens, sondern weil die drei Differenzen eng beieinanderliegen. Bei allen
-übrigen ist genau das nicht der Fall.
-
-**2. Die Paarung ist unvollständig, und das war mir vorher nicht klar.** Der
-Seed legt fest, welche Klasse ein Client aus den **verfügbaren** wählt – welche
-verfügbar sind, hängt an Level und aktueller Klasse, also am Spielverlauf. Wenn
-Rapid-Spieler länger leben, erreichen sie andere Level und bekommen andere
-Auswahlmöglichkeiten. Genau das zeigen die Zahlen: Rapid hat mit Momentum
-konsistent **mehr** abgeschlossene Leben (+9 bis +16), die Besetzung ist also
-nicht dieselbe.
-
-Der Seed reduziert die Streuung, er beseitigt sie nicht. **Wie viel er bringt,
-kann ich mit dieser Messreihe nicht beziffern** – dafür bräuchte es zwei Läufe
-mit identischem Seed *und* identischer Konfiguration, und die habe ich nicht
-gefahren.
-
-**3. Drei Runden bleiben drei Runden.** Für die Lebensdauer reicht das, weil
-die Differenzen eng liegen. Für alles andere nicht.
-
-## Empfehlung
-
-- **Als belegt gilt:** Momentum verlängert Rapids Lebensdauer um 12 bis 17 %.
-- **Als plausibel, aber unbelegt:** Precision verliert dadurch.
-- **Als unbelegt gilt:** jede Aussage über Rapids K/D.
-- **Nächster Schritt, falls eine Zahl gebraucht wird:** Läufe von 30 Minuten
-  statt 10. Der Engpass ist die Stichprobe – 33 bis 67 abgeschlossene Leben je
-  Familie sind zu wenig, und längere Läufe sind billiger als mehr Läufe.
-- **Für die Paarung:** Wenn die Familienbesetzung wirklich konstant sein soll,
-  müsste der Lasttest feste Klassen zugewiesen bekommen statt aus den
-  verfügbaren zu wählen. Das wäre ein anderes Werkzeug und misst dann auch
-  etwas anderes – kein Vorschlag, nur die Feststellung, wo die Grenze liegt.
+Der Commit-Vergleich war **exakt**. `/health` kürzt heute selbst auf sieben
+Zeichen, also ging das gut. Wer diesen Schnitt dort einmal entfernt, hätte die
+Wache lautlos lahmgelegt: Sie wäre gegen einen vollen SHA gelaufen und nie
+wieder grün geworden – ohne dass jemand den Grund gesehen hätte, weil die
+Meldung ja „Stand nicht angekommen" gelautet hätte. Jetzt werden beide Seiten
+gekürzt, bevor verglichen wird. Aufgefallen ist es nur, weil ein Testserver den
+vollen Hash lieferte.
 
 ## Verifiziert
 
-- `npm run check` grün, 575 Tests (5 neu für Seed und PRNG).
-- **Blindtest-Wache** in allen sechs Läufen bestanden (187–207 Klassenwahlen,
-  3 077–3 495 Upgrades).
-- **Flags gegengeprüft:** In jedem Lauf `/health` mitgeschrieben und den
-  `features`-Block verifiziert – `signatureRapid` steht in den AN-Läufen auf
-  `true`, in den AUS-Läufen auf `false`, `signatureImpact` durchgehend `false`.
-  Der verwendete Seed steht im Abzug und wurde je Paar auf Gleichheit geprüft.
-- **Lastkontrolle bestanden** (Bereiche überlappen, siehe oben).
-- PRNG-Tests: gleiche Folge bei gleichem Seed, verschiedene bei verschiedenem,
-  Werte durchgehend in `[0,1)` über 5 000 Ziehungen, und je Client ein eigener
-  Strom.
+Alle sechs Fälle **gegen einen Testserver gefahren**, nicht nur geschrieben:
 
-Die sechs Abzüge liegen unter `docs/balance/2026-08-06-momentum-gepaart/`.
+| Fall | Erwartet | Ergebnis |
+| --- | --- | --- |
+| Commit stimmt | grün | ✔ Exit 0 |
+| `/health` liefert vollen SHA | grün | ✔ Exit 0 (nach der Härtung) |
+| Commit alt, Prozess seit 2 min | grün + Warnung | ✔ Exit 0, `::warning::` gesetzt |
+| Commit alt, Laufzeit springt zurück | grün + Warnung | ✔ „die Laufzeit ist zurückgesprungen" |
+| Commit alt, `deploymentId` wechselt | grün + Warnung | ✔ „die Deployment-Kennung hat gewechselt" |
+| Commit alt, Prozess seit 3,1 Tagen | **rot** | ✔ Exit 1, Verdächtigenliste |
+| `/health` meldet keinen Commit | **rot** | ✔ Exit 1 |
 
-## Bewusste Abweichungen
+## Richtiggestellt: meine eigene Doku erzählte eine Legende
 
-**Dieses Paket war nicht beauftragt.** Es schließt die Lücke, die Bericht 11
-aufgerissen hat: Dort steht, dass die alte Messung nichts taugt – ohne diesen
-Nachtrag stünde die Frage „was macht Momentum" schlechter da als vorher, weil
-die alte Antwort weg ist und keine neue da wäre. Wenn 01 das anders sieht, ist
-der Seed-Teil (`scripts/loadtest.mjs`, `docs/TELEMETRY.md`) unabhängig von der
-Messung nützlich und kann auch allein übernommen werden.
+In `docs/DEPLOYMENT.md` stand von mir: *„Am 05.08. blieb der Auto-Deploy
+stehen. Zwölf Commits landeten auf `main`, ohne live anzukommen."*
+
+**Den Stillstand gab es nicht.** Railway hat durchgehend deployt, Sam hat es an
+der Deploy-Historie gegengeprüft, und die Ursache waren kaputte
+Freshness-Signale in `/health` – fehlendes `Cache-Control`, ein Festwert
+(`build`), der aussieht wie eine Build-Kennung, und ein `commit`, das allein
+nicht genügt. Ich habe die Stelle umgeschrieben; die Lehre lautet jetzt nicht
+„der Deploy steht", sondern: **Ein Testprotokoll, dessen Frische man nicht
+prüfen kann, erzeugt Diagnosen aus dem Nichts.**
+
+Wäre das so stehengeblieben, hätte ausgerechnet die Betriebsdoku eine falsche
+Ursache zementiert – und der nächste, der ein `/health` sieht, das alt aussieht,
+hätte wieder bei den Watch-Paths angefangen zu suchen.
+
+---
+
+# TEIL 2: Was macht das Projektiltempo mit den Familien?
+
+## Die kurze Antwort
+
+**Der Lastlauf kann diese Frage nicht beantworten – und zwar aus zwei
+konstruktiven Gründen, nicht wegen zu kleiner Stichprobe.** Das ist ein
+Nullbefund über das Werkzeug, keiner über den Schalter.
+
+## Der Aufbau
+
+Gepaart wie in Bericht 12: Nur `PROJECTILE_SPEED_V2` wandert, alle übrigen
+Schalter stehen fest auf ihrem heutigen Default (**an** – siehe Anmerkung
+unten). Drei Runden, alternierend, je 10 Minuten, 40 Clients, Seeds
+2001/2002/2003 beidseitig gleich.
+
+## Das Ergebnis
+
+Von zwanzig geprüften Kombinationen (fünf Familien × vier Kennzahlen) sind
+**drei** in allen drei Runden gleichgerichtet. Bei reinem Zufall wären **fünf**
+zu erwarten.
+
+**Das Ergebnis liegt unter dem Zufallsniveau.** Es gibt in diesen Zahlen
+keinen nachweisbaren Effekt des Projektiltempos auf K/D, Kills pro Minute,
+Lebensdauer oder Familienbesetzung.
+
+Zum Vergleich: Die Momentum-Messung aus Bericht 12 kam auf neun von zwanzig und
+hatte mit der Rapid-Lebensdauer einen Befund, dessen drei Differenzen eng
+beieinanderlagen. Hier gibt es nichts dergleichen.
+
+## Warum – und das ist der eigentliche Befund
+
+02s Vorhersage lautet: Der Deckel bindet bei den schnellen Klassen, der Boden
+lässt die langsamen unberührt. Diese Vorhersage ist **nicht widerlegt**. Sie
+ist mit diesem Werkzeug nicht prüfbar, weil beide Seiten der Arena gegen die
+Änderung immun sind:
+
+**1. Die Bots gleichen ihren Vorhalt aktiv aus.**
+`apps/server/src/projectile-speed.ts` enthält `compensatedLeadFactor()`: Wird
+die Kugel langsamer, wächst die Flugzeit und damit der absolute Vorhaltfehler
+eines Bots – und genau das wird herausgerechnet. Das ist **Absicht** („damit
+das Pacing nicht still verrutscht"). Ein Bot trifft mit `PROJECTILE_SPEED_V2`
+per Konstruktion genauso gut wie ohne.
+
+**2. Die Lasttest-Clients zielen im Random Walk.**
+`scripts/loadtest.mjs`: `client.aimAngle += (rnd() - 0.5) * 0.9`. Sie zielen
+nicht auf Gegner und halten nicht vor. Das Projektiltempo wirkt aber genau über
+den Vorhalt – wer zufällig zielt, trifft zufällig, und langsamere Kugeln ändern
+daran fast nichts.
+
+Damit sind in der Arena **beide** Kill-Quellen unempfindlich gegen den
+Schalter: die Bots per Design, die simulierten Clients mangels Zielverhalten.
+Der Nullbefund ist genau das, was dieser Aufbau erzeugen muss.
+
+**Die Wirkung, um die es 02 geht, entsteht bei einem Menschen, der vorhalten
+muss.** Den hat der Lastlauf nicht.
+
+## Greift der Schalter überhaupt?
+
+Ein Nullbefund ist wertlos, wenn der Schalter gar nichts tut. Deshalb ein
+zweiter, mechanischer Test, der ohne jedes Zielverhalten auskommt: Langsamere
+Kugeln bei **gleicher** Reichweite sind länger in der Luft – also müssen mehr
+gleichzeitig unterwegs sein. Je Konfiguration ein Lauf über zwei Minuten,
+`/health` im Sekundentakt abgegriffen.
+
+| Konfiguration | Projektile gleichzeitig (Median) | Spanne | Mittel |
+| --- | --- | --- | --- |
+| `PROJECTILE_SPEED_V2=true` | **94** | 43 – 132 | 93,3 |
+| `PROJECTILE_SPEED_V2=false` | **67** | 38 – 105 | 68,5 |
+
+**Faktor 1,40**, und die Verteilungen sind klar getrennt: 94 % aller
+Abgriffe der Alt-Konfiguration liegen unter dem Median der V2-Konfiguration.
+115 Abgriffe je Seite, gleicher Seed, gleiche Clientzahl.
+
+**Der Schalter greift also deutlich** – die Kugeln sind langsamer und bleiben
+entsprechend länger in der Luft. Der Nullbefund oben ist damit ein Befund über
+die *Wirkung auf die Kampfstatistik*, nicht über den Schalter.
+
+### Nebenbefund für die Kapazitätsplanung – der gehört mir
+
+40 % mehr Projektile gleichzeitig sind 40 % mehr Entitäten, die in jedem Tick
+bewegt und auf Kollisionen geprüft werden. Bericht 10 hatte den Preis eines
+Projektils mit rund **0,023 ms** je Tick beziffert. Die hier gemessenen **+27
+Projektile im Median** ergeben damit grob **+0,6 ms pro Tick** – rund
+**2,5 Prozentpunkte** des 25-ms-Budgets.
+
+Das ist bei der heutigen Auslastung kein Problem (die Simulation braucht ein
+Zehntel des Budgets, der Flaschenhals ist der Snapshot-Versand). Es ist aber
+**dauerhaft und additiv**: Der Schalter ist seit heute standardmäßig an, und
+mehr Projektile gehen auch in jeden Snapshot. Wenn später über Kapazität
+gesprochen wird, gehört diese Zahl dazu.
+
+## Bewertung der Kennzahlen selbst
+
+Auch unabhängig vom Zielverhalten sind K/D und Kills/min für diese Frage
+schlechte Messgrößen: Sie hängen an Zielwahl, Ausweichen, Klassenverteilung und
+Zufall. Was das Projektiltempo direkt ändert, ist die **Trefferwahrschein-
+lichkeit gegen ein bewegtes Ziel** – und die misst niemand.
+
+Wenn eine Zahl gebraucht wird, führt der Weg über eine dieser drei Türen:
+
+1. **Trefferquote als Telemetrie** – abgegebene Schüsse gegen Treffer, je
+   Klasse. Das ist die Größe, die der Schalter direkt bewegt, und sie wäre auch
+   live aussagekräftig. Baubar in meinem Revier.
+2. **Ein zielender Testclient** – der Lasttest hält vor statt zufällig zu
+   zielen. Ändert allerdings, was der Lasttest sonst misst, und braucht eine
+   eigene Entscheidung.
+3. **Live-Telemetrie mit echten Spielern** – die einzige Quelle, in der die
+   Wirkung überhaupt so entsteht, wie sie gemeint ist.
+
+Meine Empfehlung ist **1**: klein, additiv, und sie beantwortet die Frage auch
+für alle künftigen Tempo-Änderungen. Ich habe sie nicht gebaut – das wäre ein
+eigenes Paket und nicht beauftragt.
+
+## Einschränkung, die ich schon einmal hatte – und wiederholt habe
+
+`tempo-v2-r1` ist ein Ausreißer: Tick-Abstand p95 **56,9 ms** gegen 33,1 und
+33,2 in den beiden anderen V2-Runden. Der Lauf fiel auf 12:48–12:58, mein
+Typecheck und Commit auf 12:50. **Ich habe während der Messung auf derselben
+Maschine gearbeitet – genau die Einschränkung, die ich in Bericht 11 notiert
+und in Bericht 12 vermieden hatte.**
+
+Für die Lastkontrolle heißt das: Der Bereich „V2: 33,06–56,94 ms" überlappt
+zwar formal mit „alt: 32,66–33,17 ms", aber nur wegen dieses einen Laufs. Die
+automatische Überlappungsprüfung hat das durchgewinkt – **sie ist zu naiv, ein
+einzelner Ausreißer weitet den Bereich und lässt jeden Vergleich gültig
+aussehen.** Ohne r1 liegen die V2-Läufe bei 33,06–33,16 und die Alt-Läufe bei
+32,66–33,17; dann überlappen sie wirklich.
+
+An der Kernaussage ändert das nichts – der Nullbefund liegt unter dem
+Zufallsniveau, und die konstruktive Begründung hängt an keinem Messwert. Aber
+die Prüfung selbst gehört geschärft (Median statt Spannweite, oder Ausreißer
+ausweisen), und ich hätte die Maschine in Ruhe lassen müssen.
+
+---
+
+## Bewusste Abweichungen vom Auftrag
+
+**1. Nur ein Schalter gemessen statt mehrerer.**
+Der Auftrag stellte drei zur Wahl und ließ die Zahl offen. Ich habe
+`PROJECTILE_SPEED_V2` genommen – den, der ausdrücklich am meisten interessiert
+– und dafür drei Runden gefahren, statt drei Schalter mit je einer Runde. Bei
+der in Bericht 11/12 gemessenen Streuung liefert ein einzelner Lauf je
+Konfiguration nichts; drei halbe Messungen wären drei wertlose Messungen.
+
+**2. Der Auftrag sagt, die drei Schalter seien „alle noch aus". Das stimmt
+nicht mehr.**
+`ef98cc3` und `a6b00e1` haben sie auf **Default an** (Opt-out) umgestellt,
+offenbar nach dem Ausstellen des Auftrags. Ich habe entsprechend gemessen: alle
+übrigen Schalter auf ihrem heutigen Default an, damit gemessen wird, was das
+Tempo **im aktuellen Spiel** tut. Für die Aus-Seite muss `PROJECTILE_SPEED_V2`
+jetzt ausdrücklich auf `false` gesetzt werden – Weglassen genügt nicht mehr.
+
+**3. Ich habe einen zweiten, nicht beauftragten Test nachgeschoben** (den
+mechanischen Wirksamkeitsnachweis). Ohne ihn wäre der Nullbefund angreifbar
+gewesen: „vielleicht greift der Schalter schlicht nicht".
 
 ## Von 01 gebraucht
 
-- **Für 02, zu KL2-RAPID:** Momentum wirkt messbar auf die Lebensdauer
-  (+12 bis +17 %), nicht nachweisbar auf K/D. Wer die Signature nach ihrem
-  K/D-Effekt auslegt, legt sie nach einer Zahl aus, die wir nicht haben.
-- Die Aussage „verdoppelt K/D" bitte nirgends weiterverwenden – sie stammt aus
-  dem Aufbau, der in Bericht 11 entwertet wurde.
+1. **Merge.** Die geschärfte Wache nützt erst auf `main` etwas.
+2. **Für 02, zum Projektiltempo:** Die Rechnung ist nicht widerlegt – sie ist
+   mit dem Lastlauf nicht prüfbar, weil `compensatedLeadFactor()` die Bots
+   gegen genau diese Änderung immunisiert und die Lasttest-Clients nicht
+   vorhalten. Wer eine Zahl will, braucht eine Trefferquote (Vorschlag 1 oben)
+   oder echte Spieler. **Bitte den Nullbefund nicht als „das Tempo wirkt
+   nicht" weitergeben** – das steht hier ausdrücklich nicht.
+3. **Entscheidung nötig, falls die Zahl gebraucht wird:** Trefferquote als
+   Telemetrie ist ein kleines, eigenständiges Paket. Sag Bescheid, dann baue
+   ich es – ungefragt fange ich es nicht an.
+4. Die Lastkontrolle in meinem Auswertungsskript ist zu naiv (Spannweite statt
+   Median). Ich habe es im Bericht ausgewiesen; wer meine Zahlen nachrechnet,
+   sollte es wissen.
 
 ## Für Sam
 
-Nichts zu tun. Die beiden Fragen aus Bericht 11 (heller oder dunkler Auftritt,
-aktueller `/health`) bleiben die einzigen offenen Punkte an dich.
+Nichts zu tun. Falls du die Kugeln weiterhin zu schnell findest: Die drei neuen
+Regeln greifen nachweislich (mechanischer Test oben), sie sind seit heute
+standardmäßig an, und `/health` zeigt unter `features.projectileSpeedV2`, ob
+sie auf der Instanz laufen, die du gerade ansiehst.
