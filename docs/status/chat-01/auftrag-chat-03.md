@@ -1,71 +1,44 @@
 # Auftrag für Chat 03 – Client/UX
 
-**Ausgestellt: 2026-08-06 (6. Fassung) · Basis: aktueller `origin/main`**
+**Ausgestellt: 2026-08-06 (7. Fassung) · Basis: aktueller `origin/main`**
 
-> Neu im Chat? Lies zuerst `docs/status/chat-03/UEBERGABE.md` – Rolle, Regeln,
-> Design-Richtung und die Fallen, die uns schon Zeit gekostet haben. Danach
-> diese Datei.
+> Neu im Chat? Lies zuerst `docs/status/chat-03/UEBERGABE.md`. Danach diese Datei.
 
-## VORRANG: Die UI ist an mehreren Stellen kaputt – finde heraus, wo
+Sieben Fehler statt des einen Beispiels, und der schwerste war keiner fürs
+Auge: **Mit offener Klassenwahl nahmen 35 % der Bildfläche keine Klicks mehr
+an, zusammen mit dem Upgrade-Panel 48 %** – gegen 1,4 % im normalen Spiel. Wer
+auf Level 10 in die untere Bildhälfte gezielt hat, hat schlicht nicht gefeuert.
+Das erklärt Sams Ärger besser als jede Beschreibung, die er hätte liefern
+können.
 
-Sam, wörtlich und sichtlich genervt:
+Deine Diagnose trifft auch den Grund: Panels, die einzeln geprüft wurden und
+zusammen nicht funktionieren. Zwei der sieben sind erst aufgegangen, weil die
+Familien-Slots seit heute sichtbar sind – aus acht Upgrade-Reihen werden zehn.
+Genau die Zustandskombination, die vorher niemand hatte.
 
-> *„ES GIBT VIELE UI PROBLEME z.B. beim aussuchen der klasse etc etc"*
+Dass der Prüfstand jetzt im Repo liegt, ist mir mehr wert als die Reparaturen.
 
-Mehr Beschreibung gibt es nicht, und ich habe sie auch nicht. **Das ist der
-Auftrag: Finde sie selbst.** Sam soll nicht Fehlerlisten schreiben müssen – er
-spielt, und was ihm auffällt, hätte uns vorher auffallen müssen.
+## Das Paket: den Prüfstand über den Rest laufen lassen
 
-### Wie ich das gemacht haben will
+Die Klassenwahl war Sams Beispiel, nicht die Grenze. Nimm `ui-layout-check.mjs`
+und geh damit durch, was noch nicht geprüft ist:
 
-**1. Klassenwahl zuerst**, weil er sie als einziges Beispiel genannt hat. Sie
-erscheint auf Level 10 mitten im Spiel, unter Beschuss, und ist damit die
-unbarmherzigste UI, die wir haben. Geh sie vollständig durch: Erscheinen und
-Verschwinden, Tastatur und Maus, Fenster und Vollbild, während der Ladeschuss
-gehalten wird, während der Death-Screen kommt, mit langen Klassennamen, auf
-21:9 und auf 4:3, mit und ohne den neuen Sichtfeld-Modus. Und: Was passiert,
-wenn man **nicht** wählt? Was, wenn man währenddessen stirbt?
+- **Death-Screen und Zuschauen** – der schrumpft jetzt, während darunter
+  weitergespielt wird. Zwei Zustände übereinander, die es vorher nicht gab.
+- **Onboarding, Event-Banner, Bounty, Killfeed, Achievement-Popups** – die
+  liegen alle im selben oberen Bereich. Was passiert, wenn drei gleichzeitig
+  kommen?
+- **Die neuen Unterseiten** aus deinem letzten Paket, auf schmalen Fenstern und
+  auf 21:9, mit und ohne Login.
+- **Mobile**, falls der Prüfstand das abbilden kann. R3 ist lange her, und
+  seither ist viel dazugekommen.
 
-**2. Danach der Rest im selben Verfahren.** Upgrade-Panel, Death-Screen,
-Startscreen, HUD-Elemente, die Overlays untereinander. Der Verdacht, den ich
-habe: Wir haben in den letzten Runden viel angebaut – Grafikstufe, Vollbild,
-Sichtfeld-Modus, Vorhersage-Schalter, Familien-Slots, Ladebalken, geschrumpfter
-Death-Screen – und **jedes Stück einzeln geprüft, nie alle zusammen**. Genau
-dort sitzen die Fehler: zwei Overlays gleichzeitig, ein Panel, das über einem
-anderen liegt, ein Zustand, den es vorher nicht gab.
+Wieder: erst auflisten mit Reproduktionsweg und Schwere, dann reparieren. Was
+du nicht schaffst, bleibt in der Liste und ist damit nicht verloren.
 
-**3. Schreib auf, was du findest, bevor du reparierst.** Eine Liste mit
-Reproduktionsweg je Fehler, nach Schwere sortiert. Dann reparierst du von oben.
-Wenn du nicht alles schaffst: Der Rest steht in der Liste und ist damit nicht
-verloren.
-
-**4. Nimm die Screenshot-Pipeline** (`docs/SCREENSHOT_PIPELINE.md`, Chromium
-ist da). Ein Fehler, den du im Bild zeigen kannst, ist ein Fehler, über den Sam
-nicht diskutieren muss.
-
-**Kein Bug ohne Test**, wo es geht. Wir haben diese Runde gesehen, dass Messen
-schlägt Vermuten – deine 24 Übergänge haben meine falsche Diagnose gekippt.
-Dasselbe Verfahren, andere Baustelle.
-
-## Befund 2 ist erledigt – gut gemacht
-
-Der Startscreen trägt jetzt zwei Bedienelemente statt zwölf, die vier
-Unterseiten haben denselben Aufbau, Escape geht zurück und der Fokus wandert
-mit. Die Entscheidung zum Gastfall war die beste am Paket: Die
-Achievements-Galerie steht auch ohne Login vollständig da, gesperrt und mit
-Bedingung unter jedem Namen – zu sehen, was es zu holen gibt, ist für einen
-Gast wertvoller als eine leere Seite. Damit sind **alle fünf** Live-Befunde von
-Sam abgearbeitet, bis auf die UI-Fehler oben.
-
-## Was seit deinem letzten Paket auf main dazugekommen ist
-
-- **Drei Serverfeatures stehen jetzt auf Default an** (01, heute):
-  Projektiltempo 2.0, Familien-Upgrades und der Precision-Ladeschuss. Sie waren
-  als Opt-in gebaut und sind deshalb nie bei Sam angekommen. Für dich heißt
-  das: **Die Familien-Slots und der Ladebalken sind ab jetzt im normalen Spiel
-  sichtbar**, nicht nur mit gesetztem Schalter. Genau die Art frischer
-  Zustandskombination, die in der Fehlersuche oben ganz oben stehen sollte.
-- **Die Bezeichnungen für die Precision-Slots von 02:** `signatureRate` =
-  Ladetempo, `signaturePower` = Ladewucht.
+**Wenn der Prüfstand sauber durchläuft**, ist KL3 dran – das Rad, der sichtbare
+Klassenbaum als Overlay (`C`) und Startscreen-Enzyklopädie. Alle vier Familien
+haben seit heute ihre Signature, und niemand sieht sie. Sag im Bericht, wenn du
+so weit bist, dann schreibe ich dir den Auftrag dafür aus.
 
 Statusbericht wie gehabt nach `docs/status/chat-03/`.
