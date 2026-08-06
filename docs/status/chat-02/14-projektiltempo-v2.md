@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 02
-
-> Kopie von `14-projektiltempo-v2.md`. Diese Datei zeigt immer das
-> jüngste fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 14 – Projektiltempo 2.0
 
 **Branch:** `claude/chat-02-server-gameplay-w1i4o8` (neu von `origin/main`, nachdem KL4 gemerged war)

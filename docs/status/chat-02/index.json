@@ -6,7 +6,7 @@
     "apps/client"
   ],
   "aktualisiert": "2026-08-06",
-  "latest": "13-kl4-familien-upgrades-server.md",
+  "latest": "14-projektiltempo-v2.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -135,14 +135,28 @@
       "datei": "13-kl4-familien-upgrades-server.md",
       "branch": "claude/chat-02-server-gameplay-w1i4o8",
       "basis": "main@de7546c",
-      "status": "offen",
+      "status": "in main",
       "tests": "19 neu / 585 gesamt",
       "braucht_von_01": [
-        "BETRIEB: FAMILY_UPGRADES_ENABLED erst zusammen mit 03s Client-Aenderung einschalten. Variante B senkt die Signature auf den Sockel, und Digit0 bildet heute auf Index -1 ab - signaturePower waere nicht kaufbar, der Spieler verliert Staerke ohne Rueckkaufmoeglichkeit",
-        "Entscheidung: Precision und Control sind bei mir gesperrt (Slot ohne laufende Signature = Punktegrab). Kaufbar machen ist eine Zeile in apps/server/src/index.ts - exakter Vorschlag im Bericht",
-        "Entscheidung: RAPID signatureRate meldet TOT (0.13x-0.05x). In DPS ist der Slot strukturell nicht zu retten - auch -38 % Abbaurate bringen nur 1,9 % Feuerrate fuer acht Punkte (durchgerechnet, verworfen). Drei Wege im Bericht, Empfehlung: so lassen und die Kennzahl anpassen",
-        "Hinweis: IMPACT signaturePower steht mit 1.27x nominell auf DOMINANT - das gilt vor dem Anteilsdeckel, der es in den relevanten Duellen wieder wegnimmt. Zeit bis zum Tod bleibt auf jeder der acht Stufen im erlaubten Viertel (getestet)",
-        "Fuer 03: Digit0 auf Index 9; familienabhaengige Beschriftungen; gesperrte Darstellung ohne Familie. Die zwei Platzhalter-Labels in apps/client/src/ui.ts ersetzen, nicht ergaenzen"
+        "BETRIEB: FAMILY_UPGRADES_ENABLED erst zusammen mit 03s Digit0-Aenderung einschalten",
+        "Entscheidung offen: Precision und Control gesperrt lassen oder freigeben (eine Zeile in index.ts)",
+        "Entscheidung offen: RAPID signatureRate meldet TOT - drei Wege im Bericht"
+      ]
+    },
+    {
+      "nr": 14,
+      "titel": "Projektiltempo 2.0: Daempfer, Levelabfall-Deckel, Boden (Analyse + Code)",
+      "datei": "14-projektiltempo-v2.md",
+      "branch": "claude/chat-02-server-gameplay-w1i4o8",
+      "basis": "main@cd9585f",
+      "status": "offen",
+      "tests": "11 neu / 599 gesamt",
+      "braucht_von_01": [
+        "Entscheidung: Precision verliert die Daempfer-Sonderbehandlung (Lancer -50 %, 84 % besser vorhalten fuer dieselbe Trefferquote). Schaerfster Eingriff des Pakets - ein eigener milderer Precision-Daempfer waere eine Zeile",
+        "Hinweis: Der Reichweitenbonus des Tempo-Upgrades (heute +32 %) faellt weg. Ich halte ihn fuer wertlos (Zielweite 650, Sicht 1100, Core-Kugel 1271) - aber es ist eine Zusatzaenderung",
+        "Der Ausweich-Index haengt an einer angenommenen Reaktionszeit von 0,25 s. 04 koennte sie aus den Client-Metriken belegen",
+        "Nicht messbar gewesen: Trefferquote je Klasse im kontrollierten Duell - der Pruefstand konvergierte nicht (0 vs 1304 Schuesse bei gleicher Konfiguration). Gehoert an 04s Lastprobe mit echten Clients",
+        "Fuer 03: nichts. Die Aenderung ist rein serverseitig"
       ]
     }
   ]

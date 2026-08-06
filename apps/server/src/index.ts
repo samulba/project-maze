@@ -50,6 +50,7 @@ import { MazeGame } from './game.js';
 import { tuneInputAck } from './input-ack.js';
 import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system.js';
 import { tuneProgression } from './progression-tuning.js';
+import { tuneProjectileSpeed } from './projectile-speed.js';
 import { createRateLimiter, messageKindOf, rateLimitsEnabled } from './rate-limits.js';
 import {
   PROFILE_BODY_LIMIT,
@@ -155,6 +156,13 @@ const FAMILY_UPGRADE_BRANCHES: SignatureFamily[] = FAMILY_UPGRADES_ENABLED
  * Rate-Limits und Missbrauchsschutz. Standardmäßig an; `false` schaltet sie
  * vollständig ab (dann verhält sich der Server wie vor dem Modul).
  */
+/**
+ * Projektiltempo 2.0: Daempfer fuer alle Zweige, ein mit dem Level fallender
+ * Deckel und ein Boden, unter den keine Kugel faellt. Dazu ein flacheres
+ * Upgrade und ein Vorhalt-Ausgleich fuer die Bots. Standardmaessig aus – ohne
+ * den Schalter fliegen die Kugeln exakt wie bisher.
+ */
+const PROJECTILE_SPEED_V2 = process.env.PROJECTILE_SPEED_V2 === 'true';
 const RATE_LIMITS_ENABLED = rateLimitsEnabled();
 const allowedOrigins = ALLOWED_ORIGIN === '*'
   ? null
@@ -205,7 +213,13 @@ const encodedGame = tuneSnapshotEncoding(
                                 // kommentarlos verloren.
                                 tuneFamilyUpgrades(
                                   tuneCombatScaling(
-                                    tuneSpectator(hardenSimulation(new MazeGame(BOT_COUNT)), SPECTATOR_ENABLED)
+                                    // Projektiltempo vor allem anderen: Es
+                                    // aendert die Statik, aus der jede weitere
+                                    // Schicht ihre Werte zieht.
+                                    tuneProjectileSpeed(
+                                      tuneSpectator(hardenSimulation(new MazeGame(BOT_COUNT)), SPECTATOR_ENABLED),
+                                      PROJECTILE_SPEED_V2
+                                    )
                                   ),
                                   FAMILY_UPGRADE_BRANCHES
                                 ),
@@ -507,7 +521,7 @@ app.get('/health', (_request: Request, response: Response) => {
     // Jedes Flag, das Spielgefühl verändert, gehört hier hinein: /health ist das
     // Testprotokoll, wenn Sam sagt „geht nicht". Die Signatures fehlten – genau
     // die, deren Wirkung gerade beurteilt werden soll.
-    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES },
+    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2 },
     persistence: persistenceStats(game),
     auth: authStatus(),
     clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),

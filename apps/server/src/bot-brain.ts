@@ -12,6 +12,7 @@ import { tunedStatsFor } from './combat-tuning.js';
 import { MazeGame } from './game.js';
 import { activateModule, cancelRepairFor, equipLoadout } from './loadout-system.js';
 import { distanceSquared, normalize } from './physics.js';
+import { compensatedLeadFactor, projectileSpeedEnabled } from './projectile-speed.js';
 import { hasLineOfSight } from './world.js';
 
 export type BotSkillTier = 'rookie' | 'veteran' | 'elite';
@@ -458,9 +459,16 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
     let aimPoint = { ...target };
     if (enemy && stats.projectileSpeed > 0) {
       const travelTime = distance / Math.max(1, stats.projectileSpeed);
+      // Langsamere Kugeln heißen längere Flugzeit – und der absolute
+      // Vorhaltfehler eines Bots wächst linear mit ihr. Ohne Ausgleich träfen
+      // die Bots nach Projektiltempo 2.0 still schlechter, ohne dass jemand am
+      // Pacing gedreht hätte. Ohne Schalter ist der Ausgleich wirkungslos.
+      const lead = projectileSpeedEnabled()
+        ? compensatedLeadFactor(profile.leadFactor, travelTime)
+        : profile.leadFactor;
       aimPoint = {
-        x: target.x + enemy.velocity.x * travelTime * profile.leadFactor,
-        y: target.y + enemy.velocity.y * travelTime * profile.leadFactor
+        x: target.x + enemy.velocity.x * travelTime * lead,
+        y: target.y + enemy.velocity.y * travelTime * lead
       };
     }
     const aimDelta = { x: aimPoint.x - player.position.x, y: aimPoint.y - player.position.y };
