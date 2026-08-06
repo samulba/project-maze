@@ -1,5 +1,6 @@
 import { type PlayerClass } from '@project-maze/shared';
 import { tunedStatsFor } from './combat-tuning.js';
+import { familyBuildRate, familyUpgradeLevel, rapidReloadBonus } from './family-upgrades.js';
 import { MazeGame } from './game.js';
 import {
   SIGNATURE_MAX,
@@ -70,8 +71,17 @@ export const isRapidClass = (playerClass: PlayerClass): boolean => classBranch(p
  * rechnet damit, damit dort keine zweite Zahlenquelle entsteht.
  */
 export function momentumReloadScale(momentum: number, config: MomentumConfig = DEFAULT_MOMENTUM): number {
+  return reloadScaleWithBonus(momentum, config.maxReloadBonus);
+}
+
+/**
+ * Dieselbe Kurve mit direkt übergebenem Abschlag. Der Tick benutzt sie, weil
+ * der Abschlag mit KL4 am Punktestand des Spielers hängt und dafür sonst je
+ * Tick eine Konfiguration erzeugt werden müsste.
+ */
+export function reloadScaleWithBonus(momentum: number, maxReloadBonus: number): number {
   const clamped = Math.max(0, Math.min(SIGNATURE_MAX, momentum));
-  return 1 - config.maxReloadBonus * (clamped / SIGNATURE_MAX);
+  return 1 - maxReloadBonus * (clamped / SIGNATURE_MAX);
 }
 
 /** Effektive Feuerrate (Schuss/s) einer Nachladezeit bei gegebenem Momentum. */
@@ -90,11 +100,17 @@ interface SignatureInternals {
  * Hängt Momentum an. `enabled = false` lässt die Schicht komplett weg – der
  * Server verhält sich dann exakt wie vorher, und `signature` taucht in keinem
  * Snapshot auf.
+ *
+ * `familyUpgrades = true` (KL4) verschiebt Aufbaurate und Nachladeabschlag in
+ * die Punkte-Ökonomie: Aus dem Festwert wird ein Sockel plus Punkte aus
+ * `signatureRate`/`signaturePower`. Ohne den Schalter bleibt es exakt beim
+ * Festwert aus `config`.
  */
 export function tuneRapidSignature<T extends MazeGame>(
   game: T,
   enabled = false,
-  config: MomentumConfig = DEFAULT_MOMENTUM
+  config: MomentumConfig = DEFAULT_MOMENTUM,
+  familyUpgrades = false
 ): T {
   if (!enabled) return game;
   const internals = game as unknown as SignatureInternals;
@@ -112,7 +128,10 @@ export function tuneRapidSignature<T extends MazeGame>(
     // Der Schuss dieses Ticks nutzt das Momentum, das der Spieler beim Abdrücken
     // hatte – erst danach wird fortgeschrieben.
     if (inFamily && !player.dead && player.cooldown > cooldownBefore) {
-      player.cooldown *= momentumReloadScale(momentum.get(player.id) ?? 0, config);
+      const bonus = familyUpgrades
+        ? rapidReloadBonus(familyUpgradeLevel(player.upgrades, 'signaturePower'))
+        : config.maxReloadBonus;
+      player.cooldown *= reloadScaleWithBonus(momentum.get(player.id) ?? 0, bonus);
     }
 
     // Rate nur berechnen, wenn sie gebraucht wird – `tunedStatsFor` ist für
@@ -120,10 +139,13 @@ export function tuneRapidSignature<T extends MazeGame>(
     let rate = 0;
     if (inFamily && !player.dead) {
       const moving = isMovingFast(player, tunedStatsFor(player).moveSpeed, config.moveThreshold);
+      const build = familyUpgrades
+        ? familyBuildRate(config.buildPerSecond, familyUpgradeLevel(player.upgrades, 'signatureRate'))
+        : config.buildPerSecond;
       rate = !moving
         ? -config.decayPerSecond
         : player.primary
-          ? config.buildPerSecond
+          ? build
           : -config.holdDecayPerSecond;
     }
     advanceSignature(momentum, player, dt, inFamily, rate);

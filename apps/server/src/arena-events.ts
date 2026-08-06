@@ -59,7 +59,11 @@ export const GUARDIAN_UPGRADES: UpgradeLevels = {
   damage: 6,
   projectileSpeed: 0,
   penetration: 0,
-  bodyDamage: 4
+  bodyDamage: 4,
+  // Der Guardian gehört zur Control-Familie, deren Signature noch nicht steht.
+  // Bis dahin wären Punkte hier wirkungslos.
+  signatureRate: 0,
+  signaturePower: 0
 };
 
 const GUARDIAN_AGGRO_RADIUS = 760;

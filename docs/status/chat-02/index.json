@@ -6,8 +6,8 @@
     "apps/client"
   ],
   "aktualisiert": "2026-08-06",
-  "latest": "12-kl4-familien-upgrades-konzept.md",
-  "offene_pakete": 0,
+  "latest": "13-kl4-familien-upgrades-server.md",
+  "offene_pakete": 1,
   "pakete": [
     {
       "nr": 1,
@@ -125,13 +125,24 @@
       "datei": "12-kl4-familien-upgrades-konzept.md",
       "branch": "-",
       "basis": "main@d8568b6",
-      "status": "vorschlag",
+      "status": "umgesetzt in Paket 13",
       "tests": "-",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 13,
+      "titel": "KL4: Familien-Upgrades, Server-Seite (Variante B)",
+      "datei": "13-kl4-familien-upgrades-server.md",
+      "branch": "claude/chat-02-server-gameplay-w1i4o8",
+      "basis": "main@de7546c",
+      "status": "offen",
+      "tests": "19 neu / 585 gesamt",
       "braucht_von_01": [
-        "Entscheidung: Variante B – der Signature-Festwert wandert in die Punkte-Oekonomie (Sockel + Punkte statt Gratis-Festwert). Ohne das gibt es kein Fenster zwischen 'tot' (0.4x) und 'explodiert'",
-        "Shared: zwei familienneutrale IDs signatureRate/signaturePower an UPGRADE_IDS + UpgradeLevels + EMPTY_UPGRADES anhaengen (exakter Vorschlag im Bericht)",
-        "Fuer 03: input.ts muss Digit0 auf Index 9 abbilden (heute -1); zwei familienabhaengige Knopf-Beschriftungen; ohne Familie gesperrt",
-        "Warnung: spendBotPoints dreht endlos, sobald applyUpgrade ablehnen kann (Familiensperre) – Einzeiler im Bericht, liefere ich mit dem KL4-Code oder vorab"
+        "BETRIEB: FAMILY_UPGRADES_ENABLED erst zusammen mit 03s Client-Aenderung einschalten. Variante B senkt die Signature auf den Sockel, und Digit0 bildet heute auf Index -1 ab - signaturePower waere nicht kaufbar, der Spieler verliert Staerke ohne Rueckkaufmoeglichkeit",
+        "Entscheidung: Precision und Control sind bei mir gesperrt (Slot ohne laufende Signature = Punktegrab). Kaufbar machen ist eine Zeile in apps/server/src/index.ts - exakter Vorschlag im Bericht",
+        "Entscheidung: RAPID signatureRate meldet TOT (0.13x-0.05x). In DPS ist der Slot strukturell nicht zu retten - auch -38 % Abbaurate bringen nur 1,9 % Feuerrate fuer acht Punkte (durchgerechnet, verworfen). Drei Wege im Bericht, Empfehlung: so lassen und die Kennzahl anpassen",
+        "Hinweis: IMPACT signaturePower steht mit 1.27x nominell auf DOMINANT - das gilt vor dem Anteilsdeckel, der es in den relevanten Duellen wieder wegnimmt. Zeit bis zum Tod bleibt auf jeder der acht Stufen im erlaubten Viertel (getestet)",
+        "Fuer 03: Digit0 auf Index 9; familienabhaengige Beschriftungen; gesperrte Darstellung ohne Familie. Die zwei Platzhalter-Labels in apps/client/src/ui.ts ersetzen, nicht ergaenzen"
       ]
     }
   ]

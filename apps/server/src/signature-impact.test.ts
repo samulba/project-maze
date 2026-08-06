@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { CLASS_DEFINITIONS, PLAYER_CLASS_IDS, type PlayerClass } from '@project-maze/shared';
+import { CLASS_DEFINITIONS, GAME, PLAYER_CLASS_IDS, type PlayerClass } from '@project-maze/shared';
 import { ROOKIE_PROTECTION_LEVEL } from './bot-brain';
 import { tuneCombatScaling, tunedStatsFor } from './combat-tuning';
+import { tuneFamilyUpgrades } from './family-upgrades';
 import { MazeGame } from './game';
 import { SIGNATURE_MAX } from './signature';
 import {
@@ -26,8 +27,25 @@ interface Internals {
   resolvePlayerCollisions(now: number): void;
 }
 
-const setup = (attackerClass: PlayerClass, victimClass: PlayerClass, level: number, enabled = true) => {
-  const game = tuneImpactSignature(tuneCombatScaling(new MazeGame(0)), enabled);
+/**
+ * `signaturePower` (KL4) schaltet die Familien-Skalierung mit ein: Der Aufschlag
+ * kommt dann aus Sockel + Punkten statt aus dem Festwert. `undefined` heißt
+ * „ohne Familien-Upgrades" – der Stand vor KL4.
+ */
+const setup = (
+  attackerClass: PlayerClass,
+  victimClass: PlayerClass,
+  level: number,
+  enabled = true,
+  signaturePower?: number
+) => {
+  const familyUpgrades = signaturePower !== undefined;
+  const game = tuneImpactSignature(
+    tuneFamilyUpgrades(tuneCombatScaling(new MazeGame(0)), familyUpgrades ? ['impact'] : []),
+    enabled,
+    DEFAULT_WUCHT,
+    familyUpgrades
+  );
   const internals = game as unknown as Internals;
   // Shapes spawnen zufällig – die Läufe „ohne" und „mit" Wucht sind zwei
   // verschiedene Welten. Eine Shape am Messpunkt würde dem Opfer zusätzlichen
@@ -46,6 +64,7 @@ const setup = (attackerClass: PlayerClass, victimClass: PlayerClass, level: numb
     player.maxHealth = tunedStatsFor(player).maxHealth;
     player.health = player.maxHealth;
   }
+  if (signaturePower !== undefined) attacker.upgrades.signaturePower = signaturePower;
   attacker.position = { ...OPEN_GROUND };
   victim.position = { ...FAR_AWAY };
   return { game, internals, attackerId, victimId, attacker, victim };
@@ -191,6 +210,31 @@ describe('impact signature – wucht', () => {
       expect(loaded.victim.dead).toBe(true);
       const gain = 1 - fullSeconds / baseSeconds;
       expect(gain, `${attackerClass} vs ${victimClass}`).toBeLessThanOrEqual(WUCHT_MAX_TTK_GAIN);
+    }
+  });
+
+  it('hält das Viertel auf jeder Stufe von signaturePower', () => {
+    // Der wichtigste Test des KL4-Pakets: Der One-Shot-Deckel muss
+    // upgrade-fest sein. `maxContactShare` ist absolut und wird von keinem
+    // Upgrade angefasst – bewiesen ist das aber erst hier, über alle acht
+    // Stufen und jede Impact-Klasse.
+    for (const attackerClass of IMPACT_CLASSES) {
+      const level = CLASS_DEFINITIONS[attackerClass].unlockLevel;
+      const victimClass = thinnestPeer(attackerClass);
+      const plain = setup(attackerClass, victimClass, level, false);
+      const baseSeconds = ramUntilDead(plain.game, plain.attacker, plain.victim, 100_000);
+      expect(plain.victim.dead).toBe(true);
+
+      for (let power = 0; power <= GAME.maxUpgradeLevel; power += 1) {
+        const loaded = setup(attackerClass, victimClass, level, true, power);
+        const start = charge(loaded.game, loaded.attacker, loaded.victim);
+        expect(wuchtFor(loaded.game, loaded.attackerId)).toBe(SIGNATURE_MAX);
+        const fullSeconds = ramUntilDead(loaded.game, loaded.attacker, loaded.victim, start);
+        expect(loaded.victim.dead).toBe(true);
+        const gain = 1 - fullSeconds / baseSeconds;
+        expect(gain, `${attackerClass} vs ${victimClass} @ signaturePower ${power}`)
+          .toBeLessThanOrEqual(WUCHT_MAX_TTK_GAIN);
+      }
     }
   });
 

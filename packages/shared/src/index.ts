@@ -33,6 +33,8 @@ export const PLAYER_CLASS_IDS = [
 export type PlayerClass = (typeof PLAYER_CLASS_IDS)[number];
 
 export const UPGRADE_IDS = [
+  // Die acht Basiswerte behalten Reihenfolge und Index: Die Delta-Signatur des
+  // Snapshots, der Hydrator im Client und die Tastenbelegung 1–8 hängen daran.
   'maxHealth',
   'regen',
   'moveSpeed',
@@ -40,7 +42,19 @@ export const UPGRADE_IDS = [
   'damage',
   'projectileSpeed',
   'penetration',
-  'bodyDamage'
+  'bodyDamage',
+  /**
+   * Familien-Slots (Klassen 3.0/KL4). Wie `PlayerSnapshot.signature` ergibt
+   * sich die Bedeutung aus der Familie des Spielers:
+   *   RAPID     signatureRate = Momentum-Aufbau   · signaturePower = Nachladeabschlag
+   *   IMPACT    signatureRate = Anlauf-Tempo      · signaturePower = Wucht-Skalierung
+   *   PRECISION signatureRate = Ladetempo         · signaturePower = Ladebonus
+   *   CONTROL   signatureRate = Budget-Nachschub  · signaturePower = Einheitenstärke
+   * Ohne Familie (Core) sind beide gesperrt. Der Server entscheidet über
+   * `FAMILY_UPGRADES_ENABLED`, ob und für welche Familien sie kaufbar sind.
+   */
+  'signatureRate',
+  'signaturePower'
 ] as const;
 
 export type UpgradeId = (typeof UPGRADE_IDS)[number];
@@ -67,6 +81,8 @@ export interface UpgradeLevels {
   projectileSpeed: number;
   penetration: number;
   bodyDamage: number;
+  signatureRate: number;
+  signaturePower: number;
 }
 
 export interface ClassDefinition {
@@ -357,7 +373,7 @@ export const GAME = {
   projectileStepDistance: 10
 } as const;
 
-export const EMPTY_UPGRADES = (): UpgradeLevels => ({ maxHealth:0, regen:0, moveSpeed:0, reload:0, damage:0, projectileSpeed:0, penetration:0, bodyDamage:0 });
+export const EMPTY_UPGRADES = (): UpgradeLevels => ({ maxHealth:0, regen:0, moveSpeed:0, reload:0, damage:0, projectileSpeed:0, penetration:0, bodyDamage:0, signatureRate:0, signaturePower:0 });
 export const sanitizePlayerName = (value:string):string => value.normalize('NFKC').replace(/[<>\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 18);
 export const xpThresholdForLevel = (level:number):number => { const clamped = Math.max(1, Math.min(GAME.maxLevel, Math.floor(level))); return Math.floor(58 * clamped + 15 * clamped * clamped + 0.55 * clamped * clamped * clamped); };
 export const xpAtLevelStart = (level:number):number => level <= 1 ? 0 : xpThresholdForLevel(level - 1);
