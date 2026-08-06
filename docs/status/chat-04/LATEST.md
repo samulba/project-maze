@@ -1,153 +1,124 @@
-# 16 – Die Seite lud dreimal zu viele Bytes
+# 17 – Drei ENV-Warnungen, die vor erfüllten Voraussetzungen warnten
 
 | | |
 | --- | --- |
-| **Auftrag** | keiner – Reaktion auf Sams Befund „ich merke einfach viel zu wenig davon" |
+| **Auftrag** | keiner – kleines Aufräumen, ausgelöst durch 01s Dash-Befund |
 | **Branch** | `claude/chat-04-infra-betrieb-ihx0xz` |
-| **Basis** | `origin/main` (`999d66e`) |
-| **Tests** | `npm run check` grün – 54 Dateien, 745 Tests (14 neu) |
+| **Basis** | `origin/main` (`4b28dd2`) |
+| **Tests** | `npm run check` grün – 56 Dateien, 763 Tests |
 | **Status** | **offen – wartet auf Review und Merge** |
 
-## Warum dieses Paket
+**Das ist ein sehr kleines Paket.** Warum es trotzdem eins gibt, steht am Ende.
 
-01s Kurswechsel benennt das Problem, und er benennt dabei mein Revier:
+## Auslöser
 
-> Die letzten Runden gingen an Prüfstände, Balance-Läufe, Telemetrie und
-> Deploy-Wachen – alles richtig, nichts davon sichtbar.
+01 zum Dash, beim Merge von Runde 9:
 
-Das stimmt, und die letzten fünf Pakete von mir waren genau das. Also habe ich
-**keine weitere Telemetrie gebaut**, sondern die einzige Sache in meinem Revier
-gesucht, die Sam unmittelbar merkt: wie schnell die Seite lädt.
+> `DASH_TRAVEL_ENABLED` habe ich auf Opt-out gestellt. Ein Fix hinter einem
+> Schalter, den jemand erst setzen muss, wäre der dritte Anlauf desselben
+> Fehlers gewesen.
 
-Und da lag etwas.
+Das ist ein Muster, und Muster kann man suchen. Also habe ich alle
+Feature-Schalter danach durchgesehen: **Welche fertige Arbeit liegt hinter
+einem Schalter, den niemand setzt?**
 
-## Der Befund
+## Was die Suche ergeben hat – und was nicht
 
-`express.static` komprimiert nicht. Der Browser fragt bei jedem Abruf nach
-`Accept-Encoding: gzip, deflate, br` – der Server hat die Frage ignoriert und
-das volle Bundle geschickt:
+**Der erste Verdacht war falsch, und ich habe ihn nicht gemeldet.** Vier
+Schalter stehen im Code auf Opt-in, darunter zwei sichtbare Features
+(`ACHIEVEMENTS_ENABLED`, `SPECTATOR_ENABLED`). Das sah nach genau dem Muster
+aus. Ein Blick in `docs/status/chat-01/LATEST.md` hat es entkräftet: Unter
+**„Flags live (Railway)"** stehen sie alle bereits als gesetzt. Live ist alles
+an; es gibt kein verstecktes Feature.
+
+Zwei weitere Kandidaten – eine fehlende `PROJECTILE_SPEED_V2`-Zeile und ein
+undokumentiertes `DASH_TRAVEL_ENABLED` – waren echt, aber **02 hatte beide
+schon behoben**, während ich suchte. Mein Branch stand noch auf dem Stand
+davor.
+
+Übrig bleibt eine kleine, echte Sache.
+
+## Was tatsächlich veraltet war
+
+Drei ENV-Beschreibungen warnen vor einer Voraussetzung, die längst erfüllt ist:
+
+| Schalter | Text | Wirklichkeit |
+| --- | --- | --- |
+| `SNAPSHOT_DELTAS` | „Bis der ausgeliefert ist: false lassen" | `snapshot-hydrator.ts` puffert seit Langem |
+| `SHORT_NET_IDS` | „Bis dahin: false lassen" | `normalizeNetIds` ist ausgeliefert |
+| `SPECTATOR_ENABLED` | „bis dahin: false lassen" | `spectator.ts` + Renderer sind da |
+
+Wer die Datei liest, um eine neue Umgebung aufzusetzen, lässt diese drei
+Schalter aus – und bekommt eine Instanz **ohne** Zuschauen und mit rund 50 %
+mehr Snapshot-Bytes. Nicht kaputt, nur schlechter, und niemand merkt es. Das
+ist dasselbe Muster wie beim Dash, nur eine Stufe subtiler: nicht „der Schalter
+ist aus", sondern „die Doku sagt, er müsse aus bleiben".
+
+## Belegt statt behauptet
+
+Ich habe die Voraussetzung nicht aus dem Quelltext geschlossen, sondern
+nachgesehen: Chromium über Playwright, gebauter Client, Server mit **allen
+vier** Schaltern an.
 
 ```
-GET /assets/index-*.js
-  Accept-Encoding: gzip, deflate, br
-  → 200, Content-Length: 643983      (kein Content-Encoding)
+[15s] Level 2   [36s] Level 3   [53s] Level 5   [70s] Level 7
 ```
 
-**Über die Leitung gingen 926 KB, nötig wären 218 KB.** Das ist der Unterschied
-zwischen „ist sofort da" und „lädt spürbar" – und er trifft ausgerechnet den
-ersten Eindruck, jedes Mal aufs Neue, am stärksten auf Mobilfunk.
+**Das Level ist der Beweis.** Wer seine eigene ID nicht im Snapshot findet – die
+Falle bei `SHORT_NET_IDS` – bleibt sichtbar auf Level 1, ohne dass irgendetwas
+fehlschlägt. Genau so sah der blinde Lasttest aus. Der ausgelieferte Client
+levelt normal, verarbeitet Deltas und kurze IDs.
 
-Dass es niemandem auffiel, hat einen Grund: **`apps/client/nginx.conf` hat
-`gzip on`.** Der Compose-Pfad war also immer in Ordnung. Nur läuft
-www.mazers.de nicht über nginx, sondern über den Node-Server im
-Single-Service-Betrieb – und dort gab es die Schicht nicht. Zwei Betriebsarten,
-eine davon seit jeher unkomprimiert.
+**Ehrlich zum Testskript:** Es hat einen „JS-Fehler" gemeldet, der keiner war –
+ein `404` auf eine Ressource, das ich pauschal als `console.error` mitgezählt
+habe. Alle in `index.html` referenzierten Dateien liefern `200`; es war kein
+Skriptfehler. Die Prüfung war zu grob, das Ergebnis trotzdem eindeutig.
 
-## Was gebaut wurde
+## Geändert
 
-| | über die Leitung |
-| --- | --- |
-| vorher | **926 KB** |
-| gzip | 261 KB |
-| brotli | **218 KB** (−76 %) |
+`.env.example` und `docs/DEPLOYMENT.md`: Die drei Warnungen sagen jetzt, dass
+die Voraussetzung erfüllt ist und der Schalter in Railway an ist. **Die
+Standardwerte selbst habe ich nicht angefasst** – siehe unten.
 
-Gemessen am größten Einzelbrocken: `643 983` → `157 427` Bytes.
-
-**`scripts/precompress.mjs`** legt beim Build neben jede Textdatei eine `.br`-
-und eine `.gz`-Fassung. Ohne neue Abhängigkeit – `zlib` steckt in Node.
-
-**`apps/server/src/static-assets.ts`** liefert sie aus, wenn der Browser sie
-akzeptiert, und fällt sonst still auf das Original zurück.
-
-## Die eine Entscheidung, die hier zählt
-
-**Komprimiert wird beim Build, nicht zur Laufzeit.** Die naheliegende Lösung
-wäre die `compression`-Middleware gewesen – drei Zeilen statt zweier Dateien.
-Sie ist hier trotzdem die falsche:
-
-Dieser Prozess ist ein **Spielserver mit 40 Hz Tick**, und der Tick-Abstand
-liegt schon heute bei 26–28 ms über dem 25-ms-Soll. Ein 630-KB-Bundle zur
-Laufzeit zu gzippen kostet 15 bis 25 ms CPU – **einen ganzen Tick, jedes Mal,
-wenn jemand die Seite lädt.** Ein einzelner Seitenaufruf hätte für alle in der
-Arena einen Ruckler erzeugt. Ausgerechnet beim Betreten des Spiels.
-
-Vorkomprimiert kostet die Auslieferung **nichts** und komprimiert obendrein
-stärker, weil die Rechenzeit beim Build keine Rolle spielt (Brotli auf Stufe 11
-statt der Laufzeit-Voreinstellung).
-
-## Vier Dinge, die leicht schiefgehen
-
-**1. Der Content-Type darf nicht von der Endung kommen.** Wer
-`app.js.br` ausliefert und den Typ aus dem Dateinamen ableitet, schickt
-`application/brotli` – und der Browser weigert sich, das als Skript
-auszuführen. Der Typ kommt deshalb aus der **Originalendung**.
-
-**2. `Vary: Accept-Encoding` gehört auf jede Antwort**, auch auf die
-unkomprimierte. Ohne den Header liefert ein Proxy die Brotli-Antwort an einen
-Client aus, der sie nicht lesen kann. Ist als Test hinterlegt.
-
-**3. Kein Verzeichniswechsel nach oben.** Der angefragte Pfad wird aufgelöst
-und danach geprüft, dass das Ergebnis wirklich unterhalb des Client-Ordners
-liegt. `/../../etc/passwd.js` läuft ins Leere – ebenfalls getestet.
-
-**4. Ein vergessener Build-Schritt macht die Seite langsamer, nie kaputt.**
-Fehlt die `.br`-Datei, geht das Original raus wie vorher.
-
-## Verifiziert
-
-Gegen einen laufenden Server, alle vier Fälle:
-
-| Anfrage | Ergebnis |
-| --- | --- |
-| `Accept-Encoding: gzip, deflate, br` | `br`, 157 427 Bytes, `Content-Type: text/javascript` |
-| `Accept-Encoding: gzip` | `gzip`, 190 101 Bytes |
-| ohne `Accept-Encoding` | Original, 643 983 Bytes, `Vary` gesetzt |
-| Inhalt dekomprimiert | identisch mit dem Original |
-
-Dazu **14 neue Tests**, darunter die vier Fallen oben und die Fälle, in denen
-gar nichts komprimiert ausgeliefert werden darf.
-
-## Grenzen
-
-- **`index.html` selbst wird nicht vorkomprimiert ausgeliefert.** Sie geht über
-  den SPA-Fallback, nicht über diese Schicht. Bei 1 749 Bytes wäre der Gewinn
-  rund 800 Bytes – das ist die Komplexität nicht wert, und den Fallback dafür
-  anzufassen wäre Routing-Risiko für nichts.
-- **Der Compose-Pfad ist unberührt.** Dort komprimiert nginx weiterhin selbst.
-- Bilder und Schriften bleiben außen vor – die sind bereits komprimiert.
-
-## Bewusste Abweichungen
-
-**Dieses Paket war nicht beauftragt**, und es ist bewusst *kein*
-Telemetrie-Paket. Nach 01s Kurswechsel wäre noch eine Messschicht das Gegenteil
-dessen, was gerade gebraucht wird. Wenn 01 die Reihenfolge anders sieht: Das
-Paket ist in sich abgeschlossen und blockiert nichts.
-
-**Ich habe die Trefferquote-Telemetrie weiterhin nicht angefangen** (offen aus
-Bericht 13). Sie wäre der nächste Schritt für eine Zahl beim Projektiltempo –
-und genau die Sorte unsichtbare Arbeit, die gerade zurückstehen soll.
+Bei `SHORT_NET_IDS` bleibt eine Warnung stehen, nur an der richtigen Adresse:
+Wer ein **eigenes Werkzeug** gegen den Server baut, muss die ID weiterhin aus
+`snapshot.selfId` nehmen. Das ist die Falle, die den Lasttest sechs Läufe lang
+blind gemacht hat, und sie gilt unverändert.
 
 ## Von 01 gebraucht
 
-1. **Merge.** Danach ist die Seite beim nächsten Deploy dreimal schneller
-   geladen – ohne dass jemand etwas umstellen muss.
-2. **Zum Nachprüfen nach dem Deploy**, ein Befehl:
-   ```bash
-   curl -sI -H 'Accept-Encoding: br' https://www.mazers.de/assets/<datei>.js \
-     | grep -i 'content-encoding\|content-length'
-   ```
-   Steht dort kein `Content-Encoding`, lief der Build ohne `precompress`.
-3. **Falls Railway einen eigenen Build-Befehl gesetzt hat** (`npm ci && npm run
-   build` laut `DEPLOY.md`), greift der Schritt automatisch – er hängt an
-   `npm run build`. Sollte dort etwas anderes stehen, muss `npm run precompress`
-   ergänzt werden.
+**Eine Entscheidung, die ich nicht allein treffe:** Sollen die drei Schalter im
+Code auf **Opt-out** wandern, so wie du es beim Dash gemacht hast?
+
+- **Dafür:** Genau dein Argument. Heute hängen sie daran, dass jemand in einer
+  Umgebung Variablen setzt. Eine frische Umgebung – oder ein Umzug – startet
+  ohne Zuschauen und mit 50 % mehr Bytes, ohne Warnung.
+- **Dagegen:** `ACHIEVEMENTS_ENABLED` und `SPECTATOR_ENABLED` verändern
+  sichtbares Spielverhalten. Das ist deine Entscheidung, nicht meine.
+- **Mein Vorschlag:** `SNAPSHOT_DELTAS` und `SHORT_NET_IDS` auf Opt-out – sie
+  sind reine Bandbreite, mein Revier, und der Client kann sie nachweislich. Die
+  beiden sichtbaren lasse ich bei dir.
+
+Sag Bescheid, dann ist das ein Zweizeiler.
+
+## Warum es dieses Paket überhaupt gibt
+
+Dein Kurswechsel sagt, mein Revier habe zu viel Unsichtbares produziert. Das
+stimmt, und deshalb ist das hier **kein neues Werkzeug und keine neue
+Messschicht** – sondern ein Aufräumen, das verhindert, dass fertige Arbeit
+anderer stumm ausgeschaltet bleibt.
+
+**Für die nächste Runde habe ich in meinem Revier nichts Sichtbares mehr
+gefunden.** Die Ladezeit ist erledigt (Bericht 16), die Deploy-Wache läuft, die
+Migrationen sind eingespielt, die Perf-Kette trägt. Wenn du nichts anderes
+zuweist, warte ich – lieber das, als weiter Unsichtbares zu bauen.
+
+Weiterhin offen und weiterhin nicht ungefragt begonnen: die Trefferquote als
+Telemetrie (Bericht 13).
 
 ## Für Sam
 
-Das ist eines der wenigen Dinge aus meinem Revier, die du direkt merken
-solltest: **Die Seite sollte nach dem nächsten Deploy spürbar schneller
-aufgehen**, besonders beim ersten Besuch und auf dem Handy. Statt 926 KB gehen
-218 KB über die Leitung.
-
-Wenn sich nichts ändert, sag Bescheid – dann ist der Build-Schritt bei Railway
-nicht mitgelaufen, und das steht oben unter Punkt 2 zum Nachprüfen.
+Nichts zu tun. Falls du irgendwann eine **neue** Umgebung aufsetzt (Umzug,
+zweite Instanz): Die drei Schalter oben gehören auf `true`, sonst fehlt das
+Zuschauen nach dem Tod und es gehen rund 50 % mehr Daten über die Leitung. In
+der jetzigen Railway-Umgebung sind sie gesetzt.

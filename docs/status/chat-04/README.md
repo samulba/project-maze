@@ -25,7 +25,7 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 | # | Paket | Branch | Commit | Tests | Status |
 | --- | --- | --- | --- | --- | --- |
-| [17](./17-env-doku-entstaubt.md) | Drei ENV-Warnungen entstaubt, die vor erfüllten Voraussetzungen warnten | `claude/chat-04-infra-betrieb-ihx0xz` | `PLATZ17` | 763 ✔ | **offen** |
+| [17](./17-env-doku-entstaubt.md) | Drei ENV-Warnungen entstaubt, die vor erfüllten Voraussetzungen warnten | `claude/chat-04-infra-betrieb-ihx0xz` | `262221f` | 763 ✔ | **offen** |
 | [16](./16-ladezeit-vorkomprimiert.md) | Client vorkomprimiert ausliefern – 926 KB → 218 KB über die Leitung | `claude/chat-04-infra-betrieb-ihx0xz` | `a99a07f` | 745 ✔ | **offen** |
 | [15](./15-r5-perf-kette-und-auswertung.md) | R5: Perf-Kette end-to-end belegt, `npm run perf:live`, `client` im JSON-Export | `claude/chat-04-infra-betrieb-ihx0xz` | `77aff36` | 731 ✔ | **offen** |
 | [14](./14-startlevel-fuer-familienbilanzen.md) | `--start-level` im Lasttest – Zulieferung für 02s Familienbilanzen | `claude/chat-04-infra-betrieb-ihx0xz` | `d67ea43` | 713 ✔ | **offen** |
