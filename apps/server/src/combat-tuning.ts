@@ -20,6 +20,7 @@ import {
 } from '@project-maze/shared/gameplay';
 import { MazeGame } from './game.js';
 import { moveVectorToward } from './physics.js';
+import { projectileFlightFor } from './projectile-speed.js';
 import { moveCircle } from './world.js';
 
 interface TunedStats {
@@ -86,14 +87,24 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
   const base = CLASS_DEFINITIONS[player.playerClass];
   const modifier = PASSIVE_MODIFIER_DEFINITIONS[player.passiveModifier ?? 'standard'];
   const speedScale = projectileSpeedScaleFor(base.branch);
+  // Projektiltempo 2.0 hängt am Level und rechnet mit Deckel und Boden; ohne
+  // Schalter kommen exakt die beiden Werte zurück, die hier hereingereicht
+  // werden. Der Modifikator des Rahmens greift in beiden Fällen danach.
+  const flight = projectileFlightFor(
+    base,
+    player.level ?? 1,
+    player.upgrades,
+    base.projectileSpeed * speedScale * (1 + player.upgrades.projectileSpeed * 0.04),
+    base.projectileLife / speedScale
+  );
   return {
     maxHealth: Math.round(base.maxHealth * (1 + player.upgrades.maxHealth * 0.09) * modifier.healthMultiplier),
     regen: base.regen + player.upgrades.regen * 0.5,
     acceleration: base.acceleration * ACCELERATION_SCALE * (1 + player.upgrades.moveSpeed * 0.018) * modifier.moveMultiplier,
     moveSpeed: base.moveSpeed * (1 + player.upgrades.moveSpeed * 0.03) * modifier.moveMultiplier,
     reload: Math.max(0.09, base.reload * modifier.reloadMultiplier * Math.pow(0.95, player.upgrades.reload)),
-    projectileSpeed: base.projectileSpeed * speedScale * (1 + player.upgrades.projectileSpeed * 0.04) * modifier.projectileSpeedMultiplier,
-    projectileLife: base.projectileLife / speedScale,
+    projectileSpeed: flight.speed * modifier.projectileSpeedMultiplier,
+    projectileLife: flight.life,
     damage: base.damage * (1 + player.upgrades.damage * 0.07),
     projectileRadius: base.projectileRadius,
     penetration: base.penetration * (1 + player.upgrades.penetration * 0.085),

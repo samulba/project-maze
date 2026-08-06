@@ -7,6 +7,12 @@ import {
   impactBodyDamageBonus,
   rapidReloadBonus
 } from '../apps/server/dist/family-upgrades.js';
+import {
+  PROJECTILE_SPEED_PER_POINT,
+  fastestPlayerSpeed,
+  projectileSpeedCapAt,
+  projectileSpeedFor
+} from '../apps/server/dist/projectile-speed.js';
 // Die Momentum-Zahlen kommen aus der Server-Schicht, nicht aus einer zweiten
 // Konstantenquelle – sonst balanciert der Report an Werten, die im Spiel nicht
 // gelten. Deshalb baut `prebalance` auch den Server.
@@ -223,6 +229,57 @@ console.log('• RAPID signatureRate misst sich an einer Ausgabe, die es nur hal
 console.log('  Schneller volles Momentum hebt die Decke nicht, es kommt nur frueher dort an.');
 console.log('  In DPS gerechnet ist der Slot damit tot; sein Wert liegt im Wiedereinstieg');
 console.log('  nach Respawn und Deckung, den diese Kennzahl nicht sieht.');
+
+// ── Projektiltempo 2.0 (PROJECTILE_SPEED_V2) ─────────────────────────────────
+// AUSWEICH-INDEX: Wie weit kommt ein ausweichendes Ziel seitlich, waehrend die
+// Kugel fliegt – gemessen in Trefferbreiten. Unter 1 ist nicht ausweichbar.
+const REACTION_SECONDS = 0.25;
+const evasiveTarget = (() => {
+  const upgrades = EMPTY_UPGRADES();
+  upgrades.moveSpeed = GAME.maxUpgradeLevel;
+  return tunedStatsFor({ playerClass: 'rapid', upgrades });
+})();
+const sidestep = (seconds) => {
+  if (seconds <= 0) return 0;
+  const ramp = evasiveTarget.moveSpeed / evasiveTarget.acceleration;
+  return seconds <= ramp
+    ? 0.5 * evasiveTarget.acceleration * seconds * seconds
+    : 0.5 * evasiveTarget.moveSpeed * ramp + evasiveTarget.moveSpeed * (seconds - ramp);
+};
+const dodgeIndex = (definition, speed, distance) =>
+  sidestep(distance / speed - REACTION_SECONDS) / (GAME.playerRadius + definition.projectileRadius);
+const legacyProjectileSpeed = (definition, points) =>
+  definition.projectileSpeed * (definition.branch === 'precision' ? 0.9 : 0.75) * (1 + points * 0.04);
+
+console.log('\nPROJEKTILTEMPO 2.0 — AUSWEICHBARKEIT (PROJECTILE_SPEED_V2)\n');
+console.log(`Voll ausgebautes Tempo-Upgrade, Level ${GAME.maxLevel}. Ausweich-Index = seitliche Strecke eines`);
+console.log(`ausweichenden Ziels waehrend der Flugzeit, in Trefferbreiten, nach ${REACTION_SECONDS}s Reaktion.`);
+console.log(`Unter 1.0 ist die Kugel nicht ausweichbar. Bezug: schnellster Spieler ${fastestPlayerSpeed.toFixed(0)} px/s,`);
+console.log(`Deckel ${projectileSpeedCapAt(1).toFixed(0)} px/s auf Level 1 → ${projectileSpeedCapAt(GAME.maxLevel).toFixed(0)} px/s auf Level ${GAME.maxLevel}.\n`);
+console.log('KLASSE        ZWEIG        HEUTE     NEU   AEND    V/SPIELER      IDX@300      IDX@450');
+console.log('─'.repeat(92));
+for (const entry of rows) {
+  const definition = CLASS_DEFINITIONS[entry.id];
+  if (definition.projectileSpeed <= 0) continue;
+  const before = legacyProjectileSpeed(definition, GAME.maxUpgradeLevel);
+  const after = projectileSpeedFor(definition, GAME.maxLevel, GAME.maxUpgradeLevel);
+  console.log([
+    definition.label.padEnd(13, ' '),
+    definition.branch.padEnd(11, ' '),
+    before.toFixed(0).padStart(7, ' '),
+    after.toFixed(0).padStart(8, ' '),
+    `${((after / before - 1) * 100).toFixed(0)}%`.padStart(7, ' '),
+    `${(before / fastestPlayerSpeed).toFixed(2)}→${(after / fastestPlayerSpeed).toFixed(2)}x`.padStart(13, ' '),
+    `${dodgeIndex(definition, before, 300).toFixed(2)}→${dodgeIndex(definition, after, 300).toFixed(2)}`.padStart(13, ' '),
+    `${dodgeIndex(definition, before, 450).toFixed(2)}→${dodgeIndex(definition, after, 450).toFixed(2)}`.padStart(13, ' ')
+  ].join(' '));
+}
+console.log('\nDrei Regeln, drei Aufgaben: Daempfer gegen „overall zu schnell", ein mit dem Level');
+console.log('fallender Deckel gegen „je staerker der Gegner, desto unfairer", und ein Boden, unter');
+console.log('den keine Kugel faellt – ein Fortress-Projektil liegt schon heute bei 1.01x Spielertempo');
+console.log('und holt ein fliehendes Ziel kaum ein. Klassen unter dem Boden bleiben unveraendert.');
+console.log(`Das Upgrade steigt um ${(PROJECTILE_SPEED_PER_POINT * 100).toFixed(1)} % je Punkt statt um 4 % und rechnet nach dem Deckel –`);
+console.log('vor ihm waere es fuer jede Precision-Klasse wirkungslos. Die Reichweite bleibt konstant.');
 
 console.log('\nCORE MODULES\n');
 console.log('MODULE             ROLE        COOLDOWN   ACTIVE');
