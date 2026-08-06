@@ -1,265 +1,153 @@
-# 13 – Deploy-Wache scharf gemacht, Projektiltempo gemessen
+# 14 – `--start-level`: die Zulieferung, um die 02 gebeten hat
 
 | | |
 | --- | --- |
-| **Auftrag** | `docs/status/chat-01/auftrag-chat-04.md` (4. Fassung, 2026-08-06) |
+| **Auftrag** | keiner – Zulieferung auf 02s Bitte aus Bericht 17, Abschnitt 5 |
 | **Branch** | `claude/chat-04-infra-betrieb-ihx0xz` |
-| **Basis** | `origin/main` (`7ecbc90`) |
-| **Tests** | `npm run check` grün – 52 Dateien, 707 Tests |
+| **Basis** | `origin/main` (`f4aaa5c`) |
+| **Tests** | `npm run check` grün – 52 Dateien, 713 Tests (6 neu) |
 | **Status** | **offen – wartet auf Review und Merge** |
 
----
+## Worum es geht
 
-# TEIL 1: Die Deploy-Wache unterscheidet jetzt drei Fälle
+02 hat in Bericht 17 dieselbe Wand getroffen wie ich – zu wenig abgeschlossene
+Leben je Familie, um K/D von Rauschen zu trennen – und die Ursache genauer
+benannt als ich:
 
-Umgesetzt wie beauftragt. Die Wache wertet `uptimeSeconds` aus und trennt
-damit zwei Befunde, die sich dasselbe Symptom teilen:
+> Der Grund ist nicht der Seed, sondern die Levelkurve: In 90 Sekunden kommen
+> die Clients kaum aus Core heraus, und Core sammelt dann 50 der 74 Tode.
 
-| Befund | Ergebnis | Bedeutung |
+Dazu die Bitte, die ausdrücklich in mein Revier zeigt: Clients, die auf einem
+Level starten, „würde die nötige Laufzeit vermutlich halbieren".
+
+Gebaut. `--start-level <n>` hebt die Lasttest-Clients über die Debug-Route auf
+ein Level, auf dem die Familienklassen offenstehen.
+
+## Was es bringt
+
+Gemessen im selben 60-Sekunden-Fenster, 20 Clients, gleicher Seed:
+
+| | Klassenwahlen | Upgrades |
 | --- | --- | --- |
-| `commit` stimmt | **grün** | Der Stand ist live. |
-| `commit` stimmt nicht, Prozess frisch hochgekommen | **grün + Warnung** | Der Deploy **ist** angekommen, die Anzeige lügt. |
-| `commit` stimmt nicht, Prozess läuft seit Stunden | **rot** | Jetzt ist es wirklich ein Deploy-Stopp. |
+| ohne `--start-level` | **8** | 232 |
+| `--start-level 30` | **70** | 594 |
 
-„Frisch hochgekommen" wird an drei Signalen erkannt, nach Verlässlichkeit
-geordnet:
+**Faktor 8,75 bei den Klassenwahlen.** Die Clients verbringen ihre Zeit nicht
+mehr damit, aus Core herauszuwachsen. 02s Vermutung, das halbiere die nötige
+Laufzeit, ist damit eher konservativ.
 
-1. **Die Laufzeit ist zwischen zwei Abgriffen zurückgesprungen** – dann gab es
-   sicher einen Neustart.
-2. **`deploymentId` hat gewechselt** – 01s Feld, genau dafür gebaut.
-3. `uptimeSeconds` liegt unter `FRESH_UPTIME_SECONDS` (Standard 900 s) – dann
-   kann der Prozess nicht schon vor dem Push gelaufen sein.
+## Drei Entscheidungen, die der Bitte nicht anzusehen waren
 
-Der mittlere Fall bleibt bewusst **grün** und meldet sich als
-GitHub-Warnung. Die Begründung steht im Auftrag und ich teile sie: Eine Wache,
-die dauerhaft rot steht, wird nach drei Tagen ignoriert – und meldet dann auch
-den echten Stillstand nicht mehr.
+**1. Das Level wird nachgesetzt, nicht nur einmal gesetzt.**
 
-Zwei Fälle bleiben rot: der Timeout mit altem Stand, und ein `/health` ohne
-Commit-Angabe. Ohne die kann die Wache nichts beweisen, und eine Wache, die im
-Zweifel grün meldet, ist schlimmer als keine.
+Ein Tod kostet die Hälfte des Levels – `respawnLevelFrom` ist
+`Math.max(1, Math.floor(level * 0.5))`. Bei vier bis zehn Leben je Lauf wäre
+ein einmalig gesetztes Level 30 nach vier Toden wieder bei 1:
 
-Die Laufzeit steht ab jetzt lesbar in jeder Zeile – „läuft seit 3.1 Tagen"
-statt „271844 s".
+```
+30 → 15 → 7 → 3 → 1
+```
 
-## Beim Testen gefunden: eine stille Falle in meinem eigenen Code
+**Ein reines „beim Start setzen" wäre für alles außer sehr kurzen Läufen
+wirkungslos gewesen** – und zwar unauffällig wirkungslos, weil der Anfang des
+Laufs gut ausgesehen hätte. Deshalb setzt der Client nach, sobald sein Level
+unter das Ziel fällt.
 
-Der Commit-Vergleich war **exakt**. `/health` kürzt heute selbst auf sieben
-Zeichen, also ging das gut. Wer diesen Schnitt dort einmal entfernt, hätte die
-Wache lautlos lahmgelegt: Sie wäre gegen einen vollen SHA gelaufen und nie
-wieder grün geworden – ohne dass jemand den Grund gesehen hätte, weil die
-Meldung ja „Stand nicht angekommen" gelautet hätte. Jetzt werden beide Seiten
-gekürzt, bevor verglichen wird. Aufgefallen ist es nur, weil ein Testserver den
-vollen Hash lieferte.
+**Das hebelt die Sterbe-Ökonomie aus, und das ist Absicht.** Gemessen werden
+soll die Familienbilanz auf festem Level, nicht der Aufstieg dorthin. Für
+Kapazitätsmessungen gehört die Option deshalb **aus** – sie verändert auch die
+Entitätenzahl, weil höhere Level mehr Drohnen bedeuten.
+
+**2. `core` mit Preset `blank`, nicht eine feste Klasse.**
+
+Die Debug-Route verlangt eine Klasse. Hätte ich eine Familienklasse gesetzt,
+wäre die Familienverteilung von mir vorgegeben statt gemessen. Mit `core` und
+leerem Preset steht nur das Level; die Klassenwahl läuft danach über denselben
+Weg wie sonst, und die Punkte bleiben unverteilt, damit die Clients sie wie
+gewohnt selbst ausgeben.
+
+**3. Nach fünf erfolglosen Versuchen gibt der Client auf.**
+
+Das kam aus dem Test. Mit `ENABLE_DEV_TOOLS=false` verwirft der Server die
+Nachricht stillschweigend, das Level bleibt unter dem Ziel – und mein erster
+Entwurf schickte daraufhin **jede Sekunde je Client** eine neue Anforderung:
+**1158 Nachrichten in einem 60-Sekunden-Lauf mit 20 Clients.**
+
+Ein wirkungsloses `--start-level` hätte also ausgerechnet die Last verzerrt,
+die der Lauf messen soll. Jetzt sind es höchstens fünf Versuche je Client
+(gemessen: 100 statt 1158), und der Bericht sagt, wie viele aufgegeben haben.
+
+## Damit es nicht die nächste stille Falle wird
+
+Die Option ist wirkungslos, wenn `ENABLE_DEV_TOOLS` am Server aus ist – und das
+**muss** in Produktion so bleiben. Ein stillschweigend wirkungsloses Werkzeug
+ist genau das Muster, das uns hier schon zweimal Zeit gekostet hat (der blinde
+Lasttest, das gecachte `/health`). Deshalb weist der Bericht es aus:
+
+```
+Startlevel 30          20/20 Clients erreicht, 33x gesetzt, hoechstes 33
+Startlevel 30           0/20 Clients erreicht, 100x gesetzt, hoechstes 11  <<< NIE ERREICHT - ENABLE_DEV_TOOLS am Server aus? >>>
+```
+
+Im JSON steht derselbe Block unter `startLevel` mit `requested`, `sent`,
+`reached`, `gaveUp`, `ofClients` und `maxLevelSeen`. **Wer eine Familienbilanz
+auswertet, prüft `reached` zuerst.**
 
 ## Verifiziert
 
-Alle sechs Fälle **gegen einen Testserver gefahren**, nicht nur geschrieben:
+**Gegen einen echten Server gefahren, beide Richtungen:**
 
 | Fall | Erwartet | Ergebnis |
 | --- | --- | --- |
-| Commit stimmt | grün | ✔ Exit 0 |
-| `/health` liefert vollen SHA | grün | ✔ Exit 0 (nach der Härtung) |
-| Commit alt, Prozess seit 2 min | grün + Warnung | ✔ Exit 0, `::warning::` gesetzt |
-| Commit alt, Laufzeit springt zurück | grün + Warnung | ✔ „die Laufzeit ist zurückgesprungen" |
-| Commit alt, `deploymentId` wechselt | grün + Warnung | ✔ „die Deployment-Kennung hat gewechselt" |
-| Commit alt, Prozess seit 3,1 Tagen | **rot** | ✔ Exit 1, Verdächtigenliste |
-| `/health` meldet keinen Commit | **rot** | ✔ Exit 1 |
+| `ENABLE_DEV_TOOLS=true`, `--start-level 30` | Level wird erreicht | ✔ 20/20 Clients, höchstes Level 33 |
+| `ENABLE_DEV_TOOLS=false`, `--start-level 30` | sichtbarer Fehlschlag | ✔ 0/20, Warnung im Bericht |
+| Flutschutz | höchstens 5 Versuche je Client | ✔ 100 statt 1158 |
+| ohne Option | nichts ändert sich | ✔ kein `startLevel`-Block im Bericht |
 
-## Richtiggestellt: meine eigene Doku erzählte eine Legende
+**Sechs neue Tests**, darunter der Fall „nie erreicht" – dass die Warnung
+erscheint, ist selbst getestet, nicht nur das Setzen.
 
-In `docs/DEPLOYMENT.md` stand von mir: *„Am 05.08. blieb der Auto-Deploy
-stehen. Zwölf Commits landeten auf `main`, ohne live anzukommen."*
+## Was das für die Tempo-Frage bedeutet – und was nicht
 
-**Den Stillstand gab es nicht.** Railway hat durchgehend deployt, Sam hat es an
-der Deploy-Historie gegengeprüft, und die Ursache waren kaputte
-Freshness-Signale in `/health` – fehlendes `Cache-Control`, ein Festwert
-(`build`), der aussieht wie eine Build-Kennung, und ein `commit`, das allein
-nicht genügt. Ich habe die Stelle umgeschrieben; die Lehre lautet jetzt nicht
-„der Deploy steht", sondern: **Ein Testprotokoll, dessen Frische man nicht
-prüfen kann, erzeugt Diagnosen aus dem Nichts.**
+`--start-level` behebt **02s** Wand (zu kleine Stichprobe je Familie). Es
+behebt **nicht** die Wand aus meinem Bericht 13: `compensatedLeadFactor()`
+gleicht den Vorhalt der Bots gegen die Flugzeit aus, und die Lasttest-Clients
+zielen im Random Walk, halten also gar nicht vor.
 
-Wäre das so stehengeblieben, hätte ausgerechnet die Betriebsdoku eine falsche
-Ursache zementiert – und der nächste, der ein `/health` sieht, das alt aussieht,
-hätte wieder bei den Watch-Paths angefangen zu suchen.
+**Für das Projektiltempo bleibt der Lastlauf damit blind, auch mit
+Startlevel.** Die beiden Wände sind unabhängig voneinander; diese Zulieferung
+räumt eine von beiden weg. Wer eine Zahl zum Tempo will, braucht weiterhin eine
+Trefferquote oder echte Spieler (Bericht 13, Abschnitt „Bewertung der
+Kennzahlen").
 
----
+Für **Familienbilanzen allgemein** – KL5, Signature-Vergleiche, Klassen 3.0 –
+ist die Option dagegen genau der fehlende Baustein.
 
-# TEIL 2: Was macht das Projektiltempo mit den Familien?
+## Bewusste Abweichungen
 
-## Die kurze Antwort
+**Dieses Paket war nicht beauftragt.** Es steht keine 5. Fassung des Auftrags
+auf `main`; ich habe es gebaut, weil 02 in Bericht 17 ausdrücklich darum
+gebeten und es meinem Revier zugeordnet hat. Wenn 01 die Reihenfolge anders
+sieht: Das Paket ist in sich abgeschlossen und blockiert nichts.
 
-**Der Lastlauf kann diese Frage nicht beantworten – und zwar aus zwei
-konstruktiven Gründen, nicht wegen zu kleiner Stichprobe.** Das ist ein
-Nullbefund über das Werkzeug, keiner über den Schalter.
-
-## Der Aufbau
-
-Gepaart wie in Bericht 12: Nur `PROJECTILE_SPEED_V2` wandert, alle übrigen
-Schalter stehen fest auf ihrem heutigen Default (**an** – siehe Anmerkung
-unten). Drei Runden, alternierend, je 10 Minuten, 40 Clients, Seeds
-2001/2002/2003 beidseitig gleich.
-
-## Das Ergebnis
-
-Von zwanzig geprüften Kombinationen (fünf Familien × vier Kennzahlen) sind
-**drei** in allen drei Runden gleichgerichtet. Bei reinem Zufall wären **fünf**
-zu erwarten.
-
-**Das Ergebnis liegt unter dem Zufallsniveau.** Es gibt in diesen Zahlen
-keinen nachweisbaren Effekt des Projektiltempos auf K/D, Kills pro Minute,
-Lebensdauer oder Familienbesetzung.
-
-Zum Vergleich: Die Momentum-Messung aus Bericht 12 kam auf neun von zwanzig und
-hatte mit der Rapid-Lebensdauer einen Befund, dessen drei Differenzen eng
-beieinanderlagen. Hier gibt es nichts dergleichen.
-
-## Warum – und das ist der eigentliche Befund
-
-02s Vorhersage lautet: Der Deckel bindet bei den schnellen Klassen, der Boden
-lässt die langsamen unberührt. Diese Vorhersage ist **nicht widerlegt**. Sie
-ist mit diesem Werkzeug nicht prüfbar, weil beide Seiten der Arena gegen die
-Änderung immun sind:
-
-**1. Die Bots gleichen ihren Vorhalt aktiv aus.**
-`apps/server/src/projectile-speed.ts` enthält `compensatedLeadFactor()`: Wird
-die Kugel langsamer, wächst die Flugzeit und damit der absolute Vorhaltfehler
-eines Bots – und genau das wird herausgerechnet. Das ist **Absicht** („damit
-das Pacing nicht still verrutscht"). Ein Bot trifft mit `PROJECTILE_SPEED_V2`
-per Konstruktion genauso gut wie ohne.
-
-**2. Die Lasttest-Clients zielen im Random Walk.**
-`scripts/loadtest.mjs`: `client.aimAngle += (rnd() - 0.5) * 0.9`. Sie zielen
-nicht auf Gegner und halten nicht vor. Das Projektiltempo wirkt aber genau über
-den Vorhalt – wer zufällig zielt, trifft zufällig, und langsamere Kugeln ändern
-daran fast nichts.
-
-Damit sind in der Arena **beide** Kill-Quellen unempfindlich gegen den
-Schalter: die Bots per Design, die simulierten Clients mangels Zielverhalten.
-Der Nullbefund ist genau das, was dieser Aufbau erzeugen muss.
-
-**Die Wirkung, um die es 02 geht, entsteht bei einem Menschen, der vorhalten
-muss.** Den hat der Lastlauf nicht.
-
-## Greift der Schalter überhaupt?
-
-Ein Nullbefund ist wertlos, wenn der Schalter gar nichts tut. Deshalb ein
-zweiter, mechanischer Test, der ohne jedes Zielverhalten auskommt: Langsamere
-Kugeln bei **gleicher** Reichweite sind länger in der Luft – also müssen mehr
-gleichzeitig unterwegs sein. Je Konfiguration ein Lauf über zwei Minuten,
-`/health` im Sekundentakt abgegriffen.
-
-| Konfiguration | Projektile gleichzeitig (Median) | Spanne | Mittel |
-| --- | --- | --- | --- |
-| `PROJECTILE_SPEED_V2=true` | **94** | 43 – 132 | 93,3 |
-| `PROJECTILE_SPEED_V2=false` | **67** | 38 – 105 | 68,5 |
-
-**Faktor 1,40**, und die Verteilungen sind klar getrennt: 94 % aller
-Abgriffe der Alt-Konfiguration liegen unter dem Median der V2-Konfiguration.
-115 Abgriffe je Seite, gleicher Seed, gleiche Clientzahl.
-
-**Der Schalter greift also deutlich** – die Kugeln sind langsamer und bleiben
-entsprechend länger in der Luft. Der Nullbefund oben ist damit ein Befund über
-die *Wirkung auf die Kampfstatistik*, nicht über den Schalter.
-
-### Nebenbefund für die Kapazitätsplanung – der gehört mir
-
-40 % mehr Projektile gleichzeitig sind 40 % mehr Entitäten, die in jedem Tick
-bewegt und auf Kollisionen geprüft werden. Bericht 10 hatte den Preis eines
-Projektils mit rund **0,023 ms** je Tick beziffert. Die hier gemessenen **+27
-Projektile im Median** ergeben damit grob **+0,6 ms pro Tick** – rund
-**2,5 Prozentpunkte** des 25-ms-Budgets.
-
-Das ist bei der heutigen Auslastung kein Problem (die Simulation braucht ein
-Zehntel des Budgets, der Flaschenhals ist der Snapshot-Versand). Es ist aber
-**dauerhaft und additiv**: Der Schalter ist seit heute standardmäßig an, und
-mehr Projektile gehen auch in jeden Snapshot. Wenn später über Kapazität
-gesprochen wird, gehört diese Zahl dazu.
-
-## Bewertung der Kennzahlen selbst
-
-Auch unabhängig vom Zielverhalten sind K/D und Kills/min für diese Frage
-schlechte Messgrößen: Sie hängen an Zielwahl, Ausweichen, Klassenverteilung und
-Zufall. Was das Projektiltempo direkt ändert, ist die **Trefferwahrschein-
-lichkeit gegen ein bewegtes Ziel** – und die misst niemand.
-
-Wenn eine Zahl gebraucht wird, führt der Weg über eine dieser drei Türen:
-
-1. **Trefferquote als Telemetrie** – abgegebene Schüsse gegen Treffer, je
-   Klasse. Das ist die Größe, die der Schalter direkt bewegt, und sie wäre auch
-   live aussagekräftig. Baubar in meinem Revier.
-2. **Ein zielender Testclient** – der Lasttest hält vor statt zufällig zu
-   zielen. Ändert allerdings, was der Lasttest sonst misst, und braucht eine
-   eigene Entscheidung.
-3. **Live-Telemetrie mit echten Spielern** – die einzige Quelle, in der die
-   Wirkung überhaupt so entsteht, wie sie gemeint ist.
-
-Meine Empfehlung ist **1**: klein, additiv, und sie beantwortet die Frage auch
-für alle künftigen Tempo-Änderungen. Ich habe sie nicht gebaut – das wäre ein
-eigenes Paket und nicht beauftragt.
-
-## Einschränkung, die ich schon einmal hatte – und wiederholt habe
-
-`tempo-v2-r1` ist ein Ausreißer: Tick-Abstand p95 **56,9 ms** gegen 33,1 und
-33,2 in den beiden anderen V2-Runden. Der Lauf fiel auf 12:48–12:58, mein
-Typecheck und Commit auf 12:50. **Ich habe während der Messung auf derselben
-Maschine gearbeitet – genau die Einschränkung, die ich in Bericht 11 notiert
-und in Bericht 12 vermieden hatte.**
-
-Für die Lastkontrolle heißt das: Der Bereich „V2: 33,06–56,94 ms" überlappt
-zwar formal mit „alt: 32,66–33,17 ms", aber nur wegen dieses einen Laufs. Die
-automatische Überlappungsprüfung hat das durchgewinkt – **sie ist zu naiv, ein
-einzelner Ausreißer weitet den Bereich und lässt jeden Vergleich gültig
-aussehen.** Ohne r1 liegen die V2-Läufe bei 33,06–33,16 und die Alt-Läufe bei
-32,66–33,17; dann überlappen sie wirklich.
-
-An der Kernaussage ändert das nichts – der Nullbefund liegt unter dem
-Zufallsniveau, und die konstruktive Begründung hängt an keinem Messwert. Aber
-die Prüfung selbst gehört geschärft (Median statt Spannweite, oder Ausreißer
-ausweisen), und ich hätte die Maschine in Ruhe lassen müssen.
-
----
-
-## Bewusste Abweichungen vom Auftrag
-
-**1. Nur ein Schalter gemessen statt mehrerer.**
-Der Auftrag stellte drei zur Wahl und ließ die Zahl offen. Ich habe
-`PROJECTILE_SPEED_V2` genommen – den, der ausdrücklich am meisten interessiert
-– und dafür drei Runden gefahren, statt drei Schalter mit je einer Runde. Bei
-der in Bericht 11/12 gemessenen Streuung liefert ein einzelner Lauf je
-Konfiguration nichts; drei halbe Messungen wären drei wertlose Messungen.
-
-**2. Der Auftrag sagt, die drei Schalter seien „alle noch aus". Das stimmt
-nicht mehr.**
-`ef98cc3` und `a6b00e1` haben sie auf **Default an** (Opt-out) umgestellt,
-offenbar nach dem Ausstellen des Auftrags. Ich habe entsprechend gemessen: alle
-übrigen Schalter auf ihrem heutigen Default an, damit gemessen wird, was das
-Tempo **im aktuellen Spiel** tut. Für die Aus-Seite muss `PROJECTILE_SPEED_V2`
-jetzt ausdrücklich auf `false` gesetzt werden – Weglassen genügt nicht mehr.
-
-**3. Ich habe einen zweiten, nicht beauftragten Test nachgeschoben** (den
-mechanischen Wirksamkeitsnachweis). Ohne ihn wäre der Nullbefund angreifbar
-gewesen: „vielleicht greift der Schalter schlicht nicht".
+**Ich habe mehr gebaut als „auf ein Level setzen".** Das Nachsetzen und der
+Flutschutz standen nicht in der Bitte – ohne sie wäre die Option für längere
+Läufe wirkungslos gewesen bzw. hätte die Messung verzerrt. Beides ist im Code
+begründet.
 
 ## Von 01 gebraucht
 
-1. **Merge.** Die geschärfte Wache nützt erst auf `main` etwas.
-2. **Für 02, zum Projektiltempo:** Die Rechnung ist nicht widerlegt – sie ist
-   mit dem Lastlauf nicht prüfbar, weil `compensatedLeadFactor()` die Bots
-   gegen genau diese Änderung immunisiert und die Lasttest-Clients nicht
-   vorhalten. Wer eine Zahl will, braucht eine Trefferquote (Vorschlag 1 oben)
-   oder echte Spieler. **Bitte den Nullbefund nicht als „das Tempo wirkt
-   nicht" weitergeben** – das steht hier ausdrücklich nicht.
-3. **Entscheidung nötig, falls die Zahl gebraucht wird:** Trefferquote als
-   Telemetrie ist ein kleines, eigenständiges Paket. Sag Bescheid, dann baue
-   ich es – ungefragt fange ich es nicht an.
-4. Die Lastkontrolle in meinem Auswertungsskript ist zu naiv (Spannweite statt
-   Median). Ich habe es im Bericht ausgewiesen; wer meine Zahlen nachrechnet,
-   sollte es wissen.
+1. **Merge**, dann kann 02 die KL5-Messung mit brauchbarer Stichprobe fahren.
+2. **Für 02:** `--start-level 30` zusammen mit `--seed`. Vor der Auswertung
+   `startLevel.reached` prüfen – bei `0` lief der Server ohne
+   `ENABLE_DEV_TOOLS` und der Abzug ist wertlos. Und: Die Option verändert die
+   Entitätenzahl, ein damit gefahrener Lauf taugt **nicht** als
+   Kapazitätsmessung.
+3. **Unverändert offen aus Bericht 13:** Ob ich die Trefferquote als Telemetrie
+   bauen soll. Das ist der einzige Weg zu einer Zahl beim Projektiltempo, und
+   ich fange es weiterhin nicht ungefragt an.
 
 ## Für Sam
 
-Nichts zu tun. Falls du die Kugeln weiterhin zu schnell findest: Die drei neuen
-Regeln greifen nachweislich (mechanischer Test oben), sie sind seit heute
-standardmäßig an, und `/health` zeigt unter `features.projectileSpeedV2`, ob
-sie auf der Instanz laufen, die du gerade ansiehst.
+Nichts zu tun. `ENABLE_DEV_TOOLS` bleibt in Produktion `false` – die neue
+Option ist ein reines Messwerkzeug für lokale Läufe und ändert daran nichts.
