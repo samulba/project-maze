@@ -18,7 +18,7 @@ import {
   type GameplayWorldExtension,
   type PassiveModifierId
 } from '@project-maze/shared/gameplay';
-import { clientMetricsText } from './client-metrics.js';
+import { clientMetricsSummary, clientMetricsText, type ClientMetricsSummary } from './client-metrics.js';
 import { MazeGame } from './game.js';
 
 /**
@@ -410,6 +410,13 @@ export interface TelemetryReport {
   classes: TelemetryClassEntry[];
   modules: TelemetryEntry[];
   frames: TelemetryEntry[];
+  /**
+   * Client-Perf-Berichte, aufgeschlüsselt nach Geräteklasse, Renderpfad und
+   * Qualitätsstufe. Stand bisher nur im Prometheus-Text – wer die Zahlen
+   * auswerten wollte, musste ausgerechnet das Textformat parsen, während das
+   * JSON-Format (das für Werkzeuge gedachte) sie wegließ.
+   */
+  client: ClientMetricsSummary;
 }
 
 const rate = (value: number, total: number): number => (total > 0 ? value / total : 0);
@@ -520,7 +527,10 @@ export function telemetryReport(
     },
     classes,
     modules,
-    frames
+    frames,
+    // Anonyme Client-Perf-Berichte. Bewusst unabhängig von `subject`: Sie
+    // kommen aus Browsern, kennen also weder Mensch/Bot noch eine Klasse.
+    client: clientMetricsSummary(now)
   };
 }
 

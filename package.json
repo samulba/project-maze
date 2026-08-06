@@ -3,7 +3,10 @@
   "private": true,
   "version": "0.9.0",
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "predev": "npm run build -w @project-maze/shared",
     "dev": "concurrently -n client,server -c auto \"npm run dev -w @project-maze/client\" \"npm run dev -w @project-maze/server\"",
@@ -14,6 +17,7 @@
     "prebalance": "npm run build -w @project-maze/shared && npm run build -w @project-maze/server",
     "balance": "node scripts/balance-report.mjs",
     "balance:live": "node scripts/balance-live.mjs",
+    "perf:live": "node scripts/perf-live.mjs",
     "preloadtest": "npm run build -w @project-maze/shared",
     "loadtest": "node scripts/loadtest.mjs",
     "build": "npm run build -w @project-maze/shared && npm run build -w @project-maze/server && npm run build -w @project-maze/client",

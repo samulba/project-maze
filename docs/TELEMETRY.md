@@ -623,6 +623,37 @@ maze_client_reports_inverted_total                      Counter Berichte mit ver
 maze_client_tier_coerced_total                          Counter Berichte mit unbekannter Qualitätsstufe
 ```
 
+### Auswerten: `npm run perf:live`
+
+```bash
+npm run perf:live -- --url https://www.mazers.de
+npm run perf:live -- --url http://localhost:2567 --json
+```
+
+Holt den `client`-Block aus `/metrics?format=json` und beantwortet die Messlatte
+aus dem MASTERPLAN – **FPS-p95 ≥ 55 auf dem Referenz-Altgerät, keine Hänger über
+100 ms** – getrennt nach Geräteklasse, Renderpfad und Qualitätsstufe.
+
+„Referenz-Altgerät" heißt dabei `deviceClass=low` **oder**
+`quality=webgl-kompat`: Der Software-Pfad ist per Definition der alte PC, auch
+wenn die Maschine sonst kräftig ist.
+
+**Drei Ausgänge, und zwei davon sind kein Bestehen:**
+
+| Ausgang | Bedeutung |
+| --- | --- |
+| `ERFUELLT` | Alle ausreichend belegten Altgerät-Buckets halten die Latte. |
+| `VERFEHLT` | Mindestens einer reißt sie – die Zeile nennt die Zahl. |
+| `UNBEANTWORTET` | Keine Daten, nur starke Geräte, oder zu dünne Stichprobe. |
+
+**`UNBEANTWORTET` ist ausdrücklich kein Bestehen.** Eine leere Auswertung sieht
+sonst aus wie ein grüner Test – dieselbe Falle wie beim blinden Lasttest.
+
+**Wenn gar nichts ankommt**, ist die Reihenfolge zum Prüfen: Hat überhaupt
+jemand 120 Sekunden am Stück gespielt? Wurde der Server neu gestartet (die
+Zähler leben nur im Arbeitsspeicher)? Wurden Berichte *verworfen* (dann steht
+der Grund in `rejected`)? Erst danach ist es ein Client-Problem.
+
 Die eine Zahl, auf die es ankommt:
 
 ```promql
