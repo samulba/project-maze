@@ -6,7 +6,7 @@
     "apps/client"
   ],
   "aktualisiert": "2026-08-06",
-  "latest": "16-kl2-control-einheiten-budget.md",
+  "latest": "17-kl5-tempo-nachmessung.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -180,7 +180,7 @@
       "datei": "16-kl2-control-einheiten-budget.md",
       "branch": "claude/chat-02-server-gameplay-w1i4o8",
       "basis": "main@07155a8",
-      "status": "offen",
+      "status": "in main",
       "tests": "14 neu / 668 gesamt",
       "braucht_von_01": [
         "Shared: DeployableSnapshot + DEPLOYABLE_KINDS + WorldSnapshot.deployables - exakter Vorschlag im Bericht, inkl. Verhalten unter SNAPSHOT_DELTAS. Nichts davon serverlokal mit Cast ueberbrueckt",
@@ -188,6 +188,23 @@
         "Fuer 03: die Control-Bezeichnungen heissen Nachschub (signatureRate) und Einheitenstaerke (signaturePower). Damit haengen alle vier Familien an den KL4-Slots",
         "Die Eingabe fuer Deployables (neue Client-Nachricht deploy mit Position und kind, plus Positionspruefung und Rate-Limit) ist ein eigenes Paket - nicht nebenbei",
         "Offen aus Paket 13 erledigt: Precision und Control oeffnen sich jetzt automatisch, sobald ihr Signature-Flag an ist"
+      ]
+    },
+    {
+      "nr": 17,
+      "titel": "KL5 (1. Teil): 01s Tempo-Verschaerfung nachgemessen - Widerspruch mit Zahlen",
+      "datei": "17-kl5-tempo-nachmessung.md",
+      "branch": "claude/chat-02-server-gameplay-w1i4o8",
+      "basis": "main@7ecbc90",
+      "status": "offen",
+      "tests": "kein Code, 707 gesamt unveraendert",
+      "braucht_von_01": [
+        "WIDERSPRUCH: Der Daempfer 0,70 -> 0,60 bestimmt keine einzige Klasse mehr (0 von 22, vorher 9). Alles ausser Precision liegt jetzt auf dem Boden. Er hat die Rapid-Linie nicht verlangsamt, sondern eingeebnet: acht Klassen feuern exakt 559 px/s",
+        "Der Deckel 1,8 -> 1,35 traegt die ganze Wirkung und flacht Precision auf einen einzigen Wert ab (603 px/s fuer alle sieben Klassen, vorher 990-1476). Der Abstand zur Rapid-Linie faellt von 1,90x ueber 1,31x auf 1,08x",
+        "Vorschlag: Daempfer zurueck auf 0,70 (kostet keine Langsamkeit - die Rapid-Linie liegt dann 2,6-9,7 % ueber dem Boden), Deckel unten auf 1,50x. Ergibt 15 statt 8 verschiedene Tempi; Lancer bleibt -55 % gegenueber dem Stand vor Paket 14",
+        "Angebot: weicher Deckel (v = cap + (damped - cap) x 0,15) behebt das Einebnen an der Wurzel - Mechanikaenderung, deshalb erst deine Entscheidung",
+        "Von 04 gebraucht: ein Startlevel fuer die Lasttest-Clients. In 300 s bleiben die Clients ueberwiegend in Core (293-308 von ~600 Toden), jede Familienbilanz misst deshalb vor allem Core",
+        "Messung ohne Befund: Bei jeder Familie ist die Streuung ueber drei Laeufe derselben Konfiguration so gross wie der Unterschied zwischen den Konfigurationen. Der erste Durchgang mit zwei summierten Laeufen sah nach einem klaren Befund aus - er war Rauschen"
       ]
     }
   ]

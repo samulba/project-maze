@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 02
-
-> Kopie von `17-kl5-tempo-nachmessung.md`. Diese Datei zeigt immer das
-> jüngste fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 17 – KL5, erster Teil: die Tempo-Verschärfung nachgemessen
 
 **Branch:** `claude/chat-02-server-gameplay-w1i4o8` (neu von `origin/main`)
