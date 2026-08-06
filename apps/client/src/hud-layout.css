@@ -76,7 +76,9 @@
   /* Höhe deckeln, statt in eine zweite Reihe zu wachsen: Bei drei Karten und
      einer vierten darunter wurde die Karte 460 px hoch und reichte bis in die
      Spielerkarte. Jetzt wird innen gescrollt. */
-  max-height: min(44vh, 320px);
+  /* Welle B: Bild + Perk + Pfad machen die Karten hoeher - der alte Deckel
+     (320 px) liess auf 1080p keine einzige Karte vollstaendig sichtbar. */
+  max-height: min(52vh, 420px);
   overflow-y: auto;
   scrollbar-width: thin;
 }
@@ -215,6 +217,8 @@
 @media (max-height: 760px), (max-width: 1180px) {
   .class-choices span,
   .class-choice-bars { display: none; }
+  .class-choice-preview { height: 44px; margin-bottom: 4px; }
+  .class-choice-preview svg { width: 40px; height: 40px; }
   .class-choices button { min-height: 0; padding: 10px 12px; }
   .class-choices small { margin-top: 4px; }
   .class-selection > p { display: none; }
@@ -329,4 +333,19 @@
   #player-name { height: 44px; }
   .play-button { height: 46px; margin-top: 2px; }
   .start-status { margin-top: 6px; }
+}
+
+
+/* ------------------------------------------------------------------ *
+ * Welle B - 4:3 und andere hohe, schmale Fenster (1280x1024)
+ * ------------------------------------------------------------------ */
+/*
+ * Zwoelf Upgrade-Reihen (Klassen 4.0) und die reicheren Wahlkarten brauchen
+ * Hoehe, die es neben langer Bestenliste und Killfeed hier nicht gibt. Die
+ * Wahl weicht der Bestenliste horizontal aus, die Upgrades scrollen innen,
+ * statt den Killfeed zu ueberdecken.
+ */
+@media (min-height: 900px) and (max-width: 1440px) {
+  .class-selection { --wahl-rechts: 300px; }
+  .upgrade-panel { max-height: 37vh; overflow-y: auto; }
 }

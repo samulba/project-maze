@@ -1,3 +1,4 @@
+import { classSilhouetteMarkup } from './class-preview';
 import { type PlayerClass } from '@project-maze/shared';
 import {
   buildWheel,
@@ -140,6 +141,14 @@ export class ClassWheel {
         'aria-label': `${eintrag.label}, ab Level ${eintrag.unlockLevel}`
       });
       gruppe.append(el('circle', { cx: mitte.x, cy: mitte.y, r: GROESSE[eintrag.ring], class: 'wheel-dot' }));
+      // Welle B: die echte Silhouette im Knoten - dieselbe Geometrie wie im
+      // Spiel und auf der Wahlkarte. Skaliert auf den Knotenradius; die
+      // Rotation entspricht der Kartenvorschau.
+      const silhouette = el('g', { class: 'wheel-silhouette' });
+      const scale = (GROESSE[eintrag.ring] * 2) / 110;
+      silhouette.setAttribute('transform', `translate(${mitte.x} ${mitte.y}) scale(${scale.toFixed(3)}) rotate(-30)`);
+      silhouette.innerHTML = classSilhouetteMarkup(eintrag.id);
+      gruppe.append(silhouette);
       const beschriftung = el('text', {
         x: mitte.x,
         y: mitte.y + GROESSE[eintrag.ring] + 24,

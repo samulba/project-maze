@@ -1,6 +1,8 @@
 import { CLASS_DEFINITIONS, type PlayerClass } from '@project-maze/shared';
 import { classBalanceMetrics } from '@project-maze/shared/balance';
 import { classPreviewSvg } from './class-preview';
+import { perkFor } from '@project-maze/shared/perks';
+import { leadsTo } from './class-tree';
 
 const percent = (value: number): number => Math.max(6, Math.min(100, Math.round(value)));
 
@@ -46,6 +48,25 @@ function enhanceButton(button: HTMLButtonElement): void {
   button.prepend(role);
   button.prepend(preview);
   button.append(bars);
+
+  // Perk-Zeile (Welle B): das Merkmal, das nur diese Klasse hat. Starter
+  // tragen keinen - dort erklaert die Familien-Signature den Stil.
+  const perk = perkFor(playerClass);
+  if (perk) {
+    const perkRow = document.createElement('span');
+    perkRow.className = 'class-choice-perk';
+    perkRow.innerHTML = `<b>${perk.label}</b> ${perk.blurb}`;
+    button.append(perkRow);
+  }
+
+  // Wohin der Weg fuehrt - nie wieder blind waehlen (MASTERPLAN, das Rad).
+  const ziele = leadsTo(playerClass);
+  if (ziele) {
+    const leads = document.createElement('span');
+    leads.className = 'class-choice-leads';
+    leads.textContent = `führt zu → ${ziele.join(' · ')}`;
+    button.append(leads);
+  }
 }
 
 export function enhanceClassChoices(root: HTMLElement): void {

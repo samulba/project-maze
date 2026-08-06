@@ -15,6 +15,14 @@
     "./gameplay": {
       "types": "./dist/gameplay.d.ts",
       "default": "./dist/gameplay.js"
+    },
+    "./perks": {
+      "types": "./dist/perks.d.ts",
+      "default": "./dist/perks.js"
+    },
+    "./appearance": {
+      "types": "./dist/appearance.d.ts",
+      "default": "./dist/appearance.js"
     }
   },
   "types": "./dist/index.d.ts",

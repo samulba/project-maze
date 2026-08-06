@@ -51,6 +51,7 @@ import { tuneInputAck } from './input-ack.js';
 import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system.js';
 import { tuneProgression } from './progression-tuning.js';
 import { tuneProjectileSpeed } from './projectile-speed.js';
+import { tunePerks } from './perks.js';
 import { createRateLimiter, messageKindOf, rateLimitsEnabled } from './rate-limits.js';
 import {
   PROFILE_BODY_LIMIT,
@@ -219,6 +220,13 @@ const SIGNATURE_SPECTER_ENABLED = !['false', '0', 'off']
  */
 const SIGNATURE_TEMPEST_ENABLED = !['false', '0', 'off']
   .includes((process.env.SIGNATURE_TEMPEST_ENABLED ?? '').trim().toLowerCase());
+/**
+ * Klassen 4.0, Welle B: Perks - je Klasse ab L15 ein benanntes
+ * Alleinstellungsmerkmal (Daten in shared/perks, Wirkung in perks.ts).
+ * Opt-out nach der Regel vom 06.08.
+ */
+const PERKS_ENABLED = !['false', '0', 'off']
+  .includes((process.env.PERKS_ENABLED ?? '').trim().toLowerCase());
 const PROJECTILE_SPEED_V2 = !['false', '0', 'off']
   .includes((process.env.PROJECTILE_SPEED_V2 ?? '').trim().toLowerCase());
 /**
@@ -263,6 +271,10 @@ const encodedGame = tuneSnapshotEncoding(
                     // ersetzt `updateBot` komplett, innen ginge sie verloren.
                     tuneRapidBots(
                       tuneBotBrain(
+                        // Perks aussen um den ganzen Kampfblock: Sie wickeln
+                        // fire/damage/killPlayer und muessen sehen, was
+                        // Signatures und Klassenmechanik fertig gerechnet haben.
+                        tunePerks(
                         tuneClassMechanics(
                           // Einheiten-Budget ausserhalb von tuneDrones: Es
                           // bezahlt und verstaerkt die fertige Einheit.
@@ -321,6 +333,8 @@ const encodedGame = tuneSnapshotEncoding(
                           DEFAULT_BUDGET,
                           FAMILY_UPGRADES_ENABLED
                           )
+                        ),
+                        PERKS_ENABLED
                         ),
                         BOT_PACING_ENABLED ? DEFAULT_BOT_PACING : null
                       ),
@@ -612,7 +626,7 @@ app.get('/health', (_request: Request, response: Response) => {
     // Jedes Flag, das Spielgefühl verändert, gehört hier hinein: /health ist das
     // Testprotokoll, wenn Sam sagt „geht nicht". Die Signatures fehlten – genau
     // die, deren Wirkung gerade beurteilt werden soll.
-    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, dashTravel: DASH_TRAVEL_ENABLED, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED, signatureSpecter: SIGNATURE_SPECTER_ENABLED, signatureTempest: SIGNATURE_TEMPEST_ENABLED },
+    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, dashTravel: DASH_TRAVEL_ENABLED, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED, signatureSpecter: SIGNATURE_SPECTER_ENABLED, signatureTempest: SIGNATURE_TEMPEST_ENABLED, perks: PERKS_ENABLED },
     persistence: persistenceStats(game),
     auth: authStatus(),
     clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),

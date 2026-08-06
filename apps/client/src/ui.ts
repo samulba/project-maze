@@ -9,6 +9,7 @@ import {
 } from '@project-maze/shared';
 import type { ArenaEventKind } from '@project-maze/shared/gameplay';
 import { arenaEventStyle, cssColor } from './arena-event-style';
+import { classPreviewSvg } from './class-preview';
 import {
   FAMILY_LOCK_HINT,
   UPGRADE_SLOT_IDS,
@@ -112,6 +113,7 @@ export class GameUI {
   private readonly deathScreen: HTMLElement;
   private readonly deathKiller: HTMLElement;
   private readonly deathStats: HTMLElement;
+  private readonly deathPortrait: HTMLElement;
   /** Kurzfassung derselben Zahlen – ersetzt die Kachelwand beim Zuschauen. */
   private readonly deathSummary: HTMLElement;
   private readonly respawnButton: HTMLButtonElement;
@@ -271,6 +273,7 @@ export class GameUI {
           <section class="death-screen" id="death-screen" hidden>
             <div class="death-card glass">
               <div class="eyebrow danger">RUN BEENDET</div>
+              <figure class="death-portrait" id="death-portrait"></figure>
               <h2>ELIMINIERT</h2>
               <p id="death-killer">Eliminiert von Arena</p>
               <div class="death-stats" id="death-stats"></div>
@@ -325,6 +328,7 @@ export class GameUI {
     this.deathScreen = this.require('#death-screen');
     this.deathKiller = this.require('#death-killer');
     this.deathStats = this.require('#death-stats');
+    this.deathPortrait = this.require('#death-portrait');
     this.deathSummary = this.require('#death-summary');
     this.respawnButton = this.require<HTMLButtonElement>('#respawn-button');
     this.respawnCountdown = this.require('#respawn-countdown');
@@ -583,6 +587,13 @@ export class GameUI {
   private updateDeathScreen(snapshot: WorldSnapshot, self: PlayerSnapshot): void {
     this.deathScreen.hidden = !self.dead;
     if (!self.dead) return;
+    // Das Bild des Tanks, mit dem dieser Run endete - dieselbe Geometrie wie
+    // ueberall. Nur neu zeichnen, wenn sich die Klasse geaendert hat.
+    if (this.deathPortrait.dataset.classId !== self.playerClass) {
+      this.deathPortrait.dataset.classId = self.playerClass;
+      this.deathPortrait.dataset.branch = CLASS_DEFINITIONS[self.playerClass].branch;
+      this.deathPortrait.innerHTML = classPreviewSvg(self.playerClass);
+    }
     // Beim Zuschauen ist der Death-Screen im Weg: Er legt sich abgedunkelt und
     // weichgezeichnet über genau das, was man sehen soll. Dann schrumpft die
     // Karte in die untere Ecke und gibt die Arena frei – Respawn, Countdown und

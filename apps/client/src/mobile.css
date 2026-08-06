@@ -358,7 +358,15 @@
     padding-bottom: 4px;
     scrollbar-width: thin;
   }
-  .class-choices button { min-height: 0; padding: 12px; touch-action: manipulation; }
+  .class-choices button { min-height: 0; padding: 10px; touch-action: manipulation; }
+  /* Welle B: Das Tankbild bleibt auch auf dem Handy - aber als Briefmarke.
+     In voller Groesse schob es die Karten unter den Panelrand, und eine
+     Klassenwahl, von der man keine Karte sieht, ist keine Wahl (Pruefstand:
+     0/6 sichtbar auf 844x390). Perk/Pfad-Zeilen sind hier ohnehin aus. */
+  .class-choice-preview { height: 40px; margin-bottom: 4px; }
+  .class-choice-preview svg { width: 36px; height: 36px; }
+  .class-choice-role { display: none; }
+  .class-choice-perk, .class-choice-leads { display: none; }
 }
 
 /* Auf kleinen Screens zählt nur die Spitze der Rangliste. */
@@ -389,5 +397,8 @@
   .upgrade-panel { max-height: 74dvh; }
   .class-selection { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 176px); max-height: calc(100dvh - 220px); }
   .class-choices { grid-auto-columns: 176px; }
+  /* Unter 430 px Hoehe ist jede Briefmarke zu viel: Ohne diese Zeile standen
+     die Karten unter dem Panelrand und die Wahl war unsichtbar (Pruefstand). */
+  .class-choice-preview { display: none; }
   #app.minimap-open .minimap { width: 124px; height: 82px; }
 }

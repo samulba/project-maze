@@ -19,6 +19,7 @@ import { ParticleField } from './particles';
 import { QUALITY_TIERS, type QualitySettings, type QualityTier } from './quality';
 import { type RecoilState, startRecoil, stepRecoil } from './recoil';
 import type { RenderQuality } from './perf-metrics';
+import { hullGeometry } from '@project-maze/shared/appearance';
 import { signatureLabel, signatureRatio } from './signature';
 import { DEFAULT_VIEW_MODE, computeViewport, type ViewMode, type WorldView } from './viewport';
 import type { ClientThemeId } from './themes';
@@ -993,236 +994,41 @@ export class GameRenderer {
     }
   }
 
+  /**
+   * Rumpf aus der geteilten Geometrie (shared/appearance) – dieselben Befehle
+   * zeichnet die Wahlkarten-Vorschau als SVG. Wenn hier etwas anders aussieht
+   * als auf der Karte, ist das ein Bug und kein Stilmittel.
+   */
   private drawClassHull(body:Graphics,detail:Graphics,playerClass:PlayerClass,color:number):void{
     const outline={color:0xffffff,alpha:.38,width:3};
-    const subtle={color:0xffffff,alpha:.22,width:2};
-    switch(playerClass){
-      case'core':
-        body.circle(0,0,22).fill(color).stroke(outline);
-        detail.circle(0,0,6).stroke({color:0xffffff,alpha:.24,width:2});
-        break;
-      case'rapid':
-        body.circle(0,0,21).fill(color).stroke(outline);
-        detail.poly([-18,-8,-27,0,-18,8]).fill({color,alpha:.78});
-        detail.circle(0,0,5).fill({color:0xffffff,alpha:.18});
-        break;
-      case'twin':
-        body.circle(0,0,22).fill(color).stroke(outline);
-        detail.circle(-16,-12,4).fill({color:0xffffff,alpha:.2});
-        detail.circle(-16,12,4).fill({color:0xffffff,alpha:.2});
-        break;
-      case'repeater':
-        body.poly(polygon(6,22,Math.PI/6)).fill(color).stroke(outline);
-        detail.circle(0,0,8).stroke({color:0xffffff,alpha:.28,width:2});
-        detail.rect(-19,-3,8,6).fill({color:0xffffff,alpha:.18});
-        break;
-      case'storm':
-        body.circle(0,0,23).fill(color).stroke(outline);
-        detail.circle(0,0,17).stroke(subtle);
-        this.drawNodes(detail,4,17,3,color);
-        break;
-      case'gatling':
-        body.poly(polygon(6,23,Math.PI/6)).fill(color).stroke(outline);
-        detail.circle(0,0,10).stroke({color:0xffffff,alpha:.3,width:3});
-        this.drawNodes(detail,6,17,2.6,color);
-        break;
-      case'sniper':
-        body.circle(0,0,21).fill(color).stroke(outline);
-        detail.poly([-17,-9,-27,0,-17,9]).fill({color:0xffffff,alpha:.17});
-        detail.rect(5,-4,14,8).fill({color:0xffffff,alpha:.16});
-        break;
-      case'railgun':
-        body.poly(polygon(6,21,Math.PI/6)).fill(color).stroke(outline);
-        detail.rect(-13,-4,29,8).fill({color:0xffffff,alpha:.18});
-        detail.circle(-9,0,4).fill({color:0xffffff,alpha:.3});
-        break;
-      case'hunter':
-        body.circle(0,0,21).fill(color).stroke(outline);
-        detail.poly([-11,-19,4,-13,-4,-6]).fill({color:0xffffff,alpha:.18});
-        detail.poly([-11,19,4,13,-4,6]).fill({color:0xffffff,alpha:.18});
-        break;
-      case'lancer':
-        body.poly(polygon(4,23,Math.PI/4)).fill(color).stroke(outline);
-        detail.rect(-12,-3,29,6).fill({color:0xffffff,alpha:.22});
-        detail.circle(-10,0,4).fill({color:0xffffff,alpha:.32});
-        break;
-      case'phantom':
-        body.poly(polygon(6,21,0)).fill(color).stroke(outline);
-        detail.circle(0,0,25).stroke({color,alpha:.42,width:2});
-        detail.poly([-16,-9,-25,0,-16,9]).fill({color:0xffffff,alpha:.16});
-        break;
-      case'drone':
-        body.circle(0,0,22).fill(color).stroke(outline);
-        detail.poly(polygon(3,10,0)).fill({color:0xffffff,alpha:.28});
-        detail.circle(0,0,16).stroke(subtle);
-        break;
-      case'warden':
-        body.circle(0,0,22).fill(color).stroke(outline);
-        detail.circle(0,0,17).stroke({color:0xffffff,alpha:.26,width:2});
-        this.drawNodes(detail,6,18,3,color);
-        break;
-      case'factory':
-        body.roundRect(-21,-21,42,42,8).fill(color).stroke(outline);
-        detail.roundRect(-9,-9,18,18,4).stroke({color:0xffffff,alpha:.3,width:2});
-        detail.rect(-20,-4,8,8).fill({color:0xffffff,alpha:.18});
-        break;
-      case'overseer':
-        body.circle(0,0,23).fill(color).stroke(outline);
-        detail.circle(0,0,18).stroke({color:0xffffff,alpha:.3,width:2});
-        this.drawNodes(detail,8,19,2.7,color);
-        break;
-      case'carrier':
-        body.poly(polygon(6,25,Math.PI/6)).fill(color).stroke(outline);
-        detail.circle(0,0,11).fill({color:0xffffff,alpha:.14}).stroke({color:0xffffff,alpha:.28,width:2});
-        this.drawNodes(detail,6,20,3.4,color);
-        break;
-      case'rammer':
-        body.poly(polygon(8,23,Math.PI/8)).fill(color).stroke(outline);
-        detail.roundRect(14,-13,9,26,3).fill({color:0xffffff,alpha:.24});
-        break;
-      case'crusher':
-        body.poly(polygon(8,24,Math.PI/8)).fill(color).stroke(outline);
-        detail.roundRect(12,-16,11,32,3).fill({color:0xffffff,alpha:.25});
-        detail.rect(-18,-3,10,6).fill({color:0xffffff,alpha:.16});
-        break;
-      case'bulwark':
-        body.roundRect(-23,-21,46,42,8).fill(color).stroke(outline);
-        detail.roundRect(13,-17,11,34,4).fill({color:0xffffff,alpha:.26});
-        detail.circle(-8,0,7).stroke(subtle);
-        break;
-      case'juggernaut':
-        body.poly(polygon(8,26,Math.PI/8)).fill(color).stroke(outline);
-        detail.poly(polygon(8,19,Math.PI/8)).stroke({color:0xffffff,alpha:.24,width:2});
-        detail.roundRect(14,-17,11,34,3).fill({color:0xffffff,alpha:.28});
-        break;
-      case'fortress':
-        body.roundRect(-26,-23,52,46,7).fill(color).stroke(outline);
-        detail.roundRect(-21,-18,42,36,6).stroke({color:0xffffff,alpha:.24,width:2});
-        detail.roundRect(14,-19,13,38,3).fill({color:0xffffff,alpha:.3});
-        detail.circle(-8,0,6).fill({color:0xffffff,alpha:.16});
-        break;
-      case'flanker':
-        body.circle(0,0,21).fill(color).stroke(outline);
-        detail.poly([14,-7,22,0,14,7]).fill({color:0xffffff,alpha:.2});
-        detail.poly([-14,-7,-22,0,-14,7]).fill({color:0xffffff,alpha:.2});
-        break;
-      case'octo':
-        body.poly(polygon(8,23,Math.PI/8)).fill(color).stroke(outline);
-        detail.circle(0,0,9).stroke({color:0xffffff,alpha:.3,width:2});
-        this.drawNodes(detail,8,16,2.4,color);
-        break;
-      case'arbalest':
-        body.poly(polygon(6,21,Math.PI/6)).fill(color).stroke(outline);
-        detail.rect(-14,-8,26,4).fill({color:0xffffff,alpha:.2});
-        detail.rect(-14,4,26,4).fill({color:0xffffff,alpha:.2});
-        break;
-      case'deadeye':
-        body.poly(polygon(6,21,0)).fill(color).stroke(outline);
-        detail.circle(0,0,10).stroke({color:0xffffff,alpha:.32,width:2});
-        detail.moveTo(-14,0).lineTo(14,0).stroke({color:0xffffff,alpha:.26,width:2});
-        detail.moveTo(0,-14).lineTo(0,14).stroke({color:0xffffff,alpha:.26,width:2});
-        break;
-      case'guardian':
-        body.circle(0,0,22).fill(color).stroke(outline);
-        detail.circle(0,0,15).stroke({color:0xffffff,alpha:.34,width:4});
-        this.drawNodes(detail,5,17,3.2,color);
-        break;
-      case'hive':
-        body.poly(polygon(6,23,Math.PI/6)).fill(color).stroke(outline);
-        this.drawNodes(detail,6,13,3,color);
-        detail.circle(0,0,4).fill({color:0xffffff,alpha:.3});
-        this.drawNodes(detail,10,19,1.8,color);
-        break;
-      case'blitz':
-        body.poly([24,0,-14,-17,-7,0,-14,17]).fill(color).stroke(outline);
-        detail.poly([10,0,-8,-8,-4,0,-8,8]).fill({color:0xffffff,alpha:.22});
-        break;
-      case'comet':
-        body.circle(4,0,19).fill(color).stroke(outline);
-        body.poly([-2,-16,-26,0,-2,16]).fill({color,alpha:.85}).stroke({color:0xffffff,alpha:.2,width:2});
-        detail.circle(8,0,7).fill({color:0xffffff,alpha:.24});
-        detail.poly([-6,-8,-18,0,-6,8]).fill({color:0xffffff,alpha:.14});
-        break;
-      // --- Klassen 4.0, Welle A --------------------------------------------
-      // Apex der Altfamilien: Grundform der Familie plus Kronenring – aus der
-      // Distanz als „Endstufe" lesbar. Welle B verfeinert die Silhouetten.
-      case'vortex':
-        body.circle(0,0,23).fill(color).stroke(outline);
-        detail.circle(0,0,29).stroke({color,alpha:.4,width:2});
-        this.drawNodes(detail,5,29,3,color);
-        break;
-      case'eclipse':
-        body.circle(0,0,21).fill(color).stroke(outline);
-        detail.circle(-6,0,15).fill({color:0x000000,alpha:.35});
-        detail.circle(0,0,27).stroke({color,alpha:.4,width:2});
-        break;
-      case'sovereign':
-        body.poly(polygon(6,22,Math.PI/6)).fill(color).stroke(outline);
-        detail.circle(0,0,28).stroke({color,alpha:.4,width:2});
-        this.drawNodes(detail,7,28,3,color);
-        break;
-      case'leviathan':
-        body.roundRect(-24,-20,48,40,7).fill(color).stroke(outline);
-        detail.roundRect(-18,-14,36,28,5).stroke({color:0xffffff,alpha:.22,width:2});
-        detail.circle(0,0,30).stroke({color,alpha:.35,width:2});
-        break;
-      // SPECTER: Diamant-Silhouette – schmal, spitz, auf Bewegung gebaut.
-      case'specter':
-        body.poly([26,0,0,-16,-20,0,0,16]).fill(color).stroke(outline);
-        detail.poly([12,0,0,-7,-9,0,0,7]).fill({color:0xffffff,alpha:.14});
-        break;
-      case'wraith':
-        body.poly([28,0,-2,-14,-18,0,-2,14]).fill(color).stroke(outline);
-        detail.poly([-6,-9,-20,0,-6,9]).fill({color,alpha:.7});
-        break;
-      case'shade':
-        body.poly([24,0,-2,-18,-22,0,-2,18]).fill(color).stroke(outline);
-        detail.circle(-2,0,7).fill({color:0x000000,alpha:.4});
-        break;
-      case'mirage':
-        body.poly([26,0,0,-15,-20,0,0,15]).fill(color).stroke(outline);
-        detail.poly([20,-5,-4,-13,-15,-3],).stroke({color:0xffffff,alpha:.3,width:2});
-        detail.poly([20,5,-4,13,-15,3]).stroke({color:0xffffff,alpha:.3,width:2});
-        break;
-      case'revenant':
-        body.poly([26,0,2,-19,-22,-10,-22,10,2,19]).fill(color).stroke(outline);
-        detail.poly([14,0,2,-8,-6,0,2,8]).fill({color:0xffffff,alpha:.16});
-        break;
-      case'eidolon':
-        body.poly([30,0,0,-17,-22,0,0,17]).fill(color).stroke(outline);
-        detail.circle(0,0,28).stroke({color,alpha:.4,width:2});
-        detail.poly([16,0,0,-8,-10,0,0,8]).fill({color:0x000000,alpha:.3});
-        break;
-      // TEMPEST: Reaktor-Dreieck mit Kern – Hitze braucht ein sichtbares Herz.
-      case'tempest':
-        body.poly(polygon(3,24,0)).fill(color).stroke(outline);
-        detail.circle(0,0,8).fill({color:0xffffff,alpha:.22});
-        break;
-      case'scorch':
-        body.poly(polygon(3,23,0)).fill(color).stroke(outline);
-        detail.circle(0,0,7).fill({color:0xffffff,alpha:.26});
-        detail.poly(polygon(3,14,Math.PI)).stroke({color:0xffffff,alpha:.2,width:2});
-        break;
-      case'surge':
-        body.poly(polygon(3,26,0)).fill(color).stroke(outline);
-        detail.roundRect(-9,-9,18,18,4).fill({color:0xffffff,alpha:.14});
-        detail.circle(0,0,7).fill({color:0xffffff,alpha:.26});
-        break;
-      case'inferno':
-        body.poly(polygon(3,24,0)).fill(color).stroke(outline);
-        detail.circle(-4,-6,5).fill({color:0xffffff,alpha:.22});
-        detail.circle(-4,6,5).fill({color:0xffffff,alpha:.22});
-        detail.circle(6,0,5).fill({color:0xffffff,alpha:.22});
-        break;
-      case'overload':
-        body.poly(polygon(3,26,0)).fill(color).stroke(outline);
-        detail.circle(0,0,11).fill({color:0xffffff,alpha:.16}).stroke({color:0xffffff,alpha:.24,width:2});
-        break;
-      case'cataclysm':
-        body.poly(polygon(3,26,0)).fill(color).stroke(outline);
-        detail.circle(0,0,9).fill({color:0xffffff,alpha:.24});
-        detail.circle(0,0,30).stroke({color,alpha:.4,width:2});
-        break;
+    for(const op of hullGeometry(playerClass)){
+      switch(op.role){
+        case'hull':
+          if(op.kind==='poly')body.poly(op.points).fill(color).stroke(outline);
+          else body.circle(op.x,op.y,op.r).fill(color).stroke(outline);
+          break;
+        case'armor':
+          if(op.kind==='poly')detail.poly(op.points).fill({color,alpha:.82}).stroke({color:0xffffff,alpha:.16,width:1.5});
+          else detail.circle(op.x,op.y,op.r).fill({color,alpha:.82}).stroke({color:0xffffff,alpha:.16,width:1.5});
+          break;
+        case'accent':
+          if(op.kind==='ring')detail.circle(op.x,op.y,op.r).stroke({color:0xffffff,alpha:.3,width:2});
+          else if(op.kind==='poly')detail.poly(op.points).fill({color:0xffffff,alpha:.2});
+          else detail.circle(op.x,op.y,op.r).fill({color:0xffffff,alpha:.22});
+          break;
+        case'void':
+          if(op.kind==='poly')detail.poly(op.points).fill({color:0x000000,alpha:.34});
+          else detail.circle(op.x,op.y,op.r).fill({color:0x000000,alpha:.34});
+          break;
+        case'crown':
+          // Der Apex-Ring: gestrichelt kann Pixi Graphics nicht ohne Umweg –
+          // ein doppelter feiner Ring liest sich als dieselbe Krone.
+          if(op.kind!=='poly'){
+            detail.circle(op.x,op.y,op.r).stroke({color,alpha:.55,width:2});
+            detail.circle(op.x,op.y,op.r-3).stroke({color,alpha:.3,width:1});
+          }
+          break;
+      }
     }
   }
 

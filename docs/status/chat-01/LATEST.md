@@ -2,6 +2,28 @@
 
 **Stand: 2026-08-06**
 
+## KLASSEN 4.0, Welle B – umgesetzt von 01 (06.08. nachts, zweiter Push)
+
+- **Perks:** 38 Klassen ab L15 tragen je ein benanntes Alleinstellungsmerkmal
+  aus 15 Mechaniken (Daten `shared/perks`, Wirkung `apps/server/perks.ts`,
+  18 Tests). Auf der Wahlkarte ersetzt der Perk die generische Beschreibung.
+  `PERKS_ENABLED` Opt-out.
+- **Eine Geometrie-Quelle:** `shared/appearance` liefert Zeichenbefehle je
+  Klasse; Renderer (Pixi), Wahlkarte (SVG), Rad und Death-Screen zeichnen
+  identisch. Der 45-Silhouetten-Blindtest ist erzeugt und bestanden –
+  Familien-Grundkörper (Kreis/Sechseck-lang/Orbit/Panzer/Diamant/Dreieck),
+  Stufen wachsen sichtbar, Apex trägt den Kronenring.
+- **Wahlkarten:** Bild + Rolle + Perk + „führt zu →"; Prüfstand von 63 auf
+  **75 Fälle** erweitert worden (6-Karten-Wahl auf L5) und **75/75 grün** –
+  unterwegs vier echte Regressionen gefangen (0/6 Karten sichtbar auf Touch
+  und Desktop, Höhendeckel, 4:3-Kollisionen) und behoben.
+- **Rad:** echte Silhouetten in den Knoten, sechs Familienfarben.
+- **Death-Screen:** Porträt des eigenen Tanks.
+- 807 Tests grün (59 Dateien).
+
+**Welle C (offen):** Sams Live-Urteil, dann die Messrunde (Seeds,
+Dominanzprüfung, Familien-Erkennbarkeit) und KL4-Slots für Specter/Tempest.
+
 ## KLASSEN 4.0, Welle A – umgesetzt von 01 (06.08. nachts)
 
 Sams Direktauftrag, gebaut von der Zentrale selbst (Arbeits-Chats angehalten):

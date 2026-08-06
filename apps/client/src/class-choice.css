@@ -26,16 +26,25 @@
   display: grid;
   place-items: center;
   width: 100%;
-  height: 78px;
+  height: 64px;
   margin: 0 0 8px;
   border-radius: 11px;
   background: color-mix(in srgb, var(--text) 4%, transparent);
   color: var(--accent);
 }
-.class-choice-preview svg { width: 74px; height: 74px; overflow: visible; }
-.class-preview-hull { fill: currentColor; stroke: color-mix(in srgb, #fff 38%, transparent); stroke-width: 3; }
-.class-preview-barrels { fill: color-mix(in srgb, currentColor 55%, #6c7386); }
-.class-preview-drone { fill: currentColor; opacity: .62; }
+.class-choice-preview svg { width: 62px; height: 62px; overflow: visible; }
+/* Rollen der geteilten Geometrie (shared/appearance): dieselbe Formsprache wie
+   im Spiel. `hull` traegt die Familienfarbe, `armor` liegt dunkler darauf,
+   `accent` hell, `void` ist Aussparung, `crown` der Apex-Ring. */
+.cp-hull { fill: currentColor; stroke: color-mix(in srgb, #fff 38%, transparent); stroke-width: 3; }
+.cp-armor { fill: color-mix(in srgb, currentColor 68%, #10131c); stroke: color-mix(in srgb, #fff 16%, transparent); stroke-width: 1.5; }
+.cp-accent { fill: color-mix(in srgb, #fff 24%, transparent); }
+.cp-void { fill: color-mix(in srgb, #000 34%, transparent); }
+.cp-ring { fill: none; stroke-width: 2; }
+.cp-ring.cp-accent { stroke: color-mix(in srgb, #fff 30%, transparent); }
+.cp-ring.cp-crown { stroke: color-mix(in srgb, currentColor 62%, #fff); stroke-dasharray: 5 4; }
+.cp-barrel, .cp-barrels { fill: color-mix(in srgb, currentColor 55%, #6c7386); }
+.cp-drone { fill: currentColor; opacity: .62; }
 
 /* Jede Familie hat ihre Farbe – dieselbe Zuordnung wie die Rollennamen. */
 [data-branch=rapid]   .class-choice-preview { color: #6f7ad6; }
@@ -51,3 +60,43 @@
   .class-choice-preview { height: 54px; margin-bottom: 6px; }
   .class-choice-preview svg { width: 50px; height: 50px; }
 }
+
+
+/* ------------------------------------------------------------------ *
+ * Perk und Pfad auf der Wahlkarte (Welle B)
+ * ------------------------------------------------------------------ */
+.class-choice-perk {
+  display: block;
+  margin-top: 7px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+.class-choice-perk b { color: var(--text); font-weight: 800; letter-spacing: .04em; }
+.class-choice-leads {
+  display: block;
+  margin-top: 6px;
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
+
+/* Tank-Portraet im Death-Screen: gleiche Geometrie, Familienfarbe. */
+.death-portrait { display: grid; place-items: center; margin: 4px 0 2px; color: var(--accent); }
+.death-portrait svg { width: 64px; height: 64px; overflow: visible; }
+.death-portrait[data-branch=rapid] { color: #5b8cff; }
+.death-portrait[data-branch=precision] { color: #e0a44a; }
+.death-portrait[data-branch=control] { color: #46b98d; }
+.death-portrait[data-branch=impact] { color: #d2606f; }
+.death-portrait[data-branch=specter] { color: #8f7ff0; }
+.death-portrait[data-branch=tempest] { color: #e0954e; }
+
+
+/* Traegt die Karte einen Perk, ersetzt er die generische Beschreibung - beide
+   zusammen sprengten den Hoehendeckel des Panels, und der Perk sagt mehr. */
+.class-choices button:has(.class-choice-perk) > span:not([class]) { display: none; }

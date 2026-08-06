@@ -351,3 +351,16 @@
   .class-overlay .codex-wheel { pointer-events: auto; width: 100%; }
   .class-overlay .codex-card { max-height: 94vh; }
 }
+
+
+/* Silhouetten in den Rad-Knoten (Welle B): currentColor traegt die
+   Familienfarbe, der Punkt dahinter wird zur ruhigen Scheibe. */
+.branch-rapid { color: #5b8cff; }
+.branch-precision { color: #e0a44a; }
+.branch-control { color: #46b98d; }
+.branch-impact { color: #d2606f; }
+.branch-specter { color: #8f7ff0; }
+.branch-tempest { color: #e0954e; }
+.branch-core { color: #9aa3b8; }
+.wheel-silhouette { pointer-events: none; }
+.wheel-node .wheel-dot { fill: color-mix(in srgb, var(--surface) 88%, transparent); }
