@@ -6,7 +6,7 @@
     "apps/client"
   ],
   "aktualisiert": "2026-08-06",
-  "latest": "18-weicher-deckel-und-kl5.md",
+  "latest": "19-impact-warum.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -213,7 +213,7 @@
       "datei": "18-weicher-deckel-und-kl5.md",
       "branch": "claude/chat-02-server-gameplay-w1i4o8",
       "basis": "main@f4aaa5c",
-      "status": "offen",
+      "status": "in main",
       "tests": "1 neu / 708 gesamt",
       "braucht_von_01": [
         "BEFUND: Impact hat K/D 0,21 - ueber neun Laeufe, in jeder Konfiguration (ohne Signatures 0,23, ohne Tempo 2.0 0,19). Kuerzeste Lebensdauer aller Familien. Das ist KEIN Effekt der letzten vier Pakete, sondern ein vorher unbemerkter Zustand. Vorbehalt: Es sind Bots, und Impact-Bots fahren per Bauart hinein - erst spielen lassen, dann drehen",
@@ -222,6 +222,22 @@
         "Projektiltempo 2.0 verschiebt die Familienbilanz NICHT - jede Differenz liegt in der Streuung. Der Streit der letzten zwei Runden ging um Spielgefuehl, nicht um Balance",
         "Precision liegt mit 1,30 knapp ueber der Schwelle - ich wuerde nicht nachschaerfen, bevor Sam den Ladeschuss beurteilt hat",
         "04s Startlevel bleibt nuetzlich, ist aber nicht mehr blockierend: Die Bot-Arena beantwortet die Familienfrage schneller. Fuer Fragen, bei denen es auf Menschen ankommt, bleibt es die richtige Zulieferung"
+      ]
+    },
+    {
+      "nr": 19,
+      "titel": "Warum Impact verliert - Analyse ohne Code",
+      "datei": "19-impact-warum.md",
+      "branch": "claude/chat-02-server-gameplay-w1i4o8",
+      "basis": "main@43c879d",
+      "status": "offen",
+      "tests": "kein Code",
+      "braucht_von_01": [
+        "Fuenf Minuten Rammer von Sam - die Frage, die keine Messung beantwortet: Kann ein Mensch den Koerperkontakt halten? Alles Weitere haengt daran",
+        "Meine Hypothese aus Paket 18 war falsch: Abstand halten verdoppelt die Lebensdauer (25 -> 56 s) und aendert am K/D nichts (0,19 -> 0,17, Einzelwerte ueberlappen). Die Bot-Steuerung ist nicht die Ursache",
+        "Die Ursache: Impact bringt doppeltes Leben und ein Siebtel der Projektil-Feuerkraft (16 gegen 119 DPS) - der ganze Schaden haengt am Kontakt. Gemessen 42 Kontakt-Ticks in 36 Simulationsminuten, also rund eine Sekunde Kontakt. resolvePlayerCollisions schiebt beide Seiten symmetrisch auseinander, bevor der Schaden faellt",
+        "71 % der Kontakte trafen Anfaengergeschuetzte, gegen die die Wucht per Bauart nicht wirkt - die Signature kommt fast nie zum Zug. Das erklaert, warum Impact als einzige Familie auf das Einschalten der Signatures nicht reagiert hat (0,23 -> 0,21)",
+        "KEIN Nachschaerfen der Wucht - sie ist nicht zu schwach, sie kommt nicht zum Zug. Falls Sam den Kontakt nicht halten kann: Freigabe fuer einen Blick auf die massenabhaengige Aufloesung in resolvePlayerCollisions. Der Eingriff beruehrt die Bewegungsintegration und damit 03s Vorhersage"
       ]
     }
   ]

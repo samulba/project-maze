@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 02
-
-> Kopie von `19-impact-warum.md`. Diese Datei zeigt immer das
-> jüngste fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 19 – Warum Impact verliert
 
 **Branch:** `claude/chat-02-server-gameplay-w1i4o8` · **Basis:** `origin/main` @ `43c879d`
