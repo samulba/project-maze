@@ -6,7 +6,7 @@
     "apps/server"
   ],
   "aktualisiert": "2026-08-06",
-  "latest": "16-ui-fehlersuche.md",
+  "latest": "17-pruefstand-sweep.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -176,13 +176,22 @@
       "datei": "16-ui-fehlersuche.md",
       "branch": "claude/chat-03-client-ux-mazers-yu57ca",
       "basis": "main@7ecbc90",
-      "status": "offen",
+      "status": "in main",
       "tests": "707 gesamt unveraendert (CSS-Reparaturen) + neuer Pruefstand scripts/ui-layout-check.mjs, 15/15 Faelle ohne Befund (vorher 5/15)",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 17,
+      "titel": "Pruefstand-Sweep: sechs Befunde, drei aus eigenen Paketen",
+      "datei": "17-pruefstand-sweep.md",
+      "branch": "claude/chat-03-client-ux-mazers-yu57ca",
+      "basis": "main@f4aaa5c",
+      "status": "offen",
+      "tests": "707 gesamt unveraendert (CSS-Reparaturen); Pruefstand von 15 auf 63 Faelle, erster Sweep 55/63, nach fuenf Reparaturen 57/63, Abschlusslauf offen",
       "braucht_von_01": [
         "Merge",
-        "Screenshots an Sam: vorher/nachher 900x640 und 1920x1080",
-        "Frage an Sam: auf welcher Aufloesung spielt er? (F2 trifft 1920x1080 und Ultrawide, F3 nur kleinere Fenster)",
-        "Vorschlag offen: Tastenkuerzel fuer die Klassenwahl (Ziffern sind an Upgrades vergeben, Q/W/E/R waere eine Bedienentscheidung)",
+        "Auftrag fuer KL3 ausschreiben (Rad, Klassenbaum-Overlay C, Enzyklopaedie) - der Pruefstand ist so weit",
+        "Abschlusslauf des Pruefstands nachreichen lassen oder selbst fahren: node scripts/ui-layout-check.mjs",
         "Unveraendert offen: Sichtfeld-Standard, Vorhersage-Standard, 'tier' bei 04"
       ]
     }

@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 03
-
-> Kopie von `17-pruefstand-sweep.md`. Diese Datei zeigt immer das jüngste
-> fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 17 – Der Prüfstand über den Rest: sechs Befunde, drei aus eigenen Paketen
 
 **Branch:** `claude/chat-03-client-ux-mazers-yu57ca` · **Basis:** `origin/main` @ `f4aaa5c` · **Status: OFFEN – wartet auf Merge**

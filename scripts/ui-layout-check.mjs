@@ -334,7 +334,14 @@ for (const [w, h, label, touch] of [
   }
 }
 
-/** Ab hier gilt eine tote Fläche als Fehler – gemessen ohne Wahl sind es 1,4 %. */
+/**
+ * Ab hier gilt eine tote Fläche als Fehler – gemessen ohne Wahl sind es 1,4 %.
+ *
+ * **Nur für Zeigergeräte.** Auf Touch misst die Kennzahl das Falsche: Dort
+ * wird nicht über den Canvas gezielt, sondern über die Sticks, und die beiden
+ * belegen allein schon 20 % eines 844×390-Schirms. Sie sind die Bedienung,
+ * nicht ihr Hindernis. Der Wert wird trotzdem gemeldet – nur nicht bewertet.
+ */
 const TOT_GRENZE = 32;
 
 async function main() {
@@ -441,7 +448,7 @@ async function main() {
     if (messung.wahlKarten && messung.wahlKarten.sichtbar < messung.wahlKarten.gesamt) {
       zeile.push(`Klassenwahl nur ${messung.wahlKarten.sichtbar}/${messung.wahlKarten.gesamt} Karten sichtbar`);
     }
-    if (messung.totAnteil !== null && messung.totAnteil > TOT_GRENZE) {
+    if (!fall.touch && messung.totAnteil !== null && messung.totAnteil > TOT_GRENZE) {
       zeile.push(`${messung.totAnteil} % der Bildfläche nimmt keine Klicks an (Grenze ${TOT_GRENZE} %)`);
     }
     melden({ fall: fall.name, fenster: `${fall.w}×${fall.h}`, tot: messung.totAnteil, probleme: zeile });

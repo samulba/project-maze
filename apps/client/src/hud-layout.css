@@ -302,10 +302,31 @@
  * Bestenliste (278) bleiben auf 900 px Breite nur 372 px. Gemessen deckte er
  * je rund 35 px der beiden Panels.
  *
- * Statt ihn schmaler zu machen (dann passt der Text nicht mehr) rückt er unter
- * die beiden – die Bildmitte ist dort frei, und er bleibt in Blickrichtung.
+ * Er bleibt, wo er ist – oben in Blickrichtung –, passt sich aber in die freie
+ * Spur zwischen den beiden Panels ein, statt sie zu überdecken. Drei Zeilen
+ * Text statt zwei sind der Preis; ein verdecktes Level-Abzeichen wäre teurer.
  */
 @media (max-width: 1180px) {
-  .onboarding { top: calc(var(--edge-y) + 172px); }
-  :root.onboarding-active { --top-stack: calc(var(--edge-y) + 44px); }
+  .onboarding { width: min(520px, max(260px, calc(100vw - 2 * var(--edge-x) - 540px))); }
+}
+
+/* ------------------------------------------------------------------ *
+ * G6 – Im Handy-Querformat blieb die Navigation trotzdem angeschnitten
+ * ------------------------------------------------------------------ */
+/*
+ * Zwei Spalten haben zwei der vier Einträge gerettet, nicht alle vier: Bei
+ * 390 px Höhe kosten Logo, Schriftzug, Namensfeld und Play-Knopf zusammen mehr
+ * als der Schirm hat.
+ *
+ * Auf so flachen Schirmen trägt der Startscreen deshalb keine Marke mehr,
+ * sondern nur noch seine Funktion. Der Schriftzug bleibt – er sagt, wo man
+ * ist –, das Logo geht.
+ */
+@media (max-height: 430px) {
+  .start-logo-wrap { display: none; }
+  .start-card h1 { font-size: 34px; }
+  .start-primary { gap: 6px; }
+  #player-name { height: 44px; }
+  .play-button { height: 46px; margin-top: 2px; }
+  .start-status { margin-top: 6px; }
 }
