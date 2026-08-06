@@ -6,7 +6,7 @@
     "apps/client"
   ],
   "aktualisiert": "2026-08-06",
-  "latest": "17-kl5-tempo-nachmessung.md",
+  "latest": "18-weicher-deckel-und-kl5.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -196,7 +196,7 @@
       "datei": "17-kl5-tempo-nachmessung.md",
       "branch": "claude/chat-02-server-gameplay-w1i4o8",
       "basis": "main@7ecbc90",
-      "status": "offen",
+      "status": "in main",
       "tests": "kein Code, 707 gesamt unveraendert",
       "braucht_von_01": [
         "WIDERSPRUCH: Der Daempfer 0,70 -> 0,60 bestimmt keine einzige Klasse mehr (0 von 22, vorher 9). Alles ausser Precision liegt jetzt auf dem Boden. Er hat die Rapid-Linie nicht verlangsamt, sondern eingeebnet: acht Klassen feuern exakt 559 px/s",
@@ -205,6 +205,23 @@
         "Angebot: weicher Deckel (v = cap + (damped - cap) x 0,15) behebt das Einebnen an der Wurzel - Mechanikaenderung, deshalb erst deine Entscheidung",
         "Von 04 gebraucht: ein Startlevel fuer die Lasttest-Clients. In 300 s bleiben die Clients ueberwiegend in Core (293-308 von ~600 Toden), jede Familienbilanz misst deshalb vor allem Core",
         "Messung ohne Befund: Bei jeder Familie ist die Streuung ueber drei Laeufe derselben Konfiguration so gross wie der Unterschied zwischen den Konfigurationen. Der erste Durchgang mit zwei summierten Laeufen sah nach einem klaren Befund aus - er war Rauschen"
+      ]
+    },
+    {
+      "nr": 18,
+      "titel": "Weicher Deckel (Faktor 0,06) + KL5-Familienbilanz",
+      "datei": "18-weicher-deckel-und-kl5.md",
+      "branch": "claude/chat-02-server-gameplay-w1i4o8",
+      "basis": "main@f4aaa5c",
+      "status": "offen",
+      "tests": "1 neu / 708 gesamt",
+      "braucht_von_01": [
+        "BEFUND: Impact hat K/D 0,21 - ueber neun Laeufe, in jeder Konfiguration (ohne Signatures 0,23, ohne Tempo 2.0 0,19). Kuerzeste Lebensdauer aller Familien. Das ist KEIN Effekt der letzten vier Pakete, sondern ein vorher unbemerkter Zustand. Vorbehalt: Es sind Bots, und Impact-Bots fahren per Bauart hinein - erst spielen lassen, dann drehen",
+        "Faktor 0,06 statt der von mir selbst vorgeschlagenen 0,15: Die Ordnung ist ab 0,04 vollstaendig zurueck, aber zwischen 0,08 und 0,10 faellt der Ausweich-Index unter 1 und bricht die Zusage aus Paket 17",
+        "Die Signatures wirken messbar und in beide Richtungen: Rapid 0,68 -> 1,13, Control 0,71 -> 1,02, Precision 2,38 -> 1,30 (Einzelwerte ueberlappen nicht). Der Ladeschuss hat als einziger Eingriff eine reale Dominanz abgebaut",
+        "Projektiltempo 2.0 verschiebt die Familienbilanz NICHT - jede Differenz liegt in der Streuung. Der Streit der letzten zwei Runden ging um Spielgefuehl, nicht um Balance",
+        "Precision liegt mit 1,30 knapp ueber der Schwelle - ich wuerde nicht nachschaerfen, bevor Sam den Ladeschuss beurteilt hat",
+        "04s Startlevel bleibt nuetzlich, ist aber nicht mehr blockierend: Die Bot-Arena beantwortet die Familienfrage schneller. Fuer Fragen, bei denen es auf Menschen ankommt, bleibt es die richtige Zulieferung"
       ]
     }
   ]

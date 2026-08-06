@@ -12,6 +12,7 @@ import {
   BOT_LEAD_REFERENCE_FLIGHT,
   PROJECTILE_SPEED_CAP_HIGH,
   PROJECTILE_SPEED_CAP_LOW,
+  PROJECTILE_SPEED_DAMPER,
   PROJECTILE_SPEED_FLOOR,
   PROJECTILE_SPEED_PER_POINT,
   compensatedLeadFactor,
@@ -20,7 +21,8 @@ import {
   projectileSpeedCapAt,
   projectileSpeedEnabled,
   projectileSpeedFor,
-  setProjectileSpeedEnabled
+  setProjectileSpeedEnabled,
+  softCapped
 } from './projectile-speed';
 
 /**
@@ -118,12 +120,43 @@ describe('projektiltempo – die drei Regeln', () => {
     expect(projectileSpeedCapAt(0)).toBeCloseTo(projectileSpeedCapAt(1), 9);
     expect(projectileSpeedCapAt(999)).toBeCloseTo(projectileSpeedCapAt(GAME.maxLevel), 9);
 
-    // Lancer ist die schnellste Klasse und liegt auf jeder Stufe am Deckel.
+    // Lancer ist die schnellste Klasse und liegt auf jeder Stufe ueber dem
+    // Deckel – aber nur um den gestauchten Ueberschuss.
     for (const level of [38, 45]) {
-      expect(projectileBaseSpeed(CLASS_DEFINITIONS.lancer, level)).toBeCloseTo(projectileSpeedCapAt(level), 9);
+      const cap = projectileSpeedCapAt(level);
+      const damped = CLASS_DEFINITIONS.lancer.projectileSpeed * PROJECTILE_SPEED_DAMPER;
+      expect(projectileBaseSpeed(CLASS_DEFINITIONS.lancer, level))
+        .toBeCloseTo(softCapped(damped, cap), 9);
+      expect(projectileBaseSpeed(CLASS_DEFINITIONS.lancer, level)).toBeGreaterThan(cap);
+      expect(projectileBaseSpeed(CLASS_DEFINITIONS.lancer, level)).toBeLessThan(damped);
     }
     expect(projectileBaseSpeed(CLASS_DEFINITIONS.lancer, 45))
       .toBeLessThan(projectileBaseSpeed(CLASS_DEFINITIONS.lancer, 38));
+  });
+
+  it('behaelt ueber dem Deckel die Reihenfolge – jede Klasse hat ihr eigenes Tempo', () => {
+    // Der Grund fuer den weichen Deckel: Ein harter machte aus allen sieben
+    // Precision-Klassen einen einzigen Wert, obwohl ihr Rohtempo zwischen 1100
+    // und 1640 px/s liegt.
+    const speeds = SHOOTERS.map((id) => ({
+      id,
+      raw: CLASS_DEFINITIONS[id].projectileSpeed,
+      value: projectileBaseSpeed(CLASS_DEFINITIONS[id], GAME.maxLevel)
+    }));
+    // Gemessen an den **verschiedenen Rohtempi**: Crusher und Comet teilen sich
+    // 660 px/s schon in der Klassendefinition – die duerfen gleich bleiben.
+    const distinctRaw = new Set(speeds.map((entry) => entry.raw));
+    const distinctValues = new Set(speeds.map((entry) => Math.round(entry.value)));
+    expect(distinctValues.size).toBe(distinctRaw.size);
+
+    // Und die Ordnung stimmt: schnelleres Rohtempo bleibt schneller, solange
+    // beide ueber dem Deckel liegen.
+    const above = speeds
+      .filter((entry) => CLASS_DEFINITIONS[entry.id].branch === 'precision')
+      .sort((a, b) => a.raw - b.raw);
+    for (let i = 1; i < above.length; i += 1) {
+      expect(above[i]!.value, `${above[i]!.id} > ${above[i - 1]!.id}`).toBeGreaterThan(above[i - 1]!.value);
+    }
   });
 
   it('lässt das Upgrade in jeder Klasse gleich viel wert sein', () => {
@@ -161,7 +194,10 @@ describe('projektiltempo – die drei Regeln', () => {
       // Heute liegt Lancer beim 3,3-Fachen des schnellsten Spielers, Core beim
       // 1,38-Fachen. Danach ist der Abstand deutlich kleiner.
       expect(legacy('lancer', 0).speed / fastestPlayerSpeed).toBeGreaterThan(3);
-      expect(lancer / fastestPlayerSpeed).toBeLessThanOrEqual(PROJECTILE_SPEED_CAP_LOW + 1e-9);
+      // Mit dem weichen Deckel liegt die Spitze knapp darueber – gestaucht auf
+      // den Ueberschuss, nicht abgeschnitten.
+      expect(lancer / fastestPlayerSpeed).toBeGreaterThan(PROJECTILE_SPEED_CAP_LOW);
+      expect(lancer / fastestPlayerSpeed).toBeLessThan(PROJECTILE_SPEED_CAP_LOW * 1.15);
       expect(lancer).toBeGreaterThan(core);
     });
   });

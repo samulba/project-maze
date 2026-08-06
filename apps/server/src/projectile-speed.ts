@@ -87,6 +87,35 @@ export const PROJECTILE_SPEED_CAP_LOW = 1.5;
  * Verhältnis holt ein fliehendes Ziel praktisch nicht mehr ein.
  */
 export const PROJECTILE_SPEED_FLOOR = 1.25;
+/**
+ * **Weichheit des Deckels.** Ein harter Deckel (`min(damped, cap)`) ebnet
+ * konstruktionsbedingt alles ein, was ihn erreicht: Vor dieser Änderung feuerten
+ * alle sieben Precision-Klassen exakt gleich schnell, obwohl ihr Rohtempo
+ * zwischen 1100 und 1640 px/s liegt. Für Lancer war dieser Unterschied das
+ * Gegengeschäft zu seiner Nachladezeit von 1,30 s.
+ *
+ * Stattdessen wird nur der **Überschuss** über dem Deckel gestaucht:
+ * `cap + (damped − cap) × 0,06`. Die Reihenfolge bleibt, der Abstand schrumpft.
+ *
+ * Warum 0,06 und nicht die zuerst vorgeschlagenen 0,15 – gemessen an den beiden
+ * Zielgrößen aus dem Auftrag:
+ *
+ * | Faktor | verschiedene Tempi | Ausweich-Index @300 (Lancer) |
+ * |---|---|---|
+ * | 0 (hart) | 15 | 1,26 |
+ * | 0,04 | **21** | 1,12 |
+ * | **0,06** | **21** | **1,06** |
+ * | 0,08 | 21 | 0,99 |
+ * | 0,15 | 21 | 0,79 |
+ *
+ * Die Ordnung ist schon ab 0,04 vollständig zurück – **alle 21 schießenden
+ * Klassen haben dann wieder ihr eigenes Tempo**, mehr Weichheit kauft dafür
+ * nichts. Was sie kauft, ist Tempo an der Spitze, und dort steht die Zusage aus
+ * Paket 17: ausweichbar auf **jeder** Distanz, also Index ≥ 1. Zwischen 0,08 und
+ * 0,10 fällt der Index unter 1. 0,06 liegt in der Mitte des Plateaus, auf dem
+ * beides gilt.
+ */
+export const PROJECTILE_SPEED_CAP_SOFTNESS = 0.06;
 /** Zuwachs je Punkt im `projectileSpeed`-Slot (heute 0.04). */
 export const PROJECTILE_SPEED_PER_POINT = 0.025;
 /**
@@ -139,7 +168,16 @@ export function projectileBaseSpeed(base: ClassDefinition, level: number): numbe
   if (base.projectileSpeed <= 0) return 0;
   const damped = base.projectileSpeed * PROJECTILE_SPEED_DAMPER;
   const floor = Math.min(legacySpeed(base), fastestPlayerSpeed * PROJECTILE_SPEED_FLOOR);
-  return Math.max(Math.min(damped, projectileSpeedCapAt(level)), floor);
+  return Math.max(softCapped(damped, projectileSpeedCapAt(level)), floor);
+}
+
+/**
+ * Deckel, der die Reihenfolge behält: unterhalb unverändert, oberhalb wird nur
+ * der Überschuss durchgelassen. Aus zwei Klassen mit verschiedenem Rohtempo
+ * werden damit wieder zwei verschiedene Werte statt zweimal derselbe.
+ */
+export function softCapped(speed: number, cap: number): number {
+  return speed <= cap ? speed : cap + (speed - cap) * PROJECTILE_SPEED_CAP_SOFTNESS;
 }
 
 /** Tempo inklusive Upgrade. Das Upgrade rechnet **nach** dem Deckel. */

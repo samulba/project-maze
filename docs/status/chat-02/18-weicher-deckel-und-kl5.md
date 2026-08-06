@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 02
-
-> Kopie von `18-weicher-deckel-und-kl5.md`. Diese Datei zeigt immer das
-> jüngste fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 18 – Der weiche Deckel, und KL5 zu Ende
 
 **Branch:** `claude/chat-02-server-gameplay-w1i4o8` · **Basis:** `origin/main` @ `f4aaa5c`
