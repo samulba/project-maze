@@ -17,6 +17,10 @@ Zeitpunkte einzelner Personen – es ist derselbe anonyme Export, den `/metrics`
 | `2026-08-06-referenz.json` | derselbe Lastlauf-Aufbau | **alle Schalter aus** – Produktionsstand am 2026-08-06 | 256 Klassenwahlen, 477 Leben, 437 Kills |
 | `2026-08-06-verdichtung/alle-an-r1..r3.json` | lokaler Lastlauf, 40 Clients, 3 × 10 min | **alle Schalter an**, inkl. beider Signatures | je Lauf 184–208 Klassenwahlen |
 | `2026-08-06-verdichtung/alle-aus-r1..r3.json` | derselbe Aufbau, alternierend gefahren | **alle Schalter aus** | je Lauf 221–254 Klassenwahlen |
+| `2026-08-06-momentum-gepaart/momentum-{an,aus}-r1..r3.json` | gepaart, `--seed` 1001/1002/1003 | **nur `SIGNATURE_RAPID_ENABLED` wandert**, alles andere konstant | je Lauf 178–207 Klassenwahlen |
+
+Die letzte Zeile ist der **einzige Satz Abzüge, dessen Aufbau die Lastkontrolle
+besteht** – siehe unten. Für Signature-Aussagen ist nur er zu gebrauchen.
 
 Alle Läufe folgen dem Rezept aus
 [`../TELEMETRY.md`](../TELEMETRY.md#lastprobe-matrix-reproduzierbar-fahren).
@@ -40,6 +44,10 @@ Auf Familienebene, gegeneinander gehalten:
 
 Rapid – und nur Rapid – ist genau die Familie, auf die Momentum wirkt, und sie
 verdoppelt K/D und Kills pro Minute. Die Richtung stimmt also.
+
+> **Diese Ablesung ist zurückgezogen.** Sie stammt aus einem Aufbau, der die
+> Serverlast mitmisst; die saubere Nachmessung findet den K/D-Effekt nicht
+> wieder. Was stattdessen belegt ist, steht zwei Abschnitte weiter unten.
 
 **Trotzdem ist das noch keine Messung.** Ein Lauf je Konfiguration, 49 bis 69
 abgeschlossene Leben je Familie außerhalb von Core, und die simulierten Clients
@@ -72,6 +80,28 @@ konstant halten, und den Tick-Abstand beider Konfigurationen vergleichen, bevor
 die erste K/D-Zahl angesehen wird. Überlappen die Bereiche nicht, ist der
 Vergleich ungültig. Vollständige Auswertung in
 [`../status/chat-04/11-deploy-stopp-tier-balance.md`](../status/chat-04/11-deploy-stopp-tier-balance.md).
+
+### Nachgemessen mit sauberem Aufbau: was Momentum wirklich tut
+
+`2026-08-06-momentum-gepaart/` wiederholt die Frage mit genau **einer**
+wandernden Variable und gepaarten Läufen (`--seed`, beide Seiten einer Runde
+identisch). Die Lastkontrolle ist bestanden: Der Tick-Abstand überlappt
+(35,70–35,87 ms gegen 35,64–36,68 ms).
+
+**Belegt:** Momentum verlängert Rapids Lebensdauer um **12 bis 17 %**
+(+9,5 / +13,0 / +10,4 s über drei Runden – gleichgerichtet *und* eng
+beieinander).
+
+**Unbelegt:** jede Aussage über Rapids **K/D**. Die drei Differenzen lauten
+−0,03 / +0,63 / +0,92; Runde 1 zeigt sogar nach unten.
+
+**Plausibel, aber nur in der Richtung belastbar:** Precision verliert (K/D und
+Kills/min in allen drei Runden niedriger, Größe schwankt um Faktor 5).
+
+Vorsicht bei Einzelzeilen: Von zwanzig geprüften Kombinationen sind neun in
+allen drei Runden gleichgerichtet – bei reinem Zufall wären fünf zu erwarten.
+Details und Gegenargumente in
+[`../status/chat-04/12-momentum-gepaart-gemessen.md`](../status/chat-04/12-momentum-gepaart-gemessen.md).
 
 ## Wie damit gemessen wird
 

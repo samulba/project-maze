@@ -25,6 +25,7 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 | # | Paket | Branch | Commit | Tests | Status |
 | --- | --- | --- | --- | --- | --- |
+| [12](./12-momentum-gepaart-gemessen.md) | `--seed` im Lasttest + gepaarter A/B: was Momentum wirklich tut | `claude/chat-04-infra-betrieb-ihx0xz` | `PLATZ12` | 575 ✔ | **offen** |
 | [11](./11-deploy-stopp-tier-balance.md) | Deploy-Stopp diagnostiziert + Deploy-Wache, `tier` im Perf-Report, Balance verdichtet | `claude/chat-04-infra-betrieb-ihx0xz` | `3e8b83d` | 570 ✔ | **offen** |
 | [10](./10-lastprobe-balance-baseline.md) | Lastprobe-Matrix + Balance-Baseline, Lasttest-Fix | `claude/maze-lastprobe-baseline-dfb335` | `8261c82` | 507 ✔ | gemerged |
 | [09](./09-balance-live-auswertung.md) | Balance-Live-Auswertung (`npm run balance:live`) | `claude/maze-balance-live-dfb335` | `263fd5c` | 487 ✔ | gemerged |
@@ -64,6 +65,16 @@ warum etwas so gebaut ist, wie es gebaut ist.
   Neue Abzüge: `docs/balance/2026-08-06-verdichtung/` (6 Läufe). Die alten
   bleiben als Vorher-Stand liegen. Der Vergleich läuft weiterhin im Modus
   `VERGLEICH`, nicht `ZEITFENSTER` – das ist richtig so.
+- **Was Momentum wirklich tut (Bericht 12, nachgereicht).** Mit sauberem Aufbau
+  – nur `SIGNATURE_RAPID_ENABLED` wandert, Läufe über `--seed` gepaart,
+  Lastkontrolle bestanden – ist **belegt**: Momentum verlängert Rapids
+  Lebensdauer um 12–17 %. **Unbelegt bleibt jede Aussage über Rapids K/D**
+  (Differenzen −0,03 / +0,63 / +0,92). Für 02 heißt das: Wer die Signature nach
+  ihrem K/D-Effekt auslegt, legt sie nach einer Zahl aus, die wir nicht haben.
+- **Neu im Werkzeug: `npm run loadtest -- --seed <n>`.** Feste Klassen- und
+  Upgradewahl der simulierten Clients, damit zwei Läufe paarweise vergleichbar
+  sind. Macht den Lauf *nicht* reproduzierbar – Netzwerk-Timing und Server-Zufall
+  bleiben unberührt.
 - **Paket 08 ist vollständig erledigt** – Server *und* Client sind gemerged,
   der Client sendet Perf-Berichte. Der Punkt „wartet auf Review" war veraltet.
 - **Für 03, letzter Schritt beim Perf-Report:** Der Server nimmt seit Bericht 11
