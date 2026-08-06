@@ -1,3 +1,12 @@
+> **SOLO-BETRIEB seit 07.08.:** Sam hat die Arbeits-Chats 02/03/04 aufgelöst.
+> Die Zentrale ist jetzt der einzige Chat: Sie plant, baut, testet und pusht
+> selbst (Subagenten für parallelisierbare Pakete sind ihr Werkzeug, keine
+> eigenen Chats mehr). Auftrag-Dateien und Statusblock-Runden entfallen -
+> Sams Nachricht ist der Auftrag, `docs/status/chat-01/LATEST.md` bleibt das
+> Gedächtnis, die Ordner chat-02/03/04 sind Archiv. Alles unten zu
+> „Aufträge ausstellen" und „Berichte einsammeln" ist damit historisch;
+> die Fallenlisten und eisernen Regeln gelten weiter.
+
 # Übergabe an eine neue Zentrale (Chat 01)
 
 Diese Datei ist der Einstieg, wenn der Zentral-Chat neu aufgesetzt wird. Sie

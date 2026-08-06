@@ -1,3 +1,11 @@
+> **HISTORISCH (Stand 07.08.):** Das Vier-Chat-Modell ist beendet. Sam hat
+> die Arbeits-Chats 02/03/04 aufgelöst; die Zentrale plant und baut seitdem
+> selbst (Klassen 4.0 war der erste Direktauftrag). Die eisernen Regeln unten
+> gelten sinngemäß weiter (Basis origin/main, npm run check vor jedem Push,
+> Flags mit Opt-out nach Integration, kein Zufall in Tests, .probe/ für
+> Wegwerf-Skripte) – nur die Rollenverteilung und die Statusblock-Runden sind
+> Geschichte.
+
 # MAZERS – Teamplan (Masterplan v3)
 
 Arbeitsmodell für die parallele Entwicklung mit vier Claude-Chats.

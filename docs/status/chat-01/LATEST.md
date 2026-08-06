@@ -2,6 +2,38 @@
 
 **Stand: 2026-08-06**
 
+## KONSOLIDIERUNG auf einen Stand (07.08.) – das Team wird zur Zentrale
+
+Sam löst die Chats 02/03/04 auf; 01 arbeitet ab jetzt allein. Die drei
+Abschlusslieferungen sind gesichtet und verarbeitet:
+
+- **02 (gemerged):** Die restlichen unsichtbaren Fähigkeiten. Wichtigster
+  Fund: **Der Bot-Dash sprang weiter** – die Fahrt hing am vierten Parameter
+  von `activateModule`, den nur der Spieler-Pfad setzte. In der Arena sind
+  fast alle Dashes Bot-Dashes; genau über die hatte Sam sich beschwert. Der
+  Schalter sitzt jetzt am Spiel, der Parameter ist weg. Dazu: Repair
+  verbrannte sich in Fahrt unsichtbar (17 s Abklingzeit für nichts), Repulse-
+  Konstanten liegen in shared, und `REPULSE_TRAVEL_ENABLED` (Default aus,
+  bewusst: Wirkungs-VERDOPPLUNG, Entscheidung nach der Messrunde).
+- **04 (gemerged):** `.env`-/Deploy-Doku entstaubt und auf den Flag-Stand
+  gebracht.
+- **03 (Berichte übernommen, Code bewusst NICHT gemerged):** 03 hat parallel
+  zur Welle B dieselbe Idee gebaut – eine Rumpf-Datenquelle, aber auf dem
+  29-Klassen-Stand, nur im Client, ohne Rad/Death-Screen. Die shared-Lösung
+  aus Welle B (45 Klassen, vier Verbraucher) ersetzt sie vollständig. Zwei
+  Dinge aus dem Bericht sind trotzdem Gold und bleiben festgehalten: **Die
+  Korrektur, dass die Impact-Klassen im Spiel nie identisch waren** (das war
+  ein Artefakt der alten Kreis-Vorschau; wirklich dublettiert waren Core/
+  Controller/Twin/Warden/Guardian – in Welle B sind alle fünf verschieden),
+  und der Hinweis, dass der Prüfstand Panels misst, aber keine **Geschwister
+  im selben Panel** – ein offener Prüfstand-Ausbau für die nächste Runde.
+
+816 Tests grün. Die Branches der drei Chats bleiben als Archiv stehen.
+
+**Arbeitsmodell ab jetzt:** Sams Nachricht ist der Auftrag. 01 plant, baut
+(mit Subagenten für Parallelisierbares), prüft (Check, Prüfstand, Blindtest,
+Screenshots) und pusht auf `main`. Diese Datei bleibt das Gedächtnis.
+
 ## KLASSEN 4.0, Welle B – umgesetzt von 01 (06.08. nachts, zweiter Push)
 
 - **Perks:** 38 Klassen ab L15 tragen je ein benanntes Alleinstellungsmerkmal

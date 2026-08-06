@@ -6,7 +6,7 @@
     "apps/server"
   ],
   "aktualisiert": "2026-08-06",
-  "latest": "18-kl3-das-rad.md",
+  "latest": "19-tank-identitaet.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -196,13 +196,28 @@
       "datei": "18-kl3-das-rad.md",
       "branch": "claude/chat-03-client-ux-mazers-yu57ca",
       "basis": "main@43c879d",
-      "status": "offen",
+      "status": "in main",
       "tests": "15 neu / 728 gesamt; Pruefstand von 63 auf 75 Faelle: Rad-Faelle 2/12 -> 13/13, Gesamtmatrix 75/75 ohne Befund",
       "braucht_von_01": [
         "Merge",
         "Screenshots an Sam: Enzyklopaedie und Overlay",
         "Frage: Soll das Rad auf Level 10 einmal von selbst aufgehen? (nicht gebaut - ein Overlay, das sich im Gefecht selbst oeffnet, kann der schlechteste Moment sein)",
         "Unveraendert offen: Sichtfeld-Standard, Vorhersage-Standard, 'tier' bei 04"
+      ]
+    },
+    {
+      "nr": 19,
+      "titel": "Klassen-Identitaet: geteilte Rumpfgeometrie, Wahl im Spiel repariert, Formsprache als Vorlage",
+      "datei": "19-tank-identitaet.md",
+      "branch": "claude/chat-03-client-ux-mazers-yu57ca",
+      "basis": "main@4b28dd2",
+      "status": "offen",
+      "tests": "28 neu / 791 gesamt; Pruefstand 69/75 -> 75/75 (acht Befunde, zwei davon aus eigenen Paketen); Blindtest 17 -> 19 verschiedene Umrisse",
+      "braucht_von_01": [
+        "Merge",
+        "Vorlage an Sam: acht Silhouetten heute/neu plus Blindtest ueber alle 29 - ohne sein Ja baue ich die restlichen 21 Merkmale nicht",
+        "Beobachtung aus dem Spielen (nicht mein Revier): Tod wirft hart zurueck (Level 9 -> 4 -> 3 -> 1), bis Level 10 waren es 150 Sekunden Sterben",
+        "Unveraendert offen: Sichtfeld-Standard, Vorhersage-Standard, tier bei 04, Rad-Automatik auf Level 10"
       ]
     }
   ]

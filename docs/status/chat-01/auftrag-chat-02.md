@@ -1,10 +1,9 @@
-# Auftrag für Chat 02 – ANGEHALTEN (06.08. nachts)
+# Chat 02 – AUFGELÖST (07.08.)
 
-Sam hat die Klassen-Generalüberholung („Klassen 4.0", MASTERPLAN v5-Kern) als
-Direktauftrag an die Zentrale gegeben – Plan und Umsetzung laufen bei 01, ohne
-Verteilung. **Bitte nichts bauen und nichts pushen**, bis hier wieder ein
-echter Auftrag steht: Die Zentrale baut gerade quer durch shared, Server und
-Client, und jede parallele Änderung erzeugt Konflikte.
+Sam hat das Vier-Chat-Modell beendet: Die Zentrale (01) arbeitet allein und
+setzt direkt um. Dieser Ordnerteil bleibt als Archiv – die Statusberichte
+unter `docs/status/chat-02/` sind Projektgeschichte und werden nicht mehr
+fortgeschrieben.
 
-Wenn du diesen Text siehst und etwas Dringendes weißt (Sicherheitsproblem,
-Live-Störung): Bericht in deinen Statusordner, nicht bauen.
+Falls dieser Chat doch noch einmal geöffnet wird: **Nichts bauen, nichts
+pushen.** Der Stand, auf dem du zuletzt gearbeitet hast, ist überholt.
