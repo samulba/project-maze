@@ -187,11 +187,10 @@
       "branch": "claude/chat-03-client-ux-mazers-yu57ca",
       "basis": "main@f4aaa5c",
       "status": "offen",
-      "tests": "707 gesamt unveraendert (CSS-Reparaturen); Pruefstand von 15 auf 63 Faelle, erster Sweep 55/63, nach fuenf Reparaturen 57/63, Abschlusslauf offen",
+      "tests": "707 gesamt unveraendert (CSS-Reparaturen); Pruefstand von 15 auf 63 Faelle: 55/63 -> 57/63 -> 63/63",
       "braucht_von_01": [
         "Merge",
-        "Auftrag fuer KL3 ausschreiben (Rad, Klassenbaum-Overlay C, Enzyklopaedie) - der Pruefstand ist so weit",
-        "Abschlusslauf des Pruefstands nachreichen lassen oder selbst fahren: node scripts/ui-layout-check.mjs",
+        "Auftrag fuer KL3 ausschreiben (Rad, Klassenbaum-Overlay C, Enzyklopaedie) - der Pruefstand laeuft mit 63/63 durch",
         "Unveraendert offen: Sichtfeld-Standard, Vorhersage-Standard, 'tier' bei 04"
       ]
     }

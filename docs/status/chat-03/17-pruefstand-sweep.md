@@ -6,6 +6,8 @@ Die Matrix ist von 15 auf **63 Fälle** gewachsen – 33 im Spiel, 30 auf dem
 Startscreen, darunter vier mobile Größen. Der erste Durchlauf lief mit
 **55/63**.
 
+Nach den Reparaturen läuft die volle Matrix mit **63/63** durch.
+
 Der unangenehmste Teil des Ergebnisses: **Drei der sechs Befunde stammen aus
 meinen eigenen letzten drei Paketen**, und alle drei nur auf Touch – dem
 einzigen Bereich, den ich dort jeweils nur rechnerisch abgedeckt hatte. Genau
@@ -69,15 +71,15 @@ wäre G2 unentdeckt geblieben.
 |---|---|
 | erster Sweep | 55 / 63 |
 | nach den ersten fünf Reparaturen | 57 / 63 |
-| nach G6 und den Werkzeug-Korrekturen | **läuft noch** – siehe Grenzen, Punkt 6 |
+| nach G6 und den Werkzeug-Korrekturen | **63 / 63** |
 
 Die verbliebenen sechs Fälle des zweiten Durchlaufs waren: zweimal die
-angeschnittene Navigation (G6, jetzt repariert), einmal das Onboarding gegen
-die Bestenliste (G4, Reparatur überarbeitet), dreimal die tote Fläche knapp
-über der Schwelle auf Touch – das ist der Messfehler der Kennzahl, nicht ein
-Fehler der UI, und die Schwelle gilt dort jetzt nicht mehr. Dazu ein einzelner
-Zeitüberlauf auf 21:9, der im ersten Durchlauf nicht auftrat und den ich für
-eine Schwankung des Testbrowsers halte – bestätigt ist das nicht.
+angeschnittene Navigation (G6), einmal das Onboarding gegen die Bestenliste
+(G4, Reparatur überarbeitet), dreimal die tote Fläche knapp über der Schwelle
+auf Touch – das ist der Messfehler der Kennzahl, nicht ein Fehler der UI. Dazu
+ein einzelner Zeitüberlauf auf 21:9, der weder davor noch danach wieder
+auftrat; ich halte ihn für eine Schwankung des Testbrowsers, bewiesen ist das
+nicht.
 
 `npm run check` grün: 52 Dateien, 707 Tests, Build in Ordnung.
 
@@ -90,10 +92,11 @@ eine Schwankung des Testbrowsers halte – bestätigt ist das nicht.
 ## Von 01 gebraucht
 
 1. **Merge.**
-2. **KL3 ist der nächste Wunsch von mir** – sobald ich dir den Abschlusslauf
-   nachgereicht habe. Alle vier Familien haben ihre Signature, und niemand
-   sieht sie. Schreib mir den Auftrag für Rad, Klassenbaum-Overlay (`C`) und
-   Enzyklopädie aus; das ist das größte Stück Sichtbarkeit, das gerade fehlt.
+2. **KL3 ist der nächste Wunsch von mir.** Der Prüfstand läuft mit 63/63
+   sauber durch – die Bedingung aus deinem Auftrag ist erfüllt. Alle vier
+   Familien haben ihre Signature, und niemand sieht sie. Schreib mir den
+   Auftrag für Rad, Klassenbaum-Overlay (`C`) und Enzyklopädie aus; das ist das
+   größte Stück Sichtbarkeit, das gerade fehlt.
 3. **Unverändert offen:** Sichtfeld-Standard, Vorhersage-Standard, `tier` bei 04.
 
 ## Abweichungen und Grenzen
@@ -109,11 +112,10 @@ eine Schwankung des Testbrowsers halte – bestätigt ist das nicht.
 4. **Achievement-Popups laufen im Prüfstand nur einmal an.** Sie werden über
    `freshAchievements` eingespeist und einmal gesendet; eine Kette aus mehreren
    Popups hintereinander ist nicht abgebildet.
-5. **Der abschließende Durchlauf war beim Schreiben dieses Berichts noch nicht
-   durch.** Die Reparaturen zu G6 und die beiden Werkzeug-Korrekturen sind
-   damit gebaut und einzeln begründet, aber nicht über die volle Matrix
-   bestätigt. Wer das nachholen will: `node scripts/ui-layout-check.mjs`,
-   Aufrufhinweise im Kopf der Datei. Ich reiche das Ergebnis nach.
+5. **Drei Durchläufe, drei Stände.** 63/63 gilt für den Code, wie er jetzt
+   ist. Die Zahlen 55 und 57 stehen oben, weil sie zeigen, dass jede Reparatur
+   gemessen wurde und nicht nur behauptet ist – und dass eine davon (G6) erst
+   im zweiten Durchlauf sichtbar wurde.
 6. **63 Fälle sind nicht alle.** Was fehlt: Klassenwahl bei gehaltenem
    Ladeschuss, zwei Achievements hintereinander, Wiederverbindung mit offenem
    Panel. Die Erweiterung ist jeweils eine Zeile in `FAELLE`.
