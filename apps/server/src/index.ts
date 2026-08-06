@@ -122,23 +122,24 @@ const ARENA_DIRECTOR_ENABLED = !['false', '0', 'off']
 const BOT_PACING_ENABLED = !['false', '0', 'off']
   .includes((process.env.BOT_PACING_ENABLED ?? '').trim().toLowerCase());
 /**
- * Klassen 3.0, erste Familie: Momentum für RAPID. Standardmäßig aus – ohne den
- * Schalter wird die Schicht gar nicht erst angehängt, `signature` taucht in
- * keinem Snapshot auf und die Nachladezeiten sind exakt die alten. An, sobald
- * der Momentum-Balken im Client steht.
+ * Klassen 3.0, erste Familie: Momentum für RAPID. Seit 06.08. standardmäßig **an**; `false` hängt die
+ * Schicht gar nicht erst an, `signature` taucht dann in keinem Snapshot auf
+ * und die Nachladezeiten sind exakt die alten.
  */
-const SIGNATURE_RAPID_ENABLED = process.env.SIGNATURE_RAPID_ENABLED === 'true';
+const SIGNATURE_RAPID_ENABLED = !['false', '0', 'off']
+  .includes((process.env.SIGNATURE_RAPID_ENABLED ?? '').trim().toLowerCase());
 /**
  * Klassen 3.0, zweite Familie: Wucht für IMPACT. Der Anlauf-Skalar erhöht den
- * Körperschaden und wird beim Aufprall verbraucht. Standardmäßig aus – ohne den
- * Schalter wird die Schicht gar nicht erst angehängt.
+ * Körperschaden und wird beim Aufprall verbraucht. Seit 06.08. standardmäßig
+ * **an**; `false` hängt die Schicht gar nicht erst an.
  */
-const SIGNATURE_IMPACT_ENABLED = process.env.SIGNATURE_IMPACT_ENABLED === 'true';
+const SIGNATURE_IMPACT_ENABLED = !['false', '0', 'off']
+  .includes((process.env.SIGNATURE_IMPACT_ENABLED ?? '').trim().toLowerCase());
 /**
  * Klassen 3.0, dritte Familie: Ladeschuss für PRECISION. Halten lädt, Loslassen
  * schießt, ein Sofortklick ist ein schwacher Schuss. Der Schaden steigt dabei
  * nie über den heutigen Wert – ein Lancer trägt schon jetzt 86 % des Lebens des
- * dünnsten Gegners seiner Stufe. Standardmäßig aus.
+ * dünnsten Gegners seiner Stufe.
  */
 // Opt-out wie die beiden anderen Signatures, die Sam in Railway ohnehin gesetzt
 // hat. Rapid und Impact liefen live, Precision nicht – dieselbe Familie, drei
@@ -151,13 +152,14 @@ const SIGNATURE_PRECISION_ENABLED = !['false', '0', 'off']
  * Budget = eine komplette Flotte. Im Mittel dasselbe Tempo wie heute, aber wer
  * zweimal kurz hintereinander verliert, steht ohne Nachschub da.
  */
-const SIGNATURE_CONTROL_ENABLED = process.env.SIGNATURE_CONTROL_ENABLED === 'true';
+const SIGNATURE_CONTROL_ENABLED = !['false', '0', 'off']
+  .includes((process.env.SIGNATURE_CONTROL_ENABLED ?? '').trim().toLowerCase());
 /**
  * Klassen 3.0, KL4: Familien-Upgrades. Die beiden Slots `signatureRate` und
  * `signaturePower` werden kaufbar, und die Signature-Stärke wandert aus dem
  * Festwert in die Punkte-Ökonomie (Sockel + Punkte). Standardmäßig aus – ohne
- * den Schalter ist kein Slot kaufbar und beide Signatures rechnen mit ihren
- * bisherigen Festwerten.
+ * den Schalter ist kein Slot kaufbar und die Signatures rechnen mit ihren
+ * bisherigen Festwerten. Seit 06.08. standardmäßig **an**.
  */
 // Opt-out (01, 06.08.): Die Sperre, wegen der das aus bleiben musste – die tote
 // Digit0-Taste –, ist mit 03s Paket 13 gefallen. Danach gab es keinen Grund
