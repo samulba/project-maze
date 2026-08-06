@@ -20,16 +20,22 @@ Zeitpunkte einzelner Personen – es ist derselbe anonyme Export, den `/metrics`
 | `2026-08-06-momentum-gepaart/momentum-{an,aus}-r1..r3.json` | gepaart, `--seed` 1001/1002/1003 | **nur `SIGNATURE_RAPID_ENABLED` wandert**, alles andere konstant | je Lauf 178–207 Klassenwahlen |
 | `2026-08-06-projektiltempo/tempo-{v2,alt}-r1..r3.json` | gepaart, `--seed` 2001/2002/2003 | **nur `PROJECTILE_SPEED_V2` wandert**, alle übrigen Schalter auf Default an | je Lauf 219–251 Klassenwahlen |
 
-Zum Projektiltempo-Satz gehört eine Warnung: **Er enthält keinen nachweisbaren
-Effekt** (3 von 20 Kombinationen konsistent, bei Zufall wären 5 zu erwarten) –
-weil die Bots ihren Vorhalt gegen die Flugzeit ausgleichen und die
-Lasttest-Clients gar nicht vorhalten. Der Schalter *wirkt* mechanisch klar
-(1,40× so viele Projektile gleichzeitig in der Luft), nur eben nicht auf die
-Kampfstatistik eines Lastlaufs. Begründung in
-[`../status/chat-04/13-deploy-wache-projektiltempo.md`](../status/chat-04/13-deploy-wache-projektiltempo.md).
+**Welcher Satz wofür taugt:**
 
-Die letzte Zeile ist der **einzige Satz Abzüge, dessen Aufbau die Lastkontrolle
-besteht** – siehe unten. Für Signature-Aussagen ist nur er zu gebrauchen.
+- Die **ersten vier Zeilen** stammen aus dem Aufbau „alle Schalter an gegen
+  alle aus". Er misst die Serverlast mit und besteht die Lastkontrolle **nicht**
+  – für Signature-Aussagen unbrauchbar, siehe unten. Sie bleiben als
+  Vorher-Stand für KL5 liegen.
+- **`2026-08-06-momentum-gepaart/`** ist der einzige Satz mit einem gültigen
+  Aufbau *und* einem belegten Befund (Rapids Lebensdauer).
+- **`2026-08-06-projektiltempo/`** hat einen gültigen Aufbau, aber **enthält
+  keinen nachweisbaren Effekt**: 3 von 20 Kombinationen konsistent, bei Zufall
+  wären 5 zu erwarten. Der Grund ist konstruktiv – die Bots gleichen ihren
+  Vorhalt gegen die Flugzeit aus, und die Lasttest-Clients halten gar nicht
+  vor. Der Schalter *wirkt* mechanisch klar (1,40× so viele Projektile
+  gleichzeitig in der Luft), nur eben nicht auf die Kampfstatistik eines
+  Lastlaufs. **Nicht als „das Tempo wirkt nicht" lesen.** Begründung in
+  [`../status/chat-04/13-deploy-wache-projektiltempo.md`](../status/chat-04/13-deploy-wache-projektiltempo.md).
 
 Alle Läufe folgen dem Rezept aus
 [`../TELEMETRY.md`](../TELEMETRY.md#lastprobe-matrix-reproduzierbar-fahren).
