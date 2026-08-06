@@ -104,3 +104,20 @@ npm run balance:live -- --url https://mazers.de   # Live-Balance-Auswertung
   `/health` (Feld `build`/`commit`) mit dem erwarteten Stand vergleichen.
 - **Migrationen** liegen in `supabase/migrations/`; nach `applied/` wandern sie
   erst, wenn Sam bestätigt hat, dass sie eingespielt sind.
+
+## Die teuerste Lehre (06.08.)
+
+**Ein Feature hinter einem Opt-in-Flag ist für Sam nicht gebaut.** Die Regel
+„jedes neue Feature kommt hinter ein Flag, Default aus" ist richtig für den
+Moment des Mergens – aber sie hat hier dazu geführt, dass drei fertige,
+getestete Pakete wochenlang dunkel blieben, weil niemand den Schalter umgelegt
+hat. Sam hat zweimal „die Kugeln sind zu schnell" gemeldet, während das Paket,
+das genau das behebt, ausgeschaltet auf `main` lag.
+
+**Neue Regel der Zentrale:** Beim Merge ist Default aus. Sobald das Paket
+integriert ist und nichts mehr blockiert, **stellt 01 den Default auf an** –
+als Opt-out (`false`/`0`/`off` schaltet zurück), damit ein Rückweg bleibt. Wer
+ein Paket merged, ist dafür verantwortlich, dass es auch ankommt.
+
+Und: Wenn Sam sagt „X ist immer noch kaputt", ist die erste Frage nicht „woran
+liegt X", sondern **„lief X überhaupt?"**.

@@ -139,7 +139,11 @@ const SIGNATURE_IMPACT_ENABLED = process.env.SIGNATURE_IMPACT_ENABLED === 'true'
  * nie über den heutigen Wert – ein Lancer trägt schon jetzt 86 % des Lebens des
  * dünnsten Gegners seiner Stufe. Standardmäßig aus.
  */
-const SIGNATURE_PRECISION_ENABLED = process.env.SIGNATURE_PRECISION_ENABLED === 'true';
+// Opt-out wie die beiden anderen Signatures, die Sam in Railway ohnehin gesetzt
+// hat. Rapid und Impact liefen live, Precision nicht – dieselbe Familie, drei
+// verschiedene Zustände, je nachdem wer wann welchen Schalter angefasst hat.
+const SIGNATURE_PRECISION_ENABLED = !['false', '0', 'off']
+  .includes((process.env.SIGNATURE_PRECISION_ENABLED ?? '').trim().toLowerCase());
 /**
  * Klassen 3.0, KL4: Familien-Upgrades. Die beiden Slots `signatureRate` und
  * `signaturePower` werden kaufbar, und die Signature-Stärke wandert aus dem
@@ -147,7 +151,11 @@ const SIGNATURE_PRECISION_ENABLED = process.env.SIGNATURE_PRECISION_ENABLED === 
  * den Schalter ist kein Slot kaufbar und beide Signatures rechnen mit ihren
  * bisherigen Festwerten.
  */
-const FAMILY_UPGRADES_ENABLED = process.env.FAMILY_UPGRADES_ENABLED === 'true';
+// Opt-out (01, 06.08.): Die Sperre, wegen der das aus bleiben musste – die tote
+// Digit0-Taste –, ist mit 03s Paket 13 gefallen. Danach gab es keinen Grund
+// mehr, außer dass niemand den Schalter umgelegt hat.
+const FAMILY_UPGRADES_ENABLED = !['false', '0', 'off']
+  .includes((process.env.FAMILY_UPGRADES_ENABLED ?? '').trim().toLowerCase());
 /**
  * Für welche Familien die Slots wirklich kaufbar sind: nur die, deren Signature
  * gebaut **und** eingeschaltet ist. Ein Slot ohne laufende Signature wäre ein

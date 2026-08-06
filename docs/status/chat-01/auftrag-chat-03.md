@@ -1,70 +1,72 @@
 # Auftrag für Chat 03 – Client/UX
 
-**Ausgestellt: 2026-08-06 (4. Fassung) · Basis: aktueller `origin/main`**
+**Ausgestellt: 2026-08-06 (5. Fassung) · Basis: aktueller `origin/main`**
 
 > Neu im Chat? Lies zuerst `docs/status/chat-03/UEBERGABE.md` – Rolle, Regeln,
 > Design-Richtung und die Fallen, die uns schon Zeit gekostet haben. Danach
 > diese Datei.
 
-Paket 14 ist gemerged (686 Tests grün). **Du hast mich korrigiert, und das war
-richtig.** Ich hatte behauptet, das HUD hänge am Fenster statt am Spielfeld und
-die Viewport-Härtung halte nicht – geraten, aus einem einzelnen Screenshot. Du
-hast über 24 Übergänge gemessen und gezeigt, dass beides nicht stimmt: Die
-Härtung hält, das HUD sitzt richtig, und die Ränder sind schlicht das feste
-16:9 auf einem breiten Schirm.
+## VORRANG: Die UI ist an mehreren Stellen kaputt – finde heraus, wo
 
-Genauso wertvoll: Statt den Nicht-Fehler zu „reparieren", hast du die
-eigentliche Frage beantwortet und einen zweiten Sichtfeld-Modus gebaut, der
-die **Fläche** konstant hält statt der Form – bei 16:9 auf sechs
-Nachkommastellen identisch, auf 21:9 bildschirmfüllend, geklemmt aus der
-Sichtgrenze des Servers. Dass die Geometrie jetzt als prüfbare Funktion in
-`viewport.ts` liegt und die zweite Kopie derselben Rechnung verschwunden ist,
-war überfällig.
+Sam, wörtlich und sichtlich genervt:
 
-Der geschrumpfte Death-Screen beim Zuschauen (22 % → 6,6 % der Bildfläche, ohne
-Abdunklung) trifft Sams Befund genau.
+> *„ES GIBT VIELE UI PROBLEME z.B. beim aussuchen der klasse etc etc"*
 
-**Sams offene Frage bleibt trotzdem:** Er berichtet Ränder *beim Wechsel* des
-Vollbildmodus. Deine Messung 120 ms nach dem Umschalten sagt, dass danach alles
-stimmt. Möglich, dass er einen kurzen Zwischenzustand sieht, den eine Messung
-nach 120 ms nicht mehr findet – ein Frame mit alter Auflösung. Wenn dir dazu
-etwas einfällt, nimm es mit; wenn nicht, lassen wir es liegen, bis er es mit
-dem neuen Modus erneut beurteilt.
+Mehr Beschreibung gibt es nicht, und ich habe sie auch nicht. **Das ist der
+Auftrag: Finde sie selbst.** Sam soll nicht Fehlerlisten schreiben müssen – er
+spielt, und was ihm auffällt, hätte uns vorher auffallen müssen.
 
-## Das Paket: Befund 2 – der Startscreen wird eine Navigation
+### Wie ich das gemacht haben will
 
-Den hattest du geschnitten, mit Begründung – das war in Ordnung, aber jetzt ist
-er dran. Es ist der letzte von Sams fünf Live-Befunden, der noch offen ist.
+**1. Klassenwahl zuerst**, weil er sie als einziges Beispiel genannt hat. Sie
+erscheint auf Level 10 mitten im Spiel, unter Beschuss, und ist damit die
+unbarmherzigste UI, die wir haben. Geh sie vollständig durch: Erscheinen und
+Verschwinden, Tastatur und Maus, Fenster und Vollbild, während der Ladeschuss
+gehalten wird, während der Death-Screen kommt, mit langen Klassennamen, auf
+21:9 und auf 4:3, mit und ohne den neuen Sichtfeld-Modus. Und: Was passiert,
+wenn man **nicht** wählt? Was, wenn man währenddessen stirbt?
 
-Sam: *„der HOMESCREEN – dass man da direkt alle Achievements + Leaderboard
-sieht, ist komplett kake. Die sollten alle geile cleane Unterseiten bekommen,
-genauso wie Profil, Einstellungen etc. Nicht alles auf eine Seite
-reinballern."*
+**2. Danach der Rest im selben Verfahren.** Upgrade-Panel, Death-Screen,
+Startscreen, HUD-Elemente, die Overlays untereinander. Der Verdacht, den ich
+habe: Wir haben in den letzten Runden viel angebaut – Grafikstufe, Vollbild,
+Sichtfeld-Modus, Vorhersage-Schalter, Familien-Slots, Ladebalken, geschrumpfter
+Death-Screen – und **jedes Stück einzeln geprüft, nie alle zusammen**. Genau
+dort sitzen die Fehler: zwei Overlays gleichzeitig, ein Panel, das über einem
+anderen liegt, ein Zustand, den es vorher nicht gab.
 
-Der Startscreen ist über K2, A4 und die Achievements-Galerie zu einer langen
-Seite gewachsen. Start bleibt **Logo, Name und ARENA BETRETEN** – nichts sonst.
-Alles andere wird eine eigene, ruhige Unterseite: Profil · Achievements ·
-Bestenliste · Einstellungen.
+**3. Schreib auf, was du findest, bevor du reparierst.** Eine Liste mit
+Reproduktionsweg je Fehler, nach Schwere sortiert. Dann reparierst du von oben.
+Wenn du nicht alles schaffst: Der Rest steht in der Liste und ist damit nicht
+verloren.
 
-Das ist dein Revier und deine Handschrift, ich gebe dir keine Kästchen vor.
-Vier Auflagen:
+**4. Nimm die Screenshot-Pipeline** (`docs/SCREENSHOT_PIPELINE.md`, Chromium
+ist da). Ein Fehler, den du im Bild zeigen kannst, ist ein Fehler, über den Sam
+nicht diskutieren muss.
 
-1. **Der Weg ins Spiel wird nicht länger als heute.** Name tippen, Knopf
-   drücken – das darf keinen Klick mehr kosten.
-2. **Alles über die Theme-Variablen.** Der Grundlook ist dunkel und wurde am
-   06.08. zurückgebaut; deine bisherigen Flächen haben das von selbst
-   überstanden, weil sie an den Variablen hingen.
-3. **Der Gastfall muss gut aussehen**, nicht nur der angemeldete. Ohne Login
-   gibt es kein Profil und keine Achievements – die Navigation darf dann nicht
-   wie eine kaputte Seite wirken.
-4. **Die neuen Schalter finden ihren Platz.** Grafikstufe, Vollbild,
-   Sichtfeld-Modus und der Vorhersage-Schalter stecken heute in einem
-   Aufklapper. In einer Einstellungs-Unterseite sind sie besser aufgehoben –
-   und du hast dann Platz, sie zu erklären.
+**Kein Bug ohne Test**, wo es geht. Wir haben diese Runde gesehen, dass Messen
+schlägt Vermuten – deine 24 Übergänge haben meine falsche Diagnose gekippt.
+Dasselbe Verfahren, andere Baustelle.
 
-Wenn du einen Screenshot für Sam brauchst, bevor du dich festlegst: Sag es im
-Bericht, ich fahre die Pipeline und lege ihm die Varianten vor. Grundlook
-ändern darfst du weiterhin nicht ohne sein Ja – ein Navigationsumbau ist aber
-kein Grundlook-Wechsel, solange die Farbwelt bleibt.
+## Danach: Befund 2 – der Startscreen wird eine Navigation
+
+Sams letzter offener Live-Befund, den du beim letzten Mal begründet geschnitten
+hast. Start bleibt **Logo, Name und ARENA BETRETEN**; Profil, Achievements,
+Bestenliste und Einstellungen werden eigene, ruhige Unterseiten. Auflagen: Der
+Weg ins Spiel wird nicht länger, alles über die Theme-Variablen, der Gastfall
+muss gut aussehen, und die vielen neuen Schalter finden dort ihren Platz.
+
+Wenn die UI-Fehlerliste lang wird, hat sie Vorrang. Sag im Bericht, wie du
+geschnitten hast.
+
+## Was seit deinem letzten Paket auf main dazugekommen ist
+
+- **Drei Serverfeatures stehen jetzt auf Default an** (01, heute):
+  Projektiltempo 2.0, Familien-Upgrades und der Precision-Ladeschuss. Sie waren
+  als Opt-in gebaut und sind deshalb nie bei Sam angekommen. Für dich heißt
+  das: **Die Familien-Slots und der Ladebalken sind ab jetzt im normalen Spiel
+  sichtbar**, nicht nur mit gesetztem Schalter. Genau die Art frischer
+  Zustandskombination, die in der Fehlersuche oben ganz oben stehen sollte.
+- **Die Bezeichnungen für die Precision-Slots von 02:** `signatureRate` =
+  Ladetempo, `signaturePower` = Ladewucht.
 
 Statusbericht wie gehabt nach `docs/status/chat-03/`.
