@@ -23,13 +23,51 @@ const DEFAULTS = {
   duration: 30,
   rate: 40,
   ramp: 2,
+  // Ohne Seed bleibt es bei Math.random – der Schlüssel muss trotzdem hier
+  // stehen, sonst weist parseArgs die Option als unbekannt ab.
+  seed: undefined,
   json: false
 };
 
 /** Obergrenze je Messreihe, damit sehr lange Läufe nicht den Speicher fluten. */
 const MAX_SAMPLES = 500_000;
 
-const NUMERIC_OPTIONS = new Set(['clients', 'duration', 'rate', 'ramp']);
+const NUMERIC_OPTIONS = new Set(['clients', 'duration', 'rate', 'ramp', 'seed']);
+
+/**
+ * Deterministischer Zufall für die Client-Entscheidungen.
+ *
+ * Ohne Seed wählen die simulierten Clients Klassen und Upgrades zufällig, und
+ * damit ist die Familienbesetzung in jedem Lauf eine andere. Für Lastmessungen
+ * ist das egal, für **Balance**-Vergleiche nicht: Die Streuung zwischen zwei
+ * identisch konfigurierten Läufen wird dadurch so groß wie der Effekt, den man
+ * sucht (gemessen: Control-K/D schwankte zwischen 0,43 und 1,23).
+ *
+ * Mit `--seed` treffen beide Seiten eines A/B dieselben Entscheidungen und
+ * lassen sich paarweise vergleichen.
+ *
+ * **Das macht einen Lauf nicht reproduzierbar** – Netzwerk-Timing, der Zufall
+ * des Servers und die Bots des Arena-Direktors bleiben unberührt. Reproduzierbar
+ * wird allein, was die Clients *wollen*, nicht was daraus wird.
+ */
+export function mulberry32(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Je Client ein eigener Strom, abgeleitet aus Seed und Index. Ein gemeinsamer
+ * Strom wäre wertlos: Wer wann daraus zieht, hängt an der Reihenfolge, in der
+ * Sockets antworten – also genau an dem Timing, das wir nicht kontrollieren.
+ */
+export const clientRandom = (seed, index) =>
+  seed === undefined ? Math.random : mulberry32(seed + index * 0x9e3779b9);
 
 export function parseArgs(argv) {
   const options = { ...DEFAULTS };
@@ -108,10 +146,11 @@ async function resolveShared() {
  * Sichtbarkeit, Projektile).
  */
 function nextInput(client, maxAim) {
-  client.heading += (Math.random() - 0.5) * 0.6;
-  client.aimAngle += (Math.random() - 0.5) * 0.9;
-  if (Math.random() < 0.02) client.firing = !client.firing;
-  const aimDistance = 180 + Math.random() * (maxAim - 180);
+  const rnd = client.rnd;
+  client.heading += (rnd() - 0.5) * 0.6;
+  client.aimAngle += (rnd() - 0.5) * 0.9;
+  if (rnd() < 0.02) client.firing = !client.firing;
+  const aimDistance = 180 + rnd() * (maxAim - 180);
   return {
     type: 'input',
     sequence: ++client.sequence,
@@ -175,8 +214,10 @@ export async function runLoadTest(options, hooks = {}) {
   const clients = [];
 
   const createClient = (index) => {
+    const rnd = clientRandom(options.seed, index);
     const client = {
       index,
+      rnd,
       socket: null,
       joined: false,
       finished: false,
@@ -187,9 +228,9 @@ export async function runLoadTest(options, hooks = {}) {
       availablePoints: 0,
       dead: false,
       sequence: 0,
-      heading: Math.random() * Math.PI * 2,
-      aimAngle: Math.random() * Math.PI * 2,
-      firing: Math.random() < 0.6,
+      heading: rnd() * Math.PI * 2,
+      aimAngle: rnd() * Math.PI * 2,
+      firing: rnd() < 0.6,
       lastSnapshotAt: 0,
       lastRespawnAt: 0,
       bestRtt: Infinity,
@@ -307,13 +348,13 @@ export async function runLoadTest(options, hooks = {}) {
     for (const client of clients) {
       if (!isLive(client)) continue;
       if ((client.availablePoints ?? 0) > 0) {
-        const upgrade = UPGRADE_IDS[Math.floor(Math.random() * UPGRADE_IDS.length)];
+        const upgrade = UPGRADE_IDS[Math.floor(client.rnd() * UPGRADE_IDS.length)];
         client.socket.send(JSON.stringify({ type: 'upgrade', upgrade }));
         stats.upgradesSent += 1;
       }
       const choices = availableClassChoices(client.playerClass, client.level);
       if (choices.length > 0) {
-        const target = choices[Math.floor(Math.random() * choices.length)];
+        const target = choices[Math.floor(client.rnd() * choices.length)];
         client.socket.send(JSON.stringify({ type: 'chooseClass', playerClass: target }));
         stats.classChoicesSent += 1;
       }
@@ -344,6 +385,9 @@ export async function runLoadTest(options, hooks = {}) {
     target: options.url,
     requestedClients: options.clients,
     rampSeconds: options.ramp,
+    // Gehoert in den Abzug: Ohne den Seed ist ein Balance-Vergleich spaeter
+    // nicht mehr einzuordnen.
+    seed: options.seed ?? null,
     inputRateHz: options.rate,
     measuredSeconds: Number(measuredSeconds.toFixed(2)),
     stoppedEarly: stopped,
@@ -446,6 +490,9 @@ const HELP = `Project Maze – Lasttest
   --duration <s>     Messfenster         (Default ${DEFAULTS.duration})
   --rate <hz>        Input-Rate          (Default ${DEFAULTS.rate})
   --ramp <s>         Verteilung der Joins(Default ${DEFAULTS.ramp})
+  --seed <n>         Feste Klassen- und Upgradewahl der Clients. Fuer A/B-Laeufe:
+                     beide Seiten mit demselben Seed sind paarweise vergleichbar.
+                     Ohne Seed waehlen die Clients zufaellig (Default).
   --json             Nur JSON ausgeben
   --help             Diese Hilfe
 `;

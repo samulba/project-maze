@@ -379,6 +379,53 @@ identischen Läufen schwankte die mittlere Drohnenzahl um mehr als das Doppelte
 Spannweite berichten. Blockweise (dreimal A, dann dreimal B) wäre falsch: driftet
 die Maschine, verschiebt sie ganze Konfigurationen gegeneinander.
 
+### Balance messen: zwei Regeln, ohne die der Vergleich nichts wert ist
+
+Für **Last**messungen reicht das Obige. Für **Balance**vergleiche kommen zwei
+Auflagen dazu, beide aus einem Fehlschlag gelernt (Bericht 11):
+
+**1. Nur den zu messenden Schalter umlegen.** Der Vergleich „alle Schalter an
+gegen alle aus" legt eben nicht nur die Signature um, sondern auch
+`ACHIEVEMENTS_ENABLED`, `SNAPSHOT_DELTAS` und die anderen – und die kosten
+Arbeit pro Tick. Gemessen: Der Tick-Abstand p95 der beiden Bündel überlappte
+nicht (35,3–36,1 ms gegen 32,9–33,5 ms, rund 9 %). Ein langsamer tickender
+Server verlängert **jedes** Leben und senkt **jede** Kill-Rate – auch bei
+Familien, auf die gar keine Signature wirkt. Signature-Wirkung und
+Server-Mehrarbeit sind daraus nicht mehr zu trennen.
+
+> **Prüfung vor dem Ablesen:** Tick-Abstand beider Konfigurationen
+> nebeneinanderlegen. Überlappen die Bereiche nicht, ist der Balance-Vergleich
+> ungültig – noch bevor die erste K/D-Zahl angesehen wird.
+
+**2. Gepaart fahren, mit `--seed`.** Die Klassen- und Upgradewahl der
+simulierten Clients bestimmt die Familienbesetzung, und ohne Seed ist sie in
+jedem Lauf eine andere. Die Streuung wird dadurch so groß wie der gesuchte
+Effekt: Control-K/D schwankte bei *unveränderter* Konfiguration zwischen 0,43
+und 1,23. Mit demselben Seed auf beiden Seiten einer Runde treffen die Clients
+dieselben Entscheidungen, und die Läufe lassen sich paarweise vergleichen.
+
+```bash
+# Runde 1: beide Seiten mit demselben Seed, nur der eine Schalter wandert.
+SIGNATURE_RAPID_ENABLED=true  … node apps/server/dist/index.js &
+node scripts/loadtest.mjs --url ws://127.0.0.1:2610 --clients 40 \
+  --duration 600 --seed 1001 --json > an-r1.json
+# … Server neu starten mit SIGNATURE_RAPID_ENABLED=false, derselbe Seed:
+node scripts/loadtest.mjs --url ws://127.0.0.1:2610 --clients 40 \
+  --duration 600 --seed 1001 --json > aus-r1.json
+```
+
+Je Runde ein anderer Seed (1001, 1002, 1003), damit nicht dreimal dasselbe
+Spiel gemessen wird.
+
+**Ein Seed macht den Lauf nicht reproduzierbar.** Netzwerk-Timing, der Zufall
+des Servers und die Bots des Arena-Direktors bleiben unberührt. Reproduzierbar
+wird allein, was die Clients *wollen* – nicht, was daraus wird. Der verwendete
+Seed steht als Feld `seed` im JSON-Abzug, damit ein Lauf später einzuordnen ist.
+
+**Und die Stichprobe bleibt der Engpass.** In zehn Minuten kommen außerhalb von
+Core nur 33 bis 67 abgeschlossene Leben je Familie zusammen. Wenn Zeit da ist,
+sind längere Läufe die billigere Verbesserung als mehr Läufe.
+
 ### Referenzwerte 2026-08-06
 
 Median aus drei Runden, 40 Clients, 60 s, 4-Kern-Maschine, Lasttest-Clients auf

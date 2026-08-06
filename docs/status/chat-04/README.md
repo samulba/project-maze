@@ -25,7 +25,7 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 | # | Paket | Branch | Commit | Tests | Status |
 | --- | --- | --- | --- | --- | --- |
-| [11](./11-deploy-stopp-tier-balance.md) | Deploy-Stopp diagnostiziert + Deploy-Wache, `tier` im Perf-Report, Balance verdichtet | `claude/chat-04-infra-betrieb-ihx0xz` | `PLATZHALTER_COMMIT` | 570 ✔ | **offen** |
+| [11](./11-deploy-stopp-tier-balance.md) | Deploy-Stopp diagnostiziert + Deploy-Wache, `tier` im Perf-Report, Balance verdichtet | `claude/chat-04-infra-betrieb-ihx0xz` | `3e8b83d` | 570 ✔ | **offen** |
 | [10](./10-lastprobe-balance-baseline.md) | Lastprobe-Matrix + Balance-Baseline, Lasttest-Fix | `claude/maze-lastprobe-baseline-dfb335` | `8261c82` | 507 ✔ | gemerged |
 | [09](./09-balance-live-auswertung.md) | Balance-Live-Auswertung (`npm run balance:live`) | `claude/maze-balance-live-dfb335` | `263fd5c` | 487 ✔ | gemerged |
 | [08](./08-client-perf-telemetrie.md) | Client-Perf-Telemetrie (Server-Seite) + Spec für 03 | `claude/maze-client-perf-telemetry-dfb335` | `69ade20` | 443 ✔ | gemerged |
@@ -51,10 +51,19 @@ warum etwas so gebaut ist, wie es gebaut ist.
 - **Für 02:** Der Projektiltempo-Dämpfer kostet anderthalb Prozentpunkte
   Tickbudget (0,023 ms je Projektil × rund 18 zusätzliche Projektile) – kein
   Kapazitätsproblem. Details in Bericht 10.
-- **Für KL5:** Eingefrorene Vorher-Stände liegen unter `docs/balance/`, mit und
-  ohne Signature. Der Vergleich läuft im Modus `VERGLEICH`, nicht `ZEITFENSTER` –
-  das ist richtig so, `docs/balance/README.md` erklärt warum. Erste Ablesung:
-  Rapid verdoppelt K/D und Kills/Minute mit Momentum, bei noch dünner Stichprobe.
+- **Für KL5 – die alte Ablesung „Rapid verdoppelt K/D" ist zurückgezogen.**
+  Drei Läufe je Konfiguration (Bericht 11) zeigen: Der Unterschied zwischen zwei
+  *identisch* konfigurierten Läufen ist so groß wie der behauptete Effekt
+  (Control schwankt zwischen K/D 0,43 und 1,23). Schwerer wiegt: Der Aufbau
+  „alle Schalter an vs. alle aus" misst die **Serverlast** mit – der
+  Tick-Abstand der beiden Konfigurationen überlappt nicht (35,3–36,1 ms gegen
+  32,9–33,5 ms), weil das Bündel auch `ACHIEVEMENTS_ENABLED` und
+  `SNAPSHOT_DELTAS` umlegt. Signature-Wirkung und Server-Mehrarbeit sind darin
+  nicht mehr trennbar. **Für KL5 nur den zu messenden Schalter umlegen** und den
+  Tick-Abstand beider Seiten vergleichen, bevor eine K/D-Zahl abgelesen wird.
+  Neue Abzüge: `docs/balance/2026-08-06-verdichtung/` (6 Läufe). Die alten
+  bleiben als Vorher-Stand liegen. Der Vergleich läuft weiterhin im Modus
+  `VERGLEICH`, nicht `ZEITFENSTER` – das ist richtig so.
 - **Paket 08 ist vollständig erledigt** – Server *und* Client sind gemerged,
   der Client sendet Perf-Berichte. Der Punkt „wartet auf Review" war veraltet.
 - **Für 03, letzter Schritt beim Perf-Report:** Der Server nimmt seit Bericht 11

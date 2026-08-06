@@ -1,0 +1,1565 @@
+{
+  "tool": "maze-balance-live",
+  "formatVersion": 1,
+  "capturedAt": "2026-08-06T10:15:49.411Z",
+  "source": "http://127.0.0.1:2610/metrics?format=json&subject=all",
+  "subject": "all",
+  "telemetryVersion": 3,
+  "serverMode": "maze-alpha",
+  "serverVersion": "1.0.0-alpha",
+  "uptimeSeconds": 614.6,
+  "population": {
+    "humans": 0,
+    "bots": 4,
+    "entities": {
+      "players": 4,
+      "projectiles": 17,
+      "drones": 0,
+      "shapes": 250
+    }
+  },
+  "totals": {
+    "classPicks": 269,
+    "modulePicks": 50,
+    "framePicks": 50,
+    "kills": 418,
+    "deaths": 454,
+    "lives": 454,
+    "averageLifetimeSeconds": 49.24
+  },
+  "peer": "family",
+  "minSamples": 5,
+  "outlier": {
+    "high": 1.5,
+    "low": 0.67
+  },
+  "classes": [
+    {
+      "id": "core",
+      "label": "Core",
+      "branch": "core",
+      "tier": 1,
+      "picks": 0,
+      "kills": 125,
+      "deaths": 205,
+      "lives": 205,
+      "lifetimeSeconds": 5364.36,
+      "pickRate": 0,
+      "killsPerDeath": 0.6097560975609756,
+      "averageLifetimeSeconds": 26.16760975609756,
+      "killsPerMinute": 1.3981164575084446,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "rapid",
+      "label": "Rapid",
+      "branch": "rapid",
+      "tier": 2,
+      "picks": 71,
+      "kills": 28,
+      "deaths": 64,
+      "lives": 64,
+      "lifetimeSeconds": 3839.62,
+      "pickRate": 0.26394052044609667,
+      "killsPerDeath": 0.4375,
+      "averageLifetimeSeconds": 59.9940625,
+      "killsPerMinute": 0.43754329855558627,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "sniper",
+      "label": "Sniper",
+      "branch": "precision",
+      "tier": 2,
+      "picks": 64,
+      "kills": 44,
+      "deaths": 61,
+      "lives": 61,
+      "lifetimeSeconds": 3754.1,
+      "pickRate": 0.2379182156133829,
+      "killsPerDeath": 0.7213114754098361,
+      "averageLifetimeSeconds": 61.54262295081967,
+      "killsPerMinute": 0.7032311339602035,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "drone",
+      "label": "Controller",
+      "branch": "control",
+      "tier": 2,
+      "picks": 62,
+      "kills": 31,
+      "deaths": 56,
+      "lives": 56,
+      "lifetimeSeconds": 3548.78,
+      "pickRate": 0.23048327137546468,
+      "killsPerDeath": 0.5535714285714286,
+      "averageLifetimeSeconds": 63.37107142857143,
+      "killsPerMinute": 0.5241237833847124,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "rammer",
+      "label": "Impact",
+      "branch": "impact",
+      "tier": 2,
+      "picks": 62,
+      "kills": 56,
+      "deaths": 62,
+      "lives": 62,
+      "lifetimeSeconds": 4586.23,
+      "pickRate": 0.23048327137546468,
+      "killsPerDeath": 0.9032258064516129,
+      "averageLifetimeSeconds": 73.97145161290322,
+      "killsPerMinute": 0.7326278882655254,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "twin",
+      "label": "Twin",
+      "branch": "rapid",
+      "tier": 3,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "repeater",
+      "label": "Repeater",
+      "branch": "rapid",
+      "tier": 3,
+      "picks": 2,
+      "kills": 6,
+      "deaths": 1,
+      "lives": 1,
+      "lifetimeSeconds": 13.96,
+      "pickRate": 0.007434944237918215,
+      "killsPerDeath": 6,
+      "averageLifetimeSeconds": 13.96,
+      "killsPerMinute": 25.787965616045845,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "railgun",
+      "label": "Railgun",
+      "branch": "precision",
+      "tier": 3,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "hunter",
+      "label": "Hunter",
+      "branch": "precision",
+      "tier": 3,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "warden",
+      "label": "Warden",
+      "branch": "control",
+      "tier": 3,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "factory",
+      "label": "Factory",
+      "branch": "control",
+      "tier": 3,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "crusher",
+      "label": "Crusher",
+      "branch": "impact",
+      "tier": 3,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "bulwark",
+      "label": "Bulwark",
+      "branch": "impact",
+      "tier": 3,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "storm",
+      "label": "Storm",
+      "branch": "rapid",
+      "tier": 4,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "gatling",
+      "label": "Gatling",
+      "branch": "rapid",
+      "tier": 4,
+      "picks": 1,
+      "kills": 39,
+      "deaths": 1,
+      "lives": 1,
+      "lifetimeSeconds": 517.9,
+      "pickRate": 0.0037174721189591076,
+      "killsPerDeath": 39,
+      "averageLifetimeSeconds": 517.9,
+      "killsPerMinute": 4.518246765784901,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "lancer",
+      "label": "Lancer",
+      "branch": "precision",
+      "tier": 4,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "phantom",
+      "label": "Phantom",
+      "branch": "precision",
+      "tier": 4,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "overseer",
+      "label": "Overseer",
+      "branch": "control",
+      "tier": 4,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "carrier",
+      "label": "Carrier",
+      "branch": "control",
+      "tier": 4,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "juggernaut",
+      "label": "Juggernaut",
+      "branch": "impact",
+      "tier": 4,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "fortress",
+      "label": "Fortress",
+      "branch": "impact",
+      "tier": 4,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "flanker",
+      "label": "Flanker",
+      "branch": "rapid",
+      "tier": 3,
+      "picks": 1,
+      "kills": 3,
+      "deaths": 1,
+      "lives": 1,
+      "lifetimeSeconds": 372.2,
+      "pickRate": 0.0037174721189591076,
+      "killsPerDeath": 3,
+      "averageLifetimeSeconds": 372.2,
+      "killsPerMinute": 0.4836109618484686,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "octo",
+      "label": "Octo",
+      "branch": "rapid",
+      "tier": 4,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "arbalest",
+      "label": "Arbalest",
+      "branch": "precision",
+      "tier": 3,
+      "picks": 2,
+      "kills": 11,
+      "deaths": 1,
+      "lives": 1,
+      "lifetimeSeconds": 113.59,
+      "pickRate": 0.007434944237918215,
+      "killsPerDeath": 11,
+      "averageLifetimeSeconds": 113.59,
+      "killsPerMinute": 5.810370631217537,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "deadeye",
+      "label": "Deadeye",
+      "branch": "precision",
+      "tier": 4,
+      "picks": 1,
+      "kills": 68,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0.0037174721189591076,
+      "killsPerDeath": 68,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "guardian",
+      "label": "Guardian",
+      "branch": "control",
+      "tier": 3,
+      "picks": 1,
+      "kills": 5,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0.0037174721189591076,
+      "killsPerDeath": 5,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "hive",
+      "label": "Hive",
+      "branch": "control",
+      "tier": 4,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "blitz",
+      "label": "Blitz",
+      "branch": "impact",
+      "tier": 3,
+      "picks": 2,
+      "kills": 2,
+      "deaths": 2,
+      "lives": 2,
+      "lifetimeSeconds": 246.46,
+      "pickRate": 0.007434944237918215,
+      "killsPerDeath": 1,
+      "averageLifetimeSeconds": 123.23,
+      "killsPerMinute": 0.48689442505883307,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "comet",
+      "label": "Comet",
+      "branch": "impact",
+      "tier": 4,
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    }
+  ],
+  "families": [
+    {
+      "id": "core",
+      "label": "Core",
+      "classes": 1,
+      "picks": 0,
+      "kills": 125,
+      "deaths": 205,
+      "lives": 205,
+      "lifetimeSeconds": 5364.36,
+      "pickRate": 0,
+      "killsPerDeath": 0.6097560975609756,
+      "averageLifetimeSeconds": 26.16760975609756,
+      "killsPerMinute": 1.3981164575084446,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": " ",
+          "factor": 0.6728343145500421,
+          "reference": 0.90625
+        },
+        "averageLifetimeSeconds": {
+          "mark": "▼",
+          "factor": 0.41292673717206,
+          "reference": 63.37107142857143
+        },
+        "killsPerMinute": {
+          "mark": " ",
+          "factor": 1.4544335695512407,
+          "reference": 0.9612790070156504
+        }
+      }
+    },
+    {
+      "id": "rapid",
+      "label": "Rapid",
+      "classes": 7,
+      "picks": 75,
+      "kills": 76,
+      "deaths": 67,
+      "lives": 67,
+      "lifetimeSeconds": 4743.679999999999,
+      "pickRate": 0.2788104089219331,
+      "killsPerDeath": 1.1343283582089552,
+      "averageLifetimeSeconds": 70.80119402985073,
+      "killsPerMinute": 0.9612790070156504,
+      "marks": {
+        "pickRate": {
+          "mark": " ",
+          "factor": 1.1450381679389312,
+          "reference": 0.24349442379182157
+        },
+        "killsPerDeath": {
+          "mark": " ",
+          "factor": 1.2516726711271229,
+          "reference": 0.90625
+        },
+        "averageLifetimeSeconds": {
+          "mark": " ",
+          "factor": 1.117247861426079,
+          "reference": 63.37107142857143
+        },
+        "killsPerMinute": {
+          "mark": " ",
+          "factor": 1,
+          "reference": 0.9612790070156504
+        }
+      }
+    },
+    {
+      "id": "precision",
+      "label": "Precision",
+      "classes": 7,
+      "picks": 67,
+      "kills": 123,
+      "deaths": 62,
+      "lives": 62,
+      "lifetimeSeconds": 3867.69,
+      "pickRate": 0.24907063197026022,
+      "killsPerDeath": 1.9838709677419355,
+      "averageLifetimeSeconds": 62.38209677419355,
+      "killsPerMinute": 1.9081156969664064,
+      "marks": {
+        "pickRate": {
+          "mark": " ",
+          "factor": 1.0229007633587786,
+          "reference": 0.24349442379182157
+        },
+        "killsPerDeath": {
+          "mark": "▲",
+          "factor": 2.189098998887653,
+          "reference": 0.90625
+        },
+        "averageLifetimeSeconds": {
+          "mark": " ",
+          "factor": 0.9843939098379834,
+          "reference": 63.37107142857143
+        },
+        "killsPerMinute": {
+          "mark": "▲",
+          "factor": 1.9849759362687722,
+          "reference": 0.9612790070156504
+        }
+      }
+    },
+    {
+      "id": "control",
+      "label": "Control",
+      "classes": 7,
+      "picks": 63,
+      "kills": 36,
+      "deaths": 56,
+      "lives": 56,
+      "lifetimeSeconds": 3548.78,
+      "pickRate": 0.2342007434944238,
+      "killsPerDeath": 0.6428571428571429,
+      "averageLifetimeSeconds": 63.37107142857143,
+      "killsPerMinute": 0.608659877479021,
+      "marks": {
+        "pickRate": {
+          "mark": " ",
+          "factor": 0.9618320610687023,
+          "reference": 0.24349442379182157
+        },
+        "killsPerDeath": {
+          "mark": " ",
+          "factor": 0.7093596059113301,
+          "reference": 0.90625
+        },
+        "averageLifetimeSeconds": {
+          "mark": " ",
+          "factor": 1,
+          "reference": 63.37107142857143
+        },
+        "killsPerMinute": {
+          "mark": "▼",
+          "factor": 0.6331771244736144,
+          "reference": 0.9612790070156504
+        }
+      }
+    },
+    {
+      "id": "impact",
+      "label": "Impact",
+      "classes": 7,
+      "picks": 64,
+      "kills": 58,
+      "deaths": 64,
+      "lives": 64,
+      "lifetimeSeconds": 4832.69,
+      "pickRate": 0.2379182156133829,
+      "killsPerDeath": 0.90625,
+      "averageLifetimeSeconds": 75.51078125,
+      "killsPerMinute": 0.7200958472403569,
+      "marks": {
+        "pickRate": {
+          "mark": " ",
+          "factor": 0.9770992366412213,
+          "reference": 0.24349442379182157
+        },
+        "killsPerDeath": {
+          "mark": " ",
+          "factor": 1,
+          "reference": 0.90625
+        },
+        "averageLifetimeSeconds": {
+          "mark": " ",
+          "factor": 1.1915654816584853,
+          "reference": 63.37107142857143
+        },
+        "killsPerMinute": {
+          "mark": " ",
+          "factor": 0.7491018132976175,
+          "reference": 0.9612790070156504
+        }
+      }
+    }
+  ],
+  "modules": [
+    {
+      "id": "dash",
+      "label": "Dash",
+      "picks": 44,
+      "kills": 332,
+      "deaths": 437,
+      "lives": 437,
+      "lifetimeSeconds": 21127.31,
+      "pickRate": 0.88,
+      "killsPerDeath": 0.7597254004576659,
+      "averageLifetimeSeconds": 48.3462471395881,
+      "killsPerMinute": 0.9428554794718305,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "▼",
+          "factor": 0.2532418001525553,
+          "reference": 3
+        },
+        "averageLifetimeSeconds": {
+          "mark": " ",
+          "factor": 0.89292575058845,
+          "reference": 54.14363636363637
+        },
+        "killsPerMinute": {
+          "mark": "▼",
+          "factor": 0.28360902346658223,
+          "reference": 3.324490412706941
+        }
+      }
+    },
+    {
+      "id": "repulse",
+      "label": "Repulse Pulse",
+      "picks": 2,
+      "kills": 33,
+      "deaths": 11,
+      "lives": 11,
+      "lifetimeSeconds": 595.58,
+      "pickRate": 0.04,
+      "killsPerDeath": 3,
+      "averageLifetimeSeconds": 54.14363636363637,
+      "killsPerMinute": 3.324490412706941,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": " ",
+          "factor": 1,
+          "reference": 3
+        },
+        "averageLifetimeSeconds": {
+          "mark": " ",
+          "factor": 1,
+          "reference": 54.14363636363637
+        },
+        "killsPerMinute": {
+          "mark": " ",
+          "factor": 1,
+          "reference": 3.324490412706941
+        }
+      }
+    },
+    {
+      "id": "barrier",
+      "label": "Front Barrier",
+      "picks": 0,
+      "kills": 0,
+      "deaths": 0,
+      "lives": 0,
+      "lifetimeSeconds": 0,
+      "pickRate": 0,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 0,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "repair",
+      "label": "Repair Cycle",
+      "picks": 4,
+      "kills": 53,
+      "deaths": 6,
+      "lives": 6,
+      "lifetimeSeconds": 634.32,
+      "pickRate": 0.08,
+      "killsPerDeath": 8.833333333333334,
+      "averageLifetimeSeconds": 105.72000000000001,
+      "killsPerMinute": 5.01324252743095,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "▲",
+          "factor": 2.9444444444444446,
+          "reference": 3
+        },
+        "averageLifetimeSeconds": {
+          "mark": "▲",
+          "factor": 1.952584035729877,
+          "reference": 54.14363636363637
+        },
+        "killsPerMinute": {
+          "mark": "▲",
+          "factor": 1.507973224488548,
+          "reference": 3.324490412706941
+        }
+      }
+    }
+  ],
+  "frames": [
+    {
+      "id": "standard",
+      "label": "Standard Frame",
+      "picks": 46,
+      "kills": 296,
+      "deaths": 442,
+      "lives": 442,
+      "lifetimeSeconds": 21679.09,
+      "pickRate": 0.92,
+      "killsPerDeath": 0.669683257918552,
+      "averageLifetimeSeconds": 49.047714932126695,
+      "killsPerMinute": 0.819222578069467,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "lightweight",
+      "label": "Lightweight Frame",
+      "picks": 1,
+      "kills": 0,
+      "deaths": 1,
+      "lives": 1,
+      "lifetimeSeconds": 24.92,
+      "pickRate": 0.02,
+      "killsPerDeath": 0,
+      "averageLifetimeSeconds": 24.92,
+      "killsPerMinute": 0,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "stabilizer",
+      "label": "Projectile Stabilizer",
+      "picks": 2,
+      "kills": 91,
+      "deaths": 1,
+      "lives": 1,
+      "lifetimeSeconds": 113.59,
+      "pickRate": 0.04,
+      "killsPerDeath": 91,
+      "averageLifetimeSeconds": 113.59,
+      "killsPerMinute": 48.06761158552689,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    },
+    {
+      "id": "reinforced",
+      "label": "Reinforced Core",
+      "picks": 1,
+      "kills": 31,
+      "deaths": 10,
+      "lives": 10,
+      "lifetimeSeconds": 539.6,
+      "pickRate": 0.02,
+      "killsPerDeath": 3.1,
+      "averageLifetimeSeconds": 53.96,
+      "killsPerMinute": 3.4469977761304667,
+      "marks": {
+        "pickRate": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerDeath": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "averageLifetimeSeconds": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        },
+        "killsPerMinute": {
+          "mark": "·",
+          "reason": "zu wenig Daten"
+        }
+      }
+    }
+  ],
+  "watchlist": [
+    {
+      "group": "modules",
+      "id": "dash",
+      "label": "Dash",
+      "metric": "killsPerDeath",
+      "metricLabel": "K/D",
+      "mark": "▼",
+      "value": 0.7597254004576659,
+      "reference": 3,
+      "factor": 0.2532418001525553,
+      "peerLabel": "Gruppen-Median",
+      "formatted": "0.76",
+      "formattedReference": "3.00"
+    },
+    {
+      "group": "modules",
+      "id": "dash",
+      "label": "Dash",
+      "metric": "killsPerMinute",
+      "metricLabel": "Kills/min",
+      "mark": "▼",
+      "value": 0.9428554794718305,
+      "reference": 3.324490412706941,
+      "factor": 0.28360902346658223,
+      "peerLabel": "Gruppen-Median",
+      "formatted": "0.94",
+      "formattedReference": "3.32"
+    },
+    {
+      "group": "modules",
+      "id": "repair",
+      "label": "Repair Cycle",
+      "metric": "killsPerDeath",
+      "metricLabel": "K/D",
+      "mark": "▲",
+      "value": 8.833333333333334,
+      "reference": 3,
+      "factor": 2.9444444444444446,
+      "peerLabel": "Gruppen-Median",
+      "formatted": "8.83",
+      "formattedReference": "3.00"
+    },
+    {
+      "group": "families",
+      "id": "core",
+      "label": "Core",
+      "metric": "averageLifetimeSeconds",
+      "metricLabel": "Lebensdauer",
+      "mark": "▼",
+      "value": 26.16760975609756,
+      "reference": 63.37107142857143,
+      "factor": 0.41292673717206,
+      "peerLabel": "Gruppen-Median",
+      "formatted": "26.2 s",
+      "formattedReference": "63.4 s"
+    },
+    {
+      "group": "families",
+      "id": "precision",
+      "label": "Precision",
+      "metric": "killsPerDeath",
+      "metricLabel": "K/D",
+      "mark": "▲",
+      "value": 1.9838709677419355,
+      "reference": 0.90625,
+      "factor": 2.189098998887653,
+      "peerLabel": "Gruppen-Median",
+      "formatted": "1.98",
+      "formattedReference": "0.91"
+    },
+    {
+      "group": "families",
+      "id": "precision",
+      "label": "Precision",
+      "metric": "killsPerMinute",
+      "metricLabel": "Kills/min",
+      "mark": "▲",
+      "value": 1.9081156969664064,
+      "reference": 0.9612790070156504,
+      "factor": 1.9849759362687722,
+      "peerLabel": "Gruppen-Median",
+      "formatted": "1.91",
+      "formattedReference": "0.96"
+    },
+    {
+      "group": "modules",
+      "id": "repair",
+      "label": "Repair Cycle",
+      "metric": "averageLifetimeSeconds",
+      "metricLabel": "Lebensdauer",
+      "mark": "▲",
+      "value": 105.72000000000001,
+      "reference": 54.14363636363637,
+      "factor": 1.952584035729877,
+      "peerLabel": "Gruppen-Median",
+      "formatted": "105.7 s",
+      "formattedReference": "54.1 s"
+    },
+    {
+      "group": "families",
+      "id": "control",
+      "label": "Control",
+      "metric": "killsPerMinute",
+      "metricLabel": "Kills/min",
+      "mark": "▼",
+      "value": 0.608659877479021,
+      "reference": 0.9612790070156504,
+      "factor": 0.6331771244736144,
+      "peerLabel": "Gruppen-Median",
+      "formatted": "0.61",
+      "formattedReference": "0.96"
+    },
+    {
+      "group": "modules",
+      "id": "repair",
+      "label": "Repair Cycle",
+      "metric": "killsPerMinute",
+      "metricLabel": "Kills/min",
+      "mark": "▲",
+      "value": 5.01324252743095,
+      "reference": 3.324490412706941,
+      "factor": 1.507973224488548,
+      "peerLabel": "Gruppen-Median",
+      "formatted": "5.01",
+      "formattedReference": "3.32"
+    }
+  ]
+}

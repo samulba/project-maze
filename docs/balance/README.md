@@ -15,12 +15,16 @@ Zeitpunkte einzelner Personen – es ist derselbe anonyme Export, den `/metrics`
 | --- | --- | --- | --- |
 | `2026-08-06-baseline.json` | lokaler Lastlauf, 40 Clients, 10 min | **alle Schalter an**, inkl. `SIGNATURE_RAPID_ENABLED` | 268 Klassenwahlen, 494 Leben, 452 Kills |
 | `2026-08-06-referenz.json` | derselbe Lastlauf-Aufbau | **alle Schalter aus** – Produktionsstand am 2026-08-06 | 256 Klassenwahlen, 477 Leben, 437 Kills |
+| `2026-08-06-verdichtung/alle-an-r1..r3.json` | lokaler Lastlauf, 40 Clients, 3 × 10 min | **alle Schalter an**, inkl. beider Signatures | je Lauf 184–208 Klassenwahlen |
+| `2026-08-06-verdichtung/alle-aus-r1..r3.json` | derselbe Aufbau, alternierend gefahren | **alle Schalter aus** | je Lauf 221–254 Klassenwahlen |
 
-Beide Läufe folgen dem Rezept aus
+Alle Läufe folgen dem Rezept aus
 [`../TELEMETRY.md`](../TELEMETRY.md#lastprobe-matrix-reproduzierbar-fahren).
-Der Unterschied zwischen den beiden Dateien ist genau das, was die Signature
-„Momentum" bewegt hat – deshalb steht der Referenzlauf mit hier und nicht nur
-der Baseline-Lauf.
+
+Der Unterschied zwischen einer An- und einer Aus-Datei ist **nicht** allein die
+Signature: Das Bündel legt auch `ACHIEVEMENTS_ENABLED`, `SPECTATOR_ENABLED`,
+`SNAPSHOT_DELTAS` und `SHORT_NET_IDS` um. Was davon in den Zahlen steckt, ist
+weiter unten auseinandergenommen – **bitte vor dem Ablesen lesen.**
 
 ### Was die beiden Dateien schon zeigen
 
@@ -42,6 +46,32 @@ abgeschlossene Leben je Familie außerhalb von Core, und die simulierten Clients
 spielen zufällig. Dass Control und Impact gleichzeitig einbrechen, kann Folge
 eines stärkeren Rapid sein – oder schlicht Streuung. Für eine belastbare Aussage
 gehören mehrere Läufe je Konfiguration dazu, so wie bei der Lastprobe-Matrix.
+
+### Nachgemessen 2026-08-06: Die Tabelle oben trägt nicht
+
+Der Vorbehalt hat sich bestätigt. Drei Läufe je Konfiguration
+(`2026-08-06-verdichtung/`) zeigen: **Es ist Streuung.** Control schwankt bei
+*unveränderter* Konfiguration zwischen K/D 0,43 und 1,23 – der Unterschied
+zwischen zwei identischen Läufen ist so groß wie der oben abgelesene „Effekt".
+
+Dazu ein zweiter, schwerwiegenderer Befund: **Der Aufbau „alle an vs. alle aus"
+misst die Serverlast mit.** Der Tick-Abstand p95 liegt in der An-Konfiguration
+bei 35,3–36,1 ms, in der Aus-Konfiguration bei 32,9–33,5 ms – die Bereiche
+überlappen nicht. Ursache sind die *anderen* Schalter im Bündel
+(`ACHIEVEMENTS_ENABLED`, `SNAPSHOT_DELTAS`, …), die Arbeit pro Tick kosten. Ein
+um 9 % langsamer tickender Server verlängert **jedes** Leben und senkt **jede**
+Kill-Rate – auch bei Core, auf das keine Signature wirkt.
+
+Signature-Wirkung und Server-Mehrarbeit sind in diesen Zahlen deshalb nicht
+mehr zu trennen. **Die Familientabelle oben ist als Signature-Aussage nicht
+belastbar** – sie bleibt als Vorher-Stand für KL5 liegen, aber der Satz „Rapid
+verdoppelt K/D" ist damit nicht belegt.
+
+Für die nächste Runde: **nur den zu messenden Schalter umlegen**, alles andere
+konstant halten, und den Tick-Abstand beider Konfigurationen vergleichen, bevor
+die erste K/D-Zahl angesehen wird. Überlappen die Bereiche nicht, ist der
+Vergleich ungültig. Vollständige Auswertung in
+[`../status/chat-04/11-deploy-stopp-tier-balance.md`](../status/chat-04/11-deploy-stopp-tier-balance.md).
 
 ## Wie damit gemessen wird
 
