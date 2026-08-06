@@ -25,6 +25,7 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 | # | Paket | Branch | Commit | Tests | Status |
 | --- | --- | --- | --- | --- | --- |
+| [15](./15-r5-perf-kette-und-auswertung.md) | R5: Perf-Kette end-to-end belegt, `npm run perf:live`, `client` im JSON-Export | `claude/chat-04-infra-betrieb-ihx0xz` | `PLATZ15` | 731 ✔ | **offen** |
 | [14](./14-startlevel-fuer-familienbilanzen.md) | `--start-level` im Lasttest – Zulieferung für 02s Familienbilanzen | `claude/chat-04-infra-betrieb-ihx0xz` | `d67ea43` | 713 ✔ | **offen** |
 | [13](./13-deploy-wache-projektiltempo.md) | Deploy-Wache mit drei Fällen, Projektiltempo gepaart gemessen | `claude/chat-04-infra-betrieb-ihx0xz` | `b8fd1a1` | 707 ✔ | **offen** |
 | [12](./12-momentum-gepaart-gemessen.md) | `--seed` im Lasttest + gepaarter A/B: was Momentum wirklich tut | `claude/chat-04-infra-betrieb-ihx0xz` | `ff9ece7` | 575 ✔ | **offen** |
@@ -73,6 +74,18 @@ warum etwas so gebaut ist, wie es gebaut ist.
   Lebensdauer um 12–17 %. **Unbelegt bleibt jede Aussage über Rapids K/D**
   (Differenzen −0,03 / +0,63 / +0,92). Für 02 heißt das: Wer die Signature nach
   ihrem K/D-Effekt auslegt, legt sie nach einer Zahl aus, die wir nicht haben.
+- **R5 beantwortet, soweit es geht (Bericht 15):** Die Perf-Kette **trägt** –
+  end-to-end im echten Browser belegt, zwei Berichte im 60-s-Takt, keiner
+  verworfen. Der Verdacht „der Client sendet nicht" trifft nicht zu, es ist
+  **kein Befund für 03**. Was wie ein Defekt aussah, sind 120 s Vorlauf bis zum
+  ersten Bericht plus Zähler, die jeder Deploy auf null setzt.
+  **Die Messlatte bleibt `UNBEANTWORTET`** – es liegen schlicht noch keine
+  Berichte von einem Altgerät vor. Entscheidung für 03: Aufwärmphase kürzen
+  und/oder beim Verlassen der Seite senden (`keepalive` ist schon gesetzt);
+  sonst bleibt die Ausbeute dauerhaft winzig.
+- **Neu im Werkzeug: `npm run perf:live`** – wertet die Client-Perf-Berichte
+  gegen die MASTERPLAN-Messlatte aus, getrennt nach Geräteklasse, Renderpfad
+  und Qualitätsstufe. Drei Ausgänge; **`UNBEANTWORTET` ist kein Bestehen**.
 - **Neu im Werkzeug: `npm run loadtest -- --start-level <n>`** (Bericht 14, auf
   02s Bitte). Hebt die Clients auf ein Level, auf dem die Familienklassen
   offenstehen – 70 statt 8 Klassenwahlen im selben 60-s-Fenster. Braucht
