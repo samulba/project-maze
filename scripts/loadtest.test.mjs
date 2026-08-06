@@ -10,7 +10,7 @@ import {
   summarize
 } from './loadtest.mjs';
 
-const report = (overrides = {}) => ({
+const report = (overrides = {}, extra = {}) => ({
   target: 'ws://localhost:2567',
   requestedClients: 10,
   rampSeconds: 2,
@@ -40,7 +40,8 @@ const report = (overrides = {}) => ({
   latencyMs: summarize([4, 8, 12]),
   snapshotIntervalMs: summarize([33, 34, 35]),
   rttMs: summarize([2, 3, 4]),
-  joinMs: summarize([5, 6, 7])
+  joinMs: summarize([5, 6, 7]),
+  ...extra
 });
 
 describe('loadtest arguments', () => {
@@ -107,6 +108,44 @@ describe('loadtest seed', () => {
     // Derselbe Client zieht dieselbe Folge, egal wann er drankommt.
     expect(Array.from({ length: 5 }, clientRandom(1000, 3)))
       .toEqual(Array.from({ length: 5 }, clientRandom(1000, 3)));
+  });
+});
+
+describe('loadtest start level', () => {
+  it('is off by default', () => {
+    expect(parseArgs([]).startLevel).toBe(0);
+  });
+
+  it('accepts --start-level in both spellings', () => {
+    expect(parseArgs(['--start-level', '24']).startLevel).toBe(24);
+    expect(parseArgs(['--start-level=30']).startLevel).toBe(30);
+  });
+
+  it('rejects nonsense instead of silently running without it', () => {
+    expect(() => parseArgs(['--start-level', 'hoch'])).toThrow();
+    expect(() => parseArgs(['--start-level', '-3'])).toThrow();
+  });
+
+  it('leaves the report block out when the option is off', () => {
+    expect(formatReport(report())).not.toContain('Startlevel');
+  });
+
+  it('shouts when the level was never reached - a silent no-op is the danger', () => {
+    // ENABLE_DEV_TOOLS aus: Der Server verwirft die Debug-Nachricht
+    // stillschweigend. Genau das darf im Bericht nicht untergehen.
+    const text = formatReport(report({}, {
+      startLevel: { requested: 30, sent: 120, reached: 0, ofClients: 40, maxLevelSeen: 7 }
+    }));
+    expect(text).toContain('Startlevel 30');
+    expect(text).toContain('NIE ERREICHT');
+  });
+
+  it('reports a partial result as partial', () => {
+    const text = formatReport(report({}, {
+      startLevel: { requested: 30, sent: 90, reached: 31, ofClients: 40, maxLevelSeen: 33 }
+    }));
+    expect(text).toContain('31/40');
+    expect(text).not.toContain('NIE ERREICHT');
   });
 });
 
