@@ -54,6 +54,40 @@ Standbild; der helle Look sah in der Vorschau gut aus und im Spiel nicht.
 Design-Änderungen am Grundlook weiterhin nur nach Screenshot-Freigabe durch
 Sam.
 
+## Klassen-Identität (verbindlich, Sams Vorgabe vom 06.08.)
+
+> *„Mir ist extrem wichtig, dass die Tanks wirklich unique Designs haben und man
+> ALLE voneinander unterscheiden kann und alle irgendwie irgendwo special sind."*
+
+Das ist keine Politur, sondern eine Abnahmebedingung. **Alle 29 Klassen** – nicht
+die auffälligen, nicht die Endklassen, alle.
+
+**Der Ist-Stand, belegt an den Vorschaubildern vom 06.08.:**
+
+- Sieben Impact-Klassen (Impact, Crusher, Bulwark, Juggernaut, Fortress, Blitz,
+  Comet) tragen **überhaupt kein Rohr** und sind als Silhouette identisch.
+- Die Rapid-Linie unterscheidet sich allein in der Zahl der Rohre.
+- Control allein in der Zahl der Drohnen.
+- Von 29 Klassen sticht genau eine heraus (Octo).
+
+**Zwei Anforderungen, beide sind zu erfüllen:**
+
+1. **Unterscheidbar.** Jede Klasse ist an ihrem *Umriss* erkennbar – ohne Farbe,
+   ohne Beschriftung, in Spielgröße. Formsprache statt Farbcode: andere
+   Grundkörper, Panzerplatten, Stacheln, Schilde, Kufen, Aufbauten.
+2. **Special.** Jede Klasse hat mindestens ein Merkmal, das nur sie hat – ein
+   Element, das man beschreiben kann, ohne Zahlen zu nennen. Ein Tank, der sich
+   nur in Werten von seinem Nachbarn unterscheidet, ist nicht fertig.
+
+**Abnahme: der Blindtest.** Alle 29 Silhouetten auf einem Blatt, ohne Namen,
+ohne Farbe. Wer zwei nicht auseinanderhalten kann, hat einen Befund. Das Blatt
+gehört in den Statusbericht – Behauptungen zählen hier nicht, Bilder schon.
+
+**Reihenfolge:** Silhouetten vor Rad (KL3), vor Balance (KL5). Ein sichtbarer
+Klassenbaum, der 29-mal denselben Kreis zeigt, erklärt nichts, und eine
+Balance-Runde über Klassen, die sich gleich anfühlen, misst das falsche
+Problem.
+
 ## Handlungsfeld 1 – Überall sauber: Responsive & Performance
 
 **Ist:** Fullscreen-Wechsel buggy, Artefakte/Striche an den Rändern großer
