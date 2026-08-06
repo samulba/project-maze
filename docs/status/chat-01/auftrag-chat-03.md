@@ -1,44 +1,49 @@
 # Auftrag für Chat 03 – Client/UX
 
-**Ausgestellt: 2026-08-06 (7. Fassung) · Basis: aktueller `origin/main`**
+**Ausgestellt: 2026-08-06 (8. Fassung) · Basis: aktueller `origin/main`**
 
 > Neu im Chat? Lies zuerst `docs/status/chat-03/UEBERGABE.md`. Danach diese Datei.
 
-Sieben Fehler statt des einen Beispiels, und der schwerste war keiner fürs
-Auge: **Mit offener Klassenwahl nahmen 35 % der Bildfläche keine Klicks mehr
-an, zusammen mit dem Upgrade-Panel 48 %** – gegen 1,4 % im normalen Spiel. Wer
-auf Level 10 in die untere Bildhälfte gezielt hat, hat schlicht nicht gefeuert.
-Das erklärt Sams Ärger besser als jede Beschreibung, die er hätte liefern
-können.
+63 von 63 Fällen laufen durch. Der wertvollste Satz in deinem Bericht war
+allerdings ein anderer: **Drei der sechs Befunde stammen aus deinen eigenen
+letzten drei Paketen, alle drei nur auf Touch** – dem Bereich, den du dort
+jeweils nur rechnerisch abgedeckt hattest. Dass du das selbst benennst, statt
+es unauffällig mitzureparieren, ist mehr wert als die Reparaturen.
 
-Deine Diagnose trifft auch den Grund: Panels, die einzeln geprüft wurden und
-zusammen nicht funktionieren. Zwei der sieben sind erst aufgegangen, weil die
-Familien-Slots seit heute sichtbar sind – aus acht Upgrade-Reihen werden zehn.
-Genau die Zustandskombination, die vorher niemand hatte.
+Der schwerste Befund war real: Auf dem Handy im Querformat – der einzigen
+spielbaren Ausrichtung – lagen drei der vier Navigationseinträge unter dem
+Bildrand. Achievements, Bestenliste und Einstellungen waren schlicht nicht
+erreichbar, seit einem Tag.
 
-Dass der Prüfstand jetzt im Repo liegt, ist mir mehr wert als die Reparaturen.
+## Das Paket: KL3 – das Rad
 
-## Das Paket: den Prüfstand über den Rest laufen lassen
+Alle vier Familien haben seit gestern ihre Signature. **Niemand sieht sie.** Wer
+auf Level 10 wählt, wählt weiter blind – und genau da hat Sam schon einmal
+Ärger gemeldet.
 
-Die Klassenwahl war Sams Beispiel, nicht die Grenze. Nimm `ui-layout-check.mjs`
-und geh damit durch, was noch nicht geprüft ist:
+Aus dem MASTERPLAN: der komplette Klassenbaum als Rad, in der Mitte Core, Ring 1
+die vier Familien (Lvl 10), Ring 2 (Lvl 24), Ring 3 die Endklassen. Der eigene
+Pfad hervorgehoben, jede Klasse mit einem Satz zum Spielstil, ihrer Signature
+und „führt zu → X/Y/Z". Zwei Orte: In-Game-Overlay (Taste `C`) und
+Startscreen-Enzyklopädie – letztere hat seit deinem Umbau einen natürlichen
+Platz.
 
-- **Death-Screen und Zuschauen** – der schrumpft jetzt, während darunter
-  weitergespielt wird. Zwei Zustände übereinander, die es vorher nicht gab.
-- **Onboarding, Event-Banner, Bounty, Killfeed, Achievement-Popups** – die
-  liegen alle im selben oberen Bereich. Was passiert, wenn drei gleichzeitig
-  kommen?
-- **Die neuen Unterseiten** aus deinem letzten Paket, auf schmalen Fenstern und
-  auf 21:9, mit und ohne Login.
-- **Mobile**, falls der Prüfstand das abbilden kann. R3 ist lange her, und
-  seither ist viel dazugekommen.
+Vier Auflagen:
 
-Wieder: erst auflisten mit Reproduktionsweg und Schwere, dann reparieren. Was
-du nicht schaffst, bleibt in der Liste und ist damit nicht verloren.
+1. **Es muss die Signature erklären**, nicht nur den Baum zeichnen. „Rapid:
+   Feuern in Bewegung baut Momentum auf" ist der Satz, der eine Klassenwahl
+   informiert – nicht die Aufzählung ihrer Werte.
+2. **Das Overlay pausiert das Spiel nicht.** Es öffnet mitten im Gefecht.
+   Entsprechend: Es darf keine Klicks schlucken, die ins Spielfeld gehören –
+   du weißt inzwischen genau, warum ich das dazuschreibe.
+3. **Der Prüfstand läuft mit**, mit dem Rad als neuem Zustand, auf allen 63
+   Fällen. Ein Vollbild-Overlay auf 844×390 ist die härteste Prüfung, die wir
+   haben.
+4. **Kosten nennen.** 29 Klassen als Rad ist eine Menge Zeichenarbeit; die
+   Qualitätsstufen gelten auch hier.
 
-**Wenn der Prüfstand sauber durchläuft**, ist KL3 dran – das Rad, der sichtbare
-Klassenbaum als Overlay (`C`) und Startscreen-Enzyklopädie. Alle vier Familien
-haben seit heute ihre Signature, und niemand sieht sie. Sag im Bericht, wenn du
-so weit bist, dann schreibe ich dir den Auftrag dafür aus.
+Wenn das zu groß wird: **Startscreen-Enzyklopädie zuerst, Overlay danach.** Die
+Enzyklopädie hilft beim Verstehen, das Overlay beim Entscheiden – und
+Verstehen kommt zuerst.
 
 Statusbericht wie gehabt nach `docs/status/chat-03/`.
