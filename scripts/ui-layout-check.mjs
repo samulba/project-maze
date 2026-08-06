@@ -161,7 +161,9 @@ function messenImBrowser() {
     '.onboarding': 'Onboarding',
     '.arena-event-banner': 'Event-Banner',
     '.spectator-banner': 'Zuschauerband',
-    '.points-badge': 'Punkte-Badge'
+    '.points-badge': 'Punkte-Badge',
+    '.move-stick': 'Bewegungs-Stick',
+    '.aim-stick': 'Ziel-Stick'
   };
   const sichtbar = (e) => {
     if (!e || e.hidden) return false;
@@ -398,6 +400,25 @@ async function main() {
     const { page, fehler } = await oeffnen(fall);
     await page.fill('#player-name', fall.name.slice(0, 18));
     await page.click('#join-button');
+    // Touch im Hochformat ist kein Spielzustand: Das Spiel blendet das HUD aus
+    // und zeigt „Bitte Gerät drehen". Statt auf ein HUD zu warten, das
+    // absichtlich nicht kommt, wird genau dieser Zustand geprüft.
+    if (fall.touch && fall.h > fall.w) {
+      await page.waitForTimeout(2500);
+      const hinweis = await page.evaluate(() => {
+        const n = document.querySelector('.rotate-notice');
+        const hud = document.querySelector('#hud');
+        return { sichtbar: Boolean(n) && getComputedStyle(n).display !== 'none',
+          hudAus: Boolean(hud) && getComputedStyle(hud).visibility === 'hidden' };
+      });
+      if (SHOTS) await page.screenshot({ path: `.probe/ui-${fall.name}.png` });
+      await page.close();
+      const p = [];
+      if (!hinweis.sichtbar) p.push('Drehen-Hinweis fehlt im Hochformat');
+      if (!hinweis.hudAus) p.push('HUD bleibt im Hochformat sichtbar');
+      melden({ fall: fall.name, fenster: `${fall.w}×${fall.h}`, tot: null, probleme: p });
+      continue;
+    }
     await page.waitForSelector('#hud:not([hidden])', { timeout: 60_000 });
     await page.waitForTimeout(3000);
     const messung = await page.evaluate(messenImBrowser);
