@@ -47,24 +47,41 @@ import { MazeGame } from './game.js';
 
 /*
  * Zweite Runde (01, 06.08. abends): Sam hat nach dem ersten Paket erneut „die
- * Kugeln sind noch immer zu schnell" gemeldet – aller Wahrscheinlichkeit nach,
- * ohne dass die Werte hier je gegriffen haben, weil der Schalter aus war. Mit
- * dem Umstellen auf Default-an kommt deshalb gleich eine Stufe mehr: Dämpfer
- * 0,70 → 0,60, Deckel 2,6/1,8 → 2,0/1,35.
+ * Kugeln sind noch immer zu schnell" gemeldet – tatsächlich, weil der Schalter
+ * aus war und diese Werte nie gegriffen haben. Beim Umstellen auf Default-an
+ * habe ich zusätzlich verschärft: Dämpfer 0,70 → 0,60, Deckel 2,6/1,8 →
+ * 2,0/1,35. **Das war zur Hälfte falsch, und 02 hat es nachgemessen.**
  *
- * Der Boden schützt das dabei, was 02s Analyse geschützt haben wollte: Er ist
- * `min(heutiges Tempo, 1,25× Spielertempo)`, also macht keine dieser Senkungen
- * eine langsame Klasse unfähig, ein fliehendes Ziel einzuholen – sie kann eine
- * Kugel nie unter das heutige Tempo drücken. Die Senkung wirkt dort, wo sie
- * wirken soll: am oberen Ende.
+ * Der Dämpfer auf 0,60 hat *keine einzige Klasse* mehr bestimmt – alle außer
+ * Precision fielen auf den Boden. Statt sie zu verlangsamen, hat er acht
+ * Klassen (Core, Rapid, Twin, Repeater, Storm, Gatling, Flanker, Octo) auf
+ * exakt dasselbe Tempo eingeebnet, und alle sieben Precision-Klassen ebenfalls.
+ * Der Tempo-Unterschied von 1,49×, mit dem ein Lancer seine lange Nachladezeit
+ * bezahlt bekommt, war weg – gegen den Nordstern „jede Familie ist am
+ * Spielgefühl erkennbar".
+ *
+ * Deshalb steht hier jetzt 02s Gegenvorschlag: **Dämpfer zurück auf 0,70, den
+ * Deckel dafür auf 1,50×.** Das kostet nichts an Langsamkeit (die Rapid-Linie
+ * liegt 2,6–9,7 % über dem Boden statt darauf), gibt fünfzehn statt acht
+ * verschiedenen Tempi ihre Unterscheidbarkeit zurück und hält Lancer trotzdem
+ * bei −55 % gegenüber dem Stand vor Paket 14.
+ *
+ * Offen und an 02 zurückgegeben: Ein *harter* Deckel ebnet konstruktionsbedingt
+ * alles ein, was ihn erreicht. Ein weicher (`cap + (damped − cap) × 0,15`)
+ * behielte die Reihenfolge. Das ist eine Mechanikänderung und gehört gemessen,
+ * nicht nebenbei eingebaut.
+ *
+ * Der Boden bleibt unangetastet: `min(heutiges Tempo, 1,25× Spielertempo)` –
+ * keine dieser Senkungen kann eine Kugel unter das heutige Tempo ihrer Klasse
+ * drücken.
  */
 
 /** Dämpfer auf das Rohtempo, für alle Zweige gleich. */
-export const PROJECTILE_SPEED_DAMPER = 0.6;
+export const PROJECTILE_SPEED_DAMPER = 0.7;
 /** Deckel als Vielfaches des schnellsten Spielers – auf Level 1 … */
 export const PROJECTILE_SPEED_CAP_HIGH = 2.0;
 /** … und auf `GAME.maxLevel`. Dazwischen linear. */
-export const PROJECTILE_SPEED_CAP_LOW = 1.35;
+export const PROJECTILE_SPEED_CAP_LOW = 1.5;
 /**
  * Untergrenze als Vielfaches des schnellsten Spielers. Eine Kugel unter diesem
  * Verhältnis holt ein fliehendes Ziel praktisch nicht mehr ein.
