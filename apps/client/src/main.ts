@@ -53,6 +53,8 @@ import './auth.css';
 import './profile.css';
 // Zuletzt: sammelt die Layout-Reparaturen aus der UI-Fehlersuche und muss
 // gegen die Kurzfassungen in style.css und mobile.css gewinnen.
+import { registriereSilhouetten, setHullStil } from './class-hull';
+import { silhouette } from './class-silhouette';
 import './class-tree.css';
 import './hud-layout.css';
 
@@ -68,6 +70,13 @@ let previousSelf: PlayerSnapshot | null = null;
 let previousProjectileIds = new Set<string>();
 let previousModuleActiveUntil = 0;
 let lastClientErrorToastAt = 0;
+
+// Formsprache der Rümpfe. Der Umbau (`class-silhouette.ts`) wartet auf Sams
+// Freigabe über 01 und ist deshalb aus; `?silhouetten=1` schaltet ihn für die
+// Vorlage ein. Registriert wird die Quelle immer – ein Schalter, der eine
+// Abhängigkeit nachlädt, wäre der zweite Zustand, den niemand testet.
+registriereSilhouetten(silhouette);
+if (new URLSearchParams(window.location.search).get('silhouetten') === '1') setHullStil('silhouette');
 
 const audio = new GameAudio();
 const renderer = new GameRenderer();

@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 03
-
-> Kopie von `19-tank-identitaet.md`. Diese Datei zeigt immer das jüngste fertige
-> Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 19 – Die Tanks sollen verschieden aussehen, und die Wahl soll sitzen
 
 **Branch:** `claude/chat-03-client-ux-mazers-yu57ca` · **Basis:** `origin/main` @ `4b28dd2` · **Status: OFFEN – wartet auf Merge und auf Sams Ja zur Formsprache**

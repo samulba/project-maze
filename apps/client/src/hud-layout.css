@@ -85,6 +85,14 @@
 @media (max-height: 700px) {
   .class-selection { max-height: 34vh; }
 }
+/* Auf hohen Fenstern (4:3, 1280×1024) wächst die Wahl bis auf Höhe der
+   Bestenliste. Die rechte Spur war mit 210 px schmaler als die Liste selbst
+   (278 px) – auf flachen Fenstern fällt das nie auf, weil die Wahl dort gar
+   nicht so weit nach oben reicht. Hier bekommt sie die volle Breite der Liste
+   als Abstand. */
+@media (min-height: 860px) {
+  .class-selection { --wahl-rechts: 285px; }
+}
 :root:has(.upgrade-panel:not([hidden])) .class-selection { --wahl-links: 300px; }
 
 /* Auf schmalen Fenstern ist das Upgrade-Panel schmaler – die Spur auch. */
@@ -199,10 +207,19 @@
  * auch auf 1920×1080. Die Spalten teilen sich jetzt die Breite, statt eine
  * Mindestbreite zu erzwingen.
  */
-.class-choices {
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  grid-template-columns: none;
+/*
+ * Nur mit Maus. Auf Touch regelt `mobile.css` die Reihe schon – dort haben die
+ * Karten eine feste Breite und die Reihe scrollt seitwärts. Diese Regel hat sie
+ * überschrieben (sie wird später geladen) und vier Karten in 380 px gequetscht;
+ * bei 667×375 brach „Controller" um und lief unten aus dem Panel. Auf einem
+ * Handy ist Wischen die richtige Antwort, nicht Schrumpfen.
+ */
+@media (pointer: fine) {
+  .class-choices {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-template-columns: none;
+  }
 }
 /* Ohne `min-width: 0` behalten Grid-Spalten die Mindestbreite ihres Inhalts –
    Text und Balken schoben sich dann über die Nachbarkarte. */
@@ -212,12 +229,137 @@
 .class-choices strong,
 .class-choices span { overflow-wrap: anywhere; }
 
+/*
+ * Nachtrag nach dem Spiel-Lauf (Runde 10). Zwei Befunde, die eine Matrix nicht
+ * findet, weil sie Panels gegeneinander misst und nicht Geschwister innerhalb
+ * eines Panels:
+ *
+ * 1. Die Karten überlappten sich um **43 px**, und die vierte ragte 35 px über
+ *    ihr eigenes Panel hinaus. Ursache: `min-width: 220px` an der veredelten
+ *    Karte gegen `1fr`-Spuren von 190 px. Die Spur gewinnt die Breite, die
+ *    Karte gewinnt die Mindestbreite – und schiebt sich über die Nachbarin.
+ *    Die Regel unten hat höhere Spezifität als `[data-enhanced]` und nimmt die
+ *    Mindestbreite zurück; wie breit eine Karte wird, entscheidet das Raster.
+ */
+.class-choices button[data-enhanced="true"] { min-width: 0; }
+
+/*
+ * 2. Beschreibung **und** Balken waren auf jedem 720p-Schirm abgeschaltet –
+ *    das ist meine eigene Regel aus Paket 16, und sie war damals richtig: Ohne
+ *    sie fiel eine von vier Karten unter den Sichtrand. Inzwischen tragen die
+ *    Karten ein Bild, und die Rechnung sieht anders aus.
+ *
+ *    Gemessen im laufenden Spiel bei 1280×720: Die Wahl steht 41 px unter dem
+ *    eigenen Tank und hat bis zum unteren Rand 217 px belegt. Zwischen Tank und
+ *    Panelboden liegen ~296 px – die Balken passen, die Prosa nicht.
+ *
+ *    Also fällt nur noch der Fließtext weg. Die Balken bleiben: Sie sind der
+ *    Vergleich, und wer auf Level 10 unter Beschuss wählt, vergleicht. Ein
+ *    Kartensatz aus vier Namen ist keine Wahl, sondern ein Ratespiel.
+ */
+/*
+ * 3. Auf **großen** Schirmen war die Wahl schon vorher kaputt, und zwar seit
+ *    die Karten Bild und Balken tragen: Bei 1920×1080 ist eine Karte 294 px
+ *    hoch, das Panel deckelt bei 320 – der Deckel stammt aus meinem Paket 16
+ *    und sollte eine zweite Kartenreihe abfangen. Jetzt schnitt er die
+ *    **unterste Zeile jeder Karte** ab, und was fehlte, war ausgerechnet die
+ *    letzte Vergleichszeile. Der Prüfstand meldet es an sechs Fenstergrößen.
+ *
+ *    Die Karte stapelt deshalb nicht mehr, sondern stellt ihren Kopf quer:
+ *    Bild links, Familie und Name rechts daneben, alles Weitere darunter über
+ *    die ganze Breite. Gestapelt braucht derselbe Inhalt 294 px, quer rund 200
+ *    – damit passt eine Reihe wieder unter den Deckel, auf jeder Größe, und
+ *    die Karte sieht überall gleich aus statt in zwei Fassungen.
+ */
+.class-choices button[data-enhanced="true"] {
+  grid-template-columns: 54px minmax(0, 1fr);
+  column-gap: 10px;
+  align-content: start;
+  min-height: 0;
+  padding: 12px 13px;
+}
+.class-choice-preview {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
+  height: 54px;
+  margin: 0;
+}
+.class-choice-preview svg { width: 50px; height: 50px; }
+/* Der Rollenname klebte absolut in der oberen Ecke – dort liegt jetzt das
+   Bild. Im Fluss steht er da, wo er hingehört: über dem Namen. */
+.class-choice-role { position: static; grid-column: 2; grid-row: 1; align-self: end; }
+.class-choices strong { grid-column: 2; grid-row: 2; align-self: start; }
+/* Nur die **eigenen** Kinder der Karte, nicht jedes `span` darin: Die Balken
+   tragen ihre Beschriftung selbst in einem Raster aus zwei Spalten. Ein
+   `grid-column: 1 / -1` auf alle `span` hat sie dort über beide Spalten
+   gelegt, den Balken in die nächste Zeile geschoben und die Karte um 50 px
+   wachsen lassen – der Deckel schnitt weiter ab, nur an anderer Stelle. */
+.class-choices button > span,
+.class-choices button > small,
+.class-choices button > .class-choice-bars { grid-column: 1 / -1; }
+.class-choice-bars { margin-top: 9px; }
+
+/*
+ * Was zählt, ist nicht das Fenster, sondern die Spur.
+ *
+ * Bei 1280×600 mit offenem Upgrade-Panel bleiben der Wahl 520 px – vier Karten
+ * à 120 px. Der quer stehende Kopf braucht davon 54 px für das Bild, und der
+ * Name brach in „Co ntr oll er". Ein Fenstermaß findet das nicht: Dasselbe
+ * Fenster ohne Upgrade-Punkte hat Platz genug. Deshalb fragt die Regel die
+ * **Breite der Kartenreihe** ab und nicht die des Bildschirms.
+ *
+ * Unter 660 px Spurbreite stapelt die Karte wieder, das Bild wird kleiner, und
+ * die Balken entfallen. Das ist dieselbe Entscheidung wie in Paket 16 – Bild,
+ * Familie und Name tragen die Wahl, der Vergleich ist die Beigabe, wenn Platz
+ * ist –, nur wird sie jetzt an der richtigen Größe getroffen.
+ */
+#class-choices { container-type: inline-size; container-name: wahl; }
+
+@container wahl (max-width: 660px) {
+  .class-choices button[data-enhanced="true"] {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
+    padding: 10px;
+  }
+  .class-choice-preview { grid-column: 1; grid-row: auto; height: 42px; }
+  .class-choice-preview svg { width: 40px; height: 40px; }
+  .class-choice-role { grid-column: 1; grid-row: auto; }
+  .class-choices strong { grid-column: 1; grid-row: auto; font-size: 13px; }
+  .class-choices button > .class-choice-bars { display: none; }
+}
+
 @media (max-height: 760px), (max-width: 1180px) {
-  .class-choices span,
-  .class-choice-bars { display: none; }
-  .class-choices button { min-height: 0; padding: 10px 12px; }
-  .class-choices small { margin-top: 4px; }
+  .class-choices span { display: none; }
+  .class-choice-bars span { display: block; }
   .class-selection > p { display: none; }
+  .class-choices button[data-enhanced="true"] { padding: 10px 12px; }
+  /* „LEVEL 10" steht im Moment der Wahl auf allen vier Karten – es
+     unterscheidet nichts und kostet eine Zeile, die die Balken brauchen. */
+  .class-choices small { display: none; }
+  .class-choice-bars { gap: 4px; }
+}
+
+/*
+ * Wirklich eng bleibt wirklich eng: Unter 560 px Höhe oder 720 px Breite ist
+ * für Balken kein Platz, ohne das Spielfeld zu verlieren. Dort gilt weiter,
+ * was in Paket 16 stand – Familie, Bild, Name, Stufe.
+ */
+@media (max-height: 560px), (max-width: 720px) {
+  .class-choice-bars { display: none; }
+}
+
+/*
+ * Das kleinste Gerät der Matrix (667×375 quer) hat für die Wahl 155 px Höhe.
+ * Bild, Familie und Name passen dort nur, wenn das Bild noch einmal
+ * zurücktritt – gemessen, nicht geschätzt: mit 42 px Bild ragten drei von vier
+ * Karten unten aus dem Panel.
+ */
+@media (pointer: coarse) and (max-height: 430px) {
+  .class-choice-preview { height: 32px; margin-bottom: 2px; }
+  .class-choice-preview svg { width: 30px; height: 30px; }
+  .class-choices button[data-enhanced="true"] { padding: 8px 10px; }
+  .class-choices strong { font-size: 13px; }
 }
 
 /* ================================================================== *

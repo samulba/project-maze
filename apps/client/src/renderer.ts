@@ -15,6 +15,7 @@ import {
 } from '@project-maze/shared';
 import type { ArenaEventSnapshot } from '@project-maze/shared/gameplay';
 import { GUARDIAN_COLOR, GUARDIAN_NAME, arenaEventStyle } from './arena-event-style';
+import { hullForms, vieleckPunkte, type HullFarbe, type HullStrich } from './class-hull';
 import { ParticleField } from './particles';
 import { QUALITY_TIERS, type QualitySettings, type QualityTier } from './quality';
 import { type RecoilState, startRecoil, stepRecoil } from './recoil';
@@ -988,165 +989,41 @@ export class GameRenderer {
     }
   }
 
+  /**
+   * Rumpf und Zeichnung einer Klasse.
+   *
+   * Die Geometrie steht seit dem Auftrag „die Tanks müssen verschieden
+   * aussehen" in `class-hull.ts` – als Daten, die Spiel **und** Wahlkarte
+   * benutzen. Vorher stand sie hier als `switch`, und die Karte zeichnete
+   * ersatzweise einen Kreis; ein Fortress war auf der Karte eine Scheibe.
+   * Diese Methode übersetzt die Daten nur noch nach Pixi.
+   */
   private drawClassHull(body:Graphics,detail:Graphics,playerClass:PlayerClass,color:number):void{
-    const outline={color:0xffffff,alpha:.38,width:3};
-    const subtle={color:0xffffff,alpha:.22,width:2};
-    switch(playerClass){
-      case'core':
-        body.circle(0,0,22).fill(color).stroke(outline);
-        detail.circle(0,0,6).stroke({color:0xffffff,alpha:.24,width:2});
-        break;
-      case'rapid':
-        body.circle(0,0,21).fill(color).stroke(outline);
-        detail.poly([-18,-8,-27,0,-18,8]).fill({color,alpha:.78});
-        detail.circle(0,0,5).fill({color:0xffffff,alpha:.18});
-        break;
-      case'twin':
-        body.circle(0,0,22).fill(color).stroke(outline);
-        detail.circle(-16,-12,4).fill({color:0xffffff,alpha:.2});
-        detail.circle(-16,12,4).fill({color:0xffffff,alpha:.2});
-        break;
-      case'repeater':
-        body.poly(polygon(6,22,Math.PI/6)).fill(color).stroke(outline);
-        detail.circle(0,0,8).stroke({color:0xffffff,alpha:.28,width:2});
-        detail.rect(-19,-3,8,6).fill({color:0xffffff,alpha:.18});
-        break;
-      case'storm':
-        body.circle(0,0,23).fill(color).stroke(outline);
-        detail.circle(0,0,17).stroke(subtle);
-        this.drawNodes(detail,4,17,3,color);
-        break;
-      case'gatling':
-        body.poly(polygon(6,23,Math.PI/6)).fill(color).stroke(outline);
-        detail.circle(0,0,10).stroke({color:0xffffff,alpha:.3,width:3});
-        this.drawNodes(detail,6,17,2.6,color);
-        break;
-      case'sniper':
-        body.circle(0,0,21).fill(color).stroke(outline);
-        detail.poly([-17,-9,-27,0,-17,9]).fill({color:0xffffff,alpha:.17});
-        detail.rect(5,-4,14,8).fill({color:0xffffff,alpha:.16});
-        break;
-      case'railgun':
-        body.poly(polygon(6,21,Math.PI/6)).fill(color).stroke(outline);
-        detail.rect(-13,-4,29,8).fill({color:0xffffff,alpha:.18});
-        detail.circle(-9,0,4).fill({color:0xffffff,alpha:.3});
-        break;
-      case'hunter':
-        body.circle(0,0,21).fill(color).stroke(outline);
-        detail.poly([-11,-19,4,-13,-4,-6]).fill({color:0xffffff,alpha:.18});
-        detail.poly([-11,19,4,13,-4,6]).fill({color:0xffffff,alpha:.18});
-        break;
-      case'lancer':
-        body.poly(polygon(4,23,Math.PI/4)).fill(color).stroke(outline);
-        detail.rect(-12,-3,29,6).fill({color:0xffffff,alpha:.22});
-        detail.circle(-10,0,4).fill({color:0xffffff,alpha:.32});
-        break;
-      case'phantom':
-        body.poly(polygon(6,21,0)).fill(color).stroke(outline);
-        detail.circle(0,0,25).stroke({color,alpha:.42,width:2});
-        detail.poly([-16,-9,-25,0,-16,9]).fill({color:0xffffff,alpha:.16});
-        break;
-      case'drone':
-        body.circle(0,0,22).fill(color).stroke(outline);
-        detail.poly(polygon(3,10,0)).fill({color:0xffffff,alpha:.28});
-        detail.circle(0,0,16).stroke(subtle);
-        break;
-      case'warden':
-        body.circle(0,0,22).fill(color).stroke(outline);
-        detail.circle(0,0,17).stroke({color:0xffffff,alpha:.26,width:2});
-        this.drawNodes(detail,6,18,3,color);
-        break;
-      case'factory':
-        body.roundRect(-21,-21,42,42,8).fill(color).stroke(outline);
-        detail.roundRect(-9,-9,18,18,4).stroke({color:0xffffff,alpha:.3,width:2});
-        detail.rect(-20,-4,8,8).fill({color:0xffffff,alpha:.18});
-        break;
-      case'overseer':
-        body.circle(0,0,23).fill(color).stroke(outline);
-        detail.circle(0,0,18).stroke({color:0xffffff,alpha:.3,width:2});
-        this.drawNodes(detail,8,19,2.7,color);
-        break;
-      case'carrier':
-        body.poly(polygon(6,25,Math.PI/6)).fill(color).stroke(outline);
-        detail.circle(0,0,11).fill({color:0xffffff,alpha:.14}).stroke({color:0xffffff,alpha:.28,width:2});
-        this.drawNodes(detail,6,20,3.4,color);
-        break;
-      case'rammer':
-        body.poly(polygon(8,23,Math.PI/8)).fill(color).stroke(outline);
-        detail.roundRect(14,-13,9,26,3).fill({color:0xffffff,alpha:.24});
-        break;
-      case'crusher':
-        body.poly(polygon(8,24,Math.PI/8)).fill(color).stroke(outline);
-        detail.roundRect(12,-16,11,32,3).fill({color:0xffffff,alpha:.25});
-        detail.rect(-18,-3,10,6).fill({color:0xffffff,alpha:.16});
-        break;
-      case'bulwark':
-        body.roundRect(-23,-21,46,42,8).fill(color).stroke(outline);
-        detail.roundRect(13,-17,11,34,4).fill({color:0xffffff,alpha:.26});
-        detail.circle(-8,0,7).stroke(subtle);
-        break;
-      case'juggernaut':
-        body.poly(polygon(8,26,Math.PI/8)).fill(color).stroke(outline);
-        detail.poly(polygon(8,19,Math.PI/8)).stroke({color:0xffffff,alpha:.24,width:2});
-        detail.roundRect(14,-17,11,34,3).fill({color:0xffffff,alpha:.28});
-        break;
-      case'fortress':
-        body.roundRect(-26,-23,52,46,7).fill(color).stroke(outline);
-        detail.roundRect(-21,-18,42,36,6).stroke({color:0xffffff,alpha:.24,width:2});
-        detail.roundRect(14,-19,13,38,3).fill({color:0xffffff,alpha:.3});
-        detail.circle(-8,0,6).fill({color:0xffffff,alpha:.16});
-        break;
-      case'flanker':
-        body.circle(0,0,21).fill(color).stroke(outline);
-        detail.poly([14,-7,22,0,14,7]).fill({color:0xffffff,alpha:.2});
-        detail.poly([-14,-7,-22,0,-14,7]).fill({color:0xffffff,alpha:.2});
-        break;
-      case'octo':
-        body.poly(polygon(8,23,Math.PI/8)).fill(color).stroke(outline);
-        detail.circle(0,0,9).stroke({color:0xffffff,alpha:.3,width:2});
-        this.drawNodes(detail,8,16,2.4,color);
-        break;
-      case'arbalest':
-        body.poly(polygon(6,21,Math.PI/6)).fill(color).stroke(outline);
-        detail.rect(-14,-8,26,4).fill({color:0xffffff,alpha:.2});
-        detail.rect(-14,4,26,4).fill({color:0xffffff,alpha:.2});
-        break;
-      case'deadeye':
-        body.poly(polygon(6,21,0)).fill(color).stroke(outline);
-        detail.circle(0,0,10).stroke({color:0xffffff,alpha:.32,width:2});
-        detail.moveTo(-14,0).lineTo(14,0).stroke({color:0xffffff,alpha:.26,width:2});
-        detail.moveTo(0,-14).lineTo(0,14).stroke({color:0xffffff,alpha:.26,width:2});
-        break;
-      case'guardian':
-        body.circle(0,0,22).fill(color).stroke(outline);
-        detail.circle(0,0,15).stroke({color:0xffffff,alpha:.34,width:4});
-        this.drawNodes(detail,5,17,3.2,color);
-        break;
-      case'hive':
-        body.poly(polygon(6,23,Math.PI/6)).fill(color).stroke(outline);
-        this.drawNodes(detail,6,13,3,color);
-        detail.circle(0,0,4).fill({color:0xffffff,alpha:.3});
-        this.drawNodes(detail,10,19,1.8,color);
-        break;
-      case'blitz':
-        body.poly([24,0,-14,-17,-7,0,-14,17]).fill(color).stroke(outline);
-        detail.poly([10,0,-8,-8,-4,0,-8,8]).fill({color:0xffffff,alpha:.22});
-        break;
-      case'comet':
-        body.circle(4,0,19).fill(color).stroke(outline);
-        body.poly([-2,-16,-26,0,-2,16]).fill({color,alpha:.85}).stroke({color:0xffffff,alpha:.2,width:2});
-        detail.circle(8,0,7).fill({color:0xffffff,alpha:.24});
-        detail.poly([-6,-8,-18,0,-6,8]).fill({color:0xffffff,alpha:.14});
-        break;
-    }
-  }
-
-  private drawNodes(graphics:Graphics,count:number,radius:number,nodeRadius:number,color:number):void{
-    for(let index=0;index<count;index+=1){
-      const angle=index*Math.PI*2/count;
-      graphics.circle(Math.cos(angle)*radius,Math.sin(angle)*radius,nodeRadius)
-        .fill({color:0xffffff,alpha:.34})
-        .stroke({color,alpha:.6,width:1});
+    const ton=(farbe:HullFarbe|HullStrich):number=>farbe.ton==='klasse'?color:0xffffff;
+    for(const form of hullForms(playerClass)){
+      const graphics=form.ebene==='koerper'?body:detail;
+      switch(form.form){
+        case'kreis':graphics.circle(form.x,form.y,form.r);break;
+        case'vieleck':graphics.poly(vieleckPunkte(form.ecken,form.r,form.drehung));break;
+        case'zug':graphics.poly([...form.punkte]);break;
+        case'rechteck':
+          if(form.ecke>0)graphics.roundRect(form.x,form.y,form.breite,form.hoehe,form.ecke);
+          else graphics.rect(form.x,form.y,form.breite,form.hoehe);
+          break;
+        case'strecke':graphics.moveTo(form.x1,form.y1).lineTo(form.x2,form.y2);break;
+        case'kranz':
+          // Der Kranz ist eine Wiederholung, keine einzelne Kontur: jeder Punkt
+          // braucht seine eigene Füllung, sonst verbindet Pixi sie zu einem Zug.
+          for(let index=0;index<form.anzahl;index+=1){
+            const winkel=index*Math.PI*2/form.anzahl;
+            const punkt=graphics.circle(Math.cos(winkel)*form.r,Math.sin(winkel)*form.r,form.knoten);
+            if(form.fuellung)punkt.fill({color:ton(form.fuellung),alpha:form.fuellung.alpha??1});
+            if(form.strich)punkt.stroke({color:ton(form.strich),alpha:form.strich.alpha??1,width:form.strich.breite});
+          }
+          continue;
+      }
+      if(form.fuellung)graphics.fill({color:ton(form.fuellung),alpha:form.fuellung.alpha??1});
+      if(form.strich)graphics.stroke({color:ton(form.strich),alpha:form.strich.alpha??1,width:form.strich.breite});
     }
   }
 

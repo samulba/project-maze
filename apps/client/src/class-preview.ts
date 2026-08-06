@@ -1,4 +1,5 @@
 import { CLASS_DEFINITIONS, GAME, type PlayerClass } from '@project-maze/shared';
+import { hullForms, vieleckPunkte, type HullFarbe, type HullForm, type HullStrich } from './class-hull';
 
 /**
  * Bild des Tanks für die Klassenwahl.
@@ -9,10 +10,12 @@ import { CLASS_DEFINITIONS, GAME, type PlayerClass } from '@project-maze/shared'
  * Zahlen und keine Form.
  *
  * Gezeichnet wird aus **denselben Werten wie im Spiel** (`CLASS_DEFINITIONS`,
- * `GAME.playerRadius`), mit der Rohr-Geometrie aus `renderer.ts`. Das ist der
- * Punkt: Die Vorschau kann nicht hübscher lügen als das Original, und wenn zwei
- * Klassen hier gleich aussehen, sehen sie im Spiel auch gleich aus. Ein
- * gezeichnetes Wunschbild hätte genau das verdeckt.
+ * `GAME.playerRadius`) und seit dem Rumpf-Umzug aus **derselben Geometrie**
+ * (`class-hull.ts`). Das ist der Punkt: Die Vorschau kann nicht hübscher lügen
+ * als das Original, und wenn zwei Klassen hier gleich aussehen, sehen sie im
+ * Spiel auch gleich aus. Die erste Fassung zeichnete jeden Rumpf als Kreis –
+ * ein Fortress war auf der Karte eine Scheibe, im Spiel ein Kasten. Genau so
+ * verdeckt ein gezeichnetes Wunschbild den eigentlichen Befund.
  *
  * Bewusst kein Canvas und kein Pixi: Ein Inline-SVG kostet keinen zweiten
  * Renderkontext je Karte, skaliert von selbst und folgt über `currentColor` der
@@ -37,6 +40,50 @@ function barrelPolygon(start: number, length: number, height: number, angle: num
     .map(([x, y]) => `${(x * Math.cos(angle) - y * Math.sin(angle)).toFixed(1)},${(x * Math.sin(angle) + y * Math.cos(angle)).toFixed(1)}`)
     .join(' ');
 }
+
+const zahl = (wert: number): string => wert.toFixed(1).replace(/\.0$/, '');
+
+/** Farbrolle → SVG-Farbe. `klasse` erbt die Farbe der Karte über `currentColor`. */
+const ton = (farbe: HullFarbe | HullStrich): string => (farbe.ton === 'klasse' ? 'currentColor' : '#fff');
+
+/** Füllung und Strich als Attribute – `none` statt weglassen, sonst füllt SVG schwarz. */
+function anstrich(form: HullForm): string {
+  const teile = [`fill="${form.fuellung ? ton(form.fuellung) : 'none'}"`];
+  if (form.fuellung?.alpha !== undefined) teile.push(`fill-opacity="${form.fuellung.alpha}"`);
+  if (form.strich) {
+    teile.push(`stroke="${ton(form.strich)}"`, `stroke-width="${form.strich.breite}"`);
+    if (form.strich.alpha !== undefined) teile.push(`stroke-opacity="${form.strich.alpha}"`);
+  }
+  return teile.join(' ');
+}
+
+/** Eine Form aus `class-hull.ts` als SVG-Element. */
+function formSvg(form: HullForm): string {
+  const attribute = anstrich(form);
+  switch (form.form) {
+    case 'kreis':
+      return `<circle cx="${zahl(form.x)}" cy="${zahl(form.y)}" r="${zahl(form.r)}" ${attribute}/>`;
+    case 'vieleck':
+      return `<polygon points="${paare(vieleckPunkte(form.ecken, form.r, form.drehung))}" ${attribute}/>`;
+    case 'zug':
+      return `<polygon points="${paare([...form.punkte])}" ${attribute}/>`;
+    case 'rechteck':
+      return `<rect x="${zahl(form.x)}" y="${zahl(form.y)}" width="${zahl(form.breite)}" height="${zahl(form.hoehe)}"${form.ecke > 0 ? ` rx="${zahl(form.ecke)}"` : ''} ${attribute}/>`;
+    case 'strecke':
+      return `<line x1="${zahl(form.x1)}" y1="${zahl(form.y1)}" x2="${zahl(form.x2)}" y2="${zahl(form.y2)}" ${attribute}/>`;
+    case 'kranz':
+      return Array.from({ length: form.anzahl }, (_, index) => {
+        const winkel = (index * Math.PI * 2) / form.anzahl;
+        return `<circle cx="${zahl(Math.cos(winkel) * form.r)}" cy="${zahl(Math.sin(winkel) * form.r)}" r="${zahl(form.knoten)}" ${attribute}/>`;
+      }).join('');
+  }
+}
+
+const paare = (werte: number[]): string => {
+  const punkte: string[] = [];
+  for (let index = 0; index + 1 < werte.length; index += 2) punkte.push(`${zahl(werte[index] ?? 0)},${zahl(werte[index + 1] ?? 0)}`);
+  return punkte.join(' ');
+};
 
 /**
  * SVG-Markup für eine Klasse. Der Aufrufer setzt die Farbe über `color` am
@@ -84,7 +131,10 @@ export function classPreviewSvg(playerClass: PlayerClass): string {
     `<svg viewBox="${-VIEW / 2} ${-VIEW / 2} ${VIEW} ${VIEW}" aria-hidden="true" focusable="false">`,
     `<g transform="rotate(-30)">`,
     `<g class="class-preview-barrels">${barrels.join('')}</g>`,
-    `<circle cx="0" cy="0" r="${radius}" class="class-preview-hull"/>`,
+    // Kein gemeinsamer Anstrich am Gruppenelement: Die Formen tragen ihre
+    // Farbe selbst, und ein geerbtes `stroke-width` würde jeder Aufhellung
+    // innen einen Rand geben, den das Spiel nicht zeichnet.
+    `<g class="class-preview-hull">${hullForms(playerClass).map(formSvg).join('')}</g>`,
     drones.join(''),
     `</g></svg>`
   ].join('');

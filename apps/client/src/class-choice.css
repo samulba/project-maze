@@ -33,7 +33,10 @@
   color: var(--accent);
 }
 .class-choice-preview svg { width: 74px; height: 74px; overflow: visible; }
-.class-preview-hull { fill: currentColor; stroke: color-mix(in srgb, #fff 38%, transparent); stroke-width: 3; }
+/* Der Rumpf bringt seinen Anstrich aus `class-hull.ts` mit – dieselbe Quelle
+   wie im Spiel. Eine Farbregel an dieser Stelle würde sie überschreiben und die
+   Vorschau wieder vom Original ablösen; nur die Grundfarbe kommt von außen. */
+.class-preview-hull { color: inherit; }
 .class-preview-barrels { fill: color-mix(in srgb, currentColor 55%, #6c7386); }
 .class-preview-drone { fill: currentColor; opacity: .62; }
 
