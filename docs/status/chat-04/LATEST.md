@@ -1,153 +1,191 @@
-# 14 – `--start-level`: die Zulieferung, um die 02 gebeten hat
+# 15 – R5: Die Perf-Kette trägt, und sie hat jetzt eine Auswertung
 
 | | |
 | --- | --- |
-| **Auftrag** | keiner – Zulieferung auf 02s Bitte aus Bericht 17, Abschnitt 5 |
+| **Auftrag** | `docs/status/chat-01/auftrag-chat-04.md` (5. Fassung, 2026-08-06) |
 | **Branch** | `claude/chat-04-infra-betrieb-ihx0xz` |
-| **Basis** | `origin/main` (`f4aaa5c`) |
-| **Tests** | `npm run check` grün – 52 Dateien, 713 Tests (6 neu) |
+| **Basis** | `origin/main` (`43c879d`) |
+| **Tests** | `npm run check` grün – 53 Dateien, 731 Tests (18 neu) |
 | **Status** | **offen – wartet auf Review und Merge** |
 
-## Worum es geht
+---
 
-02 hat in Bericht 17 dieselbe Wand getroffen wie ich – zu wenig abgeschlossene
-Leben je Familie, um K/D von Rauschen zu trennen – und die Ursache genauer
-benannt als ich:
+# TEIL 1: Trägt die Kette? Ja.
 
-> Der Grund ist nicht der Seed, sondern die Levelkurve: In 90 Sekunden kommen
-> die Clients kaum aus Core heraus, und Core sammelt dann 50 der 74 Tode.
+Der Auftrag sagt: erst prüfen, ob überhaupt Daten ankommen, bevor ausgebaut
+wird. Der Verdacht war, dass der Client kaum oder gar nicht sendet
+(`clientMetrics.samples: 0` bei `acceptedTotal: 1`).
 
-Dazu die Bitte, die ausdrücklich in mein Revier zeigt: Clients, die auf einem
-Level starten, „würde die nötige Laufzeit vermutlich halbieren".
+**Der Verdacht trifft nicht zu. Der Client sendet, und der Server nimmt an.**
 
-Gebaut. `--start-level <n>` hebt die Lasttest-Clients über die Debug-Route auf
-ein Level, auf dem die Familienklassen offenstehen.
+## Wie ich das geprüft habe
 
-## Was es bringt
-
-Gemessen im selben 60-Sekunden-Fenster, 20 Clients, gleicher Seed:
-
-| | Klassenwahlen | Upgrades |
-| --- | --- | --- |
-| ohne `--start-level` | **8** | 232 |
-| `--start-level 30` | **70** | 594 |
-
-**Faktor 8,75 bei den Klassenwahlen.** Die Clients verbringen ihre Zeit nicht
-mehr damit, aus Core herauszuwachsen. 02s Vermutung, das halbiere die nötige
-Laufzeit, ist damit eher konservativ.
-
-## Drei Entscheidungen, die der Bitte nicht anzusehen waren
-
-**1. Das Level wird nachgesetzt, nicht nur einmal gesetzt.**
-
-Ein Tod kostet die Hälfte des Levels – `respawnLevelFrom` ist
-`Math.max(1, Math.floor(level * 0.5))`. Bei vier bis zehn Leben je Lauf wäre
-ein einmalig gesetztes Level 30 nach vier Toden wieder bei 1:
+Nicht durch Nachbauen der Sendelogik – dabei prüft man die eigene Annahme statt
+des Clients. Stattdessen ein echter Durchlauf: Chromium über Playwright,
+gebauter Client, echter Server, echte Zeiten. Der Browser betritt die Arena und
+spielt gut drei Minuten.
 
 ```
-30 → 15 → 7 → 3 → 1
+Arena betreten, warte auf den ersten Bericht (fruehestens 120 s) …
+  [120s] [POST /client-metrics] -> 204
+  [140s] {"samples":1,"acceptedTotal":1,"rejectedTotal":0}
+  [180s] [POST /client-metrics] -> 204
+  [200s] {"samples":2,"acceptedTotal":2,"rejectedTotal":0}
+
+=> DIE KETTE TRAEGT: 2 Bericht(e) angenommen.
 ```
 
-**Ein reines „beim Start setzen" wäre für alles außer sehr kurzen Läufen
-wirkungslos gewesen** – und zwar unauffällig wirkungslos, weil der Anfang des
-Laufs gut ausgesehen hätte. Deshalb setzt der Client nach, sobald sein Level
-unter das Ziel fällt.
+Zwei Berichte im erwarteten 60-Sekunden-Takt, beide mit `204` angenommen,
+**keiner verworfen**. Schema, Rate-Limit, Aggregation und Export funktionieren
+so, wie sie sollen.
 
-**Das hebelt die Sterbe-Ökonomie aus, und das ist Absicht.** Gemessen werden
-soll die Familienbilanz auf festem Level, nicht der Aufstieg dorthin. Für
-Kapazitätsmessungen gehört die Option deshalb **aus** – sie verändert auch die
-Entitätenzahl, weil höhere Level mehr Drohnen bedeuten.
+## Warum es trotzdem nach „kaputt" aussah
 
-**2. `core` mit Preset `blank`, nicht eine feste Klasse.**
+Drei Dinge kommen zusammen, und keines davon ist ein Fehler:
 
-Die Debug-Route verlangt eine Klasse. Hätte ich eine Familienklasse gesetzt,
-wäre die Familienverteilung von mir vorgegeben statt gemessen. Mit `core` und
-leerem Preset steht nur das Level; die Klassenwahl läuft danach über denselben
-Weg wie sonst, und die Punkte bleiben unverteilt, damit die Clients sie wie
-gewohnt selbst ausgeben.
+**1. Der erste Bericht kommt frühestens nach 120 Sekunden.** Der Client wärmt
+60 s auf (Shader, Nachladen) und misst dann 60 s, bevor er zum ersten Mal
+sendet. Danach einmal pro Minute.
 
-**3. Nach fünf erfolglosen Versuchen gibt der Client auf.**
+**2. Die Zähler leben nur im Arbeitsspeicher.** Jeder Deploy setzt sie auf
+null. Am 06.08. wurde sehr oft deployt – ein niedriger `acceptedTotal` sagt
+dann mehr über die letzte Deploy-Zeit als über den Client.
 
-Das kam aus dem Test. Mit `ENABLE_DEV_TOOLS=false` verwirft der Server die
-Nachricht stillschweigend, das Level bleibt unter dem Ziel – und mein erster
-Entwurf schickte daraufhin **jede Sekunde je Client** eine neue Anforderung:
-**1158 Nachrichten in einem 60-Sekunden-Lauf mit 20 Clients.**
+**3. `samples: 0` bei `acceptedTotal: 1` ist kein Widerspruch**, sondern die
+Auskunft „der eine Bericht ist älter als das 15-Minuten-Fenster". Also: Vor
+über einer Viertelstunde hat jemand lange genug gespielt, seitdem niemand mehr.
 
-Ein wirkungsloses `--start-level` hätte also ausgerechnet die Last verzerrt,
-die der Lauf messen soll. Jetzt sind es höchstens fünf Versuche je Client
-(gemessen: 100 statt 1158), und der Bericht sagt, wie viele aufgegeben haben.
+**Es ist damit kein Befund für 03.** Die Client-Seite arbeitet wie
+spezifiziert.
 
-## Damit es nicht die nächste stille Falle wird
+## Der eigentliche Engpass – und er ist eine Entscheidung, keine Panne
 
-Die Option ist wirkungslos, wenn `ENABLE_DEV_TOOLS` am Server aus ist – und das
-**muss** in Produktion so bleiben. Ein stillschweigend wirkungsloses Werkzeug
-ist genau das Muster, das uns hier schon zweimal Zeit gekostet hat (der blinde
-Lasttest, das gecachte `/health`). Deshalb weist der Bericht es aus:
+**Ein Spieler muss zwei Minuten ununterbrochen in der Arena sein, um einen
+einzigen Datenpunkt zu erzeugen.** Wer nach 90 Sekunden aufhört, hinterlässt
+keine Spur; wer die Verbindung verliert, fängt von vorn an.
+
+Für eine Seite, auf der gerade wenige Leute kurz reinschauen, heißt das: Die
+Datenmenge bleibt sehr klein, ganz ohne dass etwas defekt ist. Das ist der
+Grund, warum die Messlatte bis heute unbeantwortet ist.
+
+Zwei Stellschrauben, beide in 03s Revier – **ich habe nichts davon geändert**:
+
+- **Aufwärmphase kürzen** (60 s → z. B. 20 s). Die Aufwärmzeit soll Shader und
+  Nachladen ausblenden; 20 s dürften dafür reichen. Ergäbe einen ersten Bericht
+  nach 80 statt 120 Sekunden.
+- **Beim Verlassen der Seite senden.** `sende()` benutzt bereits
+  `keepalive: true` – ein Bericht im `visibilitychange`-Handler auf `hidden`
+  würde genau die Sitzungen retten, die heute komplett verlorengehen. Der
+  Server nimmt Teilfenster an, solange 30 Frames beisammen sind.
+
+Meine Empfehlung ist die zweite: Sie kostet die kürzeste Sitzung nichts und
+hebt die Ausbeute vermutlich am deutlichsten. **Beides ist eine Entscheidung
+für 01/03, kein Fehler, den ich reparieren würde.**
+
+---
+
+# TEIL 2: Die Auswertung
+
+## Ein Fund vorweg: `/metrics?format=json` ließ die Client-Daten weg
+
+Der Prometheus-Text hatte sie, das JSON-Format nicht. Ausgerechnet das Format,
+das für Werkzeuge gedacht ist, hätte also verlangt, den Textexport zu parsen.
+Behoben: `telemetryReport()` trägt jetzt einen `client`-Block mit derselben
+Aggregation.
+
+Bewusst unabhängig von `?subject=` – die Berichte kommen aus Browsern und
+kennen weder Mensch/Bot noch eine Klasse.
+
+## `npm run perf:live`
+
+```bash
+npm run perf:live -- --url https://www.mazers.de
+npm run perf:live -- --url http://localhost:2567 --json
+```
+
+Beantwortet die Messlatte aus dem MASTERPLAN – **FPS-p95 ≥ 55 auf dem
+Referenz-Altgerät, keine Hänger über 100 ms** – getrennt nach Geräteklasse,
+Renderpfad und Qualitätsstufe:
 
 ```
-Startlevel 30          20/20 Clients erreicht, 33x gesetzt, hoechstes 33
-Startlevel 30           0/20 Clients erreicht, 100x gesetzt, hoechstes 11  <<< NIE ERREICHT - ENABLE_DEV_TOOLS am Server aus? >>>
+GERAET  RENDERPFAD     STUFE     BERICHTE  FPS p50  FPS p95 SCHLECHT. HAENGER  <30fps    MPx
+────────────────────────────────────────────────────────────────────────────────────────────
+high    webgl          high             1    144.0    120.0     120.0     0.0    0.00   3.69
+low     webgl-kompat   low              6     42.0     27.0      27.0     3.0    1.00   1.05
+
+MESSLATTE (MASTERPLAN): FPS-p95 >= 55, keine Haenger ueber 100 ms
+
+  ✘ low/webgl-kompat/low             6 Berichte — FPS-p95 27 < 55, Haenger 3
+
+  URTEIL: Messlatte VERFEHLT — siehe die markierten Zeilen.
 ```
 
-Im JSON steht derselbe Block unter `startLevel` mit `requested`, `sent`,
-`reached`, `gaveUp`, `ofClients` und `maxLevelSeen`. **Wer eine Familienbilanz
-auswertet, prüft `reached` zuerst.**
+## Drei Festlegungen
+
+**1. „Referenz-Altgerät" ist `deviceClass=low` ODER `quality=webgl-kompat`.**
+Der Software-Renderpfad ist per Definition der alte PC – dort läuft WebGL ohne
+Grafikkarte, auch wenn die Maschine sonst kräftig ist. Nur auf `deviceClass` zu
+schauen würde genau die Fälle übersehen, um die es geht.
+
+**2. Es gibt drei Ausgänge, und zwei davon sind kein Bestehen.**
+
+| Ausgang | Wann |
+| --- | --- |
+| `ERFUELLT` | alle ausreichend belegten Altgerät-Buckets halten die Latte |
+| `VERFEHLT` | mindestens einer reißt sie |
+| `UNBEANTWORTET` | keine Daten, nur starke Geräte, oder zu dünne Stichprobe |
+
+**`UNBEANTWORTET` ist ausdrücklich kein Bestehen.** Eine leere Auswertung sieht
+sonst aus wie ein grüner Test – dieselbe Falle wie beim blinden Lasttest und
+beim gecachten `/health`. Ein Bucket unter fünf Berichten wird deshalb nicht
+bewertet, sondern als „zu wenig Daten" ausgewiesen.
+
+**3. Der Leerfall erklärt sich selbst.** Kommen keine Berichte an, nennt das
+Skript die Ursachen in der Reihenfolge, in der man sie prüft – zuerst „hat
+jemand lange genug gespielt", dann „wurde der Server neu gestartet", dann
+„wurden Berichte verworfen", und erst danach „der Client sendet nicht, das ist
+ein Fall für 03". Genau die Reihenfolge, die mir hier eine Fehldiagnose erspart
+hätte.
 
 ## Verifiziert
 
-**Gegen einen echten Server gefahren, beide Richtungen:**
-
-| Fall | Erwartet | Ergebnis |
-| --- | --- | --- |
-| `ENABLE_DEV_TOOLS=true`, `--start-level 30` | Level wird erreicht | ✔ 20/20 Clients, höchstes Level 33 |
-| `ENABLE_DEV_TOOLS=false`, `--start-level 30` | sichtbarer Fehlschlag | ✔ 0/20, Warnung im Bericht |
-| Flutschutz | höchstens 5 Versuche je Client | ✔ 100 statt 1158 |
-| ohne Option | nichts ändert sich | ✔ kein `startLevel`-Block im Bericht |
-
-**Sechs neue Tests**, darunter der Fall „nie erreicht" – dass die Warnung
-erscheint, ist selbst getestet, nicht nur das Setzen.
-
-## Was das für die Tempo-Frage bedeutet – und was nicht
-
-`--start-level` behebt **02s** Wand (zu kleine Stichprobe je Familie). Es
-behebt **nicht** die Wand aus meinem Bericht 13: `compensatedLeadFactor()`
-gleicht den Vorhalt der Bots gegen die Flugzeit aus, und die Lasttest-Clients
-zielen im Random Walk, halten also gar nicht vor.
-
-**Für das Projektiltempo bleibt der Lastlauf damit blind, auch mit
-Startlevel.** Die beiden Wände sind unabhängig voneinander; diese Zulieferung
-räumt eine von beiden weg. Wer eine Zahl zum Tempo will, braucht weiterhin eine
-Trefferquote oder echte Spieler (Bericht 13, Abschnitt „Bewertung der
-Kennzahlen").
-
-Für **Familienbilanzen allgemein** – KL5, Signature-Vergleiche, Klassen 3.0 –
-ist die Option dagegen genau der fehlende Baustein.
+- **Die Kette end-to-end** im echten Browser, siehe oben.
+- **18 neue Tests**, darunter jeder der drei Ausgänge und ausdrücklich die
+  Fälle, in denen das Werkzeug **nicht** „bestanden" sagen darf: keine Daten,
+  nur starke Geräte, zu dünne Stichprobe.
+- **Gegen einen laufenden Server gefahren**, mit eingespeisten Berichten für
+  ein schwaches und ein starkes Gerät. Das Urteil `VERFEHLT` kam mit der
+  richtigen Begründung.
+- **Dabei aufgefallen:** Das Rate-Limit greift (`429` ab dem zweiten Bericht
+  je Minute und IP) – wie vorgesehen, aber gut zu wissen, wenn jemand von Hand
+  Berichte einspeist.
 
 ## Bewusste Abweichungen
 
-**Dieses Paket war nicht beauftragt.** Es steht keine 5. Fassung des Auftrags
-auf `main`; ich habe es gebaut, weil 02 in Bericht 17 ausdrücklich darum
-gebeten und es meinem Revier zugeordnet hat. Wenn 01 die Reihenfolge anders
-sieht: Das Paket ist in sich abgeschlossen und blockiert nichts.
+**Ich habe `apps/client/src` nicht angefasst**, obwohl der Engpass dort liegt.
+Der Auftrag sagt: melden, nicht reparieren. Die beiden Vorschläge stehen oben.
 
-**Ich habe mehr gebaut als „auf ein Level setzen".** Das Nachsetzen und der
-Flutschutz standen nicht in der Bitte – ohne sie wäre die Option für längere
-Läufe wirkungslos gewesen bzw. hätte die Messung verzerrt. Beides ist im Code
-begründet.
+**Der `client`-Block im JSON-Export war nicht beauftragt.** Ohne ihn hätte das
+Auswertungswerkzeug den Prometheus-Text parsen müssen – das wäre ein Werkzeug
+gewesen, das bei der nächsten Formatänderung still falsch rechnet.
 
 ## Von 01 gebraucht
 
-1. **Merge**, dann kann 02 die KL5-Messung mit brauchbarer Stichprobe fahren.
-2. **Für 02:** `--start-level 30` zusammen mit `--seed`. Vor der Auswertung
-   `startLevel.reached` prüfen – bei `0` lief der Server ohne
-   `ENABLE_DEV_TOOLS` und der Abzug ist wertlos. Und: Die Option verändert die
-   Entitätenzahl, ein damit gefahrener Lauf taugt **nicht** als
-   Kapazitätsmessung.
-3. **Unverändert offen aus Bericht 13:** Ob ich die Trefferquote als Telemetrie
-   bauen soll. Das ist der einzige Weg zu einer Zahl beim Projektiltempo, und
-   ich fange es weiterhin nicht ungefragt an.
+1. **Merge**, dann steht `npm run perf:live` zur Verfügung.
+2. **Entscheidung für 03:** Aufwärmphase kürzen und/oder beim Verlassen der
+   Seite senden. Ohne das eine oder andere bleibt die Datenmenge so klein, dass
+   die Messlatte auf absehbare Zeit `UNBEANTWORTET` bleibt – nicht weil etwas
+   kaputt ist, sondern weil kaum jemand zwei Minuten am Stück spielt.
+3. **Die Messlatte ist weiterhin unbeantwortet**, und das ist nach diesem Paket
+   eine belastbare Aussage statt einer Vermutung: Es liegen schlicht noch keine
+   Berichte von einem Altgerät vor.
+4. **Weiterhin offen, weiterhin nicht ungefragt begonnen:** die Trefferquote als
+   Telemetrie (Bericht 13) – der einzige Weg zu einer Zahl beim Projektiltempo.
 
 ## Für Sam
 
-Nichts zu tun. `ENABLE_DEV_TOOLS` bleibt in Produktion `false` – die neue
-Option ist ein reines Messwerkzeug für lokale Läufe und ändert daran nichts.
+Wenn du das nächste Mal eine Weile spielst: **Bleib zwei Minuten am Stück in
+der Arena**, dann erzeugst du einen Perf-Datenpunkt. Danach `npm run perf:live
+-- --url https://www.mazers.de` (oder sag Bescheid, dann werte ich aus).
+Besonders wertvoll wäre eine Runde auf einem schwachen Gerät – genau dort steht
+die Messlatte, und genau von dort fehlen bisher alle Daten.
