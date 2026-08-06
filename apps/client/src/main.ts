@@ -33,6 +33,7 @@ import { SnapshotHydrator, isWireSnapshot, type WireServerMessage } from './snap
 import { SpectatorBanner } from './spectator';
 import { StartBackdrop } from './start-backdrop';
 import { StartLeaderboard } from './start-leaderboard';
+import { StartNav } from './start-nav';
 import { DEFAULT_THEME, applyTheme } from './themes';
 import { GameUI, type JoinOptions } from './ui';
 import './style.css';
@@ -117,6 +118,9 @@ const gameplayUI = new GameplayUI(ui.root, send);
 // Play-Button, der Startscreen will es eingeklappt bei den Einstellungen.
 ui.adoptStartSettings();
 
+// Startseite und Unterseiten (Befund 2). Muss vor den Panels laufen, damit
+// deren Flächen schon in der richtigen Seite hängen.
+const startNav = new StartNav(ui.root);
 const startBackdrop = new StartBackdrop(document.querySelector<HTMLCanvasElement>('#start-backdrop')!);
 startBackdrop.start();
 ui.onStartScreenGone(() => startBackdrop.stop());

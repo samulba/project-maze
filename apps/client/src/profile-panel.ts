@@ -26,9 +26,13 @@ export type ToastFn = (title: string, message: string, tone: 'normal' | 'danger'
  * beschreibt einen Zustand, den niemand beheben kann.
  */
 export class ProfilePanel {
-  private readonly panel: HTMLDetailsElement;
+  private readonly panel: HTMLElement;
   private readonly body: HTMLElement;
-  private readonly summaryHint: HTMLElement;
+  /** Zweite Fläche: Die Galerie hat seit Befund 2 eine eigene Unterseite. */
+  private readonly galerieHost: HTMLElement | null;
+  /** Kurzhinweis am Navigationseintrag („GAST", „12 LÄUFE"). */
+  private readonly summaryHint: HTMLElement | null;
+  private readonly galerieHint: HTMLElement | null;
   private user: AuthUser | null = null;
   /** Verhindert, dass eine langsame Antwort ein neueres Konto überschreibt. */
   private ladelauf = 0;
@@ -38,14 +42,20 @@ export class ProfilePanel {
     private readonly toast: ToastFn,
     private readonly onNameChanged: (name: string) => void
   ) {
-    this.panel = root.querySelector<HTMLDetailsElement>('#start-profile')!;
+    this.panel = root.querySelector<HTMLElement>('#start-profile')!;
     this.body = this.panel.querySelector<HTMLElement>('[data-profile-body]')!;
-    this.summaryHint = this.panel.querySelector<HTMLElement>('[data-profile-hint]')!;
-    this.panel.open = window.matchMedia('(min-width: 901px)').matches;
-    // Bleibt versteckt, bis `setUser` es zeigt. Ohne konfigurierten Login wird
-    // das nie aufgerufen – dann gäbe es hier einen Hinweis auf eine Anmeldung,
-    // die es gar nicht gibt.
-    this.panel.hidden = true;
+    this.galerieHost = root.querySelector<HTMLElement>('[data-achievements-body]');
+    this.summaryHint = root.querySelector<HTMLElement>('[data-profile-hint]');
+    this.galerieHint = root.querySelector<HTMLElement>('[data-achievements-hint]');
+    // Die Galerie steht auch ohne Anmeldung – als Vorschau auf das, was es zu
+    // holen gibt. Sie ist Katalogwissen und braucht keinen Server.
+    this.zeigeGalerie(null);
+    // Ohne konfigurierten Login wird `setUser` nie gerufen. Dann bleibt die
+    // Profilfläche leer und die Seite erklärt selbst, warum.
+    this.body.replaceChildren(this.absatz(
+      'profile-guest',
+      'Auf diesem Server ist keine Anmeldung eingerichtet. Du spielst als Gast – Läufe werden nicht gespeichert.'
+    ));
   }
 
   /** Anmeldung hat sich geändert – Panel neu aufbauen und Profil holen. */
@@ -84,24 +94,34 @@ export class ProfilePanel {
 
   private renderGuest(): void {
     this.panel.hidden = false;
-    this.panel.open = false;
-    this.summaryHint.textContent = 'GAST';
+    if (this.summaryHint) this.summaryHint.textContent = 'GAST';
     this.body.replaceChildren(this.absatz(
       'profile-guest',
-      'Melde dich an, um Bestwerte, Spielzeit und freigeschaltete Achievements zu sehen.'
+      'Melde dich an, um Bestwerte, Spielzeit und freigeschaltete Achievements zu behalten. Spielen geht auch ohne.'
     ));
+    this.zeigeGalerie(null);
   }
 
   private renderSignedIn(user: AuthUser, profil: PublicProfile | null): void {
-    this.summaryHint.textContent = profil?.stats.runs ? `${profil.stats.runs} LÄUFE` : 'ANGEMELDET';
+    if (this.summaryHint) this.summaryHint.textContent = profil?.stats.runs ? `${profil.stats.runs} LÄUFE` : 'ANGEMELDET';
     const name = profil?.displayName ?? user.name ?? '';
     const teile: HTMLElement[] = [this.karte(name, profil)];
-    if (profil) {
-      teile.push(this.werte(profil), this.galerie(profil));
-    } else {
-      teile.push(this.absatz('profile-note', 'Noch keine Läufe gespeichert – spiel eine Runde, dann steht hier deine Bilanz.'));
-    }
+    if (profil) teile.push(this.werte(profil));
+    else teile.push(this.absatz('profile-note', 'Noch keine Läufe gespeichert – spiel eine Runde, dann steht hier deine Bilanz.'));
     this.body.replaceChildren(...teile);
+    this.zeigeGalerie(profil);
+  }
+
+  /**
+   * Achievements-Seite. Ohne Profil steht dort die vollständige Galerie in
+   * gesperrtem Zustand – der Katalog liegt im Client, und zu sehen, was es zu
+   * holen gibt, ist für einen Gast wertvoller als eine leere Seite.
+   */
+  private zeigeGalerie(profil: PublicProfile | null): void {
+    const eintraege = achievementGallery(profil?.achievements ?? []);
+    const offen = eintraege.filter((eintrag) => eintrag.unlockedAt !== null).length;
+    if (this.galerieHint) this.galerieHint.textContent = `${offen} / ${eintraege.length}`;
+    if (this.galerieHost) this.galerieHost.replaceChildren(this.galerie(profil));
   }
 
   /** Kopf der Karte: Anzeigename (änderbar), Mitglied seit, Lieblingsklasse. */
@@ -163,16 +183,18 @@ export class ProfilePanel {
     return raster;
   }
 
-  private galerie(profil: PublicProfile): HTMLElement {
-    const eintraege = achievementGallery(profil.achievements);
+  private galerie(profil: PublicProfile | null): HTMLElement {
+    const eintraege = achievementGallery(profil?.achievements ?? []);
     const offen = eintraege.filter((eintrag) => eintrag.unlockedAt !== null).length;
     const block = document.createElement('div');
     block.className = 'profile-achievements';
 
+    // Auf der eigenen Seite trägt die Überschrift schon das Wort – hier steht
+    // nur noch, wie weit man ist.
     const kopf = document.createElement('div');
     kopf.className = 'profile-section';
     const titel = document.createElement('span');
-    titel.textContent = 'ACHIEVEMENTS';
+    titel.textContent = 'FREIGESCHALTET';
     const stand = document.createElement('small');
     stand.textContent = `${offen} / ${eintraege.length}`;
     kopf.append(titel, stand);
@@ -188,7 +210,12 @@ export class ProfilePanel {
       symbol.textContent = eintrag.unlockedAt ? '★' : '·';
       const name = document.createElement('span');
       name.textContent = eintrag.name;
-      badge.append(symbol, name);
+      // Der Weg dorthin steht jetzt sichtbar dabei, nicht nur im Tooltip: Auf
+      // einer Seite, die „alles, was es zu holen gibt" verspricht, ist die
+      // Bedingung die eigentliche Information.
+      const wie = document.createElement('small');
+      wie.textContent = eintrag.description;
+      badge.append(symbol, name, wie);
       raster.append(badge);
     }
     block.append(raster);

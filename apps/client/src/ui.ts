@@ -19,6 +19,7 @@ import {
   type UpgradeSlotId
 } from './family-upgrades';
 import { signatureLabel, signatureRatio } from './signature';
+import { START_NAV } from './start-nav';
 import { spectatedName } from './spectator';
 import { DEFAULT_THEME, applyTheme, type ClientThemeId } from './themes';
 
@@ -52,6 +53,24 @@ const upgradeLabels: Partial<Record<UpgradeSlotId, string>> = {
 /** Beschriftung eines Platzes – Familien-Slots hängen an der Klasse. */
 const slotLabel = (id: UpgradeSlotId, playerClass: PlayerClass): string =>
   isFamilyUpgrade(id) ? familyUpgradeLabel(playerClass, id) : upgradeLabels[id] ?? id;
+
+/**
+ * Zweiter Haken an der Marke des Navigationseintrags. Die Panels schreiben
+ * ihren Kurzhinweis dorthin („GAST", „TOP 10") – sie kennen die Navigation
+ * nicht und sollen sie auch nicht kennen müssen.
+ */
+const navBadgeHook: Partial<Record<string, string>> = {
+  profil: 'data-profile-hint',
+  achievements: 'data-achievements-hint',
+  bestenliste: 'data-board-meta'
+};
+
+/** Kopf jeder Unterseite: ein Zurück-Weg und die Überschrift, sonst nichts. */
+const seitenkopf = (titel: string): string =>
+  `<header class="start-page-head">
+     <button class="start-back" type="button" data-back data-autofocus aria-label="Zurück zum Start"><i aria-hidden="true"></i><span>ZURÜCK</span></button>
+     <h2>${titel}</h2>
+   </header>`;
 
 export class GameUI {
   readonly root: HTMLDivElement;
@@ -125,7 +144,7 @@ export class GameUI {
         <section class="start-screen" id="start-screen">
           <canvas class="start-backdrop" id="start-backdrop" aria-hidden="true"></canvas>
           <div class="start-stage">
-            <form class="start-card" id="join-form">
+            <form class="start-card" id="join-form" data-view="start">
               <div class="start-brand">
                 <div class="start-logo-wrap">
                   <img class="start-logo" src="/logo.png" alt="" width="112" height="112" />
@@ -143,37 +162,70 @@ export class GameUI {
 
               <p class="start-status" id="join-status" aria-live="polite"></p>
 
-              <div class="start-auth" id="start-auth" hidden></div>
-
-              <details class="start-settings" id="start-settings">
-                <summary><span>Sound &amp; Loadout</span><i aria-hidden="true"></i></summary>
-                <div class="start-settings-body" id="start-settings-body">
-                  <label class="start-sound"><span>SOUND</span><b id="volume-value">80%</b><input type="range" id="volume" min="0" max="100" step="5" /></label>
-                  <div class="start-display">
-                    <label class="start-quality"><span>GRAFIK</span><select id="quality-select"></select></label>
-                    <button class="start-fullscreen" id="fullscreen-toggle" type="button" hidden>VOLLBILD</button>
-                  </div>
-                  <div class="start-display">
-                    <label class="start-quality"><span>SICHTFELD</span><select id="view-select"></select></label>
-                  </div>
-                  <label class="start-switch"><input type="checkbox" id="prediction-toggle" /><span>VORHERSAGE</span><small>Bewegung sofort statt nach der Serverantwort</small></label>
-                </div>
-              </details>
+              <nav class="start-nav" id="start-nav" aria-label="Weitere Seiten">
+                ${START_NAV.map((eintrag) => `<button type="button" data-goto="${eintrag.id}"><strong>${eintrag.label}</strong><span>${eintrag.hint}</span><small data-nav-badge ${navBadgeHook[eintrag.id] ?? ''}></small><i aria-hidden="true"></i></button>`).join('')}
+              </nav>
 
               <p class="start-note"><span>WASD</span><span>LINKS FEUER</span><span>RECHTS DROHNEN</span><span>ALPHA 1.0</span></p>
             </form>
 
-            <div class="start-side">
-              <details class="start-profile" id="start-profile" hidden>
-                <summary><strong>PROFIL</strong><small data-profile-hint>GAST</small></summary>
-                <div class="start-profile-body" data-profile-body></div>
-              </details>
+            <section class="start-page" data-view="profil" hidden>
+              ${seitenkopf('Profil')}
+              <div class="start-page-body">
+                <div class="start-auth" id="start-auth" hidden></div>
+                <div class="start-profile" id="start-profile"><div data-profile-body></div></div>
+              </div>
+            </section>
 
-              <details class="start-board" id="start-board" hidden>
-                <summary><strong>BESTENLISTE</strong><small data-board-meta></small></summary>
-                <ol class="start-board-list" data-board-list></ol>
-              </details>
-            </div>
+            <section class="start-page" data-view="achievements" hidden>
+              ${seitenkopf('Achievements')}
+              <div class="start-page-body">
+                <div class="start-achievements" id="start-achievements" data-achievements-body></div>
+              </div>
+            </section>
+
+            <section class="start-page" data-view="bestenliste" hidden>
+              ${seitenkopf('Bestenliste')}
+              <div class="start-page-body">
+                <div class="start-board" id="start-board">
+                  <ol class="start-board-list" data-board-list></ol>
+                  <p class="start-page-empty" data-board-empty>Die Bestenliste ist auf diesem Server noch nicht eingerichtet.</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="start-page" data-view="einstellungen" hidden>
+              ${seitenkopf('Einstellungen')}
+              <div class="start-page-body" id="start-settings-body">
+                <div class="setting">
+                  <div class="setting-head"><strong>Sound</strong><b id="volume-value">80%</b></div>
+                  <input type="range" id="volume" min="0" max="100" step="5" aria-label="Lautstärke" />
+                </div>
+
+                <div class="setting">
+                  <div class="setting-head"><strong>Grafik</strong></div>
+                  <p class="setting-note">Partikel, Leuchten und Renderauflösung. „Automatisch" misst im Spiel und stuft selbst ein.</p>
+                  <div class="setting-row">
+                    <span class="setting-select"><select id="quality-select" aria-label="Grafikstufe"></select></span>
+                    <button class="start-fullscreen" id="fullscreen-toggle" type="button" hidden>VOLLBILD</button>
+                  </div>
+                </div>
+
+                <div class="setting">
+                  <div class="setting-head"><strong>Sichtfeld</strong></div>
+                  <p class="setting-note">„Fest 16:9" lässt auf breiten Bildschirmen Ränder stehen. „Bildschirmfüllend" nutzt die ganze Fläche und zeigt dabei genauso viel Arena – nur breiter und dafür flacher.</p>
+                  <div class="setting-row">
+                    <span class="setting-select"><select id="view-select" aria-label="Sichtfeld"></select></span>
+                  </div>
+                </div>
+
+                <div class="setting">
+                  <div class="setting-head"><strong>Vorhersage</strong></div>
+                  <p class="setting-note">Der Client rechnet die eigene Bewegung sofort, statt auf die Antwort des Servers zu warten. Spürbar bei langer Leitung.</p>
+                  <label class="setting-switch"><input type="checkbox" id="prediction-toggle" /><span>Bewegung sofort anzeigen</span></label>
+                </div>
+              </div>
+            </section>
           </div>
         </section>
 

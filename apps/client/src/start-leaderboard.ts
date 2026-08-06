@@ -78,20 +78,25 @@ export function usableEntries(payload: unknown): LeaderboardEntry[] {
 }
 
 export class StartLeaderboard {
-  private readonly panel: HTMLDetailsElement;
+  private readonly panel: HTMLElement;
   private readonly list: HTMLElement;
-  private readonly meta: HTMLElement;
+  /** Kurzhinweis am Navigationseintrag; seit Befund 2 nicht mehr im Panel. */
+  private readonly meta: HTMLElement | null;
+  /** Erklärt die leere Seite, statt sie leer zu lassen. */
+  private readonly empty: HTMLElement | null;
 
   constructor(root: HTMLElement) {
-    this.panel = root.querySelector<HTMLDetailsElement>('#start-board')!;
+    this.panel = root.querySelector<HTMLElement>('#start-board')!;
     this.list = this.panel.querySelector<HTMLElement>('[data-board-list]')!;
-    this.meta = this.panel.querySelector<HTMLElement>('[data-board-meta]')!;
-    // Auf breiten Screens steht die Liste offen daneben; auf schmalen bleibt sie
-    // zugeklappt, damit der Startscreen ohne Scrollen auskommt.
-    this.panel.open = window.matchMedia('(min-width: 901px)').matches;
+    this.meta = root.querySelector<HTMLElement>('[data-board-meta]');
+    this.empty = this.panel.querySelector<HTMLElement>('[data-board-empty]');
   }
 
-  /** Lädt die Liste; bei jedem Fehlschlag bleibt das Panel unsichtbar. */
+  /**
+   * Lädt die Liste. Schlägt es fehl, bleibt der erklärende Satz stehen – seit
+   * die Bestenliste eine eigene Seite hat, wäre eine leere Fläche ein Fehler,
+   * kein dezenter Rückzug.
+   */
   async load(fetchImpl: typeof fetch = fetch.bind(window)): Promise<void> {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 4000);
@@ -125,15 +130,15 @@ export class StartLeaderboard {
       row.append(rank, name, detail, score);
       this.list.append(row);
     }
-    this.meta.textContent = `Top ${Math.min(entries.length, LEADERBOARD_LIMIT)}`;
+    const anzahl = Math.min(entries.length, LEADERBOARD_LIMIT);
+    if (this.meta) this.meta.textContent = `TOP ${anzahl}`;
+    if (this.empty) this.empty.hidden = true;
     this.panel.hidden = false;
     this.markScrollable();
-    this.panel.addEventListener('toggle', () => this.markScrollable());
   }
 
   /** Der Verlauf am unteren Rand darf nur erscheinen, wenn es wirklich weitergeht. */
   private markScrollable(): void {
-    const scrollable = this.panel.open && this.list.scrollHeight > this.list.clientHeight + 1;
-    this.panel.classList.toggle('is-scrollable', scrollable);
+    this.panel.classList.toggle('is-scrollable', this.list.scrollHeight > this.list.clientHeight + 1);
   }
 }
