@@ -426,6 +426,31 @@ Seed steht als Feld `seed` im JSON-Abzug, damit ein Lauf später einzuordnen ist
 Core nur 33 bis 67 abgeschlossene Leben je Familie zusammen. Wenn Zeit da ist,
 sind längere Läufe die billigere Verbesserung als mehr Läufe.
 
+**3. Für Familienbilanzen: `--start-level`.** Der Engpass ist nicht die
+Laufzeit an sich, sondern die Levelkurve – in den ersten Minuten kommen die
+Clients kaum aus Core heraus, und Core sammelt dann den Großteil aller Tode.
+`--start-level 30` hebt sie direkt auf ein Level, auf dem die Familienklassen
+offenstehen. Gemessen im selben 60-Sekunden-Fenster: **70 Klassenwahlen statt
+8.**
+
+```bash
+node scripts/loadtest.mjs --url ws://127.0.0.1:2610 --clients 40 \
+  --duration 600 --seed 1001 --start-level 30 --json > lauf.json
+```
+
+Drei Dinge dazu sind nicht optional:
+
+- **`ENABLE_DEV_TOOLS=true` am Server**, sonst verwirft er die Debug-Nachricht
+  stillschweigend. Der Bericht weist `Startlevel … 0/40 Clients erreicht` samt
+  Warnung aus – **vor der Auswertung nachsehen.**
+- **Das Level wird nachgesetzt, nicht nur einmal gesetzt.** Ein Tod kostet die
+  Hälfte (`level × 0,5`); bei vier bis zehn Leben je Lauf wäre ein einmalig
+  gesetztes Level 30 nach vier Toden wieder bei 1.
+- **Für Kapazitätsmessungen gehört die Option aus.** Sie hebelt die
+  Sterbe-Ökonomie aus und verändert die Entitätenzahl (höhere Level heißt mehr
+  Drohnen). Sie beantwortet „wie stehen die Familien zueinander", nicht „wie
+  viele Spieler trägt eine Instanz".
+
 ### Referenzwerte 2026-08-06
 
 Median aus drei Runden, 40 Clients, 60 s, 4-Kern-Maschine, Lasttest-Clients auf

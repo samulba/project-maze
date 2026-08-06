@@ -25,6 +25,7 @@ warum etwas so gebaut ist, wie es gebaut ist.
 
 | # | Paket | Branch | Commit | Tests | Status |
 | --- | --- | --- | --- | --- | --- |
+| [14](./14-startlevel-fuer-familienbilanzen.md) | `--start-level` im Lasttest – Zulieferung für 02s Familienbilanzen | `claude/chat-04-infra-betrieb-ihx0xz` | `PLATZ14` | 713 ✔ | **offen** |
 | [13](./13-deploy-wache-projektiltempo.md) | Deploy-Wache mit drei Fällen, Projektiltempo gepaart gemessen | `claude/chat-04-infra-betrieb-ihx0xz` | `b8fd1a1` | 707 ✔ | **offen** |
 | [12](./12-momentum-gepaart-gemessen.md) | `--seed` im Lasttest + gepaarter A/B: was Momentum wirklich tut | `claude/chat-04-infra-betrieb-ihx0xz` | `ff9ece7` | 575 ✔ | **offen** |
 | [11](./11-deploy-stopp-tier-balance.md) | Deploy-Stopp diagnostiziert + Deploy-Wache, `tier` im Perf-Report, Balance verdichtet | `claude/chat-04-infra-betrieb-ihx0xz` | `3e8b83d` | 570 ✔ | **offen** |
@@ -72,6 +73,12 @@ warum etwas so gebaut ist, wie es gebaut ist.
   Lebensdauer um 12–17 %. **Unbelegt bleibt jede Aussage über Rapids K/D**
   (Differenzen −0,03 / +0,63 / +0,92). Für 02 heißt das: Wer die Signature nach
   ihrem K/D-Effekt auslegt, legt sie nach einer Zahl aus, die wir nicht haben.
+- **Neu im Werkzeug: `npm run loadtest -- --start-level <n>`** (Bericht 14, auf
+  02s Bitte). Hebt die Clients auf ein Level, auf dem die Familienklassen
+  offenstehen – 70 statt 8 Klassenwahlen im selben 60-s-Fenster. Braucht
+  `ENABLE_DEV_TOOLS=true` am Server; **vor der Auswertung `startLevel.reached`
+  prüfen**, sonst ist der Abzug wertlos. Für Kapazitätsmessungen gehört die
+  Option aus.
 - **Neu im Werkzeug: `npm run loadtest -- --seed <n>`.** Feste Klassen- und
   Upgradewahl der simulierten Clients, damit zwei Läufe paarweise vergleichbar
   sind. Macht den Lauf *nicht* reproduzierbar – Netzwerk-Timing und Server-Zufall

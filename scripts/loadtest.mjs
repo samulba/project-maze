@@ -26,13 +26,22 @@ const DEFAULTS = {
   // Ohne Seed bleibt es bei Math.random – der Schlüssel muss trotzdem hier
   // stehen, sonst weist parseArgs die Option als unbekannt ab.
   seed: undefined,
+  /** 0 = aus. Siehe `startLevel`-Block weiter unten. */
+  startLevel: 0,
   json: false
 };
 
 /** Obergrenze je Messreihe, damit sehr lange Läufe nicht den Speicher fluten. */
 const MAX_SAMPLES = 500_000;
 
-const NUMERIC_OPTIONS = new Set(['clients', 'duration', 'rate', 'ramp', 'seed']);
+/**
+ * So oft versucht ein Client, sein Startlevel zu setzen, bevor er aufgibt.
+ * Greift die Debug-Route nicht, wird sonst je Client jede Sekunde eine
+ * Nachricht geschickt, die nichts bewirkt.
+ */
+const START_LEVEL_TRIES = 5;
+
+const NUMERIC_OPTIONS = new Set(['clients', 'duration', 'rate', 'ramp', 'seed', 'startLevel']);
 
 /**
  * Deterministischer Zufall für die Client-Entscheidungen.
@@ -69,6 +78,32 @@ export function mulberry32(seed) {
 export const clientRandom = (seed, index) =>
   seed === undefined ? Math.random : mulberry32(seed + index * 0x9e3779b9);
 
+/**
+ * Startlevel über die Debug-Route.
+ *
+ * Eine Familienbilanz aus einem Lastlauf scheitert an der Levelkurve: In den
+ * ersten Minuten kommen die Clients kaum aus Core heraus, und Core sammelt dann
+ * den Großteil aller Tode. Was übrig bleibt, sind je Familie so wenige Leben,
+ * dass jedes K/D Rauschen ist (02, Bericht 17).
+ *
+ * `--start-level` hebt die Clients direkt auf ein Level, auf dem die
+ * Familienklassen offenstehen.
+ *
+ * **Warum das Level nachgesetzt wird und nicht nur einmal gesetzt:** Ein Tod
+ * kostet die Hälfte des Levels (`respawnLevelFrom` = `level × 0,5`). Bei vier
+ * bis zehn Leben je Lauf wäre ein einmalig gesetztes Level 30 nach vier Toden
+ * wieder bei 1 – die Option wäre für alles außer sehr kurzen Läufen wirkungslos.
+ * Deshalb wird nach jedem Respawn nachgesetzt, sobald das Level darunter liegt.
+ *
+ * **Das hebelt die Sterbe-Ökonomie aus**, und das ist Absicht: Gemessen werden
+ * soll die Familienbilanz auf einem festen Level, nicht der Aufstieg dorthin.
+ * Für eine Kapazitätsmessung gehört die Option deshalb **aus**.
+ *
+ * Setzt `ENABLE_DEV_TOOLS=true` auf dem Server voraus – sonst verwirft der
+ * Server die Nachricht stillschweigend. Damit das nicht die nächste stille
+ * Falle wird, weist der Bericht `startLevel.reached` aus: Clients, die das
+ * Level nie erreicht haben, sind dort sichtbar.
+ */
 export function parseArgs(argv) {
   const options = { ...DEFAULTS };
   for (let index = 0; index < argv.length; index += 1) {
@@ -96,6 +131,7 @@ export function parseArgs(argv) {
     }
   }
   if (options.clients < 1) throw new Error('--clients braucht mindestens 1');
+  if (options.startLevel < 0) throw new Error('--start-level braucht eine Zahl >= 0');
   if (options.rate < 1) throw new Error('--rate braucht mindestens 1');
   return options;
 }
@@ -203,6 +239,7 @@ export async function runLoadTest(options, hooks = {}) {
     inputsSent: 0,
     upgradesSent: 0,
     classChoicesSent: 0,
+    startLevelSent: 0,
     bytesReceived: 0,
     latency: [],
     interval: [],
@@ -212,6 +249,32 @@ export async function runLoadTest(options, hooks = {}) {
 
   let measuring = false;
   const clients = [];
+
+  /**
+   * Hebt einen Client per Debug-Route auf das Ziellevel. `core` mit `blank`:
+   * Das Level steht, die Punkte bleiben unverteilt, und die Klassenwahl laeuft
+   * danach ueber denselben Weg wie sonst - der Client sucht sich seine Familie
+   * also weiterhin selbst aus, nur eben von einem Level aus, auf dem es etwas
+   * zu waehlen gibt.
+   */
+  const sendStartLevel = (client, now) => {
+    if (now - client.lastStartLevelAt < 1_000) return;
+    // Aufgeben, wenn es sichtlich nichts bringt. Sonst schickt ein wirkungsloses
+    // --start-level (ENABLE_DEV_TOOLS aus) jede Sekunde je Client eine
+    // Nachricht - gemessen 1158 Stueck in einem 60-s-Lauf mit 20 Clients. Das
+    // verzerrt genau die Last, die der Lauf messen soll.
+    if (!client.reachedStartLevel && client.startLevelAttempts >= START_LEVEL_TRIES) return;
+    client.startLevelAttempts += 1;
+    client.lastStartLevelAt = now;
+    stats.startLevelSent += 1;
+    client.socket.send(JSON.stringify({
+      type: 'debug',
+      action: 'setBuild',
+      playerClass: 'core',
+      level: options.startLevel,
+      preset: 'blank'
+    }));
+  };
 
   const createClient = (index) => {
     const rnd = clientRandom(options.seed, index);
@@ -233,6 +296,11 @@ export async function runLoadTest(options, hooks = {}) {
       firing: rnd() < 0.6,
       lastSnapshotAt: 0,
       lastRespawnAt: 0,
+      lastStartLevelAt: 0,
+      startLevelAttempts: 0,
+      /** Hat dieser Client das Ziellevel je erreicht? Belegt, dass es griff. */
+      reachedStartLevel: false,
+      maxLevelSeen: 1,
       bestRtt: Infinity,
       clockOffset: 0,
       startedAt: Date.now()
@@ -261,6 +329,7 @@ export async function runLoadTest(options, hooks = {}) {
         stats.joined += 1;
         push(stats.joinMs, Date.now() - client.startedAt);
         socket.send(JSON.stringify({ type: 'ping', sentAt: Date.now() }));
+        if (options.startLevel > 0) sendStartLevel(client, Date.now());
         return;
       }
       if (message.type === 'error') {
@@ -292,6 +361,14 @@ export async function runLoadTest(options, hooks = {}) {
       }
       client.lastSnapshotAt = now;
       if (readSelf(client, message)) {
+        if (options.startLevel > 0) {
+          if (client.level > client.maxLevelSeen) client.maxLevelSeen = client.level;
+          if (client.level >= options.startLevel) client.reachedStartLevel = true;
+          // Nachsetzen, sobald ein Tod das Level halbiert hat. Nur lebend und
+          // hoechstens einmal pro Sekunde - der Debug-Aufruf setzt den Spieler
+          // zurueck, und die Nachrichtenbudgets gelten auch fuer den Lasttest.
+          else if (!client.dead) sendStartLevel(client, now);
+        }
         // Höchstens einmal pro Sekunde: Der Server frühestens nach
         // respawnDelayMs (2,5 s) an, und ein echter Client schickt das
         // ohnehin nur auf Knopfdruck. Ein Respawn je Snapshot wären 30/s.
@@ -388,6 +465,17 @@ export async function runLoadTest(options, hooks = {}) {
     // Gehoert in den Abzug: Ohne den Seed ist ein Balance-Vergleich spaeter
     // nicht mehr einzuordnen.
     seed: options.seed ?? null,
+    // Ohne diesen Block waere ein wirkungsloses --start-level unsichtbar: Der
+    // Server verwirft die Debug-Nachricht stillschweigend, wenn
+    // ENABLE_DEV_TOOLS aus ist. `reached` = 0 heisst dann "hat nie gegriffen".
+    startLevel: options.startLevel > 0 ? {
+      requested: options.startLevel,
+      sent: stats.startLevelSent,
+      reached: clients.filter((c) => c.reachedStartLevel).length,
+      gaveUp: clients.filter((c) => !c.reachedStartLevel && c.startLevelAttempts >= START_LEVEL_TRIES).length,
+      ofClients: clients.length,
+      maxLevelSeen: clients.reduce((max, c) => Math.max(max, c.maxLevelSeen), 0)
+    } : null,
     inputRateHz: options.rate,
     measuredSeconds: Number(measuredSeconds.toFixed(2)),
     stoppedEarly: stopped,
@@ -458,6 +546,13 @@ export function formatReport(report) {
   lines.push(`  Snapshots empfangen       ${t.snapshots} (${t.snapshotsPerClientPerSecond}/s je Client)`);
   lines.push(`  Inputs gesendet           ${t.inputsSent}`);
   lines.push(`  Upgrades / Klassenwahlen  ${t.upgradesSent} / ${t.classChoicesSent}`);
+  if (report.startLevel) {
+    const sl = report.startLevel;
+    const warnung = sl.reached === 0
+      ? '  <<< NIE ERREICHT - ENABLE_DEV_TOOLS am Server aus? >>>'
+      : sl.reached < sl.ofClients ? '  (nicht alle)' : '';
+    lines.push(`  Startlevel ${sl.requested}          ${sl.reached}/${sl.ofClients} Clients erreicht, ${sl.sent}x gesetzt, hoechstes ${sl.maxLevelSeen}${warnung}`);
+  }
   lines.push(`  Empfangen                 ${t.megabytesReceived} MB (${t.kilobytesPerClientPerSecond} KB/s je Client)`);
 
   lines.push('', 'LATENZ', '');
@@ -493,6 +588,10 @@ const HELP = `Project Maze – Lasttest
   --seed <n>         Feste Klassen- und Upgradewahl der Clients. Fuer A/B-Laeufe:
                      beide Seiten mit demselben Seed sind paarweise vergleichbar.
                      Ohne Seed waehlen die Clients zufaellig (Default).
+  --start-level <n>  Hebt die Clients auf dieses Level und setzt es nach jedem
+                     Respawn nach (ein Tod kostet sonst die Haelfte). Fuer
+                     Familienbilanzen; braucht ENABLE_DEV_TOOLS=true am Server.
+                     0 = aus (Default). NICHT fuer Kapazitaetsmessungen.
   --json             Nur JSON ausgeben
   --help             Diese Hilfe
 `;
