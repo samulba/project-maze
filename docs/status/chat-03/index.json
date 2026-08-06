@@ -6,7 +6,7 @@
     "apps/server"
   ],
   "aktualisiert": "2026-08-06",
-  "latest": "17-pruefstand-sweep.md",
+  "latest": "18-kl3-das-rad.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -186,11 +186,22 @@
       "datei": "17-pruefstand-sweep.md",
       "branch": "claude/chat-03-client-ux-mazers-yu57ca",
       "basis": "main@f4aaa5c",
-      "status": "offen",
+      "status": "in main",
       "tests": "707 gesamt unveraendert (CSS-Reparaturen); Pruefstand von 15 auf 63 Faelle: 55/63 -> 57/63 -> 63/63",
+      "braucht_von_01": []
+    },
+    {
+      "nr": 18,
+      "titel": "KL3: Klassenbaum als Rad - Enzyklopaedie und Overlay auf C",
+      "datei": "18-kl3-das-rad.md",
+      "branch": "claude/chat-03-client-ux-mazers-yu57ca",
+      "basis": "main@43c879d",
+      "status": "offen",
+      "tests": "15 neu / 728 gesamt; Pruefstand von 63 auf 75 Faelle, Rad-Faelle 2/12 -> 13/13",
       "braucht_von_01": [
         "Merge",
-        "Auftrag fuer KL3 ausschreiben (Rad, Klassenbaum-Overlay C, Enzyklopaedie) - der Pruefstand laeuft mit 63/63 durch",
+        "Screenshots an Sam: Enzyklopaedie und Overlay",
+        "Frage: Soll das Rad auf Level 10 einmal von selbst aufgehen? (nicht gebaut - ein Overlay, das sich im Gefecht selbst oeffnet, kann der schlechteste Moment sein)",
         "Unveraendert offen: Sichtfeld-Standard, Vorhersage-Standard, 'tier' bei 04"
       ]
     }

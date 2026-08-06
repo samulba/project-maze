@@ -69,6 +69,11 @@ export class ClassOverlay {
     this.wurzel.setAttribute('role', 'dialog');
     this.wurzel.setAttribute('aria-label', 'Klassenbaum');
 
+    // Auf Touch gibt es kein `C` – dort schließt ein Tipp auf die Fläche.
+    this.wurzel.addEventListener('pointerdown', (ereignis) => {
+      if (ereignis.target === this.wurzel) this.setOpen(false);
+    });
+
     const schliessen = document.createElement('button');
     schliessen.type = 'button';
     schliessen.className = 'class-overlay-close';
@@ -78,7 +83,11 @@ export class ClassOverlay {
 
     const fuss = document.createElement('p');
     fuss.className = 'class-overlay-hint';
-    fuss.textContent = 'C oder Esc schließt · das Spiel läuft weiter';
+    // Auf Touch tritt die Bedienung mit zurück (class-tree.css) – dann muss
+    // der Hinweis das auch sagen, statt etwas zu versprechen, was nicht gilt.
+    fuss.textContent = window.matchMedia('(pointer: coarse)').matches
+      ? 'Tippen zum Schließen · die Arena läuft weiter, du fährst nicht'
+      : 'C oder Esc schließt · das Spiel läuft weiter';
 
     this.wheel = new ClassWheel((auswahl) => this.zeige(auswahl));
     radHost.append(this.wheel.element);

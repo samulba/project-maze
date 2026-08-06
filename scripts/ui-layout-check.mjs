@@ -251,10 +251,16 @@ function messenImBrowser() {
   // ganze Fläche belegt – das ist Absicht und wird nicht gemessen.
   const totenschirm = document.querySelector('#death-screen');
   const imTod = totenschirm && !totenschirm.hidden;
+  // Leseansicht des Klassenrades: Dort tritt die Bedienung bewusst zurück –
+  // die tote Fläche misst dann nicht mehr, was sie messen soll.
+  const rad = document.querySelector('.class-overlay');
+  const spielerkarte = document.querySelector('#player-panel');
+  const leseansicht = Boolean(rad && !rad.hidden && spielerkarte
+    && Number(getComputedStyle(spielerkarte).opacity) < 0.05);
   const canvas = document.querySelector('canvas');
   const kompakt = totenschirm && totenschirm.classList.contains('spectating');
   let tot = 0, raster = 0;
-  if (!imTod || kompakt) for (let x = 8; x < window.innerWidth; x += 24) {
+  if ((!imTod || kompakt) && !leseansicht) for (let x = 8; x < window.innerWidth; x += 24) {
     for (let y = 8; y < window.innerHeight; y += 24) {
       raster += 1;
       const oben = document.elementFromPoint(x, y);
@@ -396,8 +402,12 @@ async function main() {
     return { page, fehler };
   };
 
+  // Mit `ONLY=<text>` lässt sich die Matrix auf passende Fälle einengen – beim
+  // Reparieren will man nicht jedes Mal alle 75 abwarten.
+  const nurWenn = (name) => !process.env.ONLY || name.includes(process.env.ONLY);
+
   // --- Startscreen und Unterseiten --------------------------------------
-  for (const fall of START_FAELLE) {
+  for (const fall of START_FAELLE.filter((f) => nurWenn(f.name))) {
     try {
     const { page, fehler } = await oeffnen(fall);
     if (fall.seite !== 'start') {
@@ -420,7 +430,7 @@ async function main() {
   }
 
   // --- Spiel-HUD ---------------------------------------------------------
-  for (const fall of FAELLE) {
+  for (const fall of FAELLE.filter((f) => nurWenn(f.name))) {
     try {
     const { page, fehler } = await oeffnen(fall);
     await page.fill('#player-name', fall.name.slice(0, 18));

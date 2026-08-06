@@ -93,6 +93,9 @@
  * ------------------------------------------------------------------ */
 .wheel-card {
   display: grid;
+  /* Ohne `min-width: 0` drückt eine lange „Führt zu"-Zeile die Karte über ihre
+     Spalte hinaus – und damit auf das Rad daneben. */
+  min-width: 0;
   gap: 10px;
   padding: 14px;
   border: 1px solid var(--line);
@@ -137,7 +140,8 @@
   letter-spacing: .1em;
   text-transform: uppercase;
 }
-.wheel-card-next { margin: 0; color: var(--faint); font-size: 10px; font-weight: 700; }
+.wheel-card > * { min-width: 0; }
+.wheel-card-next { margin: 0; color: var(--faint); font-size: 10px; font-weight: 700; overflow-wrap: anywhere; }
 .wheel-card-locked { margin: 0; color: var(--danger); font-size: 10px; font-weight: 700; }
 
 /* ------------------------------------------------------------------ *
@@ -153,14 +157,22 @@
   position: absolute;
   inset: 0;
   z-index: 35;
-  align-content: center;
-  justify-content: center;
-  padding: clamp(12px, 3vh, 40px) clamp(12px, 4vw, 60px);
+  /*
+   * Ein Raster mit `place-content: center` – vorher stand hier ein Block mit
+   * `align-content`, das dort gar nichts tut. Genau daraus kamen die
+   * Überlappungen zwischen Rad und Karte.
+   */
+  display: grid;
+  place-content: center;
   /*
    * KEIN Schleier über dem Bild. „Das Spiel läuft weiter" und „ich sehe nichts
    * mehr" wären ein Widerspruch – das Rad legt sich auf zwei eigene Flächen,
    * der Rest der Arena bleibt sichtbar und bedienbar.
+   *
+   * Die Ränder halten die Bedienung frei: links Spielerkarte und
+   * Upgrade-Panel, rechts die Knopfspalte, unten das Modul-Panel.
    */
+  padding: calc(var(--edge-y) + 8px) calc(var(--edge-x) + 108px) calc(var(--edge-y) + 96px) calc(var(--edge-x) + 312px);
   background: none;
   pointer-events: none;
 }
@@ -174,9 +186,20 @@
 .class-overlay .wheel-node,
 .class-overlay .codex-card,
 .class-overlay-close { pointer-events: auto; }
+
+.class-overlay.codex {
+  /* Die Spalte ist exakt so breit wie das Rad. Mit `1fr` konnte das Rad seine
+     Spur überlaufen und sich über die Karte schieben – das war die Ursache
+     hinter „Klassen-Karte überlappt Klassenrad". */
+  grid-template-columns: min(52vh, 520px) minmax(0, 300px);
+  align-items: center;
+  gap: 14px;
+}
+/* Maße in `vh`, nicht in Prozent: Eine Prozenthöhe in einem Container mit
+   automatischer Höhe wird ignoriert – das war die zweite Ursache. */
 .class-overlay .codex-wheel {
-  max-width: min(64vh, 620px);
-  margin-inline: auto;
+  width: min(52vh, 520px);
+  max-width: 100%;
   padding: 10px;
   border-radius: 18px;
   /* Nur so viel Fläche wie das Rad braucht – der Kreis, nicht das Quadrat. */
@@ -184,6 +207,10 @@
 }
 .class-overlay .codex-card {
   align-self: center;
+  min-width: 0;
+  max-height: 82vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--strong);
@@ -212,11 +239,9 @@
   text-align: center;
 }
 
-/* Flach oder schmal: Das Rad tritt zurück, die Karte trägt den Inhalt. */
+/* Wenig Platz: Die Karte trägt den Inhalt, die Beschreibung entfällt – die
+   Signature bleibt, sie ist der Grund für die Seite. */
 @media (max-height: 620px), (max-width: 760px) {
-  .class-overlay { padding: 8px; }
-  .class-overlay .codex { grid-template-columns: minmax(0, 1fr) minmax(0, 260px); gap: 10px; }
-  .class-overlay .codex-wheel { max-width: min(56vh, 420px); }
   .class-overlay .wheel-card { padding: 10px; gap: 7px; }
   .class-overlay .wheel-card-text { display: none; }
   .class-overlay .wheel-card-head strong { font-size: 15px; }
@@ -225,3 +250,83 @@
 /* Auf der Qualitätsstufe „niedrig" fallen die Ringlinien weg – sie sind
    Orientierung, kein Inhalt. */
 :root[data-quality='low'] .wheel-ring { display: none; }
+
+/* ------------------------------------------------------------------ *
+ * Das Rad und das HUD teilen sich den Platz
+ * ------------------------------------------------------------------ */
+/*
+ * Der Prüfstand hat zehn von zwölf Rad-Fällen beanstandet, und die Ursache war
+ * meine eigene Entscheidung: Ohne Schleier bleibt das ganze HUD stehen – und
+ * stößt mit Rad und Karte zusammen.
+ *
+ * Die Auflösung folgt der Frage „was braucht man in den Sekunden, in denen man
+ * liest?". Leben und Bedienung: ja. Bestenliste, Killfeed, Minimap, Banner,
+ * Onboarding: nein – die treten zurück und kommen beim Schließen wieder.
+ * Auch die Klassenwahl weicht: Man liest das Rad, **um** zu entscheiden; beide
+ * gleichzeitig wären zwei Antworten auf dieselbe Frage.
+ */
+:root:has(.class-overlay:not([hidden])) .leaderboard,
+:root:has(.class-overlay:not([hidden])) .killfeed,
+:root:has(.class-overlay:not([hidden])) .minimap,
+:root:has(.class-overlay:not([hidden])) .onboarding,
+:root:has(.class-overlay:not([hidden])) .arena-event-banner,
+:root:has(.class-overlay:not([hidden])) .bounty-banner,
+:root:has(.class-overlay:not([hidden])) .achievement-popup,
+:root:has(.class-overlay:not([hidden])) .network-pill,
+:root:has(.class-overlay:not([hidden])) .class-selection {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .16s;
+}
+
+/*
+ * Was bleibt, bekommt seine Spur: Das Rad rückt zwischen Upgrade-Panel (links),
+ * Minimap-Spalte (rechts) und Modul-Panel (unten) – dieselbe Technik wie bei
+ * der Klassenwahl, dieselben Zahlen.
+ */
+
+
+
+
+/*
+ * Touch: Hier geht die Rechnung nicht auf. Auf 844×390 belegen die beiden
+ * Sticks allein 20 % der Fläche, dazu Modul, Repel und Auto – für ein Rad mit
+ * 29 Knoten bleibt nichts übrig, das man lesen könnte.
+ *
+ * Deshalb ist das Rad auf Touch eine **Leseansicht**: Die Bedienung tritt mit
+ * zurück, und der Hinweis sagt, was das heißt. Das Spiel läuft weiter – der
+ * Server hält nicht an –, aber man fährt in diesen Sekunden nicht. Das ist
+ * eine bewusste Entscheidung und keine übersehene Kollision.
+ */
+/*
+ * Unterhalb dieser Größe geht die Rechnung nicht auf: Zwischen Spielerkarte,
+ * Upgrade-Panel, Knopfspalte und Modul bleibt für ein Rad mit 29 Knoten nichts
+ * übrig, das man lesen könnte. Dann ist das Rad eine **Leseansicht** – die
+ * Bedienung tritt mit zurück, und der Hinweis sagt, was das heißt.
+ *
+ * Das Spiel läuft weiter, der Server hält nicht an; man fährt in diesen
+ * Sekunden nur nicht. Eine bewusste Entscheidung, keine übersehene Kollision.
+ */
+@media (pointer: coarse), (max-width: 1000px), (max-height: 620px) {
+  :root:has(.class-overlay:not([hidden])) .touch-control,
+  :root:has(.class-overlay:not([hidden])) .core-ability,
+  :root:has(.class-overlay:not([hidden])) .secondary-action,
+  :root:has(.class-overlay:not([hidden])) .auto-fire,
+  :root:has(.class-overlay:not([hidden])) .points-badge,
+  :root:has(.class-overlay:not([hidden])) .upgrade-panel,
+  :root:has(.class-overlay:not([hidden])) .player-panel,
+  :root:has(.class-overlay:not([hidden])) .core-ability {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .16s;
+  }
+  .class-overlay {
+    padding: 10px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+  }
+  /* Ohne HUD daneben darf das Rad die Fläche nutzen, die es braucht – und die
+     Karte rückt daneben statt darunter, weil Querformat breit ist und flach. */
+  .class-overlay.codex { grid-template-columns: min(78vh, 400px) minmax(0, 260px); gap: 10px; }
+  .class-overlay .codex-wheel { pointer-events: auto; width: 100%; }
+  .class-overlay .codex-card { max-height: 94vh; }
+}
