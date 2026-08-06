@@ -8,6 +8,13 @@ import {
   rapidReloadBonus
 } from '../apps/server/dist/family-upgrades.js';
 import {
+  DEFAULT_CHARGE,
+  chargeDamageScale,
+  chargeRadiusScale,
+  chargeSeconds,
+  isPrecisionClass
+} from '../apps/server/dist/signature-precision.js';
+import {
   PROJECTILE_SPEED_PER_POINT,
   fastestPlayerSpeed,
   projectileSpeedCapAt,
@@ -280,6 +287,36 @@ console.log('den keine Kugel faellt – ein Fortress-Projektil liegt schon heute
 console.log('und holt ein fliehendes Ziel kaum ein. Klassen unter dem Boden bleiben unveraendert.');
 console.log(`Das Upgrade steigt um ${(PROJECTILE_SPEED_PER_POINT * 100).toFixed(1)} % je Punkt statt um 4 % und rechnet nach dem Deckel –`);
 console.log('vor ihm waere es fuer jede Precision-Klasse wirkungslos. Die Reichweite bleibt konstant.');
+
+console.log(`\nPRECISION — SIGNATURE LADESCHUSS (SIGNATURE_PRECISION_ENABLED, Klick ${(DEFAULT_CHARGE.minDamageScale * 100).toFixed(0)} % Schaden)\n`);
+console.log('CLASS          RELOAD   VOLL NACH   SCHADEN @0  @58  @100   GROESSE @100   DPS @58   DPS @100');
+console.log('─'.repeat(94));
+for (const entry of rows.filter((row) => isPrecisionClass(row.id))) {
+  const definition = CLASS_DEFINITIONS[entry.id];
+  const full = chargeSeconds(definition.reload);
+  // DPS relativ zu heute: Schaden mal Kadenz. Bis `damageFullAt` ist die
+  // Kadenz nachladegebunden, danach ladegebunden.
+  const dpsAt = (charge) => {
+    const seconds = Math.max(definition.reload, full * charge);
+    return chargeDamageScale(charge * 100) * (definition.reload / seconds);
+  };
+  console.log([
+    definition.label.padEnd(13, ' '),
+    definition.reload.toFixed(2).padStart(7, ' '),
+    `${full.toFixed(2)}s`.padStart(11, ' '),
+    `${(chargeDamageScale(0) * 100).toFixed(0)}%`.padStart(13, ' '),
+    `${(chargeDamageScale(DEFAULT_CHARGE.damageFullAt * 100) * 100).toFixed(0)}%`.padStart(5, ' '),
+    `${(chargeDamageScale(100) * 100).toFixed(0)}%`.padStart(6, ' '),
+    `${chargeRadiusScale(100).toFixed(2)}x`.padStart(15, ' '),
+    `${(dpsAt(DEFAULT_CHARGE.damageFullAt) * 100).toFixed(0)}%`.padStart(10, ' '),
+    `${(dpsAt(1) * 100).toFixed(0)}%`.padStart(11, ' ')
+  ].join(' '));
+}
+console.log('\nDer Schaden endet bei 100 % des heutigen Werts – nicht darueber. Grund: Ein voll auf');
+console.log('Schaden ausgebauter Lancer traegt 127,9 Schaden, der duennste voll auf Leben ausgebaute');
+console.log('Gegner seiner Stufe hat 148 Leben (86 %). Jeder Ladefaktor ueber 1,16x erzeugt einen');
+console.log('Ein-Schuss-Tod aus voller Entfernung. Deshalb kauft der volle Ausschlag Groesse und');
+console.log('Durchschlag statt Schaden – und kostet dabei Kadenz. Das DPS-Optimum liegt bei 58 %.');
 
 console.log('\nCORE MODULES\n');
 console.log('MODULE             ROLE        COOLDOWN   ACTIVE');

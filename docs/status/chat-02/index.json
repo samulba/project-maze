@@ -6,7 +6,7 @@
     "apps/client"
   ],
   "aktualisiert": "2026-08-06",
-  "latest": "14-projektiltempo-v2.md",
+  "latest": "15-kl2-precision-ladeschuss.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -149,7 +149,7 @@
       "datei": "14-projektiltempo-v2.md",
       "branch": "claude/chat-02-server-gameplay-w1i4o8",
       "basis": "main@cd9585f",
-      "status": "offen",
+      "status": "in main",
       "tests": "11 neu / 599 gesamt",
       "braucht_von_01": [
         "Entscheidung: Precision verliert die Daempfer-Sonderbehandlung (Lancer -50 %, 84 % besser vorhalten fuer dieselbe Trefferquote). Schaerfster Eingriff des Pakets - ein eigener milderer Precision-Daempfer waere eine Zeile",
@@ -157,6 +157,21 @@
         "Der Ausweich-Index haengt an einer angenommenen Reaktionszeit von 0,25 s. 04 koennte sie aus den Client-Metriken belegen",
         "Nicht messbar gewesen: Trefferquote je Klasse im kontrollierten Duell - der Pruefstand konvergierte nicht (0 vs 1304 Schuesse bei gleicher Konfiguration). Gehoert an 04s Lastprobe mit echten Clients",
         "Fuer 03: nichts. Die Aenderung ist rein serverseitig"
+      ]
+    },
+    {
+      "nr": 15,
+      "titel": "KL2 Precision: Ladeschuss (Halten laedt, Loslassen schiesst)",
+      "datei": "15-kl2-precision-ladeschuss.md",
+      "branch": "claude/chat-02-server-gameplay-w1i4o8",
+      "basis": "main@c9aeb2b",
+      "status": "offen",
+      "tests": "15 neu / 654 gesamt",
+      "braucht_von_01": [
+        "Entscheidung: Bleibt der volle Ausschlag der 'andere' Schuss (Groesse+Durchschlag), oder faellt Lancers Grundschaden? Nur Letzteres macht den Masterplan-Ladeschuss moeglich. Lancer traegt 127,9 Schaden gegen 148 HP des duennsten Gegners seiner Stufe - jeder Ladefaktor ueber 1,16x ist ein Ein-Schuss-Tod",
+        "Fuer 03: die beiden KL4-Bezeichnungen fuer Precision heissen Ladetempo (signatureRate) und Ladewucht (signaturePower). Nicht 'Ladebonus' - der Slot hebt bewusst nicht den Schaden",
+        "Precision ist ab sofort fuer die KL4-Slots freigegeben, sobald beide Flags an sind. Fuer Control bleibt die Frage aus Paket 13 offen",
+        "Aufgeraeumt: SIGNATURE_RAPID_ENABLED und SIGNATURE_IMPACT_ENABLED standen nach dem Merge von Paket 13 doppelt in .env.example und DEPLOYMENT.md"
       ]
     }
   ]

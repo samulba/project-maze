@@ -2,6 +2,7 @@ import { CLASS_DEFINITIONS, GAME, type PlayerClass, type UpgradeId, type Upgrade
 import { MazeGame } from './game.js';
 import type { MomentumConfig } from './signature-rapid.js';
 import type { WuchtConfig } from './signature-impact.js';
+import type { ChargeConfig } from './signature-precision.js';
 
 /**
  * Klassen 3.0 – KL4: **Familien-Upgrades**.
@@ -57,7 +58,14 @@ export const FAMILY_SCALING = {
   /** `signaturePower` bei RAPID: `maxReloadBonus`. Heutiger Festwert 0,25. */
   rapid: { powerBase: 0.08, powerPerPoint: 0.034 },
   /** `signaturePower` bei IMPACT: `maxBodyDamageBonus`. Heutiger Festwert 1,5. */
-  impact: { powerBase: 0.5, powerPerPoint: 0.19 }
+  impact: { powerBase: 0.5, powerPerPoint: 0.19 },
+  /**
+   * `signaturePower` bei PRECISION: Anteil des vollen Ladebonus auf Größe und
+   * Durchschlag. **Nicht auf den Schaden** – der ist beim Ladeschuss nach oben
+   * durch die Ein-Schuss-Grenze verriegelt (Lancer trägt heute 86 % des Lebens
+   * des dünnsten Gegners seiner Stufe). Sockel 0,40, voll ausgebaut 1,00.
+   */
+  precision: { powerBase: 0.4, powerPerPoint: 0.075 }
 } as const;
 
 /** Punktestand eines Slots, hart auf den erlaubten Bereich begrenzt. */
@@ -101,6 +109,32 @@ export const wuchtConfigFor = (config: WuchtConfig, upgrades: UpgradeLevels): Wu
   buildPerSecond: familyBuildRate(config.buildPerSecond, familyUpgradeLevel(upgrades, 'signatureRate')),
   maxBodyDamageBonus: impactBodyDamageBonus(familyUpgradeLevel(upgrades, 'signaturePower'))
 });
+
+/** PRECISION: Anteil des vollen Ladebonus bei `n` Punkten in `signaturePower`. */
+export const precisionChargeBonusShare = (powerLevel: number): number =>
+  Math.min(1, FAMILY_SCALING.precision.powerBase + FAMILY_SCALING.precision.powerPerPoint * Math.max(0, powerLevel));
+
+/**
+ * Ladeschuss-Konfiguration eines Spielers.
+ *
+ * `signatureRate` verkürzt die Ladezeit – und zwar über alle acht Stufen
+ * wirksam: `chargeReloadFactor` ist mit 1,72 genau so gewählt, dass acht Punkte
+ * (+9 % je Punkt) die Ladezeit auf eine Nachladezeit drücken. Ein kleinerer
+ * Faktor hätte den Slot nach zwei Punkten im Nachlade-Boden sterben lassen.
+ *
+ * `signaturePower` skaliert Größe und Durchschlag. Der Schadensverlauf bleibt
+ * unangetastet: Er endet per Konstruktion beim heutigen Wert.
+ */
+export const chargeConfigFor = (config: ChargeConfig, upgrades: UpgradeLevels): ChargeConfig => {
+  const share = precisionChargeBonusShare(familyUpgradeLevel(upgrades, 'signaturePower'));
+  const rate = 1 + FAMILY_SCALING.buildPerPoint * familyUpgradeLevel(upgrades, 'signatureRate');
+  return {
+    ...config,
+    chargeReloadFactor: config.chargeReloadFactor / rate,
+    maxRadiusScale: 1 + (config.maxRadiusScale - 1) * share,
+    maxPenetrationScale: 1 + (config.maxPenetrationScale - 1) * share
+  };
+};
 
 interface RuntimePlayer {
   id: string;

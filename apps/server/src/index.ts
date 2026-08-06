@@ -63,6 +63,7 @@ import {
   profileUpdateHandler,
   tunePersistence
 } from './persistence.js';
+import { DEFAULT_CHARGE, tunePrecisionSignature } from './signature-precision.js';
 import { DEFAULT_MOMENTUM, tuneRapidBots, tuneRapidSignature } from './signature-rapid.js';
 import { DEFAULT_WUCHT, tuneImpactSignature } from './signature-impact.js';
 import { hardenSimulation } from './simulation-hardening.js';
@@ -133,6 +134,13 @@ const SIGNATURE_RAPID_ENABLED = process.env.SIGNATURE_RAPID_ENABLED === 'true';
  */
 const SIGNATURE_IMPACT_ENABLED = process.env.SIGNATURE_IMPACT_ENABLED === 'true';
 /**
+ * Klassen 3.0, dritte Familie: Ladeschuss für PRECISION. Halten lädt, Loslassen
+ * schießt, ein Sofortklick ist ein schwacher Schuss. Der Schaden steigt dabei
+ * nie über den heutigen Wert – ein Lancer trägt schon jetzt 86 % des Lebens des
+ * dünnsten Gegners seiner Stufe. Standardmäßig aus.
+ */
+const SIGNATURE_PRECISION_ENABLED = process.env.SIGNATURE_PRECISION_ENABLED === 'true';
+/**
  * Klassen 3.0, KL4: Familien-Upgrades. Die beiden Slots `signatureRate` und
  * `signaturePower` werden kaufbar, und die Signature-Stärke wandert aus dem
  * Festwert in die Punkte-Ökonomie (Sockel + Punkte). Standardmäßig aus – ohne
@@ -149,7 +157,8 @@ const FAMILY_UPGRADES_ENABLED = process.env.FAMILY_UPGRADES_ENABLED === 'true';
 const FAMILY_UPGRADE_BRANCHES: SignatureFamily[] = FAMILY_UPGRADES_ENABLED
   ? ([
       SIGNATURE_RAPID_ENABLED ? 'rapid' : null,
-      SIGNATURE_IMPACT_ENABLED ? 'impact' : null
+      SIGNATURE_IMPACT_ENABLED ? 'impact' : null,
+      SIGNATURE_PRECISION_ENABLED ? 'precision' : null
     ].filter(Boolean) as SignatureFamily[])
   : [];
 /**
@@ -211,6 +220,10 @@ const encodedGame = tuneSnapshotEncoding(
                                 // Kampf-Tunings: Das ersetzt `applyUpgrade`
                                 // vollständig, weiter innen ginge die Sperre
                                 // kommentarlos verloren.
+                                // Ladeschuss direkt um das Kampf-Tuning: Dort
+                                // steht die Zeile, die bei gehaltener Taste
+                                // sofort feuert – genau die setzt er aus.
+                                tunePrecisionSignature(
                                 tuneFamilyUpgrades(
                                   tuneCombatScaling(
                                     // Projektiltempo vor allem anderen: Es
@@ -222,6 +235,10 @@ const encodedGame = tuneSnapshotEncoding(
                                     )
                                   ),
                                   FAMILY_UPGRADE_BRANCHES
+                                ),
+                                SIGNATURE_PRECISION_ENABLED,
+                                DEFAULT_CHARGE,
+                                FAMILY_UPGRADES_ENABLED
                                 ),
                                 SIGNATURE_RAPID_ENABLED,
                                 DEFAULT_MOMENTUM,
@@ -521,7 +538,7 @@ app.get('/health', (_request: Request, response: Response) => {
     // Jedes Flag, das Spielgefühl verändert, gehört hier hinein: /health ist das
     // Testprotokoll, wenn Sam sagt „geht nicht". Die Signatures fehlten – genau
     // die, deren Wirkung gerade beurteilt werden soll.
-    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2 },
+    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, signaturePrecision: SIGNATURE_PRECISION_ENABLED },
     persistence: persistenceStats(game),
     auth: authStatus(),
     clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),

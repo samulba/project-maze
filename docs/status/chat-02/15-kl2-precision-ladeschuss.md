@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 02
-
-> Kopie von `15-kl2-precision-ladeschuss.md`. Diese Datei zeigt immer das
-> jüngste fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 15 – KL2 Precision: Ladeschuss
 
 **Branch:** `claude/chat-02-server-gameplay-w1i4o8` (neu von `origin/main`, nachdem Paket 14 gemerged war)
