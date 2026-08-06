@@ -151,6 +151,11 @@ const GRAPHICS_HELP = 'Grafik konnte nicht gestartet werden. Das liegt fast imme
 ui.setJoinPending(true, 'Grafik wird geladen …', 'booting');
 // Die Stufe muss VOR dem Start feststehen: Antialias und Auflösung lassen sich
 // an einem laufenden Grafikkontext nicht mehr ändern.
+// Beides muss VOR dem ersten Frame feststehen: die Stufe, weil Antialias und
+// Auflösung sich an einem laufenden Kontext nicht mehr ändern lassen – der
+// Sichtfeld-Modus, damit der Startschuss nicht mit 16:9 beginnt und dann
+// sichtbar umspringt.
+renderer.setViewMode(QualityControl.initialViewMode());
 const rendererReady = renderer.init(ui.root, QualityControl.initialTier());
 new QualityControl(ui.root, renderer, () => enteredGame && joined);
 new PredictionToggle(ui.root, (enabled) => {
@@ -189,7 +194,7 @@ try {
   ui.setJoinPending(true, GRAPHICS_HELP + detail, 'failed');
   throw error;
 }
-const gameplayEffects = new GameplayEffects(renderer.app);
+const gameplayEffects = new GameplayEffects(renderer.app, () => renderer.currentViewMode);
 input = new InputController(
   renderer.app.canvas,
   (pointer) => renderer.screenPointToWorldAim(pointer),

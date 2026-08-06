@@ -36,3 +36,61 @@
 
 /* Die Status-Pille sitzt an derselben Stelle – beim Zuschauen weicht sie. */
 :root:has(.spectator-banner:not([hidden])) .network-pill { opacity: 0; }
+
+/* ------------------------------------------------------------------ *
+ * Death-Screen beim Zuschauen
+ * ------------------------------------------------------------------ */
+/*
+ * Sams Befund: „‚du siehst Killer zu' funktioniert nicht so geil, weil ja
+ * drüber immer das Popup ist und ich gar nichts sehe."
+ *
+ * Der Konflikt entsteht nur in dieser einen Lage, also wird er auch nur hier
+ * gelöst: Solange zugeschaut wird, verliert der Death-Screen seine Abdunklung
+ * und die Karte zieht sich in die untere linke Ecke zusammen – dorthin, wo
+ * beim Toten ohnehin nichts steht (das Upgrade-Panel ist dann aus). Die
+ * Kachelwand weicht einer Zeile mit denselben Zahlen. Ohne Zuschauen bleibt
+ * alles wie bisher.
+ */
+.death-screen.spectating {
+  place-items: end start;
+  padding: 0;
+  background: none;
+  backdrop-filter: none;
+  /* Die Fläche gibt Klicks an die Arena weiter, die Karte selbst nicht. */
+  pointer-events: none;
+}
+.death-screen.spectating .death-card {
+  width: min(272px, calc(100vw - 24px));
+  margin: 0 0 max(var(--edge-y), env(safe-area-inset-bottom)) var(--edge-x);
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--strong);
+  box-shadow: 0 14px 40px var(--shadow);
+  pointer-events: auto;
+}
+.death-screen.spectating .eyebrow { margin-bottom: 8px; font-size: 9px; }
+.death-screen.spectating h2 { font-size: 19px; letter-spacing: -.02em; }
+.death-screen.spectating > .death-card > p { margin: 6px 0 10px; font-size: 11px; }
+/* Sechs Kacheln sind hier zu viel Fläche – die Zahlen stehen in einer Zeile. */
+.death-screen.spectating .death-stats { display: none; }
+.death-screen.spectating .death-summary { display: block; }
+.death-screen.spectating .death-card button { height: 38px; font-size: 11px; }
+.death-screen.spectating .death-card #exit-to-start { height: 32px; margin-top: 8px; font-size: 10px; }
+.death-screen.spectating .death-card > span { margin-top: 7px; }
+
+/* Nur in der Kompaktfassung sichtbar. */
+.death-summary {
+  display: none;
+  margin: 0 0 12px;
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+
+/* Das Loadout bleibt wählbar – es gilt ab dem Respawn –, aber ohne die
+   erklärende Zeile: Wer schon tot zusieht, kennt seine Module. */
+.death-screen.spectating .core-loadout { margin-top: 10px; padding: 10px; }
+.death-screen.spectating .core-loadout-description { display: none; }
+.death-screen.spectating .core-loadout-heading small { display: none; }

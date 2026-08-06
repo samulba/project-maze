@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 03
-
-> Kopie von `14-raender-messung-zuschauen.md`. Diese Datei zeigt immer das
-> jüngste fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 14 – Sams Rand-Befund gemessen · Sichtfeld-Modus · Zuschauen sichtbar
 
 **Branch:** `claude/chat-03-client-ux-mazers-yu57ca` · **Basis:** `origin/main` @ `c9aeb2b` · **Status: OFFEN – wartet auf Merge**

@@ -2,6 +2,7 @@ import { Application, Container, Graphics } from 'pixi.js';
 import { GAME, type PlayerSnapshot, type Vector2, type WorldSnapshot } from '@project-maze/shared';
 import type { GameplayWorldExtension } from '@project-maze/shared/gameplay';
 import { GUARDIAN_COLOR, arenaEventStyle } from './arena-event-style';
+import { DEFAULT_VIEW_MODE, computeViewport, type ViewMode } from './viewport';
 
 type ExtendedSnapshot = WorldSnapshot & Partial<GameplayWorldExtension>;
 
@@ -23,7 +24,13 @@ export class GameplayEffects {
   private receivedAt = performance.now();
   private time = 0;
 
-  constructor(private readonly app: Application) {
+  /**
+   * Woher der Sichtfeld-Modus kommt. Die Effekte rechnen Weltpunkte auf den
+   * Bildschirm um und müssen dabei **exakt** dieselbe Geometrie benutzen wie
+   * der Renderer – zwei Kopien derselben Rechnung wären genau die Art Fehler,
+   * die sich als „die Zone sitzt nicht auf dem Kreis" zeigt.
+   */
+  constructor(private readonly app: Application, private readonly mode: () => ViewMode = () => DEFAULT_VIEW_MODE) {
     this.container.addChild(this.graphics);
     this.container.mask = this.mask;
     this.app.stage.addChild(this.container, this.mask);
@@ -36,17 +43,12 @@ export class GameplayEffects {
   }
 
   private viewport(): Viewport {
-    const screenWidth = this.app.screen.width || window.innerWidth;
-    const screenHeight = this.app.screen.height || window.innerHeight;
-    const width = Math.min(screenWidth, screenHeight * 16 / 9);
-    const height = width * 9 / 16;
-    return {
-      x: (screenWidth - width) / 2,
-      y: (screenHeight - height) / 2,
-      width,
-      height,
-      scale: height / GAME.visibleWorldHeight
-    };
+    const { rect, scale } = computeViewport(
+      this.app.screen.width || window.innerWidth,
+      this.app.screen.height || window.innerHeight,
+      this.mode()
+    );
+    return { ...rect, scale };
   }
 
   private toScreen(position: Vector2, self: PlayerSnapshot, viewport: Viewport): Vector2 {
