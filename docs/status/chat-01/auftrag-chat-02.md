@@ -1,50 +1,47 @@
 # Auftrag für Chat 02 – Server-Gameplay
 
-**Ausgestellt: 2026-08-06 (8. Fassung) · Basis: aktueller `origin/main`**
+**Ausgestellt: 2026-08-06 (9. Fassung) · Basis: aktueller `origin/main`**
 
 > Neu im Chat? Lies zuerst `docs/status/chat-02/UEBERGABE.md`. Danach diese Datei.
 
-Der weiche Deckel ist gemerged, und dass du deinen eigenen Vorschlag von 0,15
-auf 0,06 korrigiert hast, weil die Ordnung schon ab 0,04 vollständig zurück ist
-und mehr Weichheit nur Tempo an der Spitze kauft, war genau richtig.
+**Dein Befund war der wichtigste dieser Runde.** „Ein Dash sieht aus wie ein
+Teleport-Bug" haben wir alle als Darstellungsproblem gelesen – du hast
+nachgesehen und festgestellt, dass der Dash **einer ist**: die ganzen 189 px in
+einem einzigen `moveCircle`-Aufruf, im selben Tick. Beim Client kommt eine
+Positionsänderung zwischen zwei Snapshots an; es gibt nichts zu interpolieren.
+03 hätte mit Trails und Nachbildern monatelang das Symptom poliert und die
+Ursache stehengelassen. Genau deshalb war die Reihenfolge „erst Server, dann
+Grafik" richtig.
 
-## Kurswechsel: sichtbar vor messbar
+## Zwei Entscheidungen von mir
 
-Sam heute Abend:
+1. **Freigegeben: `REPULSE_RADIUS` und `BARRIER_FRONT_DOT` nach
+   `shared/gameplay`.** Null Snapshot-Kosten, und die Alternative wäre, dass 03
+   die Zahlen abschreibt – dieselbe stille Divergenz wie damals bei
+   `ACCELERATION_SCALE`. Bau es selbst, wie bei den KL4-IDs.
+2. **`DASH_TRAVEL_ENABLED` steht auf Default an – gegen deine Empfehlung.** Du
+   wolltest ihn zusammen mit 03s Spur zünden. Ich habe anders entschieden: Der
+   Sprung ist genau das, was Sam gemeldet hat, und die Fahrt allein behebt ihn
+   schon, auch ohne Trail. Nach zwei Runden, in denen fertige Pakete
+   ausgeschaltet auf `main` lagen, ist mir „zu früh sichtbar" lieber als „gar
+   nicht sichtbar". Wenn dir dabei ein Balance-Risiko auffällt – die Fahrt
+   endet jetzt an Wänden statt am Endpunkt –, sag es, das ist dein Urteil.
 
-> *„Es passiert einfach nix. Es sind noch immer die gleichen langweiligen Tanks
-> drinnen … wir machen grad so viel … ich merke einfach viel zu wenig davon."*
+`moduleDirection` bleibt liegen, bis 03 danach fragt. Einverstanden.
 
-Er hat recht, und es liegt an meiner Steuerung. Ich habe dich zuletzt auf
-Messungen gesetzt – notwendig, sauber gemacht, und für ihn unsichtbar. **KL5
-wird deshalb angehalten**, nicht verworfen: Die Zahlen sind gut aufgehoben,
-solange niemand nach ihnen handelt.
+## Das Paket: die restlichen Fähigkeiten lesbar machen
 
-## Das Paket: Handlungsfeld 3 – Fähigkeiten müssen nach Absicht aussehen
+Der Dash war die schlimmste, aber nicht die einzige. Geh dieselbe Frage für die
+übrigen Module und Signatures durch: **Passiert serverseitig etwas, das man
+prinzipiell nicht sehen kann?** Ein Zeitfenster, das kürzer ist als ein
+Snapshot-Abstand; ein Effekt, der nur im selben Tick existiert; ein Zustand, der
+nirgends im Snapshot auftaucht.
 
-Der Punkt aus dem MASTERPLAN, der **noch nie angefasst wurde**, und der einzige
-mit einer wörtlichen Beschwerde als Anlass: *„Ein Dash von Gegnern sieht aus
-wie ein Teleport-Bug."*
+Was du unter „Was serverseitig sonst noch fehlt" schon aufgeschrieben hast, ist
+der Anfang – arbeite es ab, und wo du etwas findest, repariere es wie beim
+Dash: an der Ursache, nicht an der Anzeige.
 
-Der sichtbare Teil ist 03s Arbeit (Trails, Nachbilder, Staubpuff). Deiner ist
-die Voraussetzung: **Der Client kann eine Fähigkeit nur zeichnen, wenn er
-weiß, dass und wie sie stattfindet.**
-
-1. Geh die Module und Signatures durch und sag mir, was heute im Snapshot steht
-   und was fehlt. Für den Dash zum Beispiel die Richtung – F2 im MASTERPLAN
-   nennt genau das als offene Wire-Erweiterung.
-2. Liefer einen **exakten Vorschlag** für die fehlenden Felder: Namen, Typen,
-   Verhalten unter `SNAPSHOT_DELTAS`, Kosten je Snapshot. Deine Vorschläge
-   waren bisher immer einbaufertig; halt das so.
-3. Wo etwas serverseitig fehlt, damit eine Fähigkeit überhaupt lesbar sein
-   *kann* – etwa ein Zeitfenster, das zu kurz ist, um es zu zeichnen –, sag es
-   dazu. Das ist dein Urteil, nicht 03s.
-
-**Halt es klein und schnell.** Ich brauche das Ergebnis, damit 03 zeichnen
-kann; ein Paket mit drei Feldern und einer klaren Ansage ist mir lieber als
-eine vollständige Analyse in zwei Tagen.
-
-Wenn KL5 Ergebnisse hat, die eine Balance-Änderung nahelegen, nenn sie in einem
-Absatz – aber bau sie nicht, bevor Sam den nächsten Stand beurteilt hat.
+**Klein und schnell halten.** Sam wartet auf Sichtbares, nicht auf
+Vollständigkeit.
 
 Statusbericht wie gehabt nach `docs/status/chat-02/`.
