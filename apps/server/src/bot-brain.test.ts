@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLASS_DEFINITIONS } from '@project-maze/shared';
+import { CLASS_DEFINITIONS, type PlayerClass } from '@project-maze/shared';
 import {
   BOT_CLASS_PATHS,
   DEFAULT_BOT_PACING,
@@ -279,11 +279,20 @@ describe('bot brain', () => {
     expect(elites).toBe(1);
 
     for (const paths of Object.values(BOT_CLASS_PATHS)) {
-      expect(paths).toHaveLength(3);
-      for (const [tier2, tier3, tier4] of paths) {
-        expect(CLASS_DEFINITIONS[tier2!].parent).toBe('core');
-        expect(CLASS_DEFINITIONS[tier3!].parent).toBe(tier2);
-        expect(CLASS_DEFINITIONS[tier4!].parent).toBe(tier3);
+      // Klassen 4.0: mindestens die drei klassischen Pfade, dazu neue Wege
+      // durch SPECTER/TEMPEST und den Familien-Apex am Ende.
+      expect(paths.length).toBeGreaterThanOrEqual(3);
+      for (const pfad of paths) {
+        // Jeder Schritt muss vom vorherigen aus tatsaechlich waehlbar sein -
+        // dieselbe Regel, mit der der Server die Wahl auch prueft.
+        let aktuell: PlayerClass = 'core';
+        for (const ziel of pfad) {
+          const definition = CLASS_DEFINITIONS[ziel];
+          const erreichbar = definition.parent === aktuell
+            || (definition.apexOf !== undefined && definition.apexOf === CLASS_DEFINITIONS[aktuell].branch);
+          expect(erreichbar, `${aktuell} -> ${ziel}`).toBe(true);
+          aktuell = ziel;
+        }
       }
     }
   });

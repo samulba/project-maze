@@ -42,6 +42,10 @@ const upgradeLabels: Partial<Record<UpgradeSlotId, string>> = {
   projectileSpeed: 'Kugeltempo',
   penetration: 'Durchschlag',
   bodyDamage: 'Körperschaden',
+  // Klassen 4.0: Reichweite als bewusste Entscheidung, Fähigkeit als Tempo
+  // auf Dash/Barriere/Reparatur/Repulse.
+  projectileRange: 'Reichweite',
+  moduleCooldown: 'Fähigkeit',
   // Platzhalter, damit `Record<UpgradeId, string>` nach der Shared-Erweiterung
   // vollständig bleibt. Die familienabhängigen Beschriftungen (abgeleitet aus
   // `playerClass`, wie beim Signature-Balken) und die Sperre ohne Familie

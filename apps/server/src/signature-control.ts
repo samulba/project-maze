@@ -1,4 +1,4 @@
-import { type PlayerClass } from '@project-maze/shared';
+import { GAME, type PlayerClass } from '@project-maze/shared';
 import { tunedStatsFor } from './combat-tuning.js';
 import { familyBuildRate, familyUpgradeLevel } from './family-upgrades.js';
 import { MazeGame } from './game.js';
@@ -97,7 +97,9 @@ export function refillPerSecond(
 
 /** Lebensaufschlag einer Einheit bei `n` Punkten in `signaturePower`. */
 export function unitHealthScale(powerLevel: number, config: BudgetConfig = DEFAULT_BUDGET): number {
-  return 1 + config.maxUnitHealthBonus * (Math.max(0, powerLevel) / 8);
+  // Normiert auf das aktuelle Cap: Vollausbau = voller Bonus, egal wie viele
+  // Punkte das Cap gerade hat (Klassen 4.0 hob es von 8 auf 10).
+  return 1 + config.maxUnitHealthBonus * (Math.max(0, powerLevel) / GAME.maxUpgradeLevel);
 }
 
 type RuntimePlayer = SignatureRuntimePlayer;

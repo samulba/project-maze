@@ -104,7 +104,11 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
     moveSpeed: base.moveSpeed * (1 + player.upgrades.moveSpeed * 0.03) * modifier.moveMultiplier,
     reload: Math.max(0.09, base.reload * modifier.reloadMultiplier * Math.pow(0.95, player.upgrades.reload)),
     projectileSpeed: flight.speed * modifier.projectileSpeedMultiplier,
-    projectileLife: flight.life,
+    // Reichweite ist seit Klassen 4.0 eine bewusste Entscheidung (eigener
+    // Slot) statt eines Nebeneffekts des Tempo-Upgrades. Multiplikativ auf die
+    // fertige Lebenszeit, damit es mit beiden Tempo-Pfaden (alt und V2)
+    // identisch zusammensetzt.
+    projectileLife: flight.life * (1 + player.upgrades.projectileRange * 0.06),
     damage: base.damage * (1 + player.upgrades.damage * 0.07),
     projectileRadius: base.projectileRadius,
     penetration: base.penetration * (1 + player.upgrades.penetration * 0.085),

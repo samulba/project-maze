@@ -131,6 +131,18 @@ export const BOT_LEAD_REFERENCE_FLIGHT = 0.35;
  * Klassendefinitionen gerechnet statt als Zahl abgeschrieben – sonst wandert
  * der Bezugspunkt beim nächsten Balance-Eingriff still weg.
  */
+/**
+ * Bezugs-Ausbaustufe fuer Deckel und Boden - BEWUSST auf 8 verankert, nicht an
+ * `GAME.maxUpgradeLevel` gekoppelt. Als das Cap mit Klassen 4.0 auf 10 stieg,
+ * waere der Bezugspunkt still mitgewandert: Der Boden haette sechs Klassen
+ * (Core, Repeater, die halbe Tempest-Linie) um bis zu 12 px/s BESCHLEUNIGT -
+ * exakt gegen Sams Auftrag, und der Diversitaets-Test hat es gefangen, weil
+ * alle sechs auf demselben Bodenwert landeten. Ob der Bezugspunkt dem neuen
+ * Cap folgen soll, ist eine Balance-Entscheidung fuer die Messrunde (Welle C),
+ * kein Nebeneffekt.
+ */
+const REFERENCE_UPGRADE_POINTS = 8;
+
 export const fastestPlayerSpeed = ((): number => {
   let fastest = 0;
   for (const id of PLAYER_CLASS_IDS) {
@@ -139,7 +151,7 @@ export const fastestPlayerSpeed = ((): number => {
       const modifier = PASSIVE_MODIFIER_DEFINITIONS[modifierId];
       fastest = Math.max(
         fastest,
-        base.moveSpeed * (1 + GAME.maxUpgradeLevel * 0.03) * modifier.moveMultiplier
+        base.moveSpeed * (1 + REFERENCE_UPGRADE_POINTS * 0.03) * modifier.moveMultiplier
       );
     }
   }

@@ -66,6 +66,8 @@ import {
 import { DEFAULT_BUDGET, tuneControlSignature } from './signature-control.js';
 import { DEFAULT_CHARGE, tunePrecisionSignature } from './signature-precision.js';
 import { DEFAULT_MOMENTUM, tuneRapidBots, tuneRapidSignature } from './signature-rapid.js';
+import { DEFAULT_STEALTH, tuneSpecterSignature } from './signature-specter.js';
+import { DEFAULT_HEAT, tuneTempestSignature } from './signature-tempest.js';
 import { DEFAULT_WUCHT, tuneImpactSignature } from './signature-impact.js';
 import { hardenSimulation } from './simulation-hardening.js';
 import { tuneSpectator } from './spectator.js';
@@ -205,6 +207,18 @@ const FAMILY_UPGRADE_BRANCHES: SignatureFamily[] = FAMILY_UPGRADES_ENABLED
 // dritte Anlauf desselben Fehlers. `false`/`0`/`off` stellt den Sprung zurück.
 const DASH_TRAVEL_ENABLED = !['false', '0', 'off']
   .includes((process.env.DASH_TRAVEL_ENABLED ?? '').trim().toLowerCase());
+/**
+ * Klassen 4.0, fuenfte Familie: Tarnung fuer SPECTER. Nicht schiessen baut
+ * Tarnung auf, der Erstschlag aus voller Tarnung traegt Bonus. Opt-out.
+ */
+const SIGNATURE_SPECTER_ENABLED = !['false', '0', 'off']
+  .includes((process.env.SIGNATURE_SPECTER_ENABLED ?? '').trim().toLowerCase());
+/**
+ * Klassen 4.0, sechste Familie: Hitze fuer TEMPEST. Feuern heizt (+Schaden),
+ * bei 100 Ueberhitzung mit Feuersperre. Opt-out.
+ */
+const SIGNATURE_TEMPEST_ENABLED = !['false', '0', 'off']
+  .includes((process.env.SIGNATURE_TEMPEST_ENABLED ?? '').trim().toLowerCase());
 const PROJECTILE_SPEED_V2 = !['false', '0', 'off']
   .includes((process.env.PROJECTILE_SPEED_V2 ?? '').trim().toLowerCase());
 /**
@@ -254,6 +268,12 @@ const encodedGame = tuneSnapshotEncoding(
                           // bezahlt und verstaerkt die fertige Einheit.
                           tuneControlSignature(
                           tuneDrones(
+                            // Tarnung und Hitze aussen um die uebrigen
+                            // Signatures: Tarnung skaliert die fertigen
+                            // Projektile der Salve, Hitze haengt an fire -
+                            // beide muessen sehen, was innen herausfaellt.
+                            tuneSpecterSignature(
+                            tuneTempestSignature(
                             // Momentum direkt um das Kampf-Tuning: Dort entsteht
                             // der Cooldown, den die Signature verkürzt.
                             tuneImpactSignature(
@@ -289,6 +309,12 @@ const encodedGame = tuneSnapshotEncoding(
                               SIGNATURE_IMPACT_ENABLED,
                               DEFAULT_WUCHT,
                               FAMILY_UPGRADES_ENABLED
+                            ),
+                            SIGNATURE_TEMPEST_ENABLED,
+                            DEFAULT_HEAT
+                            ),
+                            SIGNATURE_SPECTER_ENABLED,
+                            DEFAULT_STEALTH
                             )
                           ),
                           SIGNATURE_CONTROL_ENABLED,
@@ -586,7 +612,7 @@ app.get('/health', (_request: Request, response: Response) => {
     // Jedes Flag, das Spielgefühl verändert, gehört hier hinein: /health ist das
     // Testprotokoll, wenn Sam sagt „geht nicht". Die Signatures fehlten – genau
     // die, deren Wirkung gerade beurteilt werden soll.
-    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, dashTravel: DASH_TRAVEL_ENABLED, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED },
+    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, dashTravel: DASH_TRAVEL_ENABLED, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED, signatureSpecter: SIGNATURE_SPECTER_ENABLED, signatureTempest: SIGNATURE_TEMPEST_ENABLED },
     persistence: persistenceStats(game),
     auth: authStatus(),
     clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),

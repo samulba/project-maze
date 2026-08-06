@@ -33,7 +33,7 @@ describe('Signature-Beschriftung', () => {
     );
     // Wenn 02 eine fünfte Familie einführt, schlägt dieser Test fehl – genau
     // dann muss auch die Beschriftung dazukommen.
-    expect([...familien].sort()).toEqual(['control', 'core', 'impact', 'precision', 'rapid']);
+    expect([...familien].sort()).toEqual(['control', 'core', 'impact', 'precision', 'rapid', 'specter', 'tempest']);
   });
 });
 

@@ -55,30 +55,39 @@ export const BOT_LOADOUTS: Record<BotStyle, BotLoadout> = {
 };
 
 export const BOT_CLASS_PATHS: Record<BotStyle, PlayerClass[][]> = {
+  // Klassen 4.0: Jeder Pfad endet in seinem Familien-Apex, und je Stil kommt
+  // ein Pfad durch eine der neuen Familien dazu (Kiter: SPECTER passt zum
+  // Flankieren-und-Verschwinden; Farmer/Brawler: TEMPEST als Feuerteppich
+  // bzw. schwerer Puls; Hunter: SPECTER als schwerer Schatten).
   farmer: [
-    ['rapid', 'twin', 'storm'],
-    ['rapid', 'repeater', 'gatling'],
-    ['rapid', 'flanker', 'octo']
+    ['rapid', 'twin', 'storm', 'vortex'],
+    ['rapid', 'repeater', 'gatling', 'vortex'],
+    ['rapid', 'flanker', 'octo', 'vortex'],
+    ['tempest', 'scorch', 'inferno', 'cataclysm']
   ],
   hunter: [
-    ['sniper', 'railgun', 'lancer'],
-    ['sniper', 'hunter', 'phantom'],
-    ['sniper', 'arbalest', 'deadeye']
+    ['sniper', 'railgun', 'lancer', 'eclipse'],
+    ['sniper', 'hunter', 'phantom', 'eclipse'],
+    ['specter', 'shade', 'eidolon'],
+    ['sniper', 'arbalest', 'deadeye', 'eclipse']
   ],
   kiter: [
-    ['sniper', 'hunter', 'phantom'],
-    ['sniper', 'arbalest', 'deadeye'],
-    ['sniper', 'railgun', 'lancer']
+    ['specter', 'wraith', 'mirage', 'eidolon'],
+    ['sniper', 'hunter', 'phantom', 'eclipse'],
+    ['sniper', 'arbalest', 'deadeye', 'eclipse'],
+    ['specter', 'shade', 'eidolon']
   ],
   brawler: [
-    ['rammer', 'crusher', 'juggernaut'],
-    ['rammer', 'bulwark', 'fortress'],
-    ['rammer', 'blitz', 'comet']
+    ['rammer', 'crusher', 'juggernaut', 'leviathan'],
+    ['rammer', 'bulwark', 'fortress', 'leviathan'],
+    ['specter', 'shade', 'revenant'],
+    ['tempest', 'surge', 'overload', 'cataclysm'],
+    ['rammer', 'blitz', 'comet', 'leviathan']
   ],
   controller: [
-    ['drone', 'warden', 'overseer'],
-    ['drone', 'factory', 'carrier'],
-    ['drone', 'guardian', 'hive']
+    ['drone', 'warden', 'overseer', 'sovereign'],
+    ['drone', 'factory', 'carrier', 'sovereign'],
+    ['drone', 'guardian', 'hive', 'sovereign']
   ]
 };
 
@@ -233,7 +242,7 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
     const profile = TIER_PROFILES[tier];
     bot.reactionMs = profile.reactionMs;
     bot.aimError = profile.aimError;
-    bot.classPath = BOT_CLASS_PATHS[bot.style][index % 3] ?? bot.classPath;
+    bot.classPath = BOT_CLASS_PATHS[bot.style][index % BOT_CLASS_PATHS[bot.style].length] ?? bot.classPath;
     const created: BotBrain = {
       tier,
       equipped: false,

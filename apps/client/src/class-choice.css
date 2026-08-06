@@ -42,6 +42,8 @@
 [data-branch=precision] .class-choice-preview { color: #58b0e8; }
 [data-branch=control] .class-choice-preview { color: #5aa882; }
 [data-branch=impact]  .class-choice-preview { color: #c4626f; }
+[data-branch=specter] .class-choice-preview { color: #8f7ff0; }
+[data-branch=tempest] .class-choice-preview { color: #e0954e; }
 
 /* Auf schmalen und niedrigen Fenstern ist das Spielfeld wichtiger als das
    Bild – die Karten müssen vollständig sichtbar bleiben (Befund G3/G4). */

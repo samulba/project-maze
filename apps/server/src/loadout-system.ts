@@ -199,7 +199,9 @@ export function activateModule(
 
   player.invulnerable = false;
   player.invulnerableUntil = 0;
-  loadout.readyAt = now + definition.cooldownMs;
+  // Klassen 4.0: Der Fähigkeits-Slot verkürzt die Abklingzeit um 5 % je Punkt
+  // (multiplikativ, wie beim Nachladen) – bei Cap 10 sind das −40 %.
+  loadout.readyAt = now + definition.cooldownMs * Math.pow(0.95, player.upgrades.moduleCooldown ?? 0);
   loadout.activeUntil = now + definition.activeMs;
 
   if (loadout.activeModule === 'dash' && dashDirection) {

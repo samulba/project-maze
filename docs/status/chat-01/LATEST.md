@@ -2,6 +2,35 @@
 
 **Stand: 2026-08-06**
 
+## KLASSEN 4.0, Welle A – umgesetzt von 01 (06.08. nachts)
+
+Sams Direktauftrag, gebaut von der Zentrale selbst (Arbeits-Chats angehalten):
+
+- **Progression:** Max-Level 60, Wahlstufen 5/15/28/42, Cap 10, zwei neue
+  Basis-Slots (Reichweite +6 %/P auf Lebenszeit, Fähigkeit −5 %/P auf
+  Modul-Abklingzeit). Wire append-only, Indizes stabil.
+- **Baum:** 45 Klassen. Erste Wahl auf L5 zwischen SECHS Familien – neu
+  SPECTER (Tarnung, Erstschlag-Bonus, Bewegung erlaubt, Schuss enttarnt) und
+  TEMPEST (Hitze: +Schaden bis +40 %, Überhitzung 1,2 s). Je Familie ein Apex
+  (L42), erreichbar aus jeder Klasse der Familie (`apexOf`).
+- **Signature-Schichten** specter/tempest nach dem bewährten Muster, 25 neue
+  Tests; Flags Opt-out. KL4-Slots für die neuen Familien bewusst noch zu
+  (Welle B). Tarnung ist im Renderer sichtbar (Gegner bis 85 % ausgeblendet).
+- **Balance-Netz hat dreimal gefangen:** Vortex 161,9 DPS (Korridor 100),
+  Sovereign/Leviathan über Korridor, Specter-Reichweiten über 1300
+  (unsichtbarer Sniper wäre Frust – Tarnung kauft Nähe). Und einmal MICH:
+  Das Cap-10 hätte über den Boden sechs Klassen still BESCHLEUNIGT –
+  Bezugsgröße jetzt auf 8 verankert (`REFERENCE_UPGRADE_POINTS`).
+- **KL4-Steigungen gestreckt** (×0,8): Vollausbau behält die geeichte Stärke,
+  One-Shot-Viertel und Ladezeit-Zusage bleiben bewiesen.
+- **Bots** spielen die neuen Familien (Kiter → Specter, Farmer/Brawler →
+  Tempest) und enden in ihrem Familien-Apex. Live gesehen: Shade L23 auf
+  Platz 1 der Bot-Bestenliste.
+- 789 Tests grün (58 Dateien, +26).
+
+**Welle B (nächster Schritt):** Perks je Klasse, geteilte Rumpf-Geometrie mit
+Blindtest über 45 Silhouetten, Wahl-UI-Neubau, KL4-Slots für Specter/Tempest.
+
 ## Zuletzt auf main gemerged
 
 - 01 **Design-Entscheid „Diep-Basis"**: Standard-Theme hell (Arena `0xcdcdcd`

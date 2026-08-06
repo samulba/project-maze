@@ -48,7 +48,23 @@ const abilityText: Record<PlayerClass, string> = {
   guardian: 'Fünf zähe Drohnen in engem Verteidigungsorbit.',
   hive: 'Zehn Mikro-Drohnen mit sehr schnellem Nachschub.',
   blitz: 'Körperschaden wächst mit dem eigenen Tempo (0,6× bis 1,35×).',
-  comet: 'Schnellster Tank der Arena – Vollgas-Rammen ist verheerend.'
+  comet: 'Schnellster Tank der Arena – Vollgas-Rammen ist verheerend.',
+  vortex: 'Apex Dauerfeuer: fünf Läufe im Fächer, gebaut für volles Momentum.',
+  eclipse: 'Apex Präzision: der eine Schuss, der die Finsternis bringt.',
+  sovereign: 'Apex Kontrolle: sieben Wächter regieren das Feld.',
+  leviathan: 'Apex Panzerung: eine rollende Wand aus Stahl.',
+  specter: 'Tarnung: Wer nicht schießt, verschwindet – Erstschlag mit Bonus.',
+  wraith: 'Schneller Schleicher mit kurzer Enttarn-Zeit.',
+  shade: 'Schwerer Schatten: ein sitzender Schuss aus dem Dunkel.',
+  mirage: 'Doppelläufiges Trugbild – zwei Stiche aus der Tarnung.',
+  revenant: 'Rammt aus der Unsichtbarkeit heraus.',
+  eidolon: 'Apex Tarnung: ganz verschwinden, vernichtend erscheinen.',
+  tempest: 'Hitze: Feuern steigert den Schaden, Überhitzung bestraft Gier.',
+  scorch: 'Brennt schnell heiß: dichter Feuerteppich in kurzen Fenstern.',
+  surge: 'Ein schwerer Puls je Ladung – Hitze als Hammer.',
+  inferno: 'Drei Kehlen Feuersturm, bis die Sicherung kommt.',
+  overload: 'Riesige Projektile an der Überhitzungskante.',
+  cataclysm: 'Apex Hitze: Wenn der Reaktor singt, brennt die halbe Arena.'
 };
 
 const clampPercent = (value: number): number => Math.max(4, Math.min(100, Math.round(value)));

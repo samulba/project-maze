@@ -948,6 +948,11 @@ export class GameRenderer {
     // heißt, steht im HUD.
     // Dieselbe Regel wie im HUD: ohne Familienwort kein Balken – ein namenloser
     // Füllstand am Tank wäre ein Rätsel statt einer Information.
+    // Tarnung (SPECTER): Der Fuellstand IST die Sichtbarkeit. Gegner werden bis
+    // 85 % ausgeblendet; der eigene Tank bleibt als Schemen (55 %) sichtbar,
+    // sonst weiss man nicht, wo man steht. Alle anderen Familien: voll sichtbar.
+    const stealth=CLASS_DEFINITIONS[player.playerClass]?.branch==='specter'?(signatureRatio(player.signature)??0):0;
+    view.root.alpha=view.isSelf?1-0.55*stealth:1-0.85*stealth;
     const ratio=view.isSelf&&signatureLabel(player.playerClass)!==null?signatureRatio(player.signature):null;
     view.signatureBar.clear();
     if(ratio!==null){
@@ -1137,6 +1142,86 @@ export class GameRenderer {
         body.poly([-2,-16,-26,0,-2,16]).fill({color,alpha:.85}).stroke({color:0xffffff,alpha:.2,width:2});
         detail.circle(8,0,7).fill({color:0xffffff,alpha:.24});
         detail.poly([-6,-8,-18,0,-6,8]).fill({color:0xffffff,alpha:.14});
+        break;
+      // --- Klassen 4.0, Welle A --------------------------------------------
+      // Apex der Altfamilien: Grundform der Familie plus Kronenring – aus der
+      // Distanz als „Endstufe" lesbar. Welle B verfeinert die Silhouetten.
+      case'vortex':
+        body.circle(0,0,23).fill(color).stroke(outline);
+        detail.circle(0,0,29).stroke({color,alpha:.4,width:2});
+        this.drawNodes(detail,5,29,3,color);
+        break;
+      case'eclipse':
+        body.circle(0,0,21).fill(color).stroke(outline);
+        detail.circle(-6,0,15).fill({color:0x000000,alpha:.35});
+        detail.circle(0,0,27).stroke({color,alpha:.4,width:2});
+        break;
+      case'sovereign':
+        body.poly(polygon(6,22,Math.PI/6)).fill(color).stroke(outline);
+        detail.circle(0,0,28).stroke({color,alpha:.4,width:2});
+        this.drawNodes(detail,7,28,3,color);
+        break;
+      case'leviathan':
+        body.roundRect(-24,-20,48,40,7).fill(color).stroke(outline);
+        detail.roundRect(-18,-14,36,28,5).stroke({color:0xffffff,alpha:.22,width:2});
+        detail.circle(0,0,30).stroke({color,alpha:.35,width:2});
+        break;
+      // SPECTER: Diamant-Silhouette – schmal, spitz, auf Bewegung gebaut.
+      case'specter':
+        body.poly([26,0,0,-16,-20,0,0,16]).fill(color).stroke(outline);
+        detail.poly([12,0,0,-7,-9,0,0,7]).fill({color:0xffffff,alpha:.14});
+        break;
+      case'wraith':
+        body.poly([28,0,-2,-14,-18,0,-2,14]).fill(color).stroke(outline);
+        detail.poly([-6,-9,-20,0,-6,9]).fill({color,alpha:.7});
+        break;
+      case'shade':
+        body.poly([24,0,-2,-18,-22,0,-2,18]).fill(color).stroke(outline);
+        detail.circle(-2,0,7).fill({color:0x000000,alpha:.4});
+        break;
+      case'mirage':
+        body.poly([26,0,0,-15,-20,0,0,15]).fill(color).stroke(outline);
+        detail.poly([20,-5,-4,-13,-15,-3],).stroke({color:0xffffff,alpha:.3,width:2});
+        detail.poly([20,5,-4,13,-15,3]).stroke({color:0xffffff,alpha:.3,width:2});
+        break;
+      case'revenant':
+        body.poly([26,0,2,-19,-22,-10,-22,10,2,19]).fill(color).stroke(outline);
+        detail.poly([14,0,2,-8,-6,0,2,8]).fill({color:0xffffff,alpha:.16});
+        break;
+      case'eidolon':
+        body.poly([30,0,0,-17,-22,0,0,17]).fill(color).stroke(outline);
+        detail.circle(0,0,28).stroke({color,alpha:.4,width:2});
+        detail.poly([16,0,0,-8,-10,0,0,8]).fill({color:0x000000,alpha:.3});
+        break;
+      // TEMPEST: Reaktor-Dreieck mit Kern – Hitze braucht ein sichtbares Herz.
+      case'tempest':
+        body.poly(polygon(3,24,0)).fill(color).stroke(outline);
+        detail.circle(0,0,8).fill({color:0xffffff,alpha:.22});
+        break;
+      case'scorch':
+        body.poly(polygon(3,23,0)).fill(color).stroke(outline);
+        detail.circle(0,0,7).fill({color:0xffffff,alpha:.26});
+        detail.poly(polygon(3,14,Math.PI)).stroke({color:0xffffff,alpha:.2,width:2});
+        break;
+      case'surge':
+        body.poly(polygon(3,26,0)).fill(color).stroke(outline);
+        detail.roundRect(-9,-9,18,18,4).fill({color:0xffffff,alpha:.14});
+        detail.circle(0,0,7).fill({color:0xffffff,alpha:.26});
+        break;
+      case'inferno':
+        body.poly(polygon(3,24,0)).fill(color).stroke(outline);
+        detail.circle(-4,-6,5).fill({color:0xffffff,alpha:.22});
+        detail.circle(-4,6,5).fill({color:0xffffff,alpha:.22});
+        detail.circle(6,0,5).fill({color:0xffffff,alpha:.22});
+        break;
+      case'overload':
+        body.poly(polygon(3,26,0)).fill(color).stroke(outline);
+        detail.circle(0,0,11).fill({color:0xffffff,alpha:.16}).stroke({color:0xffffff,alpha:.24,width:2});
+        break;
+      case'cataclysm':
+        body.poly(polygon(3,26,0)).fill(color).stroke(outline);
+        detail.circle(0,0,9).fill({color:0xffffff,alpha:.24});
+        detail.circle(0,0,30).stroke({color,alpha:.4,width:2});
         break;
     }
   }

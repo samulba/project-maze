@@ -106,11 +106,14 @@ const BOT_STYLES: BotStyle[] = [
 export function botState(index: number): BotState {
   const style = BOT_STYLES[index % BOT_STYLES.length] ?? 'farmer';
   const classPaths: Record<BotStyle, PlayerClass[]> = {
-    farmer: ['rapid', 'twin', 'storm'],
-    hunter: ['sniper', 'railgun', 'lancer'],
-    kiter: ['sniper', 'railgun', 'lancer'],
-    brawler: ['rammer', 'crusher', 'juggernaut'],
-    controller: ['drone', 'warden', 'overseer']
+    // Klassen 4.0: jeder Pfad endet in seinem Familien-Apex (L42), und die
+    // neuen Familien tauchen in der Rotation auf - Kiter passt zu SPECTER
+    // (flankieren, verschwinden), der zweite Farmer-Pfad zu TEMPEST.
+    farmer: ['rapid', 'twin', 'storm', 'vortex'],
+    hunter: ['sniper', 'railgun', 'lancer', 'eclipse'],
+    kiter: ['specter', 'wraith', 'mirage', 'eidolon'],
+    brawler: ['rammer', 'crusher', 'juggernaut', 'leviathan'],
+    controller: ['drone', 'warden', 'overseer', 'sovereign']
   };
   const upgradePaths: Record<BotStyle, UpgradeId[]> = {
     farmer: ['reload', 'damage', 'projectileSpeed', 'moveSpeed', 'penetration', 'maxHealth', 'regen', 'bodyDamage'],

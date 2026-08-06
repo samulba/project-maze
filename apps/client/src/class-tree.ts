@@ -18,7 +18,7 @@ import { CLASS_DEFINITIONS, PLAYER_CLASS_IDS, type PlayerClass } from '@project-
  */
 
 /** Ringe von innen nach außen. `0` ist Core. */
-export type RingIndex = 0 | 1 | 2 | 3;
+export type RingIndex = 0 | 1 | 2 | 3 | 4;
 
 export interface WheelNode {
   id: PlayerClass;
@@ -86,6 +86,22 @@ export const FAMILIES: readonly FamilyInfo[] = [
     signature: 'Wucht',
     builds: 'Wucht lädt allein durch Fahren – die Feuertaste spielt keine Rolle.',
     pays: 'Ein Anlauf mit voller Wucht macht ein Vielfaches an Körperschaden und ist danach leer.'
+  },
+  {
+    branch: 'specter',
+    label: 'Tarnung',
+    style: 'Hinterhalt und Winkel: Wer nicht schießt, verschwindet vom Feld.',
+    signature: 'Tarnung',
+    builds: 'Kurz nicht schießen und keinen Kontakt nehmen – dann baut sich die Tarnung auf.',
+    pays: 'Aus voller Tarnung trägt der Erstschlag deutlichen Bonusschaden. Danach bist du sichtbar.'
+  },
+  {
+    branch: 'tempest',
+    label: 'Hitze',
+    style: 'Burst-Fenster statt Dauerfeuer: Der Reaktor belohnt Mut und bestraft Gier.',
+    signature: 'Hitze',
+    builds: 'Jede Salve heizt auf. Feuerpausen kühlen – wer durchzieht, riskiert die Sicherung.',
+    pays: 'Heiße Schüsse tragen bis zu 40 % mehr Schaden. Bei 100 überhitzt du für gut eine Sekunde.'
   }
 ];
 
@@ -98,9 +114,10 @@ export function familyInfo(branch: string): FamilyInfo | null {
 /** Ring einer Klasse aus ihrem Freischalt-Level. */
 export function ringOf(unlockLevel: number): RingIndex {
   if (unlockLevel <= 1) return 0;
-  if (unlockLevel <= 10) return 1;
-  if (unlockLevel <= 24) return 2;
-  return 3;
+  if (unlockLevel <= 5) return 1;
+  if (unlockLevel <= 15) return 2;
+  if (unlockLevel <= 28) return 3;
+  return 4;
 }
 
 /**
@@ -188,10 +205,16 @@ export function pathTo(id: PlayerClass): PlayerClass[] {
   return pfad;
 }
 
-/** „Führt zu → X, Y, Z" – oder `null` bei einer Endklasse. */
+/** „Führt zu → X, Y, Z" – oder `null` beim Apex, der Endstufe der Familie. */
 export function leadsTo(id: PlayerClass): string[] | null {
   const kinder = PLAYER_CLASS_IDS.filter((kandidat) => CLASS_DEFINITIONS[kandidat].parent === id);
-  return kinder.length > 0 ? kinder.map((kind) => CLASS_DEFINITIONS[kind].label) : null;
+  if (kinder.length > 0) return kinder.map((kind) => CLASS_DEFINITIONS[kind].label);
+  // Klassen 4.0: Endklassen ohne direkte Kinder führen zum Familien-Apex -
+  // der ist per availableClassChoices aus jeder Klasse der Familie erreichbar.
+  const definition = CLASS_DEFINITIONS[id];
+  if (definition.apexOf !== undefined) return null;
+  const apex = PLAYER_CLASS_IDS.find((kandidat) => CLASS_DEFINITIONS[kandidat].apexOf === definition.branch);
+  return apex ? [CLASS_DEFINITIONS[apex].label] : null;
 }
 
 /**

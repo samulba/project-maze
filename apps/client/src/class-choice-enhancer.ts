@@ -18,7 +18,9 @@ function enhanceButton(button: HTMLButtonElement): void {
   role.textContent = definition.branch === 'rapid' ? 'DAUERFEUER'
     : definition.branch === 'precision' ? 'PRÄZISION'
       : definition.branch === 'control' ? 'KONTROLLE'
-        : definition.branch === 'impact' ? 'PANZERUNG' : 'ALLROUNDER';
+        : definition.branch === 'impact' ? 'PANZERUNG'
+          : definition.branch === 'specter' ? 'TARNUNG'
+            : definition.branch === 'tempest' ? 'HITZE' : 'ALLROUNDER';
 
   const bars = document.createElement('div');
   bars.className = 'class-choice-bars';

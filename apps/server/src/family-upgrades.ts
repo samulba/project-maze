@@ -45,27 +45,30 @@ export const isFamilyUpgrade = (upgrade: UpgradeId): upgrade is FamilyUpgradeId 
  * Die Zahlen aus dem KL4-Konzept, Variante B.
  *
  * `buildPerPoint` gilt für alle Familien gleich: Der Aufbau der Signature
- * steigt um 9 % je Punkt, bei 8 Punkten also auf das 1,72-Fache (Rapid: voll
- * geladen nach 1,94 s statt 3,33 s).
+ * steigt um 7,2 % je Punkt, beim Cap von 10 Punkten also auf das 1,72-Fache
+ * (Rapid: voll geladen nach 1,94 s statt 3,33 s). Klassen 4.0 hat das Cap von
+ * 8 auf 10 gehoben; der VOLLAUSBAU behaelt seine alte Staerke, die Steigung
+ * streckt sich - sonst waeren alle geeichten Deckel (One-Shot-Viertel,
+ * Ladezeit = Nachladezeit) still ueberschritten worden.
  *
  * Die Sockelwerte sind so gewählt, dass der heutige Festwert bei etwa fünf
  * Punkten wieder erreicht ist – der Slot ist damit weder geschenkt noch eine
  * Pflichtabgabe.
  */
 export const FAMILY_SCALING = {
-  /** `signatureRate`: Aufbaurate ×(1 + 0,09·n). */
-  buildPerPoint: 0.09,
+  /** `signatureRate`: Aufbaurate ×(1 + 0,072·n) – Cap 10 → ×1,72 wie zuvor. */
+  buildPerPoint: 0.072,
   /** `signaturePower` bei RAPID: `maxReloadBonus`. Heutiger Festwert 0,25. */
-  rapid: { powerBase: 0.08, powerPerPoint: 0.034 },
+  rapid: { powerBase: 0.08, powerPerPoint: 0.0272 },
   /** `signaturePower` bei IMPACT: `maxBodyDamageBonus`. Heutiger Festwert 1,5. */
-  impact: { powerBase: 0.5, powerPerPoint: 0.19 },
+  impact: { powerBase: 0.5, powerPerPoint: 0.152 },
   /**
    * `signaturePower` bei PRECISION: Anteil des vollen Ladebonus auf Größe und
    * Durchschlag. **Nicht auf den Schaden** – der ist beim Ladeschuss nach oben
    * durch die Ein-Schuss-Grenze verriegelt (Lancer trägt heute 86 % des Lebens
    * des dünnsten Gegners seiner Stufe). Sockel 0,40, voll ausgebaut 1,00.
    */
-  precision: { powerBase: 0.4, powerPerPoint: 0.075 }
+  precision: { powerBase: 0.4, powerPerPoint: 0.06 }
 } as const;
 
 /** Punktestand eines Slots, hart auf den erlaubten Bereich begrenzt. */

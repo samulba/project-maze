@@ -132,30 +132,35 @@ describe('familien-upgrades – zahlen', () => {
     expect(UPGRADE_IDS.slice(0, 8)).toEqual([
       'maxHealth', 'regen', 'moveSpeed', 'reload', 'damage', 'projectileSpeed', 'penetration', 'bodyDamage'
     ]);
-    expect(UPGRADE_IDS.slice(8)).toEqual(FAMILY_UPGRADE_IDS);
-    expect(UPGRADE_IDS.length).toBe(10);
+    // Klassen 4.0 haengt hinter den Familien-Slots zwei weitere Basis-Slots
+    // an (Reichweite, Faehigkeit) - die Familien-Slots behalten Index 8 und 9.
+    expect(UPGRADE_IDS.slice(8, 10)).toEqual(FAMILY_UPGRADE_IDS);
+    expect(UPGRADE_IDS.length).toBe(12);
     // `EMPTY_UPGRADES` muss jeden Slot tragen – sonst steht im Snapshot
     // `undefined` und der Deckelvergleich in `applyUpgrade` scheitert still.
     for (const id of UPGRADE_IDS) expect(EMPTY_UPGRADES()[id]).toBe(0);
   });
 
   it('rechnet Sockel plus Punkte wie im Konzept', () => {
+    // Klassen 4.0: Cap 10 statt 8 - der VOLLAUSBAU behaelt die Konzeptwerte
+    // (0,352 / 2,02 / 51,6), die Steigung streckt sich ueber zehn Punkte.
     expect(rapidReloadBonus(0)).toBeCloseTo(0.08, 6);
-    expect(rapidReloadBonus(8)).toBeCloseTo(0.352, 6);
+    expect(rapidReloadBonus(GAME.maxUpgradeLevel)).toBeCloseTo(0.352, 6);
     expect(impactBodyDamageBonus(0)).toBeCloseTo(0.5, 6);
-    expect(impactBodyDamageBonus(8)).toBeCloseTo(2.02, 6);
-    expect(familyBuildRate(DEFAULT_MOMENTUM.buildPerSecond, 8)).toBeCloseTo(51.6, 6);
+    expect(impactBodyDamageBonus(GAME.maxUpgradeLevel)).toBeCloseTo(2.02, 6);
+    expect(familyBuildRate(DEFAULT_MOMENTUM.buildPerSecond, GAME.maxUpgradeLevel)).toBeCloseTo(51.6, 6);
     // Voll geladen nach 1,94 s statt 3,33 s.
-    expect(SIGNATURE_MAX / familyBuildRate(DEFAULT_MOMENTUM.buildPerSecond, 8)).toBeCloseTo(1.938, 3);
+    expect(SIGNATURE_MAX / familyBuildRate(DEFAULT_MOMENTUM.buildPerSecond, GAME.maxUpgradeLevel)).toBeCloseTo(1.938, 3);
 
     // Der heutige Festwert wird erst mitten im Ausbau wieder erreicht – das ist
     // der Preis von Variante B, und er soll sichtbar festgeschrieben sein.
-    // Rapid: exakt bei 5 Punkten (0,08 + 5 × 0,034 = 0,25).
-    expect(rapidReloadBonus(5)).toBeCloseTo(DEFAULT_MOMENTUM.maxReloadBonus, 6);
-    expect(rapidReloadBonus(4)).toBeLessThan(DEFAULT_MOMENTUM.maxReloadBonus);
-    // Impact: bei 6, nicht bei 5 – das Konzept hatte 5,26 auf 5 gerundet.
-    expect(impactBodyDamageBonus(6)).toBeGreaterThan(DEFAULT_WUCHT.maxBodyDamageBonus);
-    expect(impactBodyDamageBonus(5)).toBeLessThan(DEFAULT_WUCHT.maxBodyDamageBonus);
+    // Mit der auf Cap 10 gestreckten Steigung: Rapid erreicht 0,25 zwischen
+    // sechs und sieben Punkten (0,08 + 6,25 x 0,0272), Impact 1,5 zwischen
+    // sechs und sieben (0,5 + 6,58 x 0,152).
+    expect(rapidReloadBonus(7)).toBeGreaterThan(DEFAULT_MOMENTUM.maxReloadBonus);
+    expect(rapidReloadBonus(6)).toBeLessThan(DEFAULT_MOMENTUM.maxReloadBonus);
+    expect(impactBodyDamageBonus(7)).toBeGreaterThan(DEFAULT_WUCHT.maxBodyDamageBonus);
+    expect(impactBodyDamageBonus(6)).toBeLessThan(DEFAULT_WUCHT.maxBodyDamageBonus);
   });
 
   it('lässt Deckel und Verbrauch der Wucht unangetastet', () => {
@@ -303,6 +308,8 @@ describe('familien-upgrades – wirkung', () => {
       return wuchtContactDamage(base, SIGNATURE_MAX, victimHealth, 40, wuchtConfigFor(DEFAULT_WUCHT, upgrades));
     };
     expect(damageAt(0)).toBeCloseTo(base * 1.5, 6);
+    // Vollausbau behaelt die geeichte Staerke: 1 + 0,5 + 0,152 x 10 = 3,02 -
+    // dieselbe Zahl wie vor der Cap-Erhoehung, nur ueber zehn Punkte gestreckt.
     expect(damageAt(GAME.maxUpgradeLevel)).toBeCloseTo(base * 3.02, 6);
 
     // Gegen ein dünnes Ziel gewinnt der Anteilsdeckel, auf jeder Stufe.
@@ -370,8 +377,10 @@ describe('familien-upgrades – bot-pfade', () => {
     const player = internals.players.get(id);
     player.bot = botFixture('farmer');
     player.playerClass = 'core';
-    player.level = 10;
-    player.availablePoints = upgradePointsAtLevel(10);
+    // Cap ist inzwischen 10: Level 12 liefert 11 Punkte - weiterhin mehr als
+    // ein einzelner Slot aufnehmen kann, worum es diesem Test geht.
+    player.level = 12;
+    player.availablePoints = upgradePointsAtLevel(12);
     expect(player.availablePoints - GAME.maxUpgradeLevel).toBeGreaterThan(0);
     capApplyUpgradeCalls(internals);
     internals.spendBotPoints(player);
@@ -381,7 +390,7 @@ describe('familien-upgrades – bot-pfade', () => {
     // Die Punkte sind trotzdem ausgegeben – nur eben in den Basiswerten.
     expect(player.availablePoints).toBe(0);
     expect(player.upgrades.reload).toBe(GAME.maxUpgradeLevel);
-    expect(player.upgrades.damage).toBe(upgradePointsAtLevel(10) - GAME.maxUpgradeLevel);
+    expect(player.upgrades.damage).toBe(upgradePointsAtLevel(12) - GAME.maxUpgradeLevel);
   });
 
   it('lässt den Pfad ohne offene Familie exakt wie vorher', () => {
@@ -396,12 +405,13 @@ describe('familien-upgrades – bot-pfade', () => {
 
     expect(player.upgrades.signaturePower).toBe(0);
     expect(player.upgrades.signatureRate).toBe(0);
-    // Der alte Bau: die ersten fünf Pfadeinträge voll (40 Punkte), der Rest in
-    // den sechsten – zusammen die 44 Punkte von Level 45.
-    for (const id of ['reload', 'damage', 'projectileSpeed', 'moveSpeed', 'penetration'] as UpgradeId[]) {
+    // Cap 10 seit Klassen 4.0: die ersten vier Pfadeinträge voll (40 Punkte),
+    // der Rest in den fünften – zusammen die 44 Punkte von Level 45.
+    for (const id of ['reload', 'damage', 'projectileSpeed', 'moveSpeed'] as UpgradeId[]) {
       expect(player.upgrades[id], id).toBe(GAME.maxUpgradeLevel);
     }
-    expect(player.upgrades.maxHealth).toBe(upgradePointsAtLevel(45) - 5 * GAME.maxUpgradeLevel);
+    expect(player.upgrades.penetration).toBe(upgradePointsAtLevel(45) - 4 * GAME.maxUpgradeLevel);
+    expect(player.upgrades.maxHealth).toBe(0);
     expect(player.availablePoints).toBe(0);
   });
 

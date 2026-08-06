@@ -22,15 +22,17 @@ describe('Aufbau des Rades', () => {
     expect(rad.filter((k) => k.ring === 0)).toHaveLength(1);
   });
 
-  it('verteilt die Klassen auf vier Ringe nach Freischalt-Level', () => {
-    const proRing = [0, 1, 2, 3].map((ring) => rad.filter((k) => k.ring === ring).length);
-    expect(proRing).toEqual([1, 4, 12, 12]);
+  it('verteilt die Klassen auf fuenf Ringe nach Freischalt-Level', () => {
+    // Klassen 4.0: 6 Familien (L5), 16 Wege (L15: 4x3 alt + 2x2 neu),
+    // 16 Endklassen (L28), 6 Apex (L42).
+    const proRing = [0, 1, 2, 3, 4].map((ring) => rad.filter((k) => k.ring === ring).length);
+    expect(proRing).toEqual([1, 6, 16, 16, 6]);
     for (const knoten of rad) expect(knoten.ring).toBe(ringOf(knoten.unlockLevel));
   });
 
-  it('stellt die vier Familien gleichmäßig auf den Kreis', () => {
+  it('stellt die sechs Familien gleichmäßig auf den Kreis', () => {
     const winkel = rad.filter((k) => k.ring === 1).map((k) => k.angle).sort((a, b) => a - b);
-    expect(winkel).toEqual([0, 90, 180, 270]);
+    expect(winkel).toEqual([0, 60, 120, 180, 240, 300]);
   });
 
   it('hält jeden Zweig im Sektor seiner Familie', () => {
@@ -93,9 +95,10 @@ describe('Pfade', () => {
   });
 
   it('nennt, wohin eine Klasse führt', () => {
-    expect(leadsTo('core')).toHaveLength(4);
+    expect(leadsTo('core')).toHaveLength(6);
     expect(leadsTo('twin')).toEqual(['Storm']);
-    expect(leadsTo('storm')).toBeNull();
+    // Storm fuehrt seit Klassen 4.0 weiter: zum Familien-Apex Vortex.
+    expect(leadsTo('storm')).toEqual(['Vortex']);
   });
 
   it('erkennt, was von der aktuellen Klasse aus noch erreichbar ist', () => {

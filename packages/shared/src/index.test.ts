@@ -17,30 +17,55 @@ describe('progression and input rules', () => {
   });
 
   it('unlocks all intended direct children at the tier levels', () => {
-    expect(availableClassChoices('core', 9)).toEqual([]);
-    expect(availableClassChoices('core', 10)).toEqual(['rapid', 'sniper', 'drone', 'rammer']);
-    expect(availableClassChoices('rapid', 24)).toEqual(['twin', 'repeater', 'flanker']);
-    expect(availableClassChoices('sniper', 24)).toEqual(['railgun', 'hunter', 'arbalest']);
-    expect(availableClassChoices('drone', 24)).toEqual(['warden', 'factory', 'guardian']);
-    expect(availableClassChoices('rammer', 24)).toEqual(['crusher', 'bulwark', 'blitz']);
-    expect(availableClassChoices('twin', 38)).toEqual(['storm']);
-    expect(availableClassChoices('repeater', 38)).toEqual(['gatling']);
-    expect(availableClassChoices('flanker', 38)).toEqual(['octo']);
-    expect(availableClassChoices('railgun', 38)).toEqual(['lancer']);
-    expect(availableClassChoices('hunter', 38)).toEqual(['phantom']);
-    expect(availableClassChoices('arbalest', 38)).toEqual(['deadeye']);
-    expect(availableClassChoices('warden', 38)).toEqual(['overseer']);
-    expect(availableClassChoices('factory', 38)).toEqual(['carrier']);
-    expect(availableClassChoices('guardian', 38)).toEqual(['hive']);
-    expect(availableClassChoices('crusher', 38)).toEqual(['juggernaut']);
-    expect(availableClassChoices('bulwark', 38)).toEqual(['fortress']);
-    expect(availableClassChoices('blitz', 38)).toEqual(['comet']);
+    // Klassen 4.0: erste Wahl auf 5 zwischen SECHS Familien, dann 15/28/42.
+    expect(availableClassChoices('core', 4)).toEqual([]);
+    expect(availableClassChoices('core', 5)).toEqual(['rapid', 'sniper', 'drone', 'rammer', 'specter', 'tempest']);
+    expect(availableClassChoices('rapid', 15)).toEqual(['twin', 'repeater', 'flanker']);
+    expect(availableClassChoices('sniper', 15)).toEqual(['railgun', 'hunter', 'arbalest']);
+    expect(availableClassChoices('drone', 15)).toEqual(['warden', 'factory', 'guardian']);
+    expect(availableClassChoices('rammer', 15)).toEqual(['crusher', 'bulwark', 'blitz']);
+    expect(availableClassChoices('specter', 15)).toEqual(['wraith', 'shade']);
+    expect(availableClassChoices('tempest', 15)).toEqual(['scorch', 'surge']);
+    expect(availableClassChoices('twin', 28)).toEqual(['storm']);
+    expect(availableClassChoices('repeater', 28)).toEqual(['gatling']);
+    expect(availableClassChoices('flanker', 28)).toEqual(['octo']);
+    expect(availableClassChoices('railgun', 28)).toEqual(['lancer']);
+    expect(availableClassChoices('hunter', 28)).toEqual(['phantom']);
+    expect(availableClassChoices('arbalest', 28)).toEqual(['deadeye']);
+    expect(availableClassChoices('warden', 28)).toEqual(['overseer']);
+    expect(availableClassChoices('factory', 28)).toEqual(['carrier']);
+    expect(availableClassChoices('guardian', 28)).toEqual(['hive']);
+    expect(availableClassChoices('crusher', 28)).toEqual(['juggernaut']);
+    expect(availableClassChoices('bulwark', 28)).toEqual(['fortress']);
+    expect(availableClassChoices('blitz', 28)).toEqual(['comet']);
+    expect(availableClassChoices('wraith', 28)).toEqual(['mirage']);
+    expect(availableClassChoices('shade', 28)).toEqual(['revenant']);
+    expect(availableClassChoices('scorch', 28)).toEqual(['inferno']);
+    expect(availableClassChoices('surge', 28)).toEqual(['overload']);
   });
 
-  it('contains exactly 29 unique class definitions', () => {
-    expect(PLAYER_CLASS_IDS).toHaveLength(29);
-    expect(new Set(PLAYER_CLASS_IDS).size).toBe(29);
-    expect(Object.keys(CLASS_DEFINITIONS)).toHaveLength(29);
+  it('offers the family apex from every class of the family at level 42', () => {
+    // Der Apex haengt an der Familie, nicht an einem Pfad: Wer bei Gatling
+    // steht, verpasst Vortex nicht, nur weil er vor drei Entscheidungen anders
+    // abgebogen ist.
+    expect(availableClassChoices('gatling', 42)).toContain('vortex');
+    expect(availableClassChoices('octo', 42)).toContain('vortex');
+    expect(availableClassChoices('lancer', 42)).toContain('eclipse');
+    expect(availableClassChoices('hive', 42)).toContain('sovereign');
+    expect(availableClassChoices('comet', 42)).toContain('leviathan');
+    expect(availableClassChoices('mirage', 42)).toContain('eidolon');
+    expect(availableClassChoices('overload', 42)).toContain('cataclysm');
+    // Vor Stufe 42 taucht kein Apex auf, und fremde Familien nie.
+    expect(availableClassChoices('gatling', 41)).not.toContain('vortex');
+    expect(availableClassChoices('gatling', 42)).not.toContain('eclipse');
+    // Ein Apex bietet sich nicht selbst an.
+    expect(availableClassChoices('vortex', 60)).not.toContain('vortex');
+  });
+
+  it('contains exactly 45 unique class definitions', () => {
+    expect(PLAYER_CLASS_IDS).toHaveLength(45);
+    expect(new Set(PLAYER_CLASS_IDS).size).toBe(45);
+    expect(Object.keys(CLASS_DEFINITIONS)).toHaveLength(45);
   });
 
   it('keeps the class tree structurally valid', () => {
@@ -56,7 +81,7 @@ describe('progression and input rules', () => {
       expect(PLAYER_CLASS_IDS).toContain(definition.parent);
       const parent = CLASS_DEFINITIONS[definition.parent!];
       expect(definition.unlockLevel).toBeGreaterThan(parent.unlockLevel);
-      expect([10, 24, 38]).toContain(definition.unlockLevel);
+      expect([5, 15, 28, 42]).toContain(definition.unlockLevel);
       if (parent.id !== 'core') expect(definition.branch).toBe(parent.branch);
       if (definition.barrelAngles) expect(definition.barrelAngles).toHaveLength(definition.barrelCount);
       expect(definition.droneCount === 0 || definition.barrelCount === 0).toBe(true);
@@ -64,19 +89,31 @@ describe('progression and input rules', () => {
     const finalsPerBranch = new Map<string, number>();
     for (const id of PLAYER_CLASS_IDS) {
       const definition = CLASS_DEFINITIONS[id];
-      if (definition.unlockLevel !== 38) continue;
+      if (definition.unlockLevel !== 28) continue;
       finalsPerBranch.set(definition.branch, (finalsPerBranch.get(definition.branch) ?? 0) + 1);
     }
     for (const branch of ['rapid', 'precision', 'control', 'impact']) {
       expect(finalsPerBranch.get(branch) ?? 0).toBeGreaterThanOrEqual(3);
     }
+    // Die neuen Familien sind kleiner (2 Wege je Stufe), aber vollstaendig.
+    for (const branch of ['specter', 'tempest']) {
+      expect(finalsPerBranch.get(branch) ?? 0).toBeGreaterThanOrEqual(2);
+    }
+    // Jede der sechs Familien hat genau einen Apex.
+    const apexes = PLAYER_CLASS_IDS.filter((id) => CLASS_DEFINITIONS[id].apexOf !== undefined);
+    expect(apexes).toHaveLength(6);
+    expect(new Set(apexes.map((id) => CLASS_DEFINITIONS[id].apexOf)).size).toBe(6);
+    for (const id of apexes) expect(CLASS_DEFINITIONS[id].unlockLevel).toBe(42);
   });
 
   it('falls back to a legal ancestor after respawn', () => {
-    expect(classAvailableAtLevel('lancer', 20)).toBe('sniper');
-    expect(classAvailableAtLevel('phantom', 24)).toBe('hunter');
-    expect(classAvailableAtLevel('carrier', 9)).toBe('core');
-    expect(classAvailableAtLevel('overseer', 6)).toBe('core');
+    expect(classAvailableAtLevel('lancer', 20)).toBe('railgun');
+    expect(classAvailableAtLevel('phantom', 15)).toBe('hunter');
+    expect(classAvailableAtLevel('carrier', 4)).toBe('core');
+    expect(classAvailableAtLevel('overseer', 6)).toBe('drone');
+    // Apex faellt ueber den Familien-Starter zurueck.
+    expect(classAvailableAtLevel('vortex', 20)).toBe('rapid');
+    expect(classAvailableAtLevel('eidolon', 3)).toBe('core');
   });
 
   it('sanitizes player names', () => {
@@ -88,7 +125,7 @@ describe('progression and input rules', () => {
   it('restores one point per retained level after level one', () => {
     expect(upgradePointsAtLevel(1)).toBe(0);
     expect(upgradePointsAtLevel(20)).toBe(19);
-    expect(upgradePointsAtLevel(999)).toBe(44);
+    expect(upgradePointsAtLevel(999)).toBe(59);
   });
 
   it('keeps sustained bullet damage inside intentional role corridors', () => {

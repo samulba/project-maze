@@ -49,7 +49,7 @@ const player = (overrides: Partial<PlayerSnapshot> = {}): PlayerSnapshot => ({
   upgrades: {
     maxHealth: 0, regen: 0, moveSpeed: 0, reload: 0,
     damage: 0, projectileSpeed: 0, penetration: 0, bodyDamage: 0,
-    signatureRate: 0, signaturePower: 0
+    signatureRate: 0, signaturePower: 0, projectileRange: 0, moduleCooldown: 0
   },
   score: 0,
   kills: 0,

@@ -27,7 +27,26 @@ export const PLAYER_CLASS_IDS = [
   'guardian',
   'hive',
   'blitz',
-  'comet'
+  'comet',
+  // Klassen 4.0 (Welle A): vier Apex-Klassen fuer die Altfamilien und zwei
+  // komplette neue Familien. Anhaengen statt einsortieren - Reihenfolge ist
+  // Teil der Kurz-ID-Abbildung im Netz.
+  'vortex',
+  'eclipse',
+  'sovereign',
+  'leviathan',
+  'specter',
+  'wraith',
+  'shade',
+  'mirage',
+  'revenant',
+  'eidolon',
+  'tempest',
+  'scorch',
+  'surge',
+  'inferno',
+  'overload',
+  'cataclysm'
 ] as const;
 
 export type PlayerClass = (typeof PLAYER_CLASS_IDS)[number];
@@ -54,7 +73,17 @@ export const UPGRADE_IDS = [
    * `FAMILY_UPGRADES_ENABLED`, ob und für welche Familien sie kaufbar sind.
    */
   'signatureRate',
-  'signaturePower'
+  'signaturePower',
+  /**
+   * Klassen 4.0 (Welle A): zwei weitere Basis-Slots, angehaengt hinter den
+   * Familien-Slots, damit alle bestehenden Indizes stehen bleiben.
+   *   projectileRange  +6 % Projektil-Lebenszeit je Punkt (= echte Reichweite;
+   *                    ersetzt den frueheren, unbeabsichtigten Bonus des
+   *                    Tempo-Upgrades durch eine bewusste Entscheidung)
+   *   moduleCooldown   -5 % Modul-Abklingzeit je Punkt (Dash/Barriere/...)
+   */
+  'projectileRange',
+  'moduleCooldown'
 ] as const;
 
 export type UpgradeId = (typeof UPGRADE_IDS)[number];
@@ -83,6 +112,8 @@ export interface UpgradeLevels {
   bodyDamage: number;
   signatureRate: number;
   signaturePower: number;
+  projectileRange: number;
+  moduleCooldown: number;
 }
 
 export interface ClassDefinition {
@@ -91,7 +122,13 @@ export interface ClassDefinition {
   description: string;
   parent: PlayerClass | null;
   unlockLevel: number;
-  branch: 'core' | 'rapid' | 'precision' | 'control' | 'impact';
+  branch: 'core' | 'rapid' | 'precision' | 'control' | 'impact' | 'specter' | 'tempest';
+  /**
+   * Apex-Klassen (L42) sind aus JEDER Klasse ihrer Familie erreichbar, nicht
+   * nur aus einem Pfad - `availableClassChoices` wertet dieses Feld aus. Der
+   * `parent` zeigt fuer die Respawn-Rueckstufung auf den Familien-Starter.
+   */
+  apexOf?: 'rapid' | 'precision' | 'control' | 'impact' | 'specter' | 'tempest';
   maxHealth: number;
   regen: number;
   acceleration: number;
@@ -124,154 +161,154 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
   }),
   rapid: classDef({
     id: 'rapid', label: 'Rapid', description: 'Schneller Drucktank mit guter Mobilität.', parent: 'core',
-    unlockLevel: 10, branch: 'rapid', maxHealth: 100, regen: 2, acceleration: 1650, moveSpeed: 290,
+    unlockLevel: 5, branch: 'rapid', maxHealth: 100, regen: 2, acceleration: 1650, moveSpeed: 290,
     reload: 0.19, projectileSpeed: 840, projectileLife: 1.45, damage: 10.5, projectileRadius: 6,
     penetration: 15, bodyDamage: 10, barrelCount: 1, barrelSpread: 0, barrelLength: 34,
     droneCount: 0, droneRespawn: 0
   }),
   sniper: classDef({
     id: 'sniper', label: 'Sniper', description: 'Hoher Burst und Reichweite, aber wenig Fehlertoleranz.', parent: 'core',
-    unlockLevel: 10, branch: 'precision', maxHealth: 94, regen: 1.8, acceleration: 1400, moveSpeed: 250,
+    unlockLevel: 5, branch: 'precision', maxHealth: 94, regen: 1.8, acceleration: 1400, moveSpeed: 250,
     reload: 0.68, projectileSpeed: 1200, projectileLife: 2, damage: 38, projectileRadius: 8,
     penetration: 46, bodyDamage: 9, barrelCount: 1, barrelSpread: 0, barrelLength: 52,
     droneCount: 0, droneRespawn: 0
   }),
   drone: classDef({
     id: 'drone', label: 'Controller', description: 'Vier Drohnen für Farming und Raumkontrolle.', parent: 'core',
-    unlockLevel: 10, branch: 'control', maxHealth: 112, regen: 2.4, acceleration: 1400, moveSpeed: 258,
+    unlockLevel: 5, branch: 'control', maxHealth: 112, regen: 2.4, acceleration: 1400, moveSpeed: 258,
     reload: 0.72, projectileSpeed: 0, projectileLife: 0, damage: 8.5, projectileRadius: 0,
     penetration: 0, bodyDamage: 11, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
     droneCount: 4, droneRespawn: 1.45
   }),
   rammer: classDef({
     id: 'rammer', label: 'Impact', description: 'Mobiler Nahkämpfer mit hohem Körperschaden.', parent: 'core',
-    unlockLevel: 10, branch: 'impact', maxHealth: 140, regen: 2.8, acceleration: 1750, moveSpeed: 300,
+    unlockLevel: 5, branch: 'impact', maxHealth: 140, regen: 2.8, acceleration: 1750, moveSpeed: 300,
     reload: 0.45, projectileSpeed: 700, projectileLife: 1.25, damage: 9, projectileRadius: 7,
     penetration: 12, bodyDamage: 29, barrelCount: 1, barrelSpread: 0, barrelLength: 27,
     droneCount: 0, droneRespawn: 0
   }),
   twin: classDef({
     id: 'twin', label: 'Twin', description: 'Zwei Läufe erzeugen konstanten, kontrollierbaren Druck.', parent: 'rapid',
-    unlockLevel: 24, branch: 'rapid', maxHealth: 104, regen: 2.1, acceleration: 1600, moveSpeed: 282,
+    unlockLevel: 15, branch: 'rapid', maxHealth: 104, regen: 2.1, acceleration: 1600, moveSpeed: 282,
     reload: 0.25, projectileSpeed: 850, projectileLife: 1.45, damage: 9.5, projectileRadius: 6,
     penetration: 15, bodyDamage: 10, barrelCount: 2, barrelSpread: 0.15, barrelLength: 35,
     droneCount: 0, droneRespawn: 0
   }),
   repeater: classDef({
     id: 'repeater', label: 'Repeater', description: 'Drei kompakte Läufe bündeln Druck auf einen schmalen Bereich.', parent: 'rapid',
-    unlockLevel: 24, branch: 'rapid', maxHealth: 102, regen: 2, acceleration: 1640, moveSpeed: 286,
+    unlockLevel: 15, branch: 'rapid', maxHealth: 102, regen: 2, acceleration: 1640, moveSpeed: 286,
     reload: 0.34, projectileSpeed: 835, projectileLife: 1.45, damage: 8, projectileRadius: 6,
     penetration: 14, bodyDamage: 10, barrelCount: 3, barrelSpread: 0.22, barrelLength: 32,
     droneCount: 0, droneRespawn: 0
   }),
   railgun: classDef({
     id: 'railgun', label: 'Railgun', description: 'Schwerer Präzisionsschuss mit hoher Durchschlagskraft.', parent: 'sniper',
-    unlockLevel: 24, branch: 'precision', maxHealth: 92, regen: 1.6, acceleration: 1250, moveSpeed: 235,
+    unlockLevel: 15, branch: 'precision', maxHealth: 92, regen: 1.6, acceleration: 1250, moveSpeed: 235,
     reload: 1, projectileSpeed: 1420, projectileLife: 2.35, damage: 60, projectileRadius: 9,
     penetration: 78, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 62,
     droneCount: 0, droneRespawn: 0
   }),
   hunter: classDef({
     id: 'hunter', label: 'Hunter', description: 'Mobiler Präzisionstank mit schnellerer Schussfolge.', parent: 'sniper',
-    unlockLevel: 24, branch: 'precision', maxHealth: 98, regen: 1.8, acceleration: 1450, moveSpeed: 270,
+    unlockLevel: 15, branch: 'precision', maxHealth: 98, regen: 1.8, acceleration: 1450, moveSpeed: 270,
     reload: 0.5, projectileSpeed: 1100, projectileLife: 1.8, damage: 32, projectileRadius: 7,
     penetration: 36, bodyDamage: 9, barrelCount: 1, barrelSpread: 0, barrelLength: 47,
     droneCount: 0, droneRespawn: 0
   }),
   warden: classDef({
     id: 'warden', label: 'Warden', description: 'Sechs Drohnen für defensive Kontrolle und Gegenangriffe.', parent: 'drone',
-    unlockLevel: 24, branch: 'control', maxHealth: 122, regen: 2.7, acceleration: 1360, moveSpeed: 252,
+    unlockLevel: 15, branch: 'control', maxHealth: 122, regen: 2.7, acceleration: 1360, moveSpeed: 252,
     reload: 0.62, projectileSpeed: 0, projectileLife: 0, damage: 10.5, projectileRadius: 0,
     penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
     droneCount: 6, droneRespawn: 1.12
   }),
   factory: classDef({
     id: 'factory', label: 'Factory', description: 'Weniger, stärkere Drohnen mit langsamerer Wiederherstellung.', parent: 'drone',
-    unlockLevel: 24, branch: 'control', maxHealth: 130, regen: 2.9, acceleration: 1280, moveSpeed: 242,
+    unlockLevel: 15, branch: 'control', maxHealth: 130, regen: 2.9, acceleration: 1280, moveSpeed: 242,
     reload: 0.8, projectileSpeed: 0, projectileLife: 0, damage: 13, projectileRadius: 0,
     penetration: 0, bodyDamage: 13, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
     droneCount: 5, droneRespawn: 1.4
   }),
   crusher: classDef({
     id: 'crusher', label: 'Crusher', description: 'Schwerer Rammer mit hoher Haltbarkeit.', parent: 'rammer',
-    unlockLevel: 24, branch: 'impact', maxHealth: 170, regen: 3.3, acceleration: 1550, moveSpeed: 285,
+    unlockLevel: 15, branch: 'impact', maxHealth: 170, regen: 3.3, acceleration: 1550, moveSpeed: 285,
     reload: 0.5, projectileSpeed: 660, projectileLife: 1.15, damage: 8.5, projectileRadius: 8,
     penetration: 13, bodyDamage: 42, barrelCount: 1, barrelSpread: 0, barrelLength: 24,
     droneCount: 0, droneRespawn: 0
   }),
   bulwark: classDef({
     id: 'bulwark', label: 'Bulwark', description: 'Defensiver Hybrid mit hoher Haltbarkeit und schweren Projektilen.', parent: 'rammer',
-    unlockLevel: 24, branch: 'impact', maxHealth: 185, regen: 3.6, acceleration: 1320, moveSpeed: 255,
+    unlockLevel: 15, branch: 'impact', maxHealth: 185, regen: 3.6, acceleration: 1320, moveSpeed: 255,
     reload: 0.65, projectileSpeed: 640, projectileLife: 1.4, damage: 13, projectileRadius: 10,
     penetration: 22, bodyDamage: 34, barrelCount: 1, barrelSpread: 0, barrelLength: 22,
     droneCount: 0, droneRespawn: 0
   }),
   storm: classDef({
     id: 'storm', label: 'Storm', description: 'Vier Läufe bilden eine breite, aber abwehrbare Kugelwand.', parent: 'twin',
-    unlockLevel: 38, branch: 'rapid', maxHealth: 108, regen: 2.2, acceleration: 1550, moveSpeed: 276,
+    unlockLevel: 28, branch: 'rapid', maxHealth: 108, regen: 2.2, acceleration: 1550, moveSpeed: 276,
     reload: 0.26, projectileSpeed: 860, projectileLife: 1.35, damage: 6, projectileRadius: 6,
     penetration: 12, bodyDamage: 10, barrelCount: 4, barrelSpread: 0.3, barrelLength: 34,
     droneCount: 0, droneRespawn: 0
   }),
   gatling: classDef({
     id: 'gatling', label: 'Gatling', description: 'Sechs leichte Läufe liefern konzentriertes Dauerfeuer.', parent: 'repeater',
-    unlockLevel: 38, branch: 'rapid', maxHealth: 106, regen: 2.1, acceleration: 1520, moveSpeed: 278,
+    unlockLevel: 28, branch: 'rapid', maxHealth: 106, regen: 2.1, acceleration: 1520, moveSpeed: 278,
     reload: 0.28, projectileSpeed: 875, projectileLife: 1.3, damage: 4.3, projectileRadius: 5.5,
     penetration: 10, bodyDamage: 10, barrelCount: 6, barrelSpread: 0.42, barrelLength: 31,
     droneCount: 0, droneRespawn: 0
   }),
   lancer: classDef({
     id: 'lancer', label: 'Lancer', description: 'Extremer Einzelschuss mit langer Vorbereitung.', parent: 'railgun',
-    unlockLevel: 38, branch: 'precision', maxHealth: 86, regen: 1.45, acceleration: 1150, moveSpeed: 222,
+    unlockLevel: 28, branch: 'precision', maxHealth: 86, regen: 1.45, acceleration: 1150, moveSpeed: 222,
     reload: 1.3, projectileSpeed: 1640, projectileLife: 2.65, damage: 82, projectileRadius: 10,
     penetration: 112, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 70,
     droneCount: 0, droneRespawn: 0
   }),
   phantom: classDef({
     id: 'phantom', label: 'Phantom', description: 'Schneller Final-Sniper für Bewegung, Winkel und präzise Picks.', parent: 'hunter',
-    unlockLevel: 38, branch: 'precision', maxHealth: 90, regen: 1.55, acceleration: 1380, moveSpeed: 260,
+    unlockLevel: 28, branch: 'precision', maxHealth: 90, regen: 1.55, acceleration: 1380, moveSpeed: 260,
     reload: 0.62, projectileSpeed: 1500, projectileLife: 2.25, damage: 50, projectileRadius: 8,
     penetration: 72, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 58,
     droneCount: 0, droneRespawn: 0
   }),
   overseer: classDef({
     id: 'overseer', label: 'Overseer', description: 'Acht leichtere Drohnen für anspruchsvolle Schwarmkontrolle.', parent: 'warden',
-    unlockLevel: 38, branch: 'control', maxHealth: 128, regen: 3, acceleration: 1320, moveSpeed: 246,
+    unlockLevel: 28, branch: 'control', maxHealth: 128, regen: 3, acceleration: 1320, moveSpeed: 246,
     reload: 0.58, projectileSpeed: 0, projectileLife: 0, damage: 12, projectileRadius: 0,
     penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
     droneCount: 8, droneRespawn: 0.88
   }),
   carrier: classDef({
     id: 'carrier', label: 'Carrier', description: 'Sechs schwere Drohnen für langsamen, massiven Flächendruck.', parent: 'factory',
-    unlockLevel: 38, branch: 'control', maxHealth: 150, regen: 3.4, acceleration: 1180, moveSpeed: 230,
+    unlockLevel: 28, branch: 'control', maxHealth: 150, regen: 3.4, acceleration: 1180, moveSpeed: 230,
     reload: 0.85, projectileSpeed: 0, projectileLife: 0, damage: 16, projectileRadius: 0,
     penetration: 0, bodyDamage: 15, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
     droneCount: 6, droneRespawn: 1.5
   }),
   juggernaut: classDef({
     id: 'juggernaut', label: 'Juggernaut', description: 'Extrem widerstandsfähiger Nahkämpfer mit kurzer Reichweite.', parent: 'crusher',
-    unlockLevel: 38, branch: 'impact', maxHealth: 215, regen: 4, acceleration: 1350, moveSpeed: 255,
+    unlockLevel: 28, branch: 'impact', maxHealth: 215, regen: 4, acceleration: 1350, moveSpeed: 255,
     reload: 0.62, projectileSpeed: 620, projectileLife: 1, damage: 8, projectileRadius: 9,
     penetration: 13, bodyDamage: 60, barrelCount: 1, barrelSpread: 0, barrelLength: 21,
     droneCount: 0, droneRespawn: 0
   }),
   fortress: classDef({
     id: 'fortress', label: 'Fortress', description: 'Langsamer Defensivanker mit maximaler Haltbarkeit und schweren Schüssen.', parent: 'bulwark',
-    unlockLevel: 38, branch: 'impact', maxHealth: 250, regen: 4.8, acceleration: 1050, moveSpeed: 225,
+    unlockLevel: 28, branch: 'impact', maxHealth: 250, regen: 4.8, acceleration: 1050, moveSpeed: 225,
     reload: 0.75, projectileSpeed: 600, projectileLife: 1.5, damage: 16, projectileRadius: 11,
     penetration: 28, bodyDamage: 45, barrelCount: 1, barrelSpread: 0, barrelLength: 20,
     droneCount: 0, droneRespawn: 0
   }),
   flanker: classDef({
     id: 'flanker', label: 'Flanker', description: 'Ein Lauf nach vorn, einer nach hinten – Druck und Rückendeckung zugleich.', parent: 'rapid',
-    unlockLevel: 24, branch: 'rapid', maxHealth: 103, regen: 2.05, acceleration: 1620, moveSpeed: 288,
+    unlockLevel: 15, branch: 'rapid', maxHealth: 103, regen: 2.05, acceleration: 1620, moveSpeed: 288,
     reload: 0.24, projectileSpeed: 845, projectileLife: 1.45, damage: 11, projectileRadius: 6,
     penetration: 15, bodyDamage: 10, barrelCount: 2, barrelSpread: 0, barrelLength: 34,
     barrelAngles: [0, Math.PI], droneCount: 0, droneRespawn: 0
   }),
   octo: classDef({
     id: 'octo', label: 'Octo', description: 'Acht Läufe decken jede Richtung ab – niemand flankiert dich.', parent: 'flanker',
-    unlockLevel: 38, branch: 'rapid', maxHealth: 112, regen: 2.3, acceleration: 1500, moveSpeed: 268,
+    unlockLevel: 28, branch: 'rapid', maxHealth: 112, regen: 2.3, acceleration: 1500, moveSpeed: 268,
     reload: 0.3, projectileSpeed: 855, projectileLife: 1.35, damage: 6.5, projectileRadius: 5.5,
     penetration: 12, bodyDamage: 11, barrelCount: 8, barrelSpread: 0, barrelLength: 32,
     barrelAngles: [0, Math.PI / 4, Math.PI / 2, Math.PI * 3 / 4, Math.PI, -Math.PI * 3 / 4, -Math.PI / 2, -Math.PI / 4],
@@ -279,44 +316,173 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
   }),
   arbalest: classDef({
     id: 'arbalest', label: 'Arbalest', description: 'Zwei parallele Präzisionsläufe für doppelten Druck auf Distanz.', parent: 'sniper',
-    unlockLevel: 24, branch: 'precision', maxHealth: 96, regen: 1.8, acceleration: 1380, moveSpeed: 246,
+    unlockLevel: 15, branch: 'precision', maxHealth: 96, regen: 1.8, acceleration: 1380, moveSpeed: 246,
     reload: 0.75, projectileSpeed: 1150, projectileLife: 1.9, damage: 26, projectileRadius: 7,
     penetration: 40, bodyDamage: 9, barrelCount: 2, barrelSpread: 0.09, barrelLength: 50,
     droneCount: 0, droneRespawn: 0
   }),
   deadeye: classDef({
     id: 'deadeye', label: 'Deadeye', description: 'Vollstrecker: Doppelläufe mit Bonusschaden auf schwer verwundete Ziele.', parent: 'arbalest',
-    unlockLevel: 38, branch: 'precision', maxHealth: 92, regen: 1.6, acceleration: 1320, moveSpeed: 240,
+    unlockLevel: 28, branch: 'precision', maxHealth: 92, regen: 1.6, acceleration: 1320, moveSpeed: 240,
     reload: 0.8, projectileSpeed: 1350, projectileLife: 2.1, damage: 34, projectileRadius: 8,
     penetration: 60, bodyDamage: 8, barrelCount: 2, barrelSpread: 0.07, barrelLength: 56,
     droneCount: 0, droneRespawn: 0
   }),
   guardian: classDef({
     id: 'guardian', label: 'Guardian', description: 'Fünf zähe Schildwächter-Drohnen in engem Verteidigungsorbit.', parent: 'drone',
-    unlockLevel: 24, branch: 'control', maxHealth: 126, regen: 2.8, acceleration: 1300, moveSpeed: 250,
+    unlockLevel: 15, branch: 'control', maxHealth: 126, regen: 2.8, acceleration: 1300, moveSpeed: 250,
     reload: 0.7, projectileSpeed: 0, projectileLife: 0, damage: 11, projectileRadius: 0,
     penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
     droneCount: 5, droneRespawn: 1.3
   }),
   hive: classDef({
     id: 'hive', label: 'Hive', description: 'Zehn Mikro-Drohnen mit blitzschnellem Nachschub überfluten das Feld.', parent: 'guardian',
-    unlockLevel: 38, branch: 'control', maxHealth: 132, regen: 3.1, acceleration: 1280, moveSpeed: 242,
+    unlockLevel: 28, branch: 'control', maxHealth: 132, regen: 3.1, acceleration: 1280, moveSpeed: 242,
     reload: 0.55, projectileSpeed: 0, projectileLife: 0, damage: 6.5, projectileRadius: 0,
     penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
     droneCount: 10, droneRespawn: 0.55
   }),
   blitz: classDef({
     id: 'blitz', label: 'Blitz', description: 'Leichter Sturm-Rammer: Körperschaden wächst mit deinem Tempo.', parent: 'rammer',
-    unlockLevel: 24, branch: 'impact', maxHealth: 150, regen: 3, acceleration: 1850, moveSpeed: 320,
+    unlockLevel: 15, branch: 'impact', maxHealth: 150, regen: 3, acceleration: 1850, moveSpeed: 320,
     reload: 0.5, projectileSpeed: 680, projectileLife: 1.1, damage: 8, projectileRadius: 7,
     penetration: 12, bodyDamage: 30, barrelCount: 1, barrelSpread: 0, barrelLength: 25,
     droneCount: 0, droneRespawn: 0
   }),
   comet: classDef({
     id: 'comet', label: 'Comet', description: 'Der schnellste Tank der Arena – bei Vollgas verheerender Aufprall.', parent: 'blitz',
-    unlockLevel: 38, branch: 'impact', maxHealth: 175, regen: 3.6, acceleration: 1950, moveSpeed: 340,
+    unlockLevel: 28, branch: 'impact', maxHealth: 175, regen: 3.6, acceleration: 1950, moveSpeed: 340,
     reload: 0.55, projectileSpeed: 660, projectileLife: 1, damage: 7.5, projectileRadius: 8,
     penetration: 12, bodyDamage: 44, barrelCount: 1, barrelSpread: 0, barrelLength: 22,
+    droneCount: 0, droneRespawn: 0
+  }),
+  // ------------------------------------------------------------------
+  // Klassen 4.0, Welle A - Apex-Klassen der Altfamilien (L42)
+  // ------------------------------------------------------------------
+  vortex: classDef({
+    id: 'vortex', label: 'Vortex', description: 'Fünf Läufe im Fächer, Momentum ohne Ende – die wandelnde Schrotwand.', parent: 'rapid',
+    unlockLevel: 42, branch: 'rapid', apexOf: 'rapid', maxHealth: 118, regen: 2.4, acceleration: 1580, moveSpeed: 280,
+    // 5 Laeufe zwingen den Einzelschaden nach unten: 5,2 / 0,27 x 5 = 96 DPS,
+    // knapp unter dem Korridor-Deckel von 100 - der Test hat die erste
+    // Fassung (161,9) zu Recht kassiert.
+    reload: 0.27, projectileSpeed: 865, projectileLife: 1.35, damage: 5.2, projectileRadius: 6,
+    penetration: 13, bodyDamage: 11, barrelCount: 5, barrelSpread: 0.55, barrelLength: 33,
+    droneCount: 0, droneRespawn: 0
+  }),
+  eclipse: classDef({
+    id: 'eclipse', label: 'Eclipse', description: 'Ein Schuss wie eine Finsternis – wer ihn sieht, sieht ihn zu spät.', parent: 'sniper',
+    unlockLevel: 42, branch: 'precision', apexOf: 'precision', maxHealth: 90, regen: 1.5, acceleration: 1220, moveSpeed: 230,
+    reload: 1.15, projectileSpeed: 1560, projectileLife: 2.5, damage: 74, projectileRadius: 10,
+    penetration: 100, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 66,
+    droneCount: 0, droneRespawn: 0
+  }),
+  sovereign: classDef({
+    id: 'sovereign', label: 'Sovereign', description: 'Sieben Wächter, ein Wille – der Hofstaat regiert das Feld.', parent: 'drone',
+    unlockLevel: 42, branch: 'control', apexOf: 'control', maxHealth: 142, regen: 3.2, acceleration: 1240, moveSpeed: 238,
+    reload: 0.6, projectileSpeed: 0, projectileLife: 0, damage: 14, projectileRadius: 0,
+    penetration: 0, bodyDamage: 13, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
+    droneCount: 7, droneRespawn: 1
+  }),
+  leviathan: classDef({
+    id: 'leviathan', label: 'Leviathan', description: 'Eine Wand aus Stahl, die auf dich zurollt.', parent: 'rammer',
+    // Erste Fassung: 280 HP / 5,2 Regen -> Haltbarkeit 332, Korridor-Deckel
+    // ist 310 (Fortress-Niveau). Der Apex soll die Familie kroenen, nicht den
+    // Korridor sprengen.
+    unlockLevel: 42, branch: 'impact', apexOf: 'impact', maxHealth: 262, regen: 4.8, acceleration: 1250, moveSpeed: 245,
+    reload: 0.8, projectileSpeed: 615, projectileLife: 1.4, damage: 18, projectileRadius: 12,
+    penetration: 30, bodyDamage: 63, barrelCount: 1, barrelSpread: 0, barrelLength: 20,
+    droneCount: 0, droneRespawn: 0
+  }),
+  // ------------------------------------------------------------------
+  // Klassen 4.0, Welle A - Familie SPECTER (Tarnung): Hinterhalt und Geduld.
+  // Reichweite bewusst im Nicht-Precision-Korridor (<= 1300): Tarnung kauft
+  // Naehe und Winkel, nicht Distanz - ein unsichtbarer Sniper waere Frust.
+  // ------------------------------------------------------------------
+  specter: classDef({
+    id: 'specter', label: 'Specter', description: 'Wer nicht schießt, verschwindet – und schlägt aus dem Nichts zu.', parent: 'core',
+    unlockLevel: 5, branch: 'specter', maxHealth: 96, regen: 1.9, acceleration: 1600, moveSpeed: 288,
+    reload: 0.55, projectileSpeed: 900, projectileLife: 1.4, damage: 24, projectileRadius: 7,
+    penetration: 26, bodyDamage: 12, barrelCount: 1, barrelSpread: 0, barrelLength: 40,
+    droneCount: 0, droneRespawn: 0
+  }),
+  wraith: classDef({
+    id: 'wraith', label: 'Wraith', description: 'Der schnelle Schleicher: flinker enttarnt, flinker verschwunden.', parent: 'specter',
+    unlockLevel: 15, branch: 'specter', maxHealth: 94, regen: 1.85, acceleration: 1680, moveSpeed: 300,
+    reload: 0.42, projectileSpeed: 880, projectileLife: 1.4, damage: 18, projectileRadius: 6,
+    penetration: 20, bodyDamage: 12, barrelCount: 1, barrelSpread: 0, barrelLength: 36,
+    droneCount: 0, droneRespawn: 0
+  }),
+  shade: classDef({
+    id: 'shade', label: 'Shade', description: 'Der schwere Schatten: ein Schuss, der sitzt.', parent: 'specter',
+    unlockLevel: 15, branch: 'specter', maxHealth: 100, regen: 2, acceleration: 1480, moveSpeed: 262,
+    reload: 0.78, projectileSpeed: 1000, projectileLife: 1.25, damage: 40, projectileRadius: 8,
+    penetration: 44, bodyDamage: 11, barrelCount: 1, barrelSpread: 0, barrelLength: 48,
+    droneCount: 0, droneRespawn: 0
+  }),
+  mirage: classDef({
+    id: 'mirage', label: 'Mirage', description: 'Zwei Stiche aus dem Dunkel – das Trugbild jagt in Paaren.', parent: 'wraith',
+    unlockLevel: 28, branch: 'specter', maxHealth: 98, regen: 1.9, acceleration: 1620, moveSpeed: 292,
+    reload: 0.5, projectileSpeed: 920, projectileLife: 1.4, damage: 17, projectileRadius: 6,
+    penetration: 22, bodyDamage: 12, barrelCount: 2, barrelSpread: 0.12, barrelLength: 38,
+    droneCount: 0, droneRespawn: 0
+  }),
+  revenant: classDef({
+    id: 'revenant', label: 'Revenant', description: 'Rammt aus der Unsichtbarkeit – kehrt zurück, wenn niemand hinsieht.', parent: 'shade',
+    unlockLevel: 28, branch: 'specter', maxHealth: 150, regen: 2.9, acceleration: 1780, moveSpeed: 305,
+    reload: 0.6, projectileSpeed: 720, projectileLife: 1.2, damage: 9, projectileRadius: 7,
+    penetration: 12, bodyDamage: 38, barrelCount: 1, barrelSpread: 0, barrelLength: 26,
+    droneCount: 0, droneRespawn: 0
+  }),
+  eidolon: classDef({
+    id: 'eidolon', label: 'Eidolon', description: 'Das Gespenst der Arena: ganz verschwinden, vernichtend erscheinen.', parent: 'specter',
+    unlockLevel: 42, branch: 'specter', apexOf: 'specter', maxHealth: 104, regen: 2.1, acceleration: 1650, moveSpeed: 296,
+    reload: 0.6, projectileSpeed: 1060, projectileLife: 1.15, damage: 46, projectileRadius: 8,
+    penetration: 50, bodyDamage: 14, barrelCount: 1, barrelSpread: 0, barrelLength: 52,
+    droneCount: 0, droneRespawn: 0
+  }),
+  // ------------------------------------------------------------------
+  // Klassen 4.0, Welle A - Familie TEMPEST (Hitze): Burst-Fenster und Risiko
+  // ------------------------------------------------------------------
+  tempest: classDef({
+    id: 'tempest', label: 'Tempest', description: 'Feuern heizt den Reaktor: mehr Schaden, bis er glüht.', parent: 'core',
+    unlockLevel: 5, branch: 'tempest', maxHealth: 116, regen: 2.3, acceleration: 1470, moveSpeed: 264,
+    reload: 0.34, projectileSpeed: 815, projectileLife: 1.5, damage: 13, projectileRadius: 7,
+    penetration: 18, bodyDamage: 14, barrelCount: 1, barrelSpread: 0, barrelLength: 34,
+    droneCount: 0, droneRespawn: 0
+  }),
+  scorch: classDef({
+    id: 'scorch', label: 'Scorch', description: 'Brennt schnell heiß: dichter Feuerteppich in kurzen Fenstern.', parent: 'tempest',
+    unlockLevel: 15, branch: 'tempest', maxHealth: 110, regen: 2.2, acceleration: 1520, moveSpeed: 274,
+    reload: 0.26, projectileSpeed: 800, projectileLife: 1.4, damage: 9.5, projectileRadius: 6,
+    penetration: 14, bodyDamage: 13, barrelCount: 2, barrelSpread: 0.18, barrelLength: 33,
+    droneCount: 0, droneRespawn: 0
+  }),
+  surge: classDef({
+    id: 'surge', label: 'Surge', description: 'Ein schwerer Puls je Ladung – Hitze als Hammer.', parent: 'tempest',
+    unlockLevel: 15, branch: 'tempest', maxHealth: 124, regen: 2.5, acceleration: 1400, moveSpeed: 252,
+    reload: 0.52, projectileSpeed: 760, projectileLife: 1.6, damage: 22, projectileRadius: 9,
+    penetration: 26, bodyDamage: 15, barrelCount: 1, barrelSpread: 0, barrelLength: 38,
+    droneCount: 0, droneRespawn: 0
+  }),
+  inferno: classDef({
+    id: 'inferno', label: 'Inferno', description: 'Drei Kehlen, ein Feuersturm – bis die Sicherung kommt.', parent: 'scorch',
+    unlockLevel: 28, branch: 'tempest', maxHealth: 114, regen: 2.3, acceleration: 1490, moveSpeed: 268,
+    reload: 0.29, projectileSpeed: 810, projectileLife: 1.4, damage: 7.5, projectileRadius: 6,
+    penetration: 12, bodyDamage: 13, barrelCount: 3, barrelSpread: 0.3, barrelLength: 32,
+    droneCount: 0, droneRespawn: 0
+  }),
+  overload: classDef({
+    id: 'overload', label: 'Overload', description: 'Überladen bis an die Kante: riesige Projektile, kurze Lunte.', parent: 'surge',
+    unlockLevel: 28, branch: 'tempest', maxHealth: 130, regen: 2.6, acceleration: 1360, moveSpeed: 246,
+    reload: 0.6, projectileSpeed: 740, projectileLife: 1.7, damage: 30, projectileRadius: 11,
+    penetration: 34, bodyDamage: 16, barrelCount: 1, barrelSpread: 0, barrelLength: 40,
+    droneCount: 0, droneRespawn: 0
+  }),
+  cataclysm: classDef({
+    id: 'cataclysm', label: 'Cataclysm', description: 'Wenn der Reaktor singt, brennt die halbe Arena.', parent: 'tempest',
+    unlockLevel: 42, branch: 'tempest', apexOf: 'tempest', maxHealth: 128, regen: 2.7, acceleration: 1430, moveSpeed: 258,
+    reload: 0.4, projectileSpeed: 806, projectileLife: 1.6, damage: 17, projectileRadius: 9,
+    penetration: 24, bodyDamage: 15, barrelCount: 2, barrelSpread: 0.22, barrelLength: 36,
     droneCount: 0, droneRespawn: 0
   })
 };
@@ -362,8 +528,8 @@ export const GAME = {
   playerRadius: 22,
   tickRate: 40,
   snapshotRate: 30,
-  maxUpgradeLevel: 8,
-  maxLevel: 45,
+  maxUpgradeLevel: 10,
+  maxLevel: 60,
   maxPlayers: 40,
   shapeTargetCount: 250,
   respawnDelayMs: 2500,
@@ -373,7 +539,7 @@ export const GAME = {
   projectileStepDistance: 10
 } as const;
 
-export const EMPTY_UPGRADES = (): UpgradeLevels => ({ maxHealth:0, regen:0, moveSpeed:0, reload:0, damage:0, projectileSpeed:0, penetration:0, bodyDamage:0, signatureRate:0, signaturePower:0 });
+export const EMPTY_UPGRADES = (): UpgradeLevels => ({ maxHealth:0, regen:0, moveSpeed:0, reload:0, damage:0, projectileSpeed:0, penetration:0, bodyDamage:0, signatureRate:0, signaturePower:0, projectileRange:0, moduleCooldown:0 });
 export const sanitizePlayerName = (value:string):string => value.normalize('NFKC').replace(/[<>\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 18);
 export const xpThresholdForLevel = (level:number):number => { const clamped = Math.max(1, Math.min(GAME.maxLevel, Math.floor(level))); return Math.floor(58 * clamped + 15 * clamped * clamped + 0.55 * clamped * clamped * clamped); };
 export const xpAtLevelStart = (level:number):number => level <= 1 ? 0 : xpThresholdForLevel(level - 1);
@@ -386,7 +552,16 @@ export const respawnLevelFrom = (level:number):number => Math.max(1, Math.floor(
  */
 export const ACCELERATION_SCALE = 1.12;
 
-export const availableClassChoices = (current:PlayerClass, level:number):PlayerClass[] => PLAYER_CLASS_IDS.filter((id) => { const definition = CLASS_DEFINITIONS[id]; return definition.parent === current && definition.unlockLevel <= level; });
+export const availableClassChoices = (current:PlayerClass, level:number):PlayerClass[] => PLAYER_CLASS_IDS.filter((id) => {
+  if (id === current) return false;
+  const definition = CLASS_DEFINITIONS[id];
+  if (definition.unlockLevel > level) return false;
+  if (definition.parent === current) return true;
+  // Apex (L42): aus jeder Klasse der eigenen Familie erreichbar - wer bei
+  // Gatling steht, soll den Rapid-Apex nicht verpassen, nur weil sein Pfad
+  // vor drei Entscheidungen anders abgebogen ist.
+  return definition.apexOf !== undefined && definition.apexOf === CLASS_DEFINITIONS[current].branch;
+});
 export const isValidClassChoice = (current:PlayerClass, target:PlayerClass, level:number):boolean => availableClassChoices(current, level).includes(target);
 export const classAvailableAtLevel = (playerClass:PlayerClass, level:number):PlayerClass => { let current = CLASS_DEFINITIONS[playerClass]; const visited = new Set<PlayerClass>(); while (current.unlockLevel > level && current.parent) { if (visited.has(current.id)) return 'core'; visited.add(current.id); current = CLASS_DEFINITIONS[current.parent]; } return current.id; };
 

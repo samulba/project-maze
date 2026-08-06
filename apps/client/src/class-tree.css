@@ -72,10 +72,14 @@
 .branch-precision .wheel-dot { stroke: #e0a44a; }
 .branch-control .wheel-dot { stroke: #46b98d; }
 .branch-impact .wheel-dot { stroke: #d2606f; }
+.branch-specter .wheel-dot { stroke: #8f7ff0; }
+.branch-tempest .wheel-dot { stroke: #e0954e; }
 .wheel-edge.branch-rapid.on-path { stroke: #5b8cff; }
 .wheel-edge.branch-precision.on-path { stroke: #e0a44a; }
 .wheel-edge.branch-control.on-path { stroke: #46b98d; }
 .wheel-edge.branch-impact.on-path { stroke: #d2606f; }
+.wheel-edge.branch-specter.on-path { stroke: #8f7ff0; }
+.wheel-edge.branch-tempest.on-path { stroke: #e0954e; }
 
 /* Nicht mehr erreichbar: da, aber leise. Verstecken wäre falsch – man soll
    sehen, was man mit der Wahl aufgegeben hat. */

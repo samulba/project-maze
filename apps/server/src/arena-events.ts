@@ -63,7 +63,10 @@ export const GUARDIAN_UPGRADES: UpgradeLevels = {
   // Der Guardian gehört zur Control-Familie, deren Signature noch nicht steht.
   // Bis dahin wären Punkte hier wirkungslos.
   signatureRate: 0,
-  signaturePower: 0
+  signaturePower: 0,
+  // Klassen 4.0: neue Slots – der Guardian nutzt sie nicht, der Typ verlangt sie.
+  projectileRange: 0,
+  moduleCooldown: 0
 };
 
 const GUARDIAN_AGGRO_RADIUS = 760;

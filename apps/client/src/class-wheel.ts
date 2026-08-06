@@ -32,10 +32,11 @@ import {
 const NS = 'http://www.w3.org/2000/svg';
 
 /** Radien der vier Ringe in SVG-Einheiten. Das Feld ist 1000 × 1000 groß. */
-const RADIEN = [0, 148, 300, 430] as const;
+// Fuenf Ringe seit Klassen 4.0: Core, Familien (L5), L15, L28, Apex (L42).
+const RADIEN = [0, 112, 214, 322, 430] as const;
 const MITTE = 500;
 /** Knotengrößen je Ring – innen wichtiger, also größer. */
-const GROESSE = [46, 34, 24, 20] as const;
+const GROESSE = [46, 32, 24, 20, 18] as const;
 
 export interface WheelSelection {
   node: WheelNode;
