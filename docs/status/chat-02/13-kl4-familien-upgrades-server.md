@@ -1,8 +1,3 @@
-# Aktuellster Statusblock – Chat 02
-
-> Kopie von `13-kl4-familien-upgrades-server.md`. Diese Datei zeigt immer das
-> jüngste fertige Paket; die Historie steht in den nummerierten Dateien daneben.
-
 # 13 – KL4: Familien-Upgrades, Server-Seite
 
 **Branch:** `claude/chat-02-server-gameplay-w1i4o8` · **Basis:** `origin/main` @ `de7546c`

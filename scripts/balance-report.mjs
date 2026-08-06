@@ -1,5 +1,12 @@
 import { allClassBalanceMetrics } from '../packages/shared/dist/balance.js';
-import { CLASS_DEFINITIONS } from '../packages/shared/dist/index.js';
+import { CLASS_DEFINITIONS, EMPTY_UPGRADES, GAME } from '../packages/shared/dist/index.js';
+import { tunedStatsFor } from '../apps/server/dist/combat-tuning.js';
+import {
+  FAMILY_SCALING,
+  familyBuildRate,
+  impactBodyDamageBonus,
+  rapidReloadBonus
+} from '../apps/server/dist/family-upgrades.js';
 // Die Momentum-Zahlen kommen aus der Server-Schicht, nicht aus einer zweiten
 // Konstantenquelle – sonst balanciert der Report an Werten, die im Spiel nicht
 // gelten. Deshalb baut `prebalance` auch den Server.
@@ -102,6 +109,120 @@ console.log(`\nWucht steigt um ${DEFAULT_WUCHT.buildPerSecond}/s in Fahrt, faell
   + ` ${(100 / DEFAULT_WUCHT.contactDrainPerSecond).toFixed(2)} s Dauerkontakt.`);
 console.log(`Der Anteilsdeckel greift dort, wo der Aufschlag zu hart waere: Ein Kontakttick nimmt nie mehr als`);
 console.log(`${(DEFAULT_WUCHT.maxContactShare * 100).toFixed(0)} % des Maximallebens, und ein voller Anlauf verkuerzt die Zeit bis zum Tod um hoechstens ${(WUCHT_MAX_TTK_GAIN * 100).toFixed(0)} %.`);
+
+// ── Familien-Upgrades (KL4) ──────────────────────────────────────────────────
+// Kennzahl: der Grenzwert des n-ten Punktes in der Waehrung der Familie,
+// geteilt durch denselben Grenzwert beim besten Basis-Upgrade auf derselben
+// Ausgabe. Die Basiswerte kommen aus `tunedStatsFor`, nicht aus abgeschriebenen
+// Zahlen – sonst prueft der Report gegen eine zweite Wahrheit.
+const REFERENCE_POINTS = 4;
+/** Laenge des Standardgefechts, gegen das `signatureRate` bei RAPID gemessen wird. */
+const ENGAGEMENT_SECONDS = 5;
+const PROBE_CLASS = { rapid: 'storm', impact: 'rammer' };
+
+const statsWith = (playerClass, id, level) => {
+  const upgrades = EMPTY_UPGRADES();
+  upgrades[id] = level;
+  return tunedStatsFor({ playerClass, upgrades });
+};
+/** Grenzwert des n-ten Punktes eines Basis-Upgrades, gemessen an seiner Ausgabe. */
+const baseMarginal = (playerClass, id, pick, n) => {
+  const before = pick(statsWith(playerClass, id, n - 1));
+  return pick(statsWith(playerClass, id, n)) / before - 1;
+};
+const fireRateOf = (stats) => 1 / stats.reload;
+
+/** Mittleres Momentum ueber ein Gefecht, das bei 0 beginnt und in Fahrt feuert. */
+const averageMomentum = (rateLevel) => {
+  const build = familyBuildRate(30, rateLevel);
+  const secondsToFull = 100 / build;
+  return secondsToFull >= ENGAGEMENT_SECONDS
+    ? build * ENGAGEMENT_SECONDS / 2
+    : 100 * (1 - secondsToFull / (2 * ENGAGEMENT_SECONDS));
+};
+
+const familyRows = [
+  {
+    family: 'RAPID',
+    slot: 'signaturePower',
+    output: 'Feuerrate @100 Momentum',
+    base: 'reload',
+    // Feuerrate ~ 1 / (1 - Abschlag): der Deckenwert, den ein fahrender
+    // Rapid-Spieler dauerhaft haelt.
+    value: (n) => 1 / (1 - rapidReloadBonus(n)),
+    baseMarginal: (n) => baseMarginal(PROBE_CLASS.rapid, 'reload', fireRateOf, n)
+  },
+  {
+    family: 'RAPID',
+    slot: 'signatureRate',
+    output: `Feuerrate, ${ENGAGEMENT_SECONDS}-s-Gefecht ab 0`,
+    base: 'reload',
+    value: (n) => 1 / (1 - rapidReloadBonus(REFERENCE_POINTS) * averageMomentum(n) / 100),
+    baseMarginal: (n) => baseMarginal(PROBE_CLASS.rapid, 'reload', fireRateOf, n)
+  },
+  {
+    family: 'IMPACT',
+    slot: 'signaturePower',
+    output: 'Kontaktschaden vor Deckel',
+    base: 'bodyDamage',
+    value: (n) => 1 + impactBodyDamageBonus(n),
+    baseMarginal: (n) => baseMarginal(PROBE_CLASS.impact, 'bodyDamage', (stats) => stats.bodyDamage, n)
+  },
+  {
+    family: 'IMPACT',
+    slot: 'signatureRate',
+    output: 'Geladene Stoesse je Minute',
+    base: 'bodyDamage',
+    // Ein Aufprall zieht die Ladung leer; die Aufbaurate bestimmt damit direkt,
+    // wie oft ein Stoss mit voller Wucht landet.
+    value: (n) => familyBuildRate(30, n),
+    baseMarginal: (n) => baseMarginal(PROBE_CLASS.impact, 'bodyDamage', (stats) => stats.bodyDamage, n)
+  }
+];
+
+// Ein Slot ist schon dann auffaellig, wenn er auf **einer** Stufe aus dem
+// Fenster faellt – der Deckenwert allein wuerde einen toten ersten Punkt
+// verstecken.
+const verdict = (ratios) => {
+  if (ratios.some((value) => value > 1.2)) return 'DOMINANT';
+  if (ratios.some((value) => value < 0.5)) return 'TOT';
+  return 'OK';
+};
+const ratioAt = (row, n) => (row.value(n) / row.value(n - 1) - 1) / row.baseMarginal(n);
+const POINTS = [1, REFERENCE_POINTS, GAME.maxUpgradeLevel];
+
+console.log('\nFAMILIEN-UPGRADES — DOMINANZPRUEFUNG (FAMILY_UPGRADES_ENABLED)\n');
+console.log(`Grenzwert des n-ten Punktes in der Waehrung der Familie, geteilt durch denselben`);
+console.log(`Grenzwert beim besten Basis-Upgrade auf derselben Ausgabe. Der jeweils andere`);
+console.log(`Slot steht dabei auf ${REFERENCE_POINTS} Punkten.   < 0.50 TOT · 0.50–1.20 OK · > 1.20 DOMINANT\n`);
+console.log('FAMILIE    SLOT             AUSGABE                        P1     P4     P8   BASIS        URTEIL');
+console.log('─'.repeat(100));
+for (const row of familyRows) {
+  const ratios = POINTS.map((n) => ratioAt(row, n));
+  console.log([
+    row.family.padEnd(10, ' '),
+    row.slot.padEnd(16, ' '),
+    row.output.padEnd(28, ' '),
+    ...ratios.map((value) => `${value.toFixed(2)}x`.padStart(6, ' ')),
+    '  ' + row.base.padEnd(12, ' '),
+    verdict(ratios)
+  ].join(' '));
+}
+console.log('\nPRECISION  beide            — Signature steht noch nicht, Slots gesperrt');
+console.log('CONTROL    beide            — Signature steht noch nicht, Slots gesperrt');
+console.log(`\nSockel + Punkte (Variante B): RAPID ${FAMILY_SCALING.rapid.powerBase} + ${FAMILY_SCALING.rapid.powerPerPoint}/Punkt,`
+  + ` IMPACT ${FAMILY_SCALING.impact.powerBase} + ${FAMILY_SCALING.impact.powerPerPoint}/Punkt,`
+  + ` Aufbau ×(1 + ${FAMILY_SCALING.buildPerPoint}·n).`);
+console.log('Zwei Zahlen brauchen einen Satz Erklaerung:');
+console.log('• IMPACT signaturePower steht **vor** dem Anteilsdeckel. Der Deckel nimmt den');
+console.log('  Ueberschuss in genau den Duellen wieder weg, in denen er zaehlt – gegen den');
+console.log('  duennsten Gegner derselben Stufe laufen fuenf der sieben Klassen hinein');
+console.log('  (Tabelle oben). Der reale Wert liegt darunter, die Zeit bis zum Tod bleibt');
+console.log('  auf jeder Stufe innerhalb des erlaubten Viertels (Test).');
+console.log('• RAPID signatureRate misst sich an einer Ausgabe, die es nur halb trifft:');
+console.log('  Schneller volles Momentum hebt die Decke nicht, es kommt nur frueher dort an.');
+console.log('  In DPS gerechnet ist der Slot damit tot; sein Wert liegt im Wiedereinstieg');
+console.log('  nach Respawn und Deckung, den diese Kennzahl nicht sieht.');
 
 console.log('\nCORE MODULES\n');
 console.log('MODULE             ROLE        COOLDOWN   ACTIVE');

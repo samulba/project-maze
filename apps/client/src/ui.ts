@@ -27,7 +27,13 @@ const upgradeLabels: Record<UpgradeId, string> = {
   damage: 'Kugelschaden',
   projectileSpeed: 'Kugeltempo',
   penetration: 'Durchschlag',
-  bodyDamage: 'Körperschaden'
+  bodyDamage: 'Körperschaden',
+  // Platzhalter, damit `Record<UpgradeId, string>` nach der Shared-Erweiterung
+  // vollständig bleibt. Die familienabhängigen Beschriftungen (abgeleitet aus
+  // `playerClass`, wie beim Signature-Balken) und die Sperre ohne Familie
+  // liegen bei Chat 03 – deren Fassung ersetzt diese beiden Zeilen.
+  signatureRate: 'Signatur-Tempo',
+  signaturePower: 'Signatur-Stärke'
 };
 
 export class GameUI {

@@ -581,7 +581,13 @@ export class MazeGame {
   private spendBotPoints(player: GamePlayer): void {
     if (!player.bot) return;
     for (const upgrade of player.bot.upgradePath) {
-      while (player.availablePoints > 0 && player.upgrades[upgrade] < GAME.maxUpgradeLevel) this.applyUpgrade(player.id, upgrade);
+      // Der Abbruch bei Ablehnung ist keine Feinheit: Die Schleife bricht sonst
+      // nur über ihre beiden Bedingungen ab. Lehnt `applyUpgrade` ab, ohne einen
+      // Punkt zu verbrauchen – mit der Familiensperre aus KL4 ist das
+      // erreichbar –, dreht sie endlos und der Server steht.
+      while (player.availablePoints > 0 && player.upgrades[upgrade] < GAME.maxUpgradeLevel) {
+        if (!this.applyUpgrade(player.id, upgrade)) break;
+      }
       if (player.availablePoints <= 0) break;
     }
   }

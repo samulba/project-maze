@@ -1,6 +1,7 @@
 import { type PlayerClass } from '@project-maze/shared';
 import { ROOKIE_PROTECTION_LEVEL } from './bot-brain.js';
 import { tunedStatsFor } from './combat-tuning.js';
+import { familyBuildRate, familyUpgradeLevel, wuchtConfigFor } from './family-upgrades.js';
 import { MazeGame } from './game.js';
 import {
   SIGNATURE_MAX,
@@ -120,11 +121,16 @@ const setWucht = (state: SignatureState, player: RuntimePlayer, value: number): 
  * Hängt Wucht an. `enabled = false` lässt die Schicht komplett weg – der Server
  * verhält sich dann exakt wie vorher, `signature` taucht in keinem Snapshot auf
  * und der Körperschaden ist der alte.
+ *
+ * `familyUpgrades = true` (KL4) verschiebt Anlauf-Tempo und Wucht-Skalierung in
+ * die Punkte-Ökonomie (`signatureRate`/`signaturePower`). Der Anteilsdeckel
+ * `maxContactShare` bleibt davon unberührt – er ist absolut.
  */
 export function tuneImpactSignature<T extends MazeGame>(
   game: T,
   enabled = false,
-  config: WuchtConfig = DEFAULT_WUCHT
+  config: WuchtConfig = DEFAULT_WUCHT,
+  familyUpgrades = false
 ): T {
   if (!enabled) return game;
   const internals = game as unknown as ImpactInternals;
@@ -147,8 +153,11 @@ export function tuneImpactSignature<T extends MazeGame>(
     const inFamily = isImpactClass(player.playerClass);
     let rate = 0;
     if (inFamily && !player.dead) {
+      const build = familyUpgrades
+        ? familyBuildRate(config.buildPerSecond, familyUpgradeLevel(player.upgrades, 'signatureRate'))
+        : config.buildPerSecond;
       rate = isMovingFast(player, tunedStatsFor(player).moveSpeed, config.moveThreshold)
-        ? config.buildPerSecond
+        ? build
         : -config.decayPerSecond;
     }
     advanceSignature(wucht, player, dt, inFamily, rate);
@@ -192,9 +201,13 @@ export function tuneImpactSignature<T extends MazeGame>(
       return;
     }
     spent.add(attackerId);
+    // Kontakte sind selten – hier darf die Konfiguration je Aufprall entstehen,
+    // anders als im Tick. `attacker` steht: Ohne ihn wäre `value` 0 und der
+    // Zweig oben hätte schon abgebogen.
+    const effective = familyUpgrades && attacker ? wuchtConfigFor(config, attacker.upgrades) : config;
     originalDamagePlayer(
       target,
-      wuchtContactDamage(damage, value, target.maxHealth, target.level, config),
+      wuchtContactDamage(damage, value, target.maxHealth, target.level, effective),
       attackerId,
       now
     );

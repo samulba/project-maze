@@ -45,6 +45,7 @@ import {
 } from './debug-lab.js';
 import { DEFAULT_BOT_PACING, tuneBotBrain } from './bot-brain.js';
 import { tuneDrones } from './drone-tuning.js';
+import { tuneFamilyUpgrades, type SignatureFamily } from './family-upgrades.js';
 import { MazeGame } from './game.js';
 import { tuneInputAck } from './input-ack.js';
 import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system.js';
@@ -61,8 +62,8 @@ import {
   profileUpdateHandler,
   tunePersistence
 } from './persistence.js';
-import { tuneRapidBots, tuneRapidSignature } from './signature-rapid.js';
-import { tuneImpactSignature } from './signature-impact.js';
+import { DEFAULT_MOMENTUM, tuneRapidBots, tuneRapidSignature } from './signature-rapid.js';
+import { DEFAULT_WUCHT, tuneImpactSignature } from './signature-impact.js';
 import { hardenSimulation } from './simulation-hardening.js';
 import { tuneSpectator } from './spectator.js';
 import { tuneSnapshotEncoding } from './snapshot-encoding.js';
@@ -131,6 +132,26 @@ const SIGNATURE_RAPID_ENABLED = process.env.SIGNATURE_RAPID_ENABLED === 'true';
  */
 const SIGNATURE_IMPACT_ENABLED = process.env.SIGNATURE_IMPACT_ENABLED === 'true';
 /**
+ * Klassen 3.0, KL4: Familien-Upgrades. Die beiden Slots `signatureRate` und
+ * `signaturePower` werden kaufbar, und die Signature-Stärke wandert aus dem
+ * Festwert in die Punkte-Ökonomie (Sockel + Punkte). Standardmäßig aus – ohne
+ * den Schalter ist kein Slot kaufbar und beide Signatures rechnen mit ihren
+ * bisherigen Festwerten.
+ */
+const FAMILY_UPGRADES_ENABLED = process.env.FAMILY_UPGRADES_ENABLED === 'true';
+/**
+ * Für welche Familien die Slots wirklich kaufbar sind: nur die, deren Signature
+ * gebaut **und** eingeschaltet ist. Ein Slot ohne laufende Signature wäre ein
+ * Punktegrab – der Spieler zahlt, und nichts passiert. Precision und Control
+ * kommen automatisch dazu, sobald ihre Signature hier eingehängt wird.
+ */
+const FAMILY_UPGRADE_BRANCHES: SignatureFamily[] = FAMILY_UPGRADES_ENABLED
+  ? ([
+      SIGNATURE_RAPID_ENABLED ? 'rapid' : null,
+      SIGNATURE_IMPACT_ENABLED ? 'impact' : null
+    ].filter(Boolean) as SignatureFamily[])
+  : [];
+/**
  * Rate-Limits und Missbrauchsschutz. Standardmäßig an; `false` schaltet sie
  * vollständig ab (dann verhält sich der Server wie vor dem Modul).
  */
@@ -178,12 +199,23 @@ const encodedGame = tuneSnapshotEncoding(
                             // der Cooldown, den die Signature verkürzt.
                             tuneImpactSignature(
                               tuneRapidSignature(
-                                tuneCombatScaling(
-                                  tuneSpectator(hardenSimulation(new MazeGame(BOT_COUNT)), SPECTATOR_ENABLED)
+                                // Familiensperre direkt außerhalb des
+                                // Kampf-Tunings: Das ersetzt `applyUpgrade`
+                                // vollständig, weiter innen ginge die Sperre
+                                // kommentarlos verloren.
+                                tuneFamilyUpgrades(
+                                  tuneCombatScaling(
+                                    tuneSpectator(hardenSimulation(new MazeGame(BOT_COUNT)), SPECTATOR_ENABLED)
+                                  ),
+                                  FAMILY_UPGRADE_BRANCHES
                                 ),
-                                SIGNATURE_RAPID_ENABLED
+                                SIGNATURE_RAPID_ENABLED,
+                                DEFAULT_MOMENTUM,
+                                FAMILY_UPGRADES_ENABLED
                               ),
-                              SIGNATURE_IMPACT_ENABLED
+                              SIGNATURE_IMPACT_ENABLED,
+                              DEFAULT_WUCHT,
+                              FAMILY_UPGRADES_ENABLED
                             )
                           )
                         ),
@@ -457,7 +489,7 @@ app.get('/health', (_request: Request, response: Response) => {
     // Jedes Flag, das Spielgefühl verändert, gehört hier hinein: /health ist das
     // Testprotokoll, wenn Sam sagt „geht nicht". Die Signatures fehlten – genau
     // die, deren Wirkung gerade beurteilt werden soll.
-    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED },
+    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES },
     persistence: persistenceStats(game),
     auth: authStatus(),
     clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),
