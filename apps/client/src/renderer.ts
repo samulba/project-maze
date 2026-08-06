@@ -559,6 +559,7 @@ export class GameRenderer {
   }
 
   private render(delta:number):void{
+    this.ensureSize();
     this.time+=delta;
     const now=performance.now();
     const self=this.selfId?this.playerViews.get(this.selfId):undefined;
@@ -788,6 +789,31 @@ export class GameRenderer {
     const ratio=window.devicePixelRatio||1;
     if(Math.abs(ratio-this.lastDeviceRatio)<.01)return;
     this.lastDeviceRatio=ratio;
+    this.syncSize();
+  }
+
+  /**
+   * Prüft VOR jedem Zeichnen, ob die Zeichenfläche noch zum sichtbaren Bereich
+   * passt – und zieht sie sonst sofort nach.
+   *
+   * Grund: Sam berichtet Ränder *beim Wechsel* des Vollbildmodus. Die
+   * Ereignisse, an denen `syncSize` bisher allein hing (`resize`,
+   * `fullscreenchange`, `visualViewport`), kommen nicht überall in derselben
+   * Reihenfolge und nicht überall vor dem nächsten Bild. Genau daraus entsteht
+   * ein Frame mit alter Geometrie: das Fenster ist schon breit, die Maske noch
+   * schmal.
+   *
+   * Mit dieser Prüfung ist die Reihenfolge egal. **Kein Bild wird mehr mit
+   * veralteten Maßen gezeichnet**, weil jedes Bild vorher nachsieht – auch
+   * wenn gar kein Ereignis ankommt. Es sind zwei Zahlenvergleiche je Frame;
+   * gearbeitet wird nur, wenn sich wirklich etwas geändert hat.
+   */
+  private ensureSize():void{
+    if(!this.initialized)return;
+    const vv=window.visualViewport;
+    const width=Math.max(1,Math.round(vv?.width??window.innerWidth));
+    const height=Math.max(1,Math.round(vv?.height??window.innerHeight));
+    if(this.app.screen.width===width&&this.app.screen.height===height)return;
     this.syncSize();
   }
 

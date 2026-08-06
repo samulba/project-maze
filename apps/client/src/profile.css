@@ -1,32 +1,13 @@
 /*
- * Profil-Panel auf dem Startscreen (K2).
+ * Profil und Achievements (K2, seit Befund 2 eigene Unterseiten).
  *
- * Gleiche Formensprache wie die Bestenliste daneben – aufklappbar, dieselben
- * Kanten, dieselbe Kopfzeile. Flächen sind bewusst offen statt schwer
- * (Design-Richtung „klar & freundlich-technisch", MASTERPLAN 06.08.).
+ * Der Aufklapper ist weg – die Seite selbst ist der Rahmen. Übrig bleiben die
+ * Inhalte: Profilkarte, Bestwerte und die Galerie. Flächen bewusst offen statt
+ * schwer.
  */
-.start-profile {
-  width: min(430px, 100%);
-  margin-bottom: 10px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--surface);
-  backdrop-filter: blur(14px);
-}
+.start-profile,
+.start-achievements { width: 100%; }
 .start-profile[hidden] { display: none; }
-.start-profile > summary {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 13px 15px;
-  cursor: pointer;
-  list-style: none;
-}
-.start-profile > summary::-webkit-details-marker { display: none; }
-.start-profile > summary strong { color: var(--text); font-size: 10px; font-weight: 850; letter-spacing: .16em; }
-.start-profile > summary small { color: var(--faint); font-size: 9px; font-weight: 800; letter-spacing: .1em; }
-.start-profile-body { padding: 0 15px 15px; }
 
 .profile-guest,
 .profile-note {
@@ -124,10 +105,12 @@
 .profile-section small { color: var(--muted); font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .profile-badges { display: grid; gap: 5px; }
 .profile-badge {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: 'zeichen name' 'zeichen wie';
   align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
+  gap: 1px 8px;
+  padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: 9px;
   color: var(--faint);
@@ -152,7 +135,17 @@
 @media (max-width: 900px) {
   .profile-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+/* Auf der eigenen Seite darf die Galerie die volle Breite nutzen. */
 @media (min-width: 901px) {
-  .start-profile { width: 100%; }
-  .start-profile > summary { cursor: default; }
+  .profile-badges { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Bedingung unter dem Namen – gesperrt wie freigeschaltet dieselbe Zeile. */
+.profile-badge > i { grid-area: zeichen; }
+.profile-badge > span { grid-area: name; }
+.profile-badge > small {
+  grid-area: wie;
+  color: var(--faint);
+  font-size: 9px;
+  line-height: 1.4;
 }

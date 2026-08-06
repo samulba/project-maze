@@ -10,10 +10,18 @@
 /* ------------------------------------------------------------------ *
  * Dropdowns
  * ------------------------------------------------------------------ */
-/* Gilt für beide Auswahlfelder auf dem Startscreen: Loadout und Grafikstufe. */
+/* Gilt für alle Auswahlfelder auf dem Startscreen: Loadout, Grafikstufe und
+   Sichtfeld. Seit Befund 2 stehen die letzten beiden in `.setting-row` auf der
+   Einstellungsseite statt im alten Aufklapper. */
 .core-loadout-fields label,
+.setting-select,
 .start-quality { position: relative; }
+.setting-select { display: block; }
+/* Ohne Breitenangabe misst sich das Feld am Inhalt – dann steht der eigene
+   Pfeil neben dem Kasten statt darin. */
+.setting-select select { width: 100%; }
 .core-loadout-fields select,
+.setting-select select,
 .start-quality select {
   appearance: none;
   -webkit-appearance: none;
@@ -32,8 +40,10 @@
   transition: border-color .18s, box-shadow .18s;
 }
 .core-loadout-fields select:hover,
+.setting-select select:hover,
 .start-quality select:hover { border-color: var(--line-strong); }
 .core-loadout-fields select:focus-visible,
+.setting-select select:focus-visible,
 .start-quality select:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 70%, transparent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
@@ -42,6 +52,7 @@
 /* .start-quality kam mit 03s Qualitaetsstufen dazu und bleibt erhalten – nur die
    Farbe geht auf den Stand vor dem Diep-Umbau zurueck. */
 .core-loadout-fields option,
+.setting-select option,
 .start-quality option { color: var(--text); background: #0d101a; }
 
 /*
@@ -138,3 +149,19 @@
   background: color-mix(in srgb, var(--text) 3.5%, transparent);
 }
 .upgrade-list button.locked kbd { opacity: .7; }
+
+/* Auf der Einstellungsseite steht das Feld allein statt unter einem Label –
+   der Pfeil sitzt deshalb an ihm selbst und mittig. */
+.setting-select::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--faint);
+  border-bottom: 2px solid var(--faint);
+  rotate: 45deg;
+  translate: 0 -70%;
+  pointer-events: none;
+}

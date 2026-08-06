@@ -6,7 +6,7 @@
     "apps/server"
   ],
   "aktualisiert": "2026-08-06",
-  "latest": "14-raender-messung-zuschauen.md",
+  "latest": "15-startscreen-navigation.md",
   "offene_pakete": 1,
   "pakete": [
     {
@@ -152,14 +152,25 @@
       "datei": "14-raender-messung-zuschauen.md",
       "branch": "claude/chat-03-client-ux-mazers-yu57ca",
       "basis": "main@c9aeb2b",
-      "status": "offen",
+      "status": "in main",
       "tests": "27 neu / 666 gesamt, 24 Viewport-Uebergaenge im Browser gemessen, Death-Screen beim Zuschauen belegt",
       "braucht_von_01": [
+        "Entscheidung Sam: Sichtfeld \"Bildschirmfuellend\" als Standard? (heute \"Fest 16:9\")"
+      ]
+    },
+    {
+      "nr": 15,
+      "titel": "Befund 2: Startscreen wird eine Navigation",
+      "datei": "15-startscreen-navigation.md",
+      "branch": "claude/chat-03-client-ux-mazers-yu57ca",
+      "basis": "main@07155a8",
+      "status": "offen",
+      "tests": "7 neu / 693 gesamt, vier Unterseiten im Browser belegt, drei Geraetegroessen",
+      "braucht_von_01": [
         "Merge",
-        "Entscheidung Sam: Sichtfeld 'Bildschirmfuellend' als Standard? (heute 'Fest 16:9')",
-        "Widerspruch zur Auftragsdiagnose: Vollbild-Reihenfolge und HUD-Verankerung sind nicht defekt - die Raender sind das feste 16:9",
-        "Befund 2 (Startscreen als Navigation) ist geschnitten und bleibt offen",
-        "an 02: Sichtfeld-Grenze haengt an wallsInView und GAME.viewRadius, vier Tests halten den Abstand fest"
+        "Screenshots an Sam: Startseite, Achievements (Gastfall), Einstellungen",
+        "Entscheidung Sam offen: Sichtfeld-Standard und Vorhersage-Standard (beide jetzt mit Erklaerung in den Einstellungen)",
+        "an 04 offen: Feld 'tier' im Perf-Bericht serverseitig erlauben"
       ]
     }
   ]

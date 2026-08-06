@@ -152,71 +152,161 @@
 .start-status { margin: 12px 0 0; min-height: 15px; font-size: 11px; }
 
 /* ------------------------------------------------------------------ *
- * Sekundäres: eingeklappt, leise
- * ------------------------------------------------------------------ */
-.start-settings {
-  margin-top: clamp(12px, 2vw, 18px);
-  border: 1px solid var(--line);
-  border-radius: 13px;
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
-  text-align: left;
-}
-.start-settings > summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px 14px;
-  color: #7d859b;
-  cursor: pointer;
-  list-style: none;
-  font-size: 10px;
-  font-weight: 850;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-}
-.start-settings > summary::-webkit-details-marker { display: none; }
-.start-settings > summary:hover { color: #cfd4e4; }
-/* Eigener Pfeil, damit die Zeile in beiden Zuständen gleich ruhig wirkt. */
-.start-settings > summary i {
-  width: 8px;
-  height: 8px;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  rotate: 45deg;
-  translate: 0 -2px;
-  transition: rotate .2s ease;
-}
-.start-settings[open] > summary i { rotate: 225deg; translate: 0 2px; }
-.start-settings-body { padding: 0 14px 14px; }
-.start-sound {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: baseline;
-  gap: 8px 10px;
-  color: #7d859b;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: .12em;
-}
-.start-sound > b { color: #cfd4e4; font-size: 10px; font-variant-numeric: tabular-nums; }
-
-/* Grafikstufe und Vollbild – dieselbe Zeile, weil beide die Darstellung betreffen. */
-.start-display {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 8px;
-  margin-top: 12px;
-}
-.start-quality {
+ * Navigation: vier ruhige Wege, keine Inhalte
+ * ------------------------------------------------------------------ *
+ * Sams Befund: „nicht alles auf eine Seite reinballern." Auf der Startseite
+ * steht deshalb nur noch, wohin es geht – nicht schon, was dort steht. Die
+ * Zeilen sind bewusst leise: Der eine helle Punkt des Screens bleibt ARENA
+ * BETRETEN. Alles über die Theme-Variablen, kein Festwert.
+ */
+.start-nav {
   display: grid;
   gap: 6px;
+  margin-top: clamp(14px, 2.4vw, 22px);
+  text-align: left;
+}
+.start-nav button {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  grid-template-areas: 'titel marke pfeil' 'hinweis marke pfeil';
+  align-items: center;
+  gap: 0 10px;
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .16s, background .16s, color .16s;
+}
+.start-nav button:hover,
+.start-nav button:focus-visible {
+  border-color: var(--line-strong);
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+.start-nav strong { grid-area: titel; color: var(--text); font-size: 12px; font-weight: 800; letter-spacing: .02em; }
+.start-nav span { grid-area: hinweis; margin-top: 2px; color: var(--faint); font-size: 10px; font-weight: 600; }
+.start-nav small {
+  grid-area: marke;
   color: var(--faint);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: .12em;
+  letter-spacing: .1em;
+  font-variant-numeric: tabular-nums;
 }
+/* Eigener Pfeil statt eines Zeichens: bleibt in jeder Schrift gleich. */
+.start-nav i,
+.start-back i {
+  width: 7px;
+  height: 7px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  opacity: .5;
+}
+.start-nav i { grid-area: pfeil; rotate: 45deg; }
+
+/* ------------------------------------------------------------------ *
+ * Unterseiten
+ * ------------------------------------------------------------------ */
+/*
+ * Eine Ebene tief, immer derselbe Aufbau: Zurück-Weg, Überschrift, Inhalt.
+ * Die Seite hat dieselbe Breite wie die Startkarte – so springt nichts, wenn
+ * man hin und her wechselt.
+ */
+.start-page {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  width: min(430px, 100%);
+  max-height: 100%;
+  text-align: left;
+}
+.start-page[hidden] { display: none; }
+.start-page-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+.start-page-head h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 850;
+  letter-spacing: -.01em;
+}
+.start-back {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .12em;
+  transition: border-color .16s, color .16s, background .16s;
+}
+.start-back:hover,
+.start-back:focus-visible {
+  border-color: var(--line-strong);
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+.start-back i { rotate: -135deg; }
+/* Der Inhalt darf scrollen, der Rahmen nicht – der Zurück-Weg bleibt sichtbar. */
+.start-page-body {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  overflow-y: auto;
+  max-height: min(66vh, 600px);
+  /* Platz für die Bildlaufleiste und darunter, damit die letzte Karte beim
+     Scrollen vollständig freikommt statt an der Kante zu kleben. */
+  padding: 0 2px 2px;
+  scrollbar-width: thin;
+}
+.start-page-empty { margin: 0; color: var(--faint); font-size: 11px; line-height: 1.55; }
+
+/* ------------------------------------------------------------------ *
+ * Einstellungen: jede Zeile sagt, was sie tut
+ * ------------------------------------------------------------------ */
+.setting {
+  display: grid;
+  gap: 8px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+}
+.setting-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.setting-head strong { color: var(--text); font-size: 12px; font-weight: 800; }
+.setting-head b { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.setting-note { margin: -2px 0 0; color: var(--faint); font-size: 10px; line-height: 1.55; }
+.setting-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.setting-switch {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 650;
+}
+.setting-switch input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+
 .start-fullscreen {
   height: 42px;
   padding: 0 14px;
@@ -231,45 +321,16 @@
   letter-spacing: .1em;
   transition: background .16s, border-color .16s, color .16s;
 }
-.start-fullscreen:hover {
-  border-color: var(--line-strong);
-  color: var(--text);
-  background: color-mix(in srgb, var(--text) 9%, transparent);
-}
+.start-fullscreen:hover { border-color: var(--line-strong); color: var(--text); }
 .start-fullscreen[hidden] { display: none; }
-/* Vorhersage-Schalter (N2). Gleiche Schriftgrade wie die Zeile darüber; die
-   Beschreibung steht darunter, weil „Vorhersage" allein nichts erklärt. */
-.start-switch {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 2px 9px;
-  margin-top: 12px;
-  color: var(--faint);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: .12em;
-  cursor: pointer;
-}
-.start-switch > input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); cursor: pointer; }
-.start-switch > small {
-  grid-column: 2;
-  color: var(--muted);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: .02em;
-  text-transform: none;
-}
-.start-sound > input { grid-column: 1 / -1; }
-/* Das Loadout wird hier hineingezogen – ohne eigenen Rahmen, es ist schon drin. */
-.start-settings-body .core-loadout {
-  margin: 12px 0 0;
-  padding: 0;
-  border: 0;
-  border-top: 1px solid rgba(255, 255, 255, .07);
-  border-radius: 0;
-  padding-top: 12px;
-  background: none;
+/* Das Loadout zieht in die Einstellungen – ohne eigenen Rahmen, es steht schon
+   in einem. */
+.start-page-body .core-loadout {
+  margin: 0;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
 }
 
 .start-note {
@@ -293,42 +354,15 @@
 /* ------------------------------------------------------------------ *
  * Bestenliste (A4) – nur sichtbar, wenn der Server sie liefert
  * ------------------------------------------------------------------ */
-/* Seitenspalte: Profil über Bestenliste, beide können einzeln fehlen. */
-.start-side { display: grid; align-content: start; gap: 10px; width: min(430px, 100%); }
-
-.start-board {
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--surface);
-  backdrop-filter: blur(14px);
-}
+/* Eigene Seite seit Befund 2 – kein Aufklapper mehr, kein eigener Rahmen: Die
+   Seite ist schon der Rahmen. */
+.start-board { width: 100%; }
 .start-board[hidden] { display: none; }
-.start-board > summary {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 13px 15px;
-  cursor: pointer;
-  list-style: none;
-}
-.start-board > summary::-webkit-details-marker { display: none; }
-.start-board > summary strong { color: #cfd4e4; font-size: 10px; font-weight: 850; letter-spacing: .16em; }
-.start-board > summary small { color: #6d748a; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
 .start-board-list {
-  max-height: 268px;
   margin: 0;
-  padding: 0 8px 10px;
-  overflow: auto;
+  padding: 0;
+  overflow: visible;
   list-style: none;
-  scrollbar-width: thin;
-}
-/* Weicher Abriss statt halb abgeschnittener Zeile – zeigt zugleich, dass die
-   Liste weitergeht. Nur aktiv, wenn tatsächlich mehr da ist. */
-.start-board.is-scrollable .start-board-list {
-  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 30px), transparent);
-  mask-image: linear-gradient(180deg, #000 calc(100% - 30px), transparent);
 }
 .start-board-list li {
   display: grid;
@@ -361,36 +395,20 @@
 .start-board-list li:nth-child(-n + 3) b { color: #f0c265; }
 
 /* ------------------------------------------------------------------ *
- * Breit: Bestenliste neben die Bühne
- * ------------------------------------------------------------------ */
-@media (min-width: 901px) {
-  .start-stage {
-    grid-template-columns: minmax(0, 430px) minmax(0, 330px);
-    justify-items: stretch;
-    gap: clamp(28px, 5vw, 64px);
-  }
-  /* Ohne sichtbares Panel in der Seitenspalte bleibt die Bühne mittig statt
-     links zu kleben. Geprüft wird die Spalte, nicht mehr nur die Bestenliste –
-     seit K2 kann dort auch das Profil stehen. */
-  .start-stage:not(:has(.start-side > details:not([hidden]))) { grid-template-columns: minmax(0, 430px); }
-  .start-board { width: 100%; }
-  .start-board > summary { cursor: default; }
-}
-
-/* ------------------------------------------------------------------ *
  * Schmal und flach: alles eine Spur enger, nichts scrollt
  * ------------------------------------------------------------------ */
+/* Die zweite Spalte ist mit Befund 2 entfallen – es gibt nur noch eine Bühne,
+   auf der entweder die Startseite oder eine Unterseite steht. */
 @media (max-width: 900px) {
   .start-stage { width: min(430px, 100%); }
-  .start-board { margin-top: 2px; }
-  .start-board-list { max-height: 180px; }
 }
 @media (max-height: 760px) {
   .start-logo-wrap { width: 74px; height: 74px; margin-bottom: 8px; }
   .start-card h1 { font-size: clamp(38px, 9vw, 58px); }
   .start-tagline { margin: 6px 0 16px; }
   .start-note { margin-top: 12px; }
-  .start-board-list { max-height: 150px; }
+  .start-nav button { padding: 9px 12px; }
+  .start-page-body { max-height: min(56vh, 460px); }
 }
 @media (max-height: 620px) {
   .start-logo-wrap { width: 58px; height: 58px; }
@@ -409,5 +427,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .play-button:hover:not(:disabled) { transform: none; }
-  .start-settings > summary i { transition: none; }
+  .start-nav button { transition: none; }
 }
