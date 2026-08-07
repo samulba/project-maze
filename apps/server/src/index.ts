@@ -67,6 +67,8 @@ import {
 import { DEFAULT_BUDGET, tuneControlSignature } from './signature-control.js';
 import { DEFAULT_CHARGE, tunePrecisionSignature } from './signature-precision.js';
 import { DEFAULT_MOMENTUM, tuneRapidBots, tuneRapidSignature } from './signature-rapid.js';
+import { DEFAULT_SCHILD, tuneAegisSignature } from './signature-aegis.js';
+import { DEFAULT_STELLUNG, tuneSiegeSignature } from './signature-siege.js';
 import { DEFAULT_STEALTH, tuneSpecterSignature } from './signature-specter.js';
 import { DEFAULT_HEAT, tuneTempestSignature } from './signature-tempest.js';
 import { DEFAULT_WUCHT, tuneImpactSignature } from './signature-impact.js';
@@ -228,6 +230,18 @@ const SIGNATURE_TEMPEST_ENABLED = !['false', '0', 'off']
 const PERKS_ENABLED = !['false', '0', 'off']
   .includes((process.env.PERKS_ENABLED ?? '').trim().toLowerCase());
 /**
+ * Klassen 4.1, siebte Familie: Stellung fuer SIEGE. Stillstand macht Schuesse
+ * haerter und weitreichender - das Gegenteil von Momentum. Opt-out.
+ */
+const SIGNATURE_SIEGE_ENABLED = !['false', '0', 'off']
+  .includes((process.env.SIGNATURE_SIEGE_ENABLED ?? '').trim().toLowerCase());
+/**
+ * Klassen 4.1, achte Familie: Schild fuer AEGIS. Erlittener Schaden laedt, die
+ * volle Ladung entlaedt sich als Schockwelle. Opt-out.
+ */
+const SIGNATURE_AEGIS_ENABLED = !['false', '0', 'off']
+  .includes((process.env.SIGNATURE_AEGIS_ENABLED ?? '').trim().toLowerCase());
+/**
  * Der Rueckstoss des Repulse wird ueber die Wirkdauer getragen, statt sofort
  * von der Bewegungsintegration gefressen zu werden. Ohne den Schalter legt ein
  * Getroffener gemessene **44 px** zurueck – einen Tankdurchmesser, bei 195 px
@@ -297,6 +311,11 @@ const encodedGame = tuneSnapshotEncoding(
                             // Signatures: Tarnung skaliert die fertigen
                             // Projektile der Salve, Hitze haengt an fire -
                             // beide muessen sehen, was innen herausfaellt.
+                            // Stellung und Schild aussen um die uebrigen
+                            // Signatures: Stellung skaliert die fertige Salve,
+                            // der Schild haengt am Schadenspfad.
+                            tuneSiegeSignature(
+                            tuneAegisSignature(
                             tuneSpecterSignature(
                             tuneTempestSignature(
                             // Momentum direkt um das Kampf-Tuning: Dort entsteht
@@ -340,6 +359,12 @@ const encodedGame = tuneSnapshotEncoding(
                             ),
                             SIGNATURE_SPECTER_ENABLED,
                             DEFAULT_STEALTH
+                            ),
+                            SIGNATURE_AEGIS_ENABLED,
+                            DEFAULT_SCHILD
+                            ),
+                            SIGNATURE_SIEGE_ENABLED,
+                            DEFAULT_STELLUNG
                             )
                           ),
                           SIGNATURE_CONTROL_ENABLED,
@@ -640,7 +665,7 @@ app.get('/health', (_request: Request, response: Response) => {
     // Jedes Flag, das Spielgefühl verändert, gehört hier hinein: /health ist das
     // Testprotokoll, wenn Sam sagt „geht nicht". Die Signatures fehlten – genau
     // die, deren Wirkung gerade beurteilt werden soll.
-    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, dashTravel: DASH_TRAVEL_ENABLED, repulseTravel: REPULSE_TRAVEL_ENABLED, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED, signatureSpecter: SIGNATURE_SPECTER_ENABLED, signatureTempest: SIGNATURE_TEMPEST_ENABLED, perks: PERKS_ENABLED },
+    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, dashTravel: DASH_TRAVEL_ENABLED, repulseTravel: REPULSE_TRAVEL_ENABLED, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED, signatureSpecter: SIGNATURE_SPECTER_ENABLED, signatureTempest: SIGNATURE_TEMPEST_ENABLED, perks: PERKS_ENABLED, signatureSiege: SIGNATURE_SIEGE_ENABLED, signatureAegis: SIGNATURE_AEGIS_ENABLED },
     persistence: persistenceStats(game),
     auth: authStatus(),
     clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),

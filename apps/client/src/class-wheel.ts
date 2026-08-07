@@ -34,6 +34,10 @@ const NS = 'http://www.w3.org/2000/svg';
 
 /** Radien der vier Ringe in SVG-Einheiten. Das Feld ist 1000 × 1000 groß. */
 // Fuenf Ringe seit Klassen 4.0: Core, Familien (L5), L15, L28, Apex (L42).
+/** Kantenlaenge der Uebersicht in viewBox-Einheiten. */
+const BASIS_VIEW = 1000;
+const MIN_ZOOM = 0.75;
+const MAX_ZOOM = 6;
 const RADIEN = [0, 112, 214, 322, 430] as const;
 const MITTE = 500;
 /** Knotengrößen je Ring – innen wichtiger, also größer. */
@@ -71,6 +75,9 @@ export class ClassWheel {
   private readonly rad = buildWheel();
   private aktuell: PlayerClass = 'core';
   private gewaehlt: PlayerClass = 'core';
+  private zoom = 1;
+  private mitte = { x: 500, y: 500 };
+  private zoomAnwenden: (() => void) | null = null;
 
   constructor(private readonly onSelect: (auswahl: WheelSelection) => void) {
     this.element = document.createElement('div');
@@ -83,7 +90,109 @@ export class ClassWheel {
     });
     this.zeichne();
     this.element.append(this.svg);
+    const hinweis = document.createElement('p');
+    hinweis.className = 'wheel-hint';
+    hinweis.textContent = 'Mausrad zoomt · Ziehen verschiebt · Doppelklick zeigt alles';
+    this.element.append(hinweis);
+    this.installiereZoom();
     this.waehle('core');
+  }
+
+  /**
+   * Zoom und Verschieben. Mit 65 Klassen ist ein festes Bild nicht mehr lesbar:
+   * Auf dem Startscreen wie im Overlay standen die Knoten als Punkthaufen, und
+   * die Beschriftungen lagen uebereinander (Sams Befund vom 07.08., zweimal).
+   *
+   * Umgesetzt ueber die viewBox statt ueber CSS-Transform: Strichstaerken und
+   * Schrift skalieren dann mit, das Bild bleibt scharf, und die Trefferflaechen
+   * der Knoten stimmen ohne Umrechnung.
+   */
+  private installiereZoom(): void {
+    const anwenden = (): void => {
+      const groesse = BASIS_VIEW / this.zoom;
+      this.svg.setAttribute('viewBox', `${this.mitte.x - groesse / 2} ${this.mitte.y - groesse / 2} ${groesse} ${groesse}`);
+      // Wie viele Namen das Bild vertraegt, haengt am Zoom. 65 Knoten mit 65
+      // Beschriftungen sind in der Uebersicht ein Teppich - gemessen ueber-
+      // lappten auf Ring 2 und 3 die Haelfte der Namen. Also traegt die
+      // Uebersicht nur die Familien und die Apex-Klassen ihren Namen, und mit
+      // jedem Zoomschritt kommt eine Ebene dazu. Was ausgewaehlt, angesteuert
+      // oder auf dem eigenen Pfad ist, bleibt immer beschriftet (CSS).
+      this.svg.dataset.detail = this.zoom < 1.45 ? 'grob' : this.zoom < 2.4 ? 'mittel' : 'fein';
+      // Die Schrift teilt sich durch den Zoom (class-tree.css) und behaelt
+      // damit ihre Groesse auf dem Schirm, waehrend Knoten und Linien wachsen.
+      this.svg.style.setProperty('--wheel-zoom', this.zoom.toFixed(3));
+    };
+    this.zoomAnwenden = anwenden;
+    anwenden();
+
+    this.svg.addEventListener('wheel', (ereignis) => {
+      ereignis.preventDefault();
+      // Auf den Mauszeiger zoomen, nicht auf die Bildmitte - sonst rutscht
+      // einem der Zweig, den man ansieht, aus dem Bild.
+      const box = this.svg.getBoundingClientRect();
+      const vorher = this.nachViewBox(ereignis.clientX, ereignis.clientY, box);
+      const faktor = ereignis.deltaY < 0 ? 1.18 : 1 / 1.18;
+      this.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.zoom * faktor));
+      anwenden();
+      const nachher = this.nachViewBox(ereignis.clientX, ereignis.clientY, box);
+      this.mitte = { x: this.mitte.x + (vorher.x - nachher.x), y: this.mitte.y + (vorher.y - nachher.y) };
+      anwenden();
+    }, { passive: false });
+
+    let ziehtVon: { x: number; y: number } | null = null;
+    let startMitte = this.mitte;
+    this.svg.addEventListener('pointerdown', (ereignis) => {
+      // Knoten fangen ihre Klicks selbst ab; hier landet nur die freie Flaeche.
+      if ((ereignis.target as Element).closest('.wheel-node')) return;
+      ziehtVon = { x: ereignis.clientX, y: ereignis.clientY };
+      startMitte = this.mitte;
+      this.svg.setPointerCapture(ereignis.pointerId);
+      this.element.classList.add('is-panning');
+    });
+    this.svg.addEventListener('pointermove', (ereignis) => {
+      if (!ziehtVon) return;
+      const box = this.svg.getBoundingClientRect();
+      const proPixel = BASIS_VIEW / this.zoom / Math.max(1, box.width);
+      this.mitte = {
+        x: startMitte.x - (ereignis.clientX - ziehtVon.x) * proPixel,
+        y: startMitte.y - (ereignis.clientY - ziehtVon.y) * proPixel
+      };
+      anwenden();
+    });
+    const loslassen = (): void => { ziehtVon = null; this.element.classList.remove('is-panning'); };
+    this.svg.addEventListener('pointerup', loslassen);
+    this.svg.addEventListener('pointercancel', loslassen);
+    // Doppelklick auf die freie Flaeche stellt die Uebersicht wieder her.
+    this.svg.addEventListener('dblclick', (ereignis) => {
+      if ((ereignis.target as Element).closest('.wheel-node')) return;
+      this.zuruecksetzen();
+    });
+  }
+
+  /** Bildschirmpunkt in viewBox-Koordinaten. */
+  private nachViewBox(clientX: number, clientY: number, box: DOMRect): { x: number; y: number } {
+    const groesse = BASIS_VIEW / this.zoom;
+    return {
+      x: this.mitte.x - groesse / 2 + ((clientX - box.left) / Math.max(1, box.width)) * groesse,
+      y: this.mitte.y - groesse / 2 + ((clientY - box.top) / Math.max(1, box.height)) * groesse
+    };
+  }
+
+  /** Zurueck auf Uebersicht: ganzes Rad, zentriert. */
+  zuruecksetzen(): void {
+    this.zoom = 1;
+    this.mitte = { x: 500, y: 500 };
+    this.zoomAnwenden?.();
+  }
+
+  /** Auf eine Klasse zoomen - der Knopf „auf mich zentrieren" nutzt das. */
+  zentriereAuf(id: PlayerClass, zoom = 2.2): void {
+    const eintrag = this.rad.find((k) => k.id === id);
+    if (!eintrag) return;
+    const stelle = punkt(eintrag.angle, RADIEN[eintrag.ring]);
+    this.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+    this.mitte = { x: stelle.x, y: stelle.y };
+    this.zoomAnwenden?.();
   }
 
   /** Aktuelle Klasse des Spielers – hebt den eigenen Pfad hervor. */

@@ -63,17 +63,20 @@ export const BOT_CLASS_PATHS: Record<BotStyle, PlayerClass[][]> = {
     ['rapid', 'twin', 'storm', 'vortex'],
     ['rapid', 'repeater', 'gatling', 'vortex'],
     ['rapid', 'flanker', 'octo', 'vortex'],
+    ['rapid', 'vanguard', 'hailstorm', 'vortex'],
     ['tempest', 'scorch', 'inferno', 'cataclysm']
   ],
   hunter: [
     ['sniper', 'railgun', 'lancer', 'eclipse'],
     ['sniper', 'hunter', 'phantom', 'eclipse'],
     ['specter', 'shade', 'eidolon'],
+    ['sniper', 'ballista', 'siegebreaker', 'eclipse'],
     ['sniper', 'arbalest', 'deadeye', 'eclipse']
   ],
   kiter: [
     ['specter', 'wraith', 'mirage', 'eidolon'],
     ['sniper', 'hunter', 'phantom', 'eclipse'],
+    ['siege', 'mortar', 'trebuchet', 'ragnarok'],
     ['sniper', 'arbalest', 'deadeye', 'eclipse'],
     ['specter', 'shade', 'eidolon']
   ],
@@ -81,12 +84,19 @@ export const BOT_CLASS_PATHS: Record<BotStyle, PlayerClass[][]> = {
     ['rammer', 'crusher', 'juggernaut', 'leviathan'],
     ['rammer', 'bulwark', 'fortress', 'leviathan'],
     ['specter', 'shade', 'revenant'],
+    ['aegis', 'reflector', 'retributor', 'sanctum'],
     ['tempest', 'surge', 'overload', 'cataclysm'],
+    ['rammer', 'rampart', 'behemoth', 'leviathan'],
     ['rammer', 'blitz', 'comet', 'leviathan']
   ],
   controller: [
     ['drone', 'warden', 'overseer', 'sovereign'],
     ['drone', 'factory', 'carrier', 'sovereign'],
+    // Klassen 4.1: die beiden neuen Familien gehoeren hierher, weil beide
+    // Flaeche halten statt zu jagen - SIEGE ueber Stellung, AEGIS ueber Schild.
+    ['siege', 'bombard', 'howitzer', 'ragnarok'],
+    ['aegis', 'bulwarker', 'paladin', 'sanctum'],
+    ['drone', 'sentinel', 'aviary', 'sovereign'],
     ['drone', 'guardian', 'hive', 'sovereign']
   ]
 };

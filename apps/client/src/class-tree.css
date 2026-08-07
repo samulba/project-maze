@@ -13,17 +13,22 @@
  * Knoten in 430 px ist ein Punkthaufen. Die übrigen Seiten bleiben schmal –
  * dort ist Fließtext, und der liest sich schmal besser.
  */
-.start-page-wide { width: min(980px, 100%); }
+/* Klassen 4.1: 65 Klassen brauchen Flaeche. Die Seite nimmt, was da ist -
+   Fliesstext-Seiten bleiben schmal, diese hier nicht. */
+.start-page-wide { width: min(1480px, 100%); }
 
 .codex {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
   align-items: start;
   gap: 18px;
 }
 /* Das Rad ist quadratisch: Ohne Höhenbegrenzung ragt es aus dem Sichtbereich
    der Seite, und der äußerste Ring wird angeschnitten. */
-.codex-wheel { min-width: 0; max-width: min(100%, 58vh); justify-self: center; }
+/* Das Rad ist quadratisch und darf die Hoehe wirklich nutzen. Vorher 58vh -
+   auf einem 1080p-Schirm ein 620-px-Kreis fuer 65 Knoten, also ein
+   Punkthaufen (Sams Befund vom 07.08.). Zoom und Verschieben machen den Rest. */
+.codex-wheel { min-width: 0; max-width: min(100%, 82vh); justify-self: center; }
 .codex-card { min-width: 0; }
 
 /* Unter 900 px passt kein Nebeneinander mehr – dann Rad oben, Karte darunter. */
@@ -57,15 +62,20 @@
   transition: fill .14s, stroke .14s;
 }
 .wheel-node:hover .wheel-dot { stroke: var(--text); }
+/* `--wheel-zoom` setzt das Rad beim Zoomen (class-wheel.ts). Die Schrift wird
+   dadurch geteilt und behält ihre Größe auf dem Schirm, während alles andere
+   mitwächst – sonst standen die Namen bei sechsfachem Zoom quer über dem Bild
+   und verdeckten genau die Knoten, die man ansehen wollte. */
+.wheel-svg { --wheel-zoom: 1; }
 .wheel-label {
   fill: var(--faint);
   font-family: inherit;
-  font-size: 21px;
+  font-size: calc(21px / var(--wheel-zoom));
   font-weight: 800;
   pointer-events: none;
 }
 .wheel-node.ring-0 .wheel-label,
-.wheel-node.ring-1 .wheel-label { fill: var(--muted); font-size: 25px; }
+.wheel-node.ring-1 .wheel-label { fill: var(--muted); font-size: calc(25px / var(--wheel-zoom)); }
 
 /* Familienfarben – gleiche Zuordnung wie auf den Wahlkarten. */
 .branch-rapid .wheel-dot { stroke: #5b8cff; }
@@ -74,12 +84,16 @@
 .branch-impact .wheel-dot { stroke: #d2606f; }
 .branch-specter .wheel-dot { stroke: #8f7ff0; }
 .branch-tempest .wheel-dot { stroke: #e0954e; }
+.branch-siege .wheel-dot { stroke: #b0a24e; }
+.branch-aegis .wheel-dot { stroke: #4ea9a4; }
 .wheel-edge.branch-rapid.on-path { stroke: #5b8cff; }
 .wheel-edge.branch-precision.on-path { stroke: #e0a44a; }
 .wheel-edge.branch-control.on-path { stroke: #46b98d; }
 .wheel-edge.branch-impact.on-path { stroke: #d2606f; }
 .wheel-edge.branch-specter.on-path { stroke: #8f7ff0; }
 .wheel-edge.branch-tempest.on-path { stroke: #e0954e; }
+.wheel-edge.branch-siege.on-path { stroke: #b0a24e; }
+.wheel-edge.branch-aegis.on-path { stroke: #4ea9a4; }
 
 /* Nicht mehr erreichbar: da, aber leise. Verstecken wäre falsch – man soll
    sehen, was man mit der Wahl aufgegeben hat. */
@@ -186,10 +200,42 @@
  * Schließen-Knopf. Die Fläche zwischen den Speichen gehört der Arena – genau
  * der Fehler, der bei der Klassenwahl 35 % des Bildes lahmgelegt hat.
  */
-.class-overlay .codex-wheel { pointer-events: none; }
+/*
+ * Klassen 4.1: Das Rad nimmt seine Zeigerereignisse wieder selbst.
+ *
+ * Vorher stand hier `pointer-events: none` – aus demselben Grund wie bei der
+ * Klassenwahl, und mit demselben Ergebnis wie dort: Es hat funktioniert, bis
+ * das Rad etwas konnte. Seit es zoomt und sich schieben lässt, ist die Regel
+ * genau der Grund für Sams „man kann nicht ziimen nix" – Mausrad und Ziehen
+ * kamen nie am SVG an.
+ *
+ * `clip-path` begrenzt die Fläche auf den Kreis: Die Ecken des Quadrats gehören
+ * weiter der Arena (auch fürs Klicken – geclippte Bereiche treffen nicht).
+ */
+.class-overlay .codex-wheel {
+  pointer-events: auto;
+  clip-path: circle(50%);
+}
 .class-overlay .wheel-node,
 .class-overlay .codex-card,
 .class-overlay-close { pointer-events: auto; }
+
+/*
+ * Und weil das Rad damit die Bildmitte belegt, ist das Overlay ehrlich das,
+ * was es ohnehin war: eine **Leseansicht**. Die HUD-Panels treten zurück,
+ * solange es offen ist – sie lägen sonst unter dem Rad und wären weder les-
+ * noch klickbar. Steuerung (Sticks, Modul, Auto-Knopf) bleibt: Das Spiel läuft
+ * weiter, und C oder Esc schließt jederzeit.
+ */
+:root:has(.class-overlay:not([hidden])) #player-panel,
+:root:has(.class-overlay:not([hidden])) #leaderboard,
+:root:has(.class-overlay:not([hidden])) .killfeed,
+:root:has(.class-overlay:not([hidden])) .minimap,
+:root:has(.class-overlay:not([hidden])) .points-badge {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s;
+}
 
 .class-overlay.codex {
   /* Die Spalte ist exakt so breit wie das Rad. Mit `1fr` konnte das Rad seine
@@ -206,7 +252,11 @@
    * wiederholt: Ein größeres Rad auf großen Schirmen ist möglich, aber
    * ungemessen, und ungemessen bleibt es draußen.
    */
-  grid-template-columns: minmax(0, min(52vh, 520px)) minmax(0, 300px);
+  /* Klassen 4.1: von 52vh/520px auf 86vh. Der alte Deckel stammte aus einer
+     Zeit ohne Zoom und mit 29 Knoten; mit 65 war das Rad unlesbar. Der
+     Pruefstand faehrt die Overlay-Faelle mit und haelt die Kollisionsfreiheit
+     fest - gemessen statt vermutet. */
+  grid-template-columns: minmax(0, min(86vh, 62vw)) minmax(0, 320px);
   align-items: center;
   gap: 14px;
 }
@@ -347,7 +397,7 @@
   }
   /* Ohne HUD daneben darf das Rad die Fläche nutzen, die es braucht – und die
      Karte rückt daneben statt darunter, weil Querformat breit ist und flach. */
-  .class-overlay.codex { grid-template-columns: minmax(0, min(78vh, 420px)) minmax(0, 260px); gap: 10px; }
+  .class-overlay.codex { grid-template-columns: minmax(0, min(84vh, 96vw)) minmax(0, 260px); gap: 10px; }
   .class-overlay .codex-wheel { pointer-events: auto; width: 100%; }
   .class-overlay .codex-card { max-height: 94vh; }
 }
@@ -361,6 +411,64 @@
 .branch-impact { color: #d2606f; }
 .branch-specter { color: #8f7ff0; }
 .branch-tempest { color: #e0954e; }
+.branch-siege { color: #b0a24e; }
+.branch-aegis { color: #4ea9a4; }
 .branch-core { color: #9aa3b8; }
 .wheel-silhouette { pointer-events: none; }
 .wheel-node .wheel-dot { fill: color-mix(in srgb, var(--surface) 88%, transparent); }
+
+
+/* ------------------------------------------------------------------ *
+ * Zoom und Verschieben (Klassen 4.1)
+ * ------------------------------------------------------------------ */
+/* Der Zeiger sagt, dass man ziehen darf - ohne das probiert es niemand. */
+.wheel-svg { cursor: grab; touch-action: none; }
+.wheel.is-panning .wheel-svg { cursor: grabbing; }
+/* Knoten behalten ihren Zeiger: dort wird geklickt, nicht gezogen. */
+.wheel-node { cursor: pointer; }
+
+.wheel-hint {
+  margin: 6px 0 0;
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-align: center;
+}
+
+/* Beschriftungen skalieren mit der viewBox mit; bei starkem Zoom wuerden sie
+   riesig. Deshalb haengen sie an der Knotengroesse und nicht an einer festen
+   Pixelzahl - die Ringe weiter aussen tragen kleinere Schrift. */
+.wheel-node.ring-3 .wheel-label,
+.wheel-node.ring-4 .wheel-label { font-size: calc(19px / var(--wheel-zoom)); }
+
+/* ------------------------------------------------------------------ *
+ * Klassen 4.1 – Beschriftungen nach Zoomstufe
+ * ------------------------------------------------------------------ */
+/*
+ * Sams Befund (07.08., Screenshot des Rades): „man ekennt nicht viel". Der
+ * Grund ist nicht die Größe – die Knoten sind gut zu sehen –, sondern die
+ * Namen: 65 Beschriftungen auf einem Kreis von 1000 Einheiten überlappen sich
+ * auf Ring 2 und 3 gegenseitig zu einem Teppich („Repeater/Twin",
+ * „Warden/Factory/Guardian", „Crusher/Bulwark/Blitz").
+ *
+ * Die Übersicht trägt deshalb nur, was man in der Übersicht sucht: Core, die
+ * acht Familien und die acht Apex-Klassen. Wer mehr will, zoomt – und mit
+ * jedem Schritt kommt eine Ebene Namen dazu. Die Silhouetten bleiben immer
+ * sichtbar; sie sind es, die die Klassen unterscheiden.
+ */
+.wheel-svg[data-detail='grob'] .wheel-node.ring-2 .wheel-label,
+.wheel-svg[data-detail='grob'] .wheel-node.ring-3 .wheel-label,
+.wheel-svg[data-detail='mittel'] .wheel-node.ring-3 .wheel-label {
+  opacity: 0;
+  transition: opacity .16s;
+}
+/* Was man ansieht, gewählt hat oder selbst ist, behält seinen Namen – sonst
+   wäre der eigene Pfad in der Übersicht namenlos. */
+.wheel-svg[data-detail] .wheel-node:hover .wheel-label,
+.wheel-svg[data-detail] .wheel-node:focus-visible .wheel-label,
+.wheel-svg[data-detail] .wheel-node.is-selected .wheel-label,
+.wheel-svg[data-detail] .wheel-node.is-current .wheel-label,
+.wheel-svg[data-detail] .wheel-node.on-path .wheel-label {
+  opacity: 1;
+}

@@ -4,7 +4,7 @@ import {
   EMPTY_UPGRADES,
   GAME,
   UPGRADE_IDS,
-  classAvailableAtLevel,
+  respawnClassFrom,
   isValidClassChoice,
   respawnLevelFrom,
   upgradePointsAtLevel,
@@ -537,7 +537,10 @@ export class MazeGame {
 
   private respawn(player: GamePlayer, now: number): void {
     const retainedLevel = Math.max(1, player.respawnLevel);
-    player.playerClass = classAvailableAtLevel(player.playerClass, retainedLevel);
+    // Zurueck auf den Anfang: Der zweite Run ist eine neue Entscheidung, keine
+    // Fortsetzung der alten (Sams Befund vom 07.08.). Bots waehlen gleich
+    // wieder ihren Pfad - fuer sie aendert sich damit nichts.
+    player.playerClass = respawnClassFrom(player.playerClass);
     player.position = this.safeSpawn();
     player.velocity = { x: 0, y: 0 };
     player.level = retainedLevel;

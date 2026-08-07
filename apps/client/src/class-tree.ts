@@ -102,6 +102,22 @@ export const FAMILIES: readonly FamilyInfo[] = [
     signature: 'Hitze',
     builds: 'Jede Salve heizt auf. Feuerpausen kühlen – wer durchzieht, riskiert die Sicherung.',
     pays: 'Heiße Schüsse tragen bis zu 40 % mehr Schaden. Bei 100 überhitzt du für gut eine Sekunde.'
+  },
+  {
+    branch: 'siege',
+    label: 'Stellung',
+    style: 'Das Gegenteil von Dauerfeuer: Wer steht, wird zur Kanone.',
+    signature: 'Stellung',
+    builds: 'Stillstand baut Stellung auf. Losfahren baut sie doppelt so schnell wieder ab.',
+    pays: 'In voller Stellung schlagen deine Schüsse härter und fliegen deutlich weiter.'
+  },
+  {
+    branch: 'aegis',
+    label: 'Schild',
+    style: 'Treffer einstecken und zurückgeben: Wer auf dich hält, lädt dich auf.',
+    signature: 'Schild',
+    builds: 'Jeder erlittene Schaden lädt den Schild. Ab der Hälfte panzert er dich zusätzlich.',
+    pays: 'Bei voller Ladung entlädt er sich von selbst: Schaden und Rückstoß für alle in der Nähe.'
   }
 ];
 

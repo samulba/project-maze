@@ -1,6 +1,96 @@
 # Integrationsstand – Chat 01 (Zentrale)
 
-**Stand: 2026-08-06**
+**Stand: 2026-08-07**
+
+## Klassen 4.1 – 20 neue Tanks, die Wahl als Fenster, das Rad mit Zoom
+
+Sams Auftrag am 07.08. in einem Satz: *„die UI muss deutlich angepasst werden,
+noch viel zu klein bei Klassen, man kann nicht ziimen nix und der benutzt
+unnötig wenig platz vom ganzen screen + es gibt jetzt zu viele Upgrades INGAME
+… füg NOCH MEHR tanks hinzu … und es gibt noch immer einen bestimmten bug das
+wenn es viele level hat und man stirbt ist man direkt in einer klasse die man
+davor ausgewählt hat"*. Fünf Punkte, alle fünf hier.
+
+### 1. Zwanzig neue Klassen – 45 → 65
+
+Zwei neue Familien und vier neue Zweige in den alten:
+
+| Familie | Signature | Neu |
+| --- | --- | --- |
+| **SIEGE** (neu) | *Stellung*: Stillstand baut Schaden und Reichweite auf, Bewegung baut sie ab | Siege, Bombard, Mortar, Howitzer, Trebuchet, Ragnarok |
+| **AEGIS** (neu) | *Schild*: erlittener Schaden lädt einen Ring, die Entladung stößt zurück | Aegis, Bulwarker, Reflector, Paladin, Retributor, Sanctum |
+| RAPID | – | Vanguard, Hailstorm |
+| PRECISION | – | Ballista, Siegebreaker |
+| CONTROL | – | Sentinel, Aviary |
+| IMPACT | – | Rampart, Behemoth |
+
+Damit stehen auf Level 5 **acht** Familien zur Wahl statt sechs, und jede
+Familie hat ihren eigenen Apex auf Level 42. Alle 20 tragen einen Perk aus
+`packages/shared/src/perks.ts` (58 statt 38).
+
+Die Balance-Korridore in `packages/shared/src/balance.test.ts` haben dabei
+sechs Entwürfe zurückgewiesen (Vortex 161,9 DPS gegen 100 erlaubt; Sovereign
+175 Drohnendruck gegen 170; Leviathan 161,7 Körperschaden und 332
+Zähigkeit; Mortar/Trebuchet/Ragnarok über 1300 Reichweite; Ragnarok und
+Mortar unter 220 Tempo). Die SIEGE-Reichweiten kommen jetzt über die
+Signature, nicht über die Grundwerte.
+
+### 2. Die Klassenwahl ist ein Fenster, kein Band
+
+Sams Screenshot zeigte eine flache Spur am unteren Rand, Text abgeschnitten,
+die letzte Karte halb aus dem Bild. Mit acht Familien war die Spur erledigt.
+
+Jetzt: ein zentriertes Fenster, die Karte **quer** (Bild links, Text rechts).
+Das ist Arithmetik, nicht Geschmack – hochkant maß eine Karte 250 px, acht
+davon passten weder unter den Höhendeckel (gemessen 6 von 8 sichtbar) noch
+unter die Klickgrenze (45 % tote Fläche gegen 32 % erlaubt). Quer misst
+dieselbe Karte 102–142 px.
+
+Senkrecht steht das Fenster **im freien Band** zwischen Spielerkarte und der
+unteren Bedienreihe (`top`/`bottom` spannen es auf, `margin-block: auto`
+zentriert darin) – auf großen Schirmen sieht das mittig aus, auf flachen
+weicht es von selbst aus. Bestenliste und Killfeed treten zurück, solange
+eine Wahl ansteht; das Upgrade-Panel weicht ab 1100 px zur Seite und tritt
+darunter zurück.
+
+**Prüfstand: 75/75 Fälle ohne Befund** (`scripts/ui-layout-check.mjs`).
+
+### 3. Das Rad zoomt – und war im Spiel gar nicht bedienbar
+
+Der Zoom war gebaut, kam aber nie an: `.class-overlay .codex-wheel` hatte
+`pointer-events: none`. Genau das war Sams „man kann nicht ziimen nix".
+Jetzt nimmt das Rad seine Ereignisse selbst (`clip-path: circle(50%)` lässt
+die Ecken der Arena), das Overlay ist ehrlich eine Leseansicht, und die
+HUD-Panels treten zurück, solange es offen ist.
+
+Dazu zwei Lesbarkeitsregeln, die 65 Knoten erst benutzbar machen:
+
+- **Namen nach Zoomstufe.** In der Übersicht tragen nur Core, die acht
+  Familien und die acht Apex ihren Namen – 65 Beschriftungen auf einem Kreis
+  von 1000 Einheiten waren ein Teppich. Jeder Zoomschritt bringt eine Ebene
+  dazu; was ausgewählt, angesteuert oder auf dem eigenen Pfad liegt, ist
+  immer beschriftet.
+- **Schrift bleibt schirmgroß.** `--wheel-zoom` teilt die Schriftgröße, sonst
+  standen die Namen bei sechsfachem Zoom quer über dem Bild.
+
+### 4. Zwölf Upgrade-Slots, zwei Spalten
+
+„das wird langsam too much" – die Zahl bleibt (Sam wollte mehr Auswahl), die
+Darstellung wird zweispaltig, damit das Panel nicht mehr unten aus dem Bild
+läuft.
+
+### 5. Der Respawn-Bug
+
+Der alte Weg war `classAvailableAtLevel(klasse, respawnLevel)`: der sucht den
+nächsten Vorfahren, der auf dem Respawn-Level *erlaubt* ist. Wer als Gatling
+auf 60 starb, kam auf 30 als Gatling zurück – erlaubt, also behalten. Damit
+war der Wiedereinstieg keine Entscheidung mehr, sondern eine Fortsetzung.
+
+Neu ist `respawnClassFrom()` in `packages/shared/src/index.ts`: **immer
+`core`**. Wer stirbt, wählt wieder – und sieht dabei den ganzen Baum. Ein
+Test über alle 65 Klassen hält das fest.
+
+---
 
 ## KONSOLIDIERUNG auf einen Stand (07.08.) – das Team wird zur Zentrale
 

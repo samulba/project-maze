@@ -64,7 +64,27 @@ const abilityText: Record<PlayerClass, string> = {
   surge: 'Ein schwerer Puls je Ladung – Hitze als Hammer.',
   inferno: 'Drei Kehlen Feuersturm, bis die Sicherung kommt.',
   overload: 'Riesige Projektile an der Überhitzungskante.',
-  cataclysm: 'Apex Hitze: Wenn der Reaktor singt, brennt die halbe Arena.'
+  cataclysm: 'Apex Hitze: Wenn der Reaktor singt, brennt die halbe Arena.',
+  siege: 'Stellung: Stillstand macht Schüsse härter und weitreichender.',
+  bombard: 'Zwei schwere Rohre – die Stellung schlägt breit zu.',
+  mortar: 'Langsame Brocken mit gewaltigem Einschlag.',
+  howitzer: 'Drei Rohre halten eine ganze Schneise unter Feuer.',
+  trebuchet: 'Ein Rohr, ein Brocken, eine Entscheidung.',
+  ragnarok: 'Apex Stellung: eingegraben ist er nicht zu halten.',
+  aegis: 'Schild: Erlittener Schaden lädt – die Entladung stößt zurück.',
+  bulwarker: 'Dickeres Schild, längeres Stehvermögen.',
+  reflector: 'Der Schild wirft zurück, was er schluckt.',
+  paladin: 'Läuft ins Feuer und kommt stärker heraus.',
+  retributor: 'Jeder Treffer auf ihn ist eine Anzahlung.',
+  sanctum: 'Apex Schild: wandelnde Festung, die zurückschlägt.',
+  vanguard: 'Vier kurze Läufe im engen Fächer.',
+  hailstorm: 'Sieben Läufe, ein Hagelschlag.',
+  ballista: 'Ein Bolzen durch alles, was in einer Reihe steht.',
+  siegebreaker: 'Bricht Stellungen: schwerster Bolzen der Arena.',
+  sentinel: 'Drei schwere Wächter statt eines Schwarms.',
+  aviary: 'Neun flinke Vögel – der Himmel gehört ihm.',
+  rampart: 'Rollt unbeirrt und trägt schwer.',
+  behemoth: 'Was ihm in den Weg kommt, war vorher da.'
 };
 
 const clampPercent = (value: number): number => Math.max(4, Math.min(100, Math.round(value)));

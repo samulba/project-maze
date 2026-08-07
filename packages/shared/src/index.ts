@@ -46,7 +46,16 @@ export const PLAYER_CLASS_IDS = [
   'surge',
   'inferno',
   'overload',
-  'cataclysm'
+  'cataclysm',
+  // Klassen 4.1: zwei weitere Familien (SIEGE, AEGIS) und vier neue Zweige in
+  // den bestehenden. Anhaengen statt einsortieren - die Reihenfolge ist Teil
+  // der Kurz-ID-Abbildung im Netz.
+  'siege', 'bombard', 'mortar', 'howitzer', 'trebuchet', 'ragnarok',
+  'aegis', 'bulwarker', 'reflector', 'paladin', 'retributor', 'sanctum',
+  'vanguard', 'hailstorm',
+  'ballista', 'siegebreaker',
+  'sentinel', 'aviary',
+  'rampart', 'behemoth'
 ] as const;
 
 export type PlayerClass = (typeof PLAYER_CLASS_IDS)[number];
@@ -122,13 +131,13 @@ export interface ClassDefinition {
   description: string;
   parent: PlayerClass | null;
   unlockLevel: number;
-  branch: 'core' | 'rapid' | 'precision' | 'control' | 'impact' | 'specter' | 'tempest';
+  branch: 'core' | 'rapid' | 'precision' | 'control' | 'impact' | 'specter' | 'tempest' | 'siege' | 'aegis';
   /**
    * Apex-Klassen (L42) sind aus JEDER Klasse ihrer Familie erreichbar, nicht
    * nur aus einem Pfad - `availableClassChoices` wertet dieses Feld aus. Der
    * `parent` zeigt fuer die Respawn-Rueckstufung auf den Familien-Starter.
    */
-  apexOf?: 'rapid' | 'precision' | 'control' | 'impact' | 'specter' | 'tempest';
+  apexOf?: 'rapid' | 'precision' | 'control' | 'impact' | 'specter' | 'tempest' | 'siege' | 'aegis';
   maxHealth: number;
   regen: number;
   acceleration: number;
@@ -478,6 +487,155 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 34, bodyDamage: 16, barrelCount: 1, barrelSpread: 0, barrelLength: 40,
     droneCount: 0, droneRespawn: 0
   }),
+  // ------------------------------------------------------------------
+  // Klassen 4.1 - Familie SIEGE (Stellung): das Gegenteil von Momentum
+  // ------------------------------------------------------------------
+  siege: classDef({
+    id: 'siege', label: 'Siege', description: 'Wer steht, wird zur Kanone: Stillstand baut Stellung auf.', parent: 'core',
+    unlockLevel: 5, branch: 'siege', maxHealth: 124, regen: 2.5, acceleration: 1180, moveSpeed: 232,
+    reload: 0.62, projectileSpeed: 881, projectileLife: 1.3, damage: 28, projectileRadius: 9,
+    penetration: 30, bodyDamage: 12, barrelCount: 1, barrelSpread: 0, barrelLength: 44,
+    droneCount: 0, droneRespawn: 0
+  }),
+  bombard: classDef({
+    id: 'bombard', label: 'Bombard', description: 'Zwei schwere Rohre - die Stellung schlägt breit zu.', parent: 'siege',
+    unlockLevel: 15, branch: 'siege', maxHealth: 130, regen: 2.6, acceleration: 1150, moveSpeed: 226,
+    reload: 0.72, projectileSpeed: 830, projectileLife: 1.5, damage: 21, projectileRadius: 10,
+    penetration: 28, bodyDamage: 13, barrelCount: 2, barrelSpread: 0.2, barrelLength: 42,
+    droneCount: 0, droneRespawn: 0
+  }),
+  mortar: classDef({
+    id: 'mortar', label: 'Mortar', description: 'Langsame Brocken mit gewaltigem Einschlag.', parent: 'siege',
+    unlockLevel: 15, branch: 'siege', maxHealth: 136, regen: 2.8, acceleration: 1100, moveSpeed: 222,
+    reload: 0.95, projectileSpeed: 690, projectileLife: 1.75, damage: 44, projectileRadius: 13,
+    penetration: 42, bodyDamage: 14, barrelCount: 1, barrelSpread: 0, barrelLength: 38,
+    droneCount: 0, droneRespawn: 0
+  }),
+  howitzer: classDef({
+    id: 'howitzer', label: 'Howitzer', description: 'Drei Rohre halten eine ganze Schneise unter Feuer.', parent: 'bombard',
+    unlockLevel: 28, branch: 'siege', maxHealth: 134, regen: 2.7, acceleration: 1120, moveSpeed: 222,
+    reload: 0.78, projectileSpeed: 844, projectileLife: 1.5, damage: 15, projectileRadius: 9,
+    penetration: 24, bodyDamage: 13, barrelCount: 3, barrelSpread: 0.34, barrelLength: 40,
+    droneCount: 0, droneRespawn: 0
+  }),
+  trebuchet: classDef({
+    id: 'trebuchet', label: 'Trebuchet', description: 'Ein Rohr, ein Brocken, eine Entscheidung.', parent: 'mortar',
+    unlockLevel: 28, branch: 'siege', maxHealth: 140, regen: 3, acceleration: 1050, moveSpeed: 222,
+    reload: 1.25, projectileSpeed: 645, projectileLife: 1.85, damage: 66, projectileRadius: 15,
+    penetration: 62, bodyDamage: 15, barrelCount: 1, barrelSpread: 0, barrelLength: 48,
+    droneCount: 0, droneRespawn: 0
+  }),
+  ragnarok: classDef({
+    id: 'ragnarok', label: 'Ragnarok', description: 'Apex der Belagerung: eingegraben ist er nicht zu halten.', parent: 'siege',
+    unlockLevel: 42, branch: 'siege', apexOf: 'siege', maxHealth: 150, regen: 3.2, acceleration: 1080, moveSpeed: 224,
+    reload: 0.85, projectileSpeed: 801, projectileLife: 1.5, damage: 34, projectileRadius: 12,
+    penetration: 50, bodyDamage: 15, barrelCount: 2, barrelSpread: 0.14, barrelLength: 46,
+    droneCount: 0, droneRespawn: 0
+  }),
+  // ------------------------------------------------------------------
+  // Klassen 4.1 - Familie AEGIS (Schild): Treffer einstecken und zurückgeben
+  // ------------------------------------------------------------------
+  aegis: classDef({
+    id: 'aegis', label: 'Aegis', description: 'Erlittener Schaden lädt den Schild - die Entladung stößt zurück.', parent: 'core',
+    unlockLevel: 5, branch: 'aegis', maxHealth: 152, regen: 3, acceleration: 1420, moveSpeed: 256,
+    reload: 0.44, projectileSpeed: 744, projectileLife: 1.4, damage: 14, projectileRadius: 8,
+    penetration: 20, bodyDamage: 16, barrelCount: 1, barrelSpread: 0, barrelLength: 30,
+    droneCount: 0, droneRespawn: 0
+  }),
+  bulwarker: classDef({
+    id: 'bulwarker', label: 'Warder', description: 'Dickeres Schild, längeres Stehvermögen.', parent: 'aegis',
+    unlockLevel: 15, branch: 'aegis', maxHealth: 178, regen: 3.4, acceleration: 1340, moveSpeed: 244,
+    reload: 0.5, projectileSpeed: 732, projectileLife: 1.4, damage: 15, projectileRadius: 8,
+    penetration: 22, bodyDamage: 18, barrelCount: 1, barrelSpread: 0, barrelLength: 28,
+    droneCount: 0, droneRespawn: 0
+  }),
+  reflector: classDef({
+    id: 'reflector', label: 'Reflector', description: 'Der Schild wirft zurück, was er schluckt.', parent: 'aegis',
+    unlockLevel: 15, branch: 'aegis', maxHealth: 158, regen: 3.1, acceleration: 1400, moveSpeed: 252,
+    reload: 0.46, projectileSpeed: 803, projectileLife: 1.45, damage: 13, projectileRadius: 7,
+    penetration: 20, bodyDamage: 17, barrelCount: 2, barrelSpread: 0.16, barrelLength: 30,
+    droneCount: 0, droneRespawn: 0
+  }),
+  paladin: classDef({
+    id: 'paladin', label: 'Paladin', description: 'Läuft ins Feuer und kommt stärker heraus.', parent: 'bulwarker',
+    unlockLevel: 28, branch: 'aegis', maxHealth: 205, regen: 3.9, acceleration: 1360, moveSpeed: 248,
+    reload: 0.55, projectileSpeed: 712, projectileLife: 1.4, damage: 16, projectileRadius: 9,
+    penetration: 24, bodyDamage: 22, barrelCount: 1, barrelSpread: 0, barrelLength: 27,
+    droneCount: 0, droneRespawn: 0
+  }),
+  retributor: classDef({
+    id: 'retributor', label: 'Retributor', description: 'Jeder Treffer auf ihn ist eine Anzahlung.', parent: 'reflector',
+    unlockLevel: 28, branch: 'aegis', maxHealth: 168, regen: 3.3, acceleration: 1420, moveSpeed: 256,
+    reload: 0.48, projectileSpeed: 811, projectileLife: 1.45, damage: 12, projectileRadius: 7,
+    penetration: 22, bodyDamage: 19, barrelCount: 3, barrelSpread: 0.26, barrelLength: 29,
+    droneCount: 0, droneRespawn: 0
+  }),
+  sanctum: classDef({
+    id: 'sanctum', label: 'Sanctum', description: 'Apex des Schildes: eine wandelnde Festung, die zurückschlägt.', parent: 'aegis',
+    unlockLevel: 42, branch: 'aegis', apexOf: 'aegis', maxHealth: 218, regen: 4.2, acceleration: 1380, moveSpeed: 250,
+    reload: 0.52, projectileSpeed: 743, projectileLife: 1.45, damage: 17, projectileRadius: 9,
+    penetration: 26, bodyDamage: 24, barrelCount: 2, barrelSpread: 0.12, barrelLength: 31,
+    droneCount: 0, droneRespawn: 0
+  }),
+  // ------------------------------------------------------------------
+  // Klassen 4.1 - vier neue Zweige in den bestehenden Familien
+  // ------------------------------------------------------------------
+  vanguard: classDef({
+    id: 'vanguard', label: 'Vanguard', description: 'Vier kurze Läufe im engen Fächer - eine Wand aus Nadeln.', parent: 'rapid',
+    unlockLevel: 15, branch: 'rapid', maxHealth: 108, regen: 2.15, acceleration: 1580, moveSpeed: 280,
+    reload: 0.33, projectileSpeed: 831, projectileLife: 1.4, damage: 6.5, projectileRadius: 5.5,
+    penetration: 13, bodyDamage: 11, barrelCount: 4, barrelSpread: 0.16, barrelLength: 32,
+    droneCount: 0, droneRespawn: 0
+  }),
+  hailstorm: classDef({
+    id: 'hailstorm', label: 'Hailstorm', description: 'Sieben Läufe, ein Hagelschlag - Deckung gibt es nicht.', parent: 'vanguard',
+    unlockLevel: 28, branch: 'rapid', maxHealth: 110, regen: 2.2, acceleration: 1540, moveSpeed: 274,
+    reload: 0.36, projectileSpeed: 847, projectileLife: 1.3, damage: 4.2, projectileRadius: 5,
+    penetration: 11, bodyDamage: 11, barrelCount: 7, barrelSpread: 0.5, barrelLength: 30,
+    droneCount: 0, droneRespawn: 0
+  }),
+  ballista: classDef({
+    id: 'ballista', label: 'Ballista', description: 'Ein Bolzen, der durch alles geht, was in einer Reihe steht.', parent: 'sniper',
+    unlockLevel: 15, branch: 'precision', maxHealth: 92, regen: 1.7, acceleration: 1300, moveSpeed: 242,
+    reload: 0.88, projectileSpeed: 1260, projectileLife: 2.1, damage: 46, projectileRadius: 8,
+    penetration: 68, bodyDamage: 9, barrelCount: 1, barrelSpread: 0, barrelLength: 58,
+    droneCount: 0, droneRespawn: 0
+  }),
+  siegebreaker: classDef({
+    id: 'siegebreaker', label: 'Siegebreaker', description: 'Bricht Stellungen: schwerster Bolzen der Arena.', parent: 'ballista',
+    unlockLevel: 28, branch: 'precision', maxHealth: 88, regen: 1.5, acceleration: 1200, moveSpeed: 228,
+    reload: 1.18, projectileSpeed: 1440, projectileLife: 2.4, damage: 70, projectileRadius: 10,
+    penetration: 96, bodyDamage: 9, barrelCount: 1, barrelSpread: 0, barrelLength: 68,
+    droneCount: 0, droneRespawn: 0
+  }),
+  sentinel: classDef({
+    id: 'sentinel', label: 'Sentinel', description: 'Drei schwere Wächter statt eines Schwarms.', parent: 'drone',
+    unlockLevel: 15, branch: 'control', maxHealth: 134, regen: 2.9, acceleration: 1300, moveSpeed: 246,
+    reload: 0.9, projectileSpeed: 0, projectileLife: 0, damage: 19, projectileRadius: 0,
+    penetration: 0, bodyDamage: 14, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
+    droneCount: 3, droneRespawn: 1.7
+  }),
+  aviary: classDef({
+    id: 'aviary', label: 'Aviary', description: 'Neun flinke Vögel - der Himmel gehört ihm.', parent: 'sentinel',
+    unlockLevel: 28, branch: 'control', maxHealth: 126, regen: 2.8, acceleration: 1310, moveSpeed: 248,
+    reload: 0.56, projectileSpeed: 0, projectileLife: 0, damage: 8, projectileRadius: 0,
+    penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
+    droneCount: 9, droneRespawn: 0.7
+  }),
+  rampart: classDef({
+    id: 'rampart', label: 'Rampart', description: 'Rollt nicht schnell, aber unbeirrt - und trägt schwer.', parent: 'rammer',
+    unlockLevel: 15, branch: 'impact', maxHealth: 190, regen: 3.7, acceleration: 1280, moveSpeed: 248,
+    reload: 0.7, projectileSpeed: 650, projectileLife: 1.35, damage: 14, projectileRadius: 10,
+    penetration: 24, bodyDamage: 32, barrelCount: 1, barrelSpread: 0, barrelLength: 23,
+    droneCount: 0, droneRespawn: 0
+  }),
+  behemoth: classDef({
+    id: 'behemoth', label: 'Behemoth', description: 'Was ihm in den Weg kommt, war vorher da.', parent: 'rampart',
+    unlockLevel: 28, branch: 'impact', maxHealth: 232, regen: 4.3, acceleration: 1220, moveSpeed: 238,
+    reload: 0.82, projectileSpeed: 630, projectileLife: 1.4, damage: 17, projectileRadius: 11,
+    penetration: 28, bodyDamage: 52, barrelCount: 1, barrelSpread: 0, barrelLength: 21,
+    droneCount: 0, droneRespawn: 0
+  }),
   cataclysm: classDef({
     id: 'cataclysm', label: 'Cataclysm', description: 'Wenn der Reaktor singt, brennt die halbe Arena.', parent: 'tempest',
     unlockLevel: 42, branch: 'tempest', apexOf: 'tempest', maxHealth: 128, regen: 2.7, acceleration: 1430, moveSpeed: 258,
@@ -545,6 +703,17 @@ export const xpThresholdForLevel = (level:number):number => { const clamped = Ma
 export const xpAtLevelStart = (level:number):number => level <= 1 ? 0 : xpThresholdForLevel(level - 1);
 export const upgradePointsAtLevel = (level:number):number => Math.max(0, Math.min(GAME.maxLevel, Math.floor(level)) - 1);
 export const respawnLevelFrom = (level:number):number => Math.max(1, Math.floor(level * 0.5));
+/**
+ * Klasse nach dem Respawn – **immer zurück auf den Anfang**.
+ *
+ * Vorher wurde nur auf die höchste noch legale Klasse zurückgestuft
+ * (`classAvailableAtLevel`): Wer auf Level 60 als Gatling starb, kam auf
+ * Level 30 als Gatling zurück und hat nie wieder gewählt. Sam: „man sollte
+ * aber bei der Anfangsklasse wieder sein." Genau so – der zweite Run ist eine
+ * neue Entscheidung, nicht die Fortsetzung der alten. Die behaltenen
+ * Upgrade-Punkte machen ihn trotzdem stärker als den allerersten.
+ */
+export const respawnClassFrom = (_playerClass:PlayerClass):PlayerClass => 'core';
 /**
  * Serverseitige Skalierung der Klassen-Beschleunigung (Ausweich-Buff).
  * Lebt in shared, weil die Client-Prediction exakt dieselbe Zahl spiegeln

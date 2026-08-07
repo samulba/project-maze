@@ -22,7 +22,9 @@ function enhanceButton(button: HTMLButtonElement): void {
       : definition.branch === 'control' ? 'KONTROLLE'
         : definition.branch === 'impact' ? 'PANZERUNG'
           : definition.branch === 'specter' ? 'TARNUNG'
-            : definition.branch === 'tempest' ? 'HITZE' : 'ALLROUNDER';
+            : definition.branch === 'tempest' ? 'HITZE'
+              : definition.branch === 'siege' ? 'STELLUNG'
+                : definition.branch === 'aegis' ? 'SCHILD' : 'ALLROUNDER';
 
   const bars = document.createElement('div');
   bars.className = 'class-choice-bars';

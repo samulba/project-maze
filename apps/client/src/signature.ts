@@ -18,7 +18,9 @@ const BRANCH_LABELS: Partial<Record<string, string>> = {
   control: 'EINHEITEN',
   impact: 'WUCHT',
   specter: 'TARNUNG',
-  tempest: 'HITZE'
+  tempest: 'HITZE',
+  siege: 'STELLUNG',
+  aegis: 'SCHILD'
 };
 
 /** Familienwort für die Klasse, oder `null`, wenn die Familie keines hat. */

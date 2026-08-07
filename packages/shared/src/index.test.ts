@@ -4,6 +4,7 @@ import {
   PLAYER_CLASS_IDS,
   availableClassChoices,
   classAvailableAtLevel,
+  respawnClassFrom,
   respawnLevelFrom,
   sanitizePlayerName,
   upgradePointsAtLevel
@@ -19,11 +20,11 @@ describe('progression and input rules', () => {
   it('unlocks all intended direct children at the tier levels', () => {
     // Klassen 4.0: erste Wahl auf 5 zwischen SECHS Familien, dann 15/28/42.
     expect(availableClassChoices('core', 4)).toEqual([]);
-    expect(availableClassChoices('core', 5)).toEqual(['rapid', 'sniper', 'drone', 'rammer', 'specter', 'tempest']);
-    expect(availableClassChoices('rapid', 15)).toEqual(['twin', 'repeater', 'flanker']);
-    expect(availableClassChoices('sniper', 15)).toEqual(['railgun', 'hunter', 'arbalest']);
-    expect(availableClassChoices('drone', 15)).toEqual(['warden', 'factory', 'guardian']);
-    expect(availableClassChoices('rammer', 15)).toEqual(['crusher', 'bulwark', 'blitz']);
+    expect(availableClassChoices('core', 5)).toEqual(['rapid', 'sniper', 'drone', 'rammer', 'specter', 'tempest', 'siege', 'aegis']);
+    expect(availableClassChoices('rapid', 15)).toEqual(['twin', 'repeater', 'flanker', 'vanguard']);
+    expect(availableClassChoices('sniper', 15)).toEqual(['railgun', 'hunter', 'arbalest', 'ballista']);
+    expect(availableClassChoices('drone', 15)).toEqual(['warden', 'factory', 'guardian', 'sentinel']);
+    expect(availableClassChoices('rammer', 15)).toEqual(['crusher', 'bulwark', 'blitz', 'rampart']);
     expect(availableClassChoices('specter', 15)).toEqual(['wraith', 'shade']);
     expect(availableClassChoices('tempest', 15)).toEqual(['scorch', 'surge']);
     expect(availableClassChoices('twin', 28)).toEqual(['storm']);
@@ -42,6 +43,12 @@ describe('progression and input rules', () => {
     expect(availableClassChoices('shade', 28)).toEqual(['revenant']);
     expect(availableClassChoices('scorch', 28)).toEqual(['inferno']);
     expect(availableClassChoices('surge', 28)).toEqual(['overload']);
+    expect(availableClassChoices('siege', 15)).toEqual(['bombard', 'mortar']);
+    expect(availableClassChoices('aegis', 15)).toEqual(['bulwarker', 'reflector']);
+    expect(availableClassChoices('vanguard', 28)).toEqual(['hailstorm']);
+    expect(availableClassChoices('ballista', 28)).toEqual(['siegebreaker']);
+    expect(availableClassChoices('sentinel', 28)).toEqual(['aviary']);
+    expect(availableClassChoices('rampart', 28)).toEqual(['behemoth']);
   });
 
   it('offers the family apex from every class of the family at level 42', () => {
@@ -62,10 +69,10 @@ describe('progression and input rules', () => {
     expect(availableClassChoices('vortex', 60)).not.toContain('vortex');
   });
 
-  it('contains exactly 45 unique class definitions', () => {
-    expect(PLAYER_CLASS_IDS).toHaveLength(45);
-    expect(new Set(PLAYER_CLASS_IDS).size).toBe(45);
-    expect(Object.keys(CLASS_DEFINITIONS)).toHaveLength(45);
+  it('contains exactly 65 unique class definitions', () => {
+    expect(PLAYER_CLASS_IDS).toHaveLength(65);
+    expect(new Set(PLAYER_CLASS_IDS).size).toBe(65);
+    expect(Object.keys(CLASS_DEFINITIONS)).toHaveLength(65);
   });
 
   it('keeps the class tree structurally valid', () => {
@@ -96,13 +103,13 @@ describe('progression and input rules', () => {
       expect(finalsPerBranch.get(branch) ?? 0).toBeGreaterThanOrEqual(3);
     }
     // Die neuen Familien sind kleiner (2 Wege je Stufe), aber vollstaendig.
-    for (const branch of ['specter', 'tempest']) {
+    for (const branch of ['specter', 'tempest', 'siege', 'aegis']) {
       expect(finalsPerBranch.get(branch) ?? 0).toBeGreaterThanOrEqual(2);
     }
     // Jede der sechs Familien hat genau einen Apex.
     const apexes = PLAYER_CLASS_IDS.filter((id) => CLASS_DEFINITIONS[id].apexOf !== undefined);
-    expect(apexes).toHaveLength(6);
-    expect(new Set(apexes.map((id) => CLASS_DEFINITIONS[id].apexOf)).size).toBe(6);
+    expect(apexes).toHaveLength(8);
+    expect(new Set(apexes.map((id) => CLASS_DEFINITIONS[id].apexOf)).size).toBe(8);
     for (const id of apexes) expect(CLASS_DEFINITIONS[id].unlockLevel).toBe(42);
   });
 
@@ -114,6 +121,21 @@ describe('progression and input rules', () => {
     // Apex faellt ueber den Familien-Starter zurueck.
     expect(classAvailableAtLevel('vortex', 20)).toBe('rapid');
     expect(classAvailableAtLevel('eidolon', 3)).toBe('core');
+  });
+
+  /**
+   * Sams Befund (07.08.): „wenn es viele level hat und man stirbt ist man
+   * direkt in einer klasse die man davor ausgewählt hat, man sollte aber bei
+   * der anfangs klasse wieder sein".
+   *
+   * Der alte Weg lief über `classAvailableAtLevel(klasse, respawnLevel)` – der
+   * sucht den nächsten Vorfahren, der auf dem Respawn-Level erlaubt ist. Wer
+   * als Gatling auf 60 starb, kam auf 30 als Gatling zurück: erlaubt, also
+   * behalten. Damit war der Wiedereinstieg keine Entscheidung mehr, sondern
+   * eine Fortsetzung – und der ganze Baum blieb ungesehen.
+   */
+  it('setzt nach dem Tod auf die Anfangsklasse zurueck', () => {
+    for (const id of PLAYER_CLASS_IDS) expect(respawnClassFrom(id)).toBe('core');
   });
 
   it('sanitizes player names', () => {

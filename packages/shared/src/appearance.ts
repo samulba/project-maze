@@ -168,7 +168,37 @@ const HULLS: Record<PlayerClass, DrawOp[]> = {
   surge: [hull(polygonPoints(3, 26, 0)), ...plates(1, 20, 25, 0.5, Math.PI), core(8, -4)],
   inferno: [hull(polygonPoints(3, 24, 0)), core(4, -10), core(4, 0), core(4, 8)],
   overload: [hull(polygonPoints(3, 26, 0)), voidCore(10, -4), core(5, -4)],
-  cataclysm: [hull(polygonPoints(3, 26, 0)), core(8, -4), ...spikes(3, 24, 5, Math.PI / 3), crown(32)]
+  cataclysm: [hull(polygonPoints(3, 26, 0)), core(8, -4), ...spikes(3, 24, 5, Math.PI / 3), crown(32)],
+
+  // ---- SIEGE (Kastenlafette mit Stützen): je schwerer, desto breiter ------
+  // Grundform: liegendes Rechteck mit zwei Stützfüßen nach hinten - eine
+  // Lafette, die sich eingräbt. Niemand sonst hat diese Kontur.
+  siege: [hull([20, -15, 20, 15, -18, 15, -18, -15]), ...plates(2, 18, 24, 0.34, Math.PI / 2), core(5)],
+  bombard: [hull([21, -18, 21, 18, -20, 18, -20, -18]), ...plates(2, 20, 27, 0.4, Math.PI / 2), core(5, -4)],
+  mortar: [hull([18, -20, 18, 20, -22, 16, -22, -16]), ...plates(2, 21, 28, 0.34, Math.PI / 2), voidCore(7, 2)],
+  howitzer: [hull([22, -19, 22, 19, -21, 19, -21, -19]), ...plates(4, 21, 27, 0.24, Math.PI / 4), core(5, -3)],
+  trebuchet: [hull([18, -22, 18, 22, -24, 17, -24, -17]), ...plates(2, 23, 31, 0.3, Math.PI / 2), voidCore(9, 1), core(4, 1)],
+  ragnarok: [hull([22, -21, 22, 21, -23, 21, -23, -21]), ...plates(4, 23, 30, 0.26, Math.PI / 4), core(7, -3), crown(35)],
+
+  // ---- AEGIS (Rundschild mit Frontbogen): der Bogen wächst mit der Stufe --
+  // Grundform: Kreis mit vorgelagertem Schildbogen. Die Stufen legen Ringe
+  // und Streben zu, der Apex traegt Krone und doppelten Bogen.
+  aegis: [hullCircle(22), { kind: 'poly', role: 'armor', points: [24, -17, 30, 0, 24, 17, 19, 11, 21, 0, 19, -11] }, core(5)],
+  bulwarker: [hullCircle(23), { kind: 'poly', role: 'armor', points: [25, -20, 33, 0, 25, 20, 19, 13, 22, 0, 19, -13] }, ...plates(2, 23, 27, 0.3, Math.PI)],
+  reflector: [hullCircle(22), { kind: 'poly', role: 'armor', points: [24, -18, 31, 0, 24, 18, 19, 12, 21, 0, 19, -12] }, orbit(28)],
+  paladin: [hullCircle(24), { kind: 'poly', role: 'armor', points: [26, -22, 36, 0, 26, 22, 20, 14, 23, 0, 20, -14] }, ...plates(3, 24, 29, 0.26, Math.PI), core(6)],
+  retributor: [hullCircle(23), { kind: 'poly', role: 'armor', points: [25, -19, 32, 0, 25, 19, 19, 12, 22, 0, 19, -12] }, orbit(29), ...spikes(3, 23, 5, Math.PI)],
+  sanctum: [hullCircle(24), { kind: 'poly', role: 'armor', points: [26, -21, 35, 0, 26, 21, 20, 14, 23, 0, 20, -14] }, orbit(30), core(7), crown(35)],
+
+  // ---- Neue Zweige in bestehenden Familien -------------------------------
+  vanguard: [hullCircle(22), ...plates(3, 22, 26, 0.22, 0)],
+  hailstorm: [hullCircle(23), ...spikes(7, 23, 4, Math.PI / 7), core(5)],
+  ballista: [hull(stretchedHex(27, 13)), ...plates(2, 14, 18, 0.35, Math.PI / 2), voidCore(4, -6)],
+  siegebreaker: [hull(stretchedHex(31, 12)), ...plates(2, 15, 20, 0.45, Math.PI / 2), core(4, 8)],
+  sentinel: [hull(polygonPoints(3, 23, Math.PI)), orbit(29)],
+  aviary: [hull(polygonPoints(3, 22, Math.PI)), orbit(28), orbit(33), core(6)],
+  rampart: [hull([20, -21, 26, 0, 20, 21, -20, 19, -20, -19]), ...plates(2, 24, 29, 0.3, Math.PI / 2)],
+  behemoth: [hull([21, -23, 28, 0, 21, 23, -22, 21, -22, -21]), ...plates(4, 26, 32, 0.26), voidCore(7)]
 };
 
 /** Zeichenbefehle einer Klasse – Renderer und Vorschau lesen NUR hier. */

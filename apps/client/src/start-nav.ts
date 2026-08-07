@@ -1,3 +1,4 @@
+import { PLAYER_CLASS_IDS } from '@project-maze/shared';
 /**
  * Navigation des Startscreens (Sams Befund 2).
  *
@@ -35,7 +36,7 @@ export interface StartPageInfo {
 export const START_NAV: readonly StartPageInfo[] = [
   // Zuerst, weil es die Frage beantwortet, die man vor dem ersten Spiel hat:
   // Was werde ich eigentlich?
-  { id: 'klassen', label: 'Klassen', hint: 'Alle 29 Klassen und ihre Signature' },
+  { id: 'klassen', label: 'Klassen', hint: `Alle ${PLAYER_CLASS_IDS.length} Klassen und ihre Signature` },
   { id: 'profil', label: 'Profil', hint: 'Konto, Bestwerte, Anzeigename' },
   { id: 'achievements', label: 'Achievements', hint: 'Alles, was es zu holen gibt' },
   { id: 'bestenliste', label: 'Bestenliste', hint: 'Die besten Läufe' },

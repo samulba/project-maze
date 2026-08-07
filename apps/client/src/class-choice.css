@@ -53,6 +53,8 @@
 [data-branch=impact]  .class-choice-preview { color: #c4626f; }
 [data-branch=specter] .class-choice-preview { color: #8f7ff0; }
 [data-branch=tempest] .class-choice-preview { color: #e0954e; }
+[data-branch=siege]   .class-choice-preview { color: #b0a24e; }
+[data-branch=aegis]   .class-choice-preview { color: #4ea9a4; }
 
 /* Auf schmalen und niedrigen Fenstern ist das Spielfeld wichtiger als das
    Bild – die Karten müssen vollständig sichtbar bleiben (Befund G3/G4). */
@@ -95,6 +97,8 @@
 .death-portrait[data-branch=impact] { color: #d2606f; }
 .death-portrait[data-branch=specter] { color: #8f7ff0; }
 .death-portrait[data-branch=tempest] { color: #e0954e; }
+.death-portrait[data-branch=siege] { color: #b0a24e; }
+.death-portrait[data-branch=aegis] { color: #4ea9a4; }
 
 
 /* Traegt die Karte einen Perk, ersetzt er die generische Beschreibung - beide

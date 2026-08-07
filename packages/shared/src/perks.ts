@@ -105,7 +105,31 @@ export const PERKS: Partial<Record<PlayerClass, PerkDefinition>> = {
   surge: { label: 'Doppelpuls', blurb: 'Jede fünfte Salve feuert doppelt.', effect: { kind: 'doubleSalvo', every: 5 } },
   inferno: { label: 'Flächenbrand', blurb: 'Treffer brennen lange nach.', effect: { kind: 'burn', dps: 5, seconds: 1.5 } },
   overload: { label: 'Entladung', blurb: 'Deine schweren Kugeln prallen einmal von Wänden ab.', effect: { kind: 'ricochet', bounces: 1 } },
-  cataclysm: { label: 'Supernova', blurb: 'Ein Kill zerlegt die Kugel in viele Splitter.', effect: { kind: 'splitter', shards: 4, damageShare: 0.35 } }
+  cataclysm: { label: 'Supernova', blurb: 'Ein Kill zerlegt die Kugel in viele Splitter.', effect: { kind: 'splitter', shards: 4, damageShare: 0.35 } },
+
+  // SIEGE – wer steht, hält
+  bombard: { label: 'Grundfeste', blurb: 'Im Stillstand regenerierst du deutlich schneller.', effect: { kind: 'standingRegen', multiplier: 2.2 } },
+  mortar: { label: 'Einschlag', blurb: 'Dein Treffer verlangsamt das Ziel schwer.', effect: { kind: 'frostShot', slow: 0.32, seconds: 1.1 } },
+  howitzer: { label: 'Sperrfeuer', blurb: 'Jede vierte Salve feuert doppelt.', effect: { kind: 'doubleSalvo', every: 4 } },
+  trebuchet: { label: 'Steinschlag', blurb: 'Ein Kill zerlegt den Brocken in schwere Splitter.', effect: { kind: 'splitter', shards: 3, damageShare: 0.45 } },
+  ragnarok: { label: 'Weltenbrand', blurb: 'Treffer brennen lange und heiß nach.', effect: { kind: 'burn', dps: 6, seconds: 1.6 } },
+
+  // AEGIS – wer schluckt, gibt zurück
+  bulwarker: { label: 'Standfest', blurb: 'Du erleidest deutlich weniger Kontaktschaden.', effect: { kind: 'contactArmor', reduction: 0.35 } },
+  reflector: { label: 'Rückwurf', blurb: 'Wer dich rammt, verletzt sich schwer.', effect: { kind: 'thorns', share: 0.35 } },
+  paladin: { label: 'Läuterung', blurb: 'Ein Abschuss heilt dich kräftig.', effect: { kind: 'killHeal', share: 0.16 } },
+  retributor: { label: 'Vergeltungsschlag', blurb: 'Wer dich rammt, verletzt sich schwer – und du schlägst doppelt.', effect: { kind: 'thorns', share: 0.42 } },
+  sanctum: { label: 'Heiligtum', blurb: 'Nach ruhigen Sekunden absorbiert ein Schild den nächsten Treffer.', effect: { kind: 'shieldRing', quietSeconds: 3.5 } },
+
+  // Neue Zweige der Altfamilien
+  vanguard: { label: 'Nadelwand', blurb: 'Treffer verlangsamen das Ziel kurz.', effect: { kind: 'frostShot', slow: 0.12, seconds: 0.7 } },
+  hailstorm: { label: 'Hagelschlag', blurb: 'Jede dritte Salve feuert doppelt.', effect: { kind: 'doubleSalvo', every: 3 } },
+  ballista: { label: 'Durchbohrer', blurb: 'Mit vollem Leben trifft dein Bolzen härter.', effect: { kind: 'overcharge', bonus: 0.25 } },
+  siegebreaker: { label: 'Mauerbrecher', blurb: 'Schwer verwundete Ziele erleiden schweren Bonusschaden.', effect: { kind: 'executioner', threshold: 0.3, bonus: 0.45 } },
+  sentinel: { label: 'Wachposten', blurb: 'Sterbende Wächter explodieren heftig.', effect: { kind: 'droneNova', damage: 30, radius: 100 } },
+  aviary: { label: 'Schwarmflug', blurb: 'Ein Abschuss macht dich kurz deutlich schneller.', effect: { kind: 'adrenaline', bonus: 0.22, seconds: 1.8 } },
+  rampart: { label: 'Walze', blurb: 'Dein Rammstoß verlangsamt das Ziel.', effect: { kind: 'contactSlow', slow: 0.28, seconds: 0.9 } },
+  behemoth: { label: 'Koloss', blurb: 'Du erleidest kaum noch Kontaktschaden.', effect: { kind: 'contactArmor', reduction: 0.4 } }
 };
 
 /** Perk einer Klasse, oder `null` – Starter und Core tragen bewusst keinen. */
