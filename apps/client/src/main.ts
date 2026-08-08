@@ -17,6 +17,7 @@ import { AuthClient, AUTH_TIMEOUT_MS, withTimeout } from './auth';
 import { AuthPanel } from './auth-panel';
 import { ProfilePanel } from './profile-panel';
 import { BalanceCombatMeter } from './balance-combat-meter';
+import { deviceId } from './device-id';
 import { BalanceLab } from './balance-lab';
 import { enhanceClassChoices } from './class-choice-enhancer';
 import { AchievementPopups } from './achievement-popups';
@@ -283,6 +284,10 @@ async function sendJoin(target: WebSocket): Promise<void> {
   if (target.readyState !== WebSocket.OPEN) return;
   const message: JoinMessage = { type: 'join', name: joinOptions?.name ?? 'Player' };
   if (authToken) message.authToken = authToken;
+  // Zaehlt den Besuch im Admin-Portal. Fehlt der Speicher, fehlt die ID - der
+  // Join laeuft dann genauso, nur ungezaehlt.
+  const device = deviceId();
+  if (device) message.deviceId = device;
   target.send(JSON.stringify(message));
 }
 

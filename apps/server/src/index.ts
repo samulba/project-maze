@@ -64,6 +64,14 @@ import {
   profileUpdateHandler,
   tunePersistence
 } from './persistence.js';
+import {
+  beginSession,
+  flushSessions,
+  linkSessionToUser,
+  sessionsStats,
+  tuneSessions
+} from './sessions.js';
+import { adminGuard, createAdminRoutes } from './admin.js';
 import { DEFAULT_BUDGET, tuneControlSignature } from './signature-control.js';
 import { DEFAULT_CHARGE, tunePrecisionSignature } from './signature-precision.js';
 import { DEFAULT_MOMENTUM, tuneRapidBots, tuneRapidSignature } from './signature-rapid.js';
@@ -77,7 +85,7 @@ import { tuneSpectator } from './spectator.js';
 import { tuneSnapshotEncoding } from './snapshot-encoding.js';
 import { createGracefulShutdown, installSignalHandlers } from './shutdown.js';
 import { servePrecompressed } from './static-assets.js';
-import { metricsHandler, tuneTelemetry } from './telemetry.js';
+import { metricsHandler, telemetryTickHealth, tuneTelemetry } from './telemetry.js';
 
 function integerEnvironment(name: string, fallback: number, minimum: number, maximum: number): number {
   const parsed = Number.parseInt(process.env[name] ?? '', 10);
@@ -285,6 +293,10 @@ const wss = new WebSocketServer({ server, maxPayload: 4096 });
 // komprimiert wird, was wirklich über die Leitung geht – Persistenz und
 // Telemetrie sehen weiterhin vollständige Snapshots.
 const encodedGame = tuneSnapshotEncoding(
+  // Sitzungserfassung außerhalb der Persistenz: Sie liest dieselben Ereignisse
+  // (Tod, Verlassen), schreibt aber in eigene Tabellen und darf ausfallen, ohne
+  // das Leaderboard mitzunehmen.
+  tuneSessions(
   tunePersistence(
     tuneTelemetry(
       tuneDebugRules(
@@ -391,6 +403,7 @@ const encodedGame = tuneSnapshotEncoding(
         )
       )
     )
+  )
   ),
   SNAPSHOT_DELTAS,
   SHORT_NET_IDS
@@ -406,7 +419,12 @@ const socketAlive = new WeakMap<WebSocket, boolean>();
 const joinSchema = z.object({
   type: z.literal('join'),
   name: z.string().transform(sanitizePlayerName).pipe(z.string().min(1).max(18)),
-  authToken: z.string().min(1).max(4096).optional()
+  authToken: z.string().min(1).max(4096).optional(),
+  // Zufalls-ID aus dem localStorage des Browsers – die einzige Möglichkeit,
+  // einen wiederkehrenden Gast als denselben zu erkennen. Optional: Ein Client,
+  // der sie nicht schickt (alte Fassung, blockierter Speicher), spielt normal
+  // weiter und taucht in der Besuchszählung nicht auf.
+  deviceId: z.string().regex(/^[0-9a-zA-Z_-]{8,64}$/).optional()
 }).strict();
 const inputSchema = z.object({
   type: z.literal('input'),
@@ -502,13 +520,18 @@ wss.on('connection', (socket, request) => {
         }
         playerId = game.addPlayer(parsed.data.name);
         socketPlayerIds.set(socket, playerId);
+        beginSession(game, playerId, parsed.data.deviceId ?? null, parsed.data.name, now);
         send(socket, { type: 'welcome', selfId: playerId });
         // Login ist optional und darf den Join nie verzögern: Der Spieler ist schon
         // drin, das Konto wird ein paar Millisekunden später angeheftet.
         if (parsed.data.authToken) {
           const joinedId = playerId;
           void verifyAuthToken(parsed.data.authToken)
-            .then((user) => { if (user) linkPlayerToUser(game, joinedId, user); });
+            .then((user) => {
+              if (!user) return;
+              linkPlayerToUser(game, joinedId, user);
+              linkSessionToUser(game, joinedId, user.userId);
+            });
         }
         return;
       }
@@ -621,11 +644,58 @@ const gracefulShutdown = createGracefulShutdown({
   // Gepufferte Runs noch wegschreiben, bevor der Prozess geht.
   beforeClose: async () => {
     rateLimiter.stop();
-    await flushPersistence(game);
+    // Beide Puffer: Runs speisen das Leaderboard, Sitzungen das Admin-Portal.
+    // Wer beim Deploy gerade spielt, soll trotzdem als Besuch gezählt werden.
+    await Promise.all([flushPersistence(game), flushSessions(game)]);
   },
   log: (message: string) => console.log(`[shutdown] ${message}`)
 });
 installSignalHandlers(gracefulShutdown);
+
+/**
+ * Der gemeinsame Live-Zustand von `/health` und dem Admin-Portal.
+ *
+ * Bewusst eine Funktion und keine zwei Listen: `/health` ist das Testprotokoll,
+ * wenn Sam sagt „geht nicht", und das Portal ist der Ort, an dem er täglich
+ * hinsieht. Wenn die beiden auseinanderlaufen, ist genau dann etwas nicht zu
+ * sehen, wenn man es braucht.
+ */
+const liveState = (): Record<string, unknown> => ({
+  humans: game.humanCount,
+  ...game.entityCounts,
+  mode: 'maze-alpha',
+  version: '1.0.0-alpha',
+  // Zeigt, welcher Stand wirklich ausgeliefert wird – Railway setzt die Variable beim Build.
+  commit: (process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT ?? 'unbekannt').slice(0, 7),
+  // ACHTUNG: fester Text im Quelltext, keine Build-Information. Er ändert
+  // sich nur, wenn jemand ihn hier ändert, und beweist deshalb nichts über
+  // den laufenden Stand – dafür ist `commit` da, und daneben `uptimeSeconds`.
+  build: 'sprint-b2+static-renderers',
+  // Wie lange dieser Prozess schon läuft. Das ist die einzige Alterangabe,
+  // die ohne die Railway-Variable auskommt: Steht hier ein Wert von Tagen,
+  // hat es seit Tagen keinen Deploy gegeben – auch dann, wenn `commit` etwas
+  // anderes behauptet, weil die Variable irgendwo fest verdrahtet wurde.
+  uptimeSeconds: Math.round(process.uptime()),
+  // 01 und 04 hatten unabhängig voneinander dieselbe Idee; `uptimeSeconds`
+  // hat gewonnen, weil die Deploy-Wache darauf zugreift. `deploymentId` sagt
+  // etwas anderes und bleibt deshalb: welche Auslieferung hier läuft. Wenn
+  // die sich ändert und `commit` nicht, ist die Git-Variable fest verdrahtet.
+  deploymentId: (process.env.RAILWAY_DEPLOYMENT_ID ?? 'lokal').slice(0, 8),
+  snapshotRate: GAME.snapshotRate,
+  debugTools: ENABLE_DEV_TOOLS,
+  // Macht die Feature-Schalter von außen prüfbar – sonst sieht man einer
+  // falsch geschriebenen ENV-Variable nie an, dass sie nicht greift.
+  // Jedes Flag, das Spielgefühl verändert, gehört hier hinein.
+  features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, dashTravel: DASH_TRAVEL_ENABLED, repulseTravel: REPULSE_TRAVEL_ENABLED, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED, signatureSpecter: SIGNATURE_SPECTER_ENABLED, signatureTempest: SIGNATURE_TEMPEST_ENABLED, perks: PERKS_ENABLED, signatureSiege: SIGNATURE_SIEGE_ENABLED, signatureAegis: SIGNATURE_AEGIS_ENABLED },
+  // Wie gesund der Takt läuft. Im Portal die Zeile, an der man einen
+  // überlasteten Server erkennt, bevor Spieler es melden.
+  tick: telemetryTickHealth(game),
+  persistence: persistenceStats(game),
+  sessions: sessionsStats(game),
+  auth: authStatus(),
+  clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),
+  abuse: rateLimiter.stats()
+});
 
 app.get('/health', (_request: Request, response: Response) => {
   const draining = gracefulShutdown.isShuttingDown();
@@ -635,42 +705,7 @@ app.get('/health', (_request: Request, response: Response) => {
   // Testprotokoll und darf als einziger Endpunkt nie aus dem Cache kommen.
   response.setHeader('Cache-Control', 'no-store');
   // Während des Drainens 503, damit der Loadbalancer keinen Traffic mehr schickt.
-  return response.status(draining ? 503 : 200).json({
-    ok: !draining,
-    draining,
-    humans: game.humanCount,
-    ...game.entityCounts,
-    mode: 'maze-alpha',
-    version: '1.0.0-alpha',
-    // Zeigt, welcher Stand wirklich ausgeliefert wird – Railway setzt die Variable beim Build.
-    commit: (process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT ?? 'unbekannt').slice(0, 7),
-    // ACHTUNG: fester Text im Quelltext, keine Build-Information. Er ändert
-    // sich nur, wenn jemand ihn hier ändert, und beweist deshalb nichts über
-    // den laufenden Stand – dafür ist `commit` da, und daneben `uptimeSeconds`.
-    build: 'sprint-b2+static-renderers',
-    // Wie lange dieser Prozess schon läuft. Das ist die einzige Alterangabe,
-    // die ohne die Railway-Variable auskommt: Steht hier ein Wert von Tagen,
-    // hat es seit Tagen keinen Deploy gegeben – auch dann, wenn `commit` etwas
-    // anderes behauptet, weil die Variable irgendwo fest verdrahtet wurde.
-    uptimeSeconds: Math.round(process.uptime()),
-    // 01 und 04 hatten unabhängig voneinander dieselbe Idee; `uptimeSeconds`
-    // hat gewonnen, weil die Deploy-Wache darauf zugreift. `deploymentId` sagt
-    // etwas anderes und bleibt deshalb: welche Auslieferung hier läuft. Wenn
-    // die sich ändert und `commit` nicht, ist die Git-Variable fest verdrahtet.
-    deploymentId: (process.env.RAILWAY_DEPLOYMENT_ID ?? 'lokal').slice(0, 8),
-    snapshotRate: GAME.snapshotRate,
-    debugTools: ENABLE_DEV_TOOLS,
-    // Macht die Feature-Schalter von außen prüfbar – sonst sieht man einer
-    // falsch geschriebenen ENV-Variable nie an, dass sie nicht greift.
-    // Jedes Flag, das Spielgefühl verändert, gehört hier hinein: /health ist das
-    // Testprotokoll, wenn Sam sagt „geht nicht". Die Signatures fehlten – genau
-    // die, deren Wirkung gerade beurteilt werden soll.
-    features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, dashTravel: DASH_TRAVEL_ENABLED, repulseTravel: REPULSE_TRAVEL_ENABLED, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED, signatureSpecter: SIGNATURE_SPECTER_ENABLED, signatureTempest: SIGNATURE_TEMPEST_ENABLED, perks: PERKS_ENABLED, signatureSiege: SIGNATURE_SIEGE_ENABLED, signatureAegis: SIGNATURE_AEGIS_ENABLED },
-    persistence: persistenceStats(game),
-    auth: authStatus(),
-    clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),
-    abuse: rateLimiter.stats()
-  });
+  return response.status(draining ? 503 : 200).json({ ok: !draining, draining, ...liveState() });
 });
 app.get('/metrics', metricsHandler(game));
 // Öffentliche Routen: gehen im Zweifel an die Datenbank, deshalb mit Limit.
@@ -686,6 +721,17 @@ app.post(
   express.json({ limit: PROFILE_BODY_LIMIT }),
   profileUpdateHandler(game)
 );
+// Admin-Portal. `/admin/api/session` steht bewusst **vor** dem Torwächter: Sie
+// ist der einzige Weg, die eigene Konto-ID zu erfahren, und ohne die kommt
+// niemand je in die Allowlist. Sie verrät nur, wer der Fragende selbst ist.
+const adminRoutes = createAdminRoutes({
+  game,
+  live: () => ({ ...liveState(), draining: gracefulShutdown.isShuttingDown() })
+});
+app.get('/admin/api/session', publicGuard, adminRoutes.session);
+app.get('/admin/api/overview', publicGuard, adminGuard, adminRoutes.overview);
+app.get('/admin/api/players', publicGuard, adminGuard, adminRoutes.players);
+
 // Anonyme Perf-Berichte des Clients: kein Token, winziger Body, eigenes
 // Kostengewicht im IP-Budget. Höchstens ein Bericht pro Minute und Client.
 app.post(
@@ -708,6 +754,15 @@ if (CLIENT_DIST) {
   // Fehlt sie, faellt es still auf das Original zurueck.
   app.use(servePrecompressed(clientRoot));
   app.use(express.static(clientRoot));
+  // Das Admin-Portal ist eine eigene Seite mit eigenem Bündel – es hat mit dem
+  // Spiel nichts zu tun und soll dessen 680 kB nicht laden. Der Eintrag muss
+  // **vor** dem SPA-Rückfall stehen, sonst bekäme /admin die Spielseite.
+  app.get(/^\/admin(?:\/.*)?$/, (_request: Request, response: Response, next: () => void) => {
+    const page = path.join(clientRoot, 'admin.html');
+    if (!existsSync(page)) return next();
+    response.setHeader('Cache-Control', 'no-store');
+    response.sendFile(page);
+  });
   app.use((request: Request, response: Response, next: () => void) => {
     if (request.method !== 'GET') return next();
     // Fehlende Assets müssen 404 bleiben: index.html als Antwort auf eine .js-Anfrage

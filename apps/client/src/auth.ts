@@ -119,11 +119,17 @@ export class AuthClient {
     this.listeners.add(listener);
   }
 
-  /** Schickt den Browser zu Google. Kehrt im Erfolgsfall gar nicht zurück. */
-  async signIn(): Promise<void> {
+  /**
+   * Schickt den Browser zu Google. Kehrt im Erfolgsfall gar nicht zurück.
+   *
+   * `redirectTo` ist ein Parameter, weil es zwei Seiten mit Login gibt: das
+   * Spiel (`/`) und das Admin-Portal (`/admin`). Ohne das landete man nach der
+   * Anmeldung im Portal wieder im Spiel und müsste von Hand zurücknavigieren.
+   */
+  async signIn(redirectPath = '/'): Promise<void> {
     const { error } = await this.supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/` }
+      options: { redirectTo: `${window.location.origin}${redirectPath}` }
     });
     if (error) throw error;
   }

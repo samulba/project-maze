@@ -1,0 +1,373 @@
+/*
+ * Admin-Portal.
+ *
+ * Eigene Datei und eigene Tokens statt `style.css`: Das Spiel setzt dort
+ * `html, body { height: 100%; overflow: hidden }` – richtig für eine Arena, die
+ * den ganzen Bildschirm füllt, falsch für eine Seite, die gescrollt wird. Die
+ * Farben sind dieselben, damit das Portal erkennbar zu MAZERS gehört.
+ */
+
+:root {
+  --bg: #0d1019;
+  --surface: rgba(26, 31, 44, .88);
+  --strong: rgba(31, 37, 52, .97);
+  --line: rgba(255, 255, 255, .1);
+  --line-strong: rgba(255, 255, 255, .18);
+  --text: #e8ebf3;
+  --muted: #a4acbe;
+  --faint: #7e8598;
+  --accent: #6f7ad6;
+  --accent2: #8a6fd0;
+  --danger: #c4626f;
+  --success: #5aa882;
+  --warn: #d8a657;
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body.admin {
+  margin: 0;
+  padding: 0 0 60px;
+  color: var(--text);
+  background: var(--bg);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+#admin-root {
+  width: min(1320px, 100%);
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+button, select, input { font: inherit; color: inherit; }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .92em;
+}
+
+/* ------------------------------------------------------------------ *
+ * Kopf
+ * ------------------------------------------------------------------ */
+.kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 30px 0 22px;
+}
+.marke {
+  display: block;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .22em;
+}
+.kopf h1 {
+  margin: 2px 0 0;
+  font-size: 38px;
+  font-weight: 900;
+  letter-spacing: -.03em;
+}
+.kopf-rechts { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+
+.live {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+.live.aktiv i { background: var(--success); box-shadow: 0 0 10px var(--success); }
+.live.draining i { background: var(--danger); }
+
+.kopf-rechts button, .kopf-rechts select {
+  height: 34px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+}
+.kopf-rechts button:hover { border-color: var(--line-strong); }
+button.leise { color: var(--faint); background: transparent; }
+
+/* ------------------------------------------------------------------ *
+ * Blöcke und Kacheln
+ * ------------------------------------------------------------------ */
+.block { margin: 0 0 28px; }
+.block h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 12px;
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.kacheln {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+.kachel {
+  padding: 15px 16px 14px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+}
+.kachel-label {
+  display: block;
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.kachel-wert {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-top: 6px;
+  font-size: 27px;
+  font-weight: 850;
+  letter-spacing: -.02em;
+}
+.kachel small {
+  display: block;
+  margin-top: 5px;
+  color: var(--faint);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.trend {
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.trend.hoch { color: var(--success); }
+.trend.runter { color: var(--danger); }
+.trend.gleich { color: var(--faint); }
+
+/* ------------------------------------------------------------------ *
+ * Verlauf
+ * ------------------------------------------------------------------ */
+.verlauf {
+  margin: 14px 0 0;
+  padding: 14px 16px 10px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+}
+/* Feste Seitenverhältnisse statt fester Höhe: Mit `preserveAspectRatio: none`
+   wurde die Schrift der Datumsmarken horizontal mitgestreckt und stand breit
+   und unscharf unter der Kurve. */
+.verlauf svg { display: block; width: 100%; height: auto; aspect-ratio: 1000 / 220; }
+.verlauf .achse { stroke: var(--line); stroke-width: 1; }
+.verlauf .balken-alt { fill: color-mix(in srgb, var(--accent) 42%, transparent); }
+.verlauf .balken-neu { fill: var(--accent2); }
+.verlauf .saeule:hover .balken-alt { fill: color-mix(in srgb, var(--accent) 70%, transparent); }
+.verlauf .marke { fill: var(--faint); font-size: 13px; font-weight: 700; }
+.verlauf figcaption {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 700;
+}
+.verlauf figcaption .rechts { margin-left: auto; }
+.punkt { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 2px; vertical-align: -1px; }
+.punkt.neu { background: var(--accent2); }
+.punkt.alt { background: color-mix(in srgb, var(--accent) 42%, transparent); }
+
+/* ------------------------------------------------------------------ *
+ * Tabellen
+ * ------------------------------------------------------------------ */
+.tabelle {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  border-spacing: 0;
+  background: var(--surface);
+  overflow: hidden;
+}
+.tabelle th, .tabelle td {
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+.tabelle thead th {
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.tabelle tbody tr:last-child td { border-bottom: 0; }
+.tabelle tbody tr:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.tabelle .zahl { text-align: right; font-variant-numeric: tabular-nums; }
+.tabelle td strong { font-weight: 750; }
+.tabelle td small { margin-left: 7px; color: var(--faint); font-family: ui-monospace, monospace; font-size: 10px; }
+
+/* Breite Tabellen scrollen in sich selbst – die Seite scrollt nie quer. */
+.block:has(> .tabelle) { overflow-x: auto; }
+
+.anteil { display: flex; align-items: center; gap: 8px; min-width: 130px; }
+.anteil-balken {
+  flex: 1;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+}
+.anteil-balken b { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.anteil em { min-width: 44px; color: var(--faint); font-size: 11px; font-style: normal; text-align: right; }
+
+.familie {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 2px;
+  background: var(--faint);
+}
+.branch-rapid { background: #5b8cff; }
+.branch-precision { background: #e0a44a; }
+.branch-control { background: #46b98d; }
+.branch-impact { background: #d2606f; }
+.branch-specter { background: #8f7ff0; }
+.branch-tempest { background: #e0954e; }
+.branch-siege { background: #b0a24e; }
+.branch-aegis { background: #4ea9a4; }
+
+.marke-konto {
+  margin-left: 7px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+
+.schalterreihe { display: inline-flex; gap: 5px; margin-left: auto; }
+.schalterreihe button {
+  padding: 4px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--faint);
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.schalterreihe button.an { color: var(--text); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+
+.hinweis { margin: 9px 2px 0; color: var(--faint); font-size: 11px; line-height: 1.55; }
+.hinweis b { color: var(--muted); }
+.leer { margin: 0; padding: 22px; border: 1px dashed var(--line); border-radius: 15px; color: var(--faint); text-align: center; }
+.warnung {
+  margin: 0 0 20px;
+  padding: 12px 15px;
+  border: 1px solid color-mix(in srgb, var(--warn) 42%, transparent);
+  border-radius: 12px;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 9%, transparent);
+  font-size: 13px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Betrieb
+ * ------------------------------------------------------------------ */
+.betrieb { display: grid; gap: 1px; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); list-style: none; overflow: hidden; }
+.betrieb li { display: flex; align-items: center; gap: 11px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.betrieb li:last-child { border-bottom: 0; }
+.betrieb b { min-width: 140px; color: var(--muted); font-size: 12px; font-weight: 750; }
+.betrieb span { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ampel { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.ampel.gut { background: var(--success); }
+.ampel.schlecht { background: var(--warn); }
+
+.flags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.flag b { color: var(--muted); font-weight: 800; }
+.flag.an { color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+.flag.aus { color: var(--faint); }
+
+.fuss { padding: 8px 2px 0; color: var(--faint); font-size: 11px; }
+
+/* ------------------------------------------------------------------ *
+ * Das Tor (Login, leere Allowlist, abgeschalteter Login)
+ * ------------------------------------------------------------------ */
+.tor {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  width: min(560px, 100%);
+  margin: 12vh auto 0;
+  padding: 30px 32px 32px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
+}
+.tor h1 { margin: 0 0 6px; font-size: 34px; font-weight: 900; letter-spacing: -.03em; }
+.tor p { margin: 0; color: var(--muted); }
+.tor .warnung { width: 100%; margin: 0; }
+.tor .klein { color: var(--faint); font-size: 12px; }
+.tor .id {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--strong);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.tor button {
+  height: 40px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--strong);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+}
+.tor button.gross { border: 0; color: #fff; background: var(--accent); }
+.tor button:hover { filter: brightness(1.12); }
+
+@media (max-width: 720px) {
+  .kopf { padding-top: 20px; }
+  .kopf h1 { font-size: 30px; }
+  .kachel-wert { font-size: 23px; }
+}

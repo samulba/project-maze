@@ -1,6 +1,57 @@
 # Integrationsstand – Chat 01 (Zentrale)
 
-**Stand: 2026-08-07**
+**Stand: 2026-08-08**
+
+## Admin-Portal (`/admin`) – Sams Blick auf die Zahlen
+
+Auftrag: *„ich will jetzt für MAZERS ein ADMIN PORTAL bauen, damit ich immer im
+überblick habe ob wir neue spieler haben etc blabla alles was wichtig ist"*.
+
+Ausführlich in **`docs/ADMIN_PORTAL.md`** (Einrichtung, Routen, Fehlerbilder).
+
+### Die Lücke, die zuerst geschlossen werden musste
+
+MAZERS speicherte bis hierher nur **abgeschlossene Runs mit Score > 0**. Für
+das Leaderboard richtig, für „haben wir neue Spieler" blind: Wer hereinschaut
+und ohne Punkte wieder geht, hinterließ keine Spur, und zwei Runs desselben
+Gastes waren nicht als derselbe Mensch erkennbar. Die Frage ließ sich aus dem
+alten Datenbestand nicht beantworten, nur schätzen.
+
+Migration **0005** legt deshalb `sessions` (ein Besuch je Zeile) und `devices`
+(Aggregat je Browser, per Trigger gepflegt) an, dazu die Views `admin_daily`
+und `admin_class_daily`. Wiedererkannt wird über eine Zufalls-ID, die der
+Browser sich selbst gibt – kein Fingerabdruck, keine IP, jederzeit vom Spieler
+löschbar.
+
+**Die Migration ist noch offen** – sie liegt in `supabase/migrations/` und muss
+von Sam in Supabase Studio eingespielt werden.
+
+### Zugang
+
+Google-Login plus Allowlist (`ADMIN_USER_IDS`). Eine leere Liste sperrt alle
+aus, auch den Projekteigner – eine nicht gesetzte Variable darf nie „offen für
+alle" bedeuten.
+
+Das Henne-Ei-Problem („welche Konto-ID ist meine?") löst `/admin/api/session`:
+Die Route braucht keine Adminrechte und nennt jedem Angemeldeten seine eigene
+ID; das Portal zeigt sie mit Kopierknopf an.
+
+### Was das Portal zeigt
+
+Drei Fragen in dieser Reihenfolge: **Läuft es gerade?** (Spieler online, Takt,
+Laufzeit, ausgelieferter Stand) – **Wachsen wir?** (Spieler je Tag, davon neu,
+Besuche, Spielzeit, mit Verlaufskurve und Halbzeitvergleich) – **Wie wird
+gespielt?** (Klassennutzung, erreichte Level, und welche Klassen noch *nie*
+jemand gespielt hat). Darunter Spielerliste, Bestenliste und der Betriebsblock
+mit beiden Schreibpuffern und allen Feature-Schaltern.
+
+### Nebenbei begradigt
+
+`/health` und das Portal speisen sich jetzt aus **einer** Funktion
+(`liveState()`). Vorher wären es zwei Listen gewesen, die auseinanderlaufen –
+und zwar genau dann, wenn man beide braucht.
+
+---
 
 ## Klassen 4.1 – 20 neue Tanks, die Wahl als Fenster, das Rad mit Zoom
 

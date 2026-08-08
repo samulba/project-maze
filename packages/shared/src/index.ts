@@ -103,7 +103,12 @@ export interface Vector2 { x: number; y: number; }
 /** `aim` is a world-space offset. Bullet classes use direction; drones also use magnitude. */
 export interface InputMessage { type: 'input'; sequence: number; move: Vector2; aim: Vector2; primary: boolean; secondary: boolean; }
 /** `authToken` ist optional: Gast-Spielen bleibt immer möglich, Login heftet nur das Konto an. */
-export interface JoinMessage { type: 'join'; name: string; authToken?: string; }
+/**
+ * `deviceId` ist eine Zufalls-ID aus dem localStorage des Browsers und dient
+ * einzig der Besuchszählung im Admin-Portal (siehe `apps/client/src/device-id.ts`).
+ * Optional: Ohne sie spielt man unveraendert, nur ungezaehlt.
+ */
+export interface JoinMessage { type: 'join'; name: string; authToken?: string; deviceId?: string; }
 export interface UpgradeMessage { type: 'upgrade'; upgrade: UpgradeId; }
 export interface ChooseClassMessage { type: 'chooseClass'; playerClass: PlayerClass; }
 export interface RespawnMessage { type: 'respawn'; }
