@@ -1,6 +1,71 @@
 # Integrationsstand – Chat 01 (Zentrale)
 
-**Stand: 2026-08-08**
+**Stand: 2026-08-09**
+
+## Klassen 4.2 – die Wahl in die Ecke, das Rad aufgeräumt
+
+Sams Befund: *„die UI fixen an allen stellen wo es sich überschneidet! vorallem
+bei der TANK auswahl und dem RAD ist beides noch nicht clean! und tankauswahl
+sollte iwo in einer ecke sein nicht direkt in der mitte vlt will man ja
+garnichts wählen"*.
+
+### Die Wahl steht nicht mehr in der Mitte
+
+4.1 hatte aus der Spur am unteren Rand ein zentriertes Fenster gemacht. Lesbar,
+aber falsch – und zwar aus einem Grund, den keine Messung zeigt: **Ein Fenster
+in der Bildmitte behauptet, die Entscheidung sei jetzt fällig.** Ist sie nicht.
+Man kann als Rapid bis Level 60 spielen, ohne je zu spezialisieren.
+
+Jetzt: linke Spalte unter der Spielerkarte, 2 × 4 Karten, ✕ klappt sie auf eine
+42-px-Leiste zu („NEUE KLASSE · 8 Wege offen"). Die Leiste bleibt, bis gewählt
+ist; eine *neue* Auswahl klappt wieder auf. Tote Bildfläche: **8 % statt 45 %**.
+
+Wer weicht: Der Killfeed tritt zurück, solange die Wahl **aufgeklappt** ist
+(F6 hatte ihn schon als das Entbehrlichste der linken Spalte bestimmt), das
+Upgrade-Panel ebenso. Zugeklappt sind beide sofort wieder da – der Killfeed
+rückt dann unter die Leiste, statt zu verschwinden.
+
+### Zwei echte Fehler, die dabei herausfielen
+
+- **Die Karten waren 220 px breit in einem 320-px-Raster.** `class-choice.css`
+  setzt seit Welle B `min-width: 220px` auf jede angereicherte Karte; der
+  Attributselektor ist spezifischer als die Regel `.class-choices button
+  { min-width: 0 }`, die genau das verhindern sollte. Die rechte Kartenspalte
+  lief 64 px aus dem Panel.
+- **Der Name lief aus der Spielerkarte.** Auf 900×640 stand `max-width: 160px`
+  für den Namen plus 52 px Level-Abzeichen plus 12 px Abstand gegen 187 px
+  Innenraum – 33 px Überlauf. Ein fester Deckel kürzt nur dann, wenn ohnehin
+  Platz ist.
+
+Beide waren **vorher** da und von niemandem gesehen worden.
+
+### Das Rad
+
+- **Ring 2 war der Engpass:** 24 Klassen auf Radius 214 sind 56 Einheiten je
+  Knoten bei 48 Einheiten Durchmesser – die Kreise berührten sich fast. Jetzt
+  Radius 238, 20 Einheiten Luft.
+- **Ein Schleier**, gegen die eigene frühere Entscheidung („keine Abdunklung"):
+  Die galt für 29 Knoten über einer Arena, durch die man weiterspielen sollte.
+  Es sind 65, und das Overlay ist seit 4.1 eine Leseansicht.
+- **Der Hinweis unten war abgeschnitten** – `clip-path: circle(50%)` saß am
+  Kasten statt am SVG und schnitt alles mit, was nicht im Kreis liegt.
+
+### Der Prüfstand misst jetzt auch *innerhalb* der Panels
+
+Das war die Lücke, durch die Sams Befunde fielen: 75 Fenstergrößen, aber nur
+Panel gegen Panel. Zwei Karten, die sich in derselben Klassenwahl decken, waren
+unsichtbar. Neu geprüft werden
+
+1. **Inhalt, der über seinen Kasten läuft** (waagerecht immer ein Fehler,
+   senkrecht außer bei absichtlichem Bildlauf),
+2. **Geschwister, die sich decken** (nur statisch positionierte),
+3. **Text, der nicht passt** (außer bei Ellipse oder `line-clamp`).
+
+Dazu fünf neue Fälle für den **zugeklappten** Zustand – der war vorher komplett
+ungeprüft, weil der Prüfstand nie geklickt hat. Gegenprobe mit absichtlich
+kaputtem Layout: 23 Befunde. Am echten Layout: **80/80 ohne Befund.**
+
+---
 
 ## Admin-Portal (`/admin`) – Sams Blick auf die Zahlen
 

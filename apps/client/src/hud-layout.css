@@ -351,289 +351,282 @@
 }
 
 
+/* ------------------------------------------------------------------ *
+ * H1 – Der Name lief aus der Spielerkarte
+ * ------------------------------------------------------------------ */
+/*
+ * Gefunden von der erweiterten Prüfung (08.08.), nachdem sie zum ersten Mal
+ * auch **innerhalb** der Panels misst: Auf 900×640 lief der Inhalt der
+ * Spielerkarte 33 px über ihre Breite.
+ *
+ * Ursache ist ein festes Maß: `.player-heading strong { max-width: 160px }`
+ * plus Level-Abzeichen (52 px) plus Abstand (12) ergibt 224 px – die Karte hat
+ * dort aber nur 187 px Innenraum. Das Abzeichen wurde nach rechts hinausgedrückt.
+ *
+ * Ein fester Deckel ist hier die falsche Zusage: Er soll den Namen kürzen, aber
+ * er kürzt ihn nur, wenn die Karte breit genug ist. Richtig ist „nimm, was
+ * übrig bleibt" – die Ellipse macht den Rest, sie war ohnehin schon da.
+ */
+.player-heading { min-width: 0; }
+.player-heading > div:first-child { min-width: 0; }
+.player-heading strong { max-width: none; min-width: 0; }
+.player-heading .level-badge { flex: 0 0 auto; }
+
 /* ================================================================== *
- * Klassen 4.1 – die Wahl wird ein Fenster, kein Scrollbalken
+ * Klassen 4.2 – die Wahl steht in der Ecke und lässt sich wegklicken
  * ================================================================== */
 /*
- * Befund von Sam (07.08., Screenshot): Die Wahl stand als flaches Band am
- * unteren Rand, die Karten in einer horizontal scrollenden Spur, Text
- * abgeschnitten, die letzte Karte halb aus dem Bild. Mit acht Familien auf
- * Level 5 ist die Spur-Idee erledigt – sie stammt aus einer Zeit mit vier
- * schmalen Karten.
+ * Vorgeschichte: 4.1 hat aus der flachen Spur am unteren Rand ein zentriertes
+ * Fenster gemacht. Das war lesbar, aber falsch – Sams Einwand trifft:
+ * „tankauswahl sollte iwo in einer ecke sein nicht direkt in der mitte vlt
+ * will man ja garnichts wählen".
  *
- * Jetzt: ein zentriertes Fenster mit eigener Fläche. Die Karte liegt darin
- * **quer** – Bild links, Text rechts – statt hochkant. Das ist nicht Geschmack,
- * sondern Arithmetik: hochkant war eine Karte rund 250 px hoch, acht davon
- * passten weder in zwei Reihen unter den Höhendeckel (gemessen: 6 von 8
- * sichtbar) noch unter die Klickgrenze (gemessen: 45 % tote Fläche gegen 32 %
- * erlaubt). Quer misst dieselbe Karte rund 130 px – acht davon sind vollständig
- * sichtbar und lassen den Rest des Bildes zum Zielen frei.
+ * Er hat recht, und zwar aus einem Grund, den keine Messung zeigt: Ein Fenster
+ * in der Bildmitte behauptet, die Entscheidung sei jetzt fällig. Ist sie aber
+ * nicht. Man kann als Rapid bis Level 60 spielen, ohne je zu spezialisieren.
  *
- * Das Spielfeld bleibt sichtbar (kein Schleier), und die Fläche zwischen den
- * Karten nimmt weiterhin keine Klicks – die Regel aus F1 gilt unverändert.
- */
-/*
- * Senkrecht steht das Fenster **im freien Band**, nicht in der Bildmitte:
- * Oben endet die Spielerkarte (gemessen 160 px), unten beginnt die Reihe aus
- * Auto-Knopf, Minimap und Modul (gemessen 181 px vom unteren Rand). `top` und
- * `bottom` spannen das Band auf, `height: fit-content` plus `margin-block: auto`
- * zentriert das Fenster darin. Auf großen Schirmen sieht das aus wie mittig,
- * auf flachen weicht es von selbst aus – ohne eine einzige Ausnahmeregel.
+ * Deshalb jetzt: **linke Spalte, unter der Spielerkarte** – dieselbe Spalte,
+ * in der ohnehin alles Eigene steht (Leben, Level, Upgrades). Zuklappbar auf
+ * eine schmale Leiste, die stehen bleibt, bis man wählt. Die Bildmitte gehört
+ * wieder der Arena.
  */
 .class-selection {
   --wahl-links: 0px;
   --wahl-rechts: 0px;
-  --wahl-oben: 150px;
-  --wahl-unten: 190px;
-  left: 50%;
+  /* Unter der Spielerkarte. Gemessen ist die 142 px hoch, mit Ladebalken 170
+     und auf 21:9 155 – plus 18 px Rand. 190 räumt den schlimmsten Fall. */
+  --wahl-oben: 190px;
+  /* Über der unteren Bedienreihe (Auto-Knopf, Minimap, Modul). */
+  --wahl-unten: 96px;
+  left: var(--edge-x);
   right: auto;
   top: calc(var(--edge-y) + var(--wahl-oben));
-  bottom: calc(var(--edge-y) + var(--wahl-unten));
+  bottom: auto;
   height: fit-content;
-  width: min(980px, calc(100vw - 40px));
+  width: min(348px, calc(100vw - 2 * var(--edge-x)));
   max-width: none;
-  max-height: 100%;
-  margin-inline: 0;
-  margin-block: auto;
-  translate: -50% 0;
-  padding: 14px 16px 16px;
-  border-radius: 20px;
-  overflow: visible;
+  max-height: calc(100vh - var(--edge-y) * 2 - var(--wahl-oben) - var(--wahl-unten));
+  margin: 0;
+  translate: none;
+  padding: 0;
+  border-radius: 16px;
+  /* Falls die vier Reihen doch einmal nicht in das Band passen (sehr flache
+     Fenster), scrollt das Panel in sich – die Bildmitte bleibt unangetastet. */
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
-.class-selection > .panel-title { font-size: 11px; }
-.class-selection > p { margin: -2px 4px 10px; font-size: 12px; }
 
 /*
- * Feste Spaltenzahl statt `auto-fit`: Bei acht Karten legte `auto-fit` sechs
- * nebeneinander und zwei darunter – eine Reihe von zwei, die aussieht wie ein
- * Rest. Vier mal zwei ist die Form, die zu acht Familien gehört.
+ * Die Leiste im zugeklappten Zustand. Sie bleibt sichtbar, bis gewählt wurde –
+ * eine weggeklickte Wahl ist aufgeschoben, nicht verworfen.
+ */
+.class-selection-bar {
+  display: none;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 11px 14px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  text-align: left;
+}
+.class-selection-bar b {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .12em;
+}
+.class-selection-bar span { color: var(--faint); font-size: 11px; font-weight: 700; }
+.class-selection-bar i { margin-left: auto; color: var(--faint); font-style: normal; }
+.class-selection-bar:hover b { color: var(--text); }
+
+.class-selection-body { padding: 12px 13px 13px; }
+.class-selection[data-collapsed='true'] .class-selection-body { display: none; }
+.class-selection[data-collapsed='true'] .class-selection-bar { display: flex; }
+/* Zugeklappt darf die Leiste selbst Klicks nehmen – sonst käme man nicht
+   zurück. Aufgeklappt gilt weiter die Regel aus F1: nur die Karten. */
+.class-selection[data-collapsed='true'] { pointer-events: auto; }
+
+.class-selection > .class-selection-body > .panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+}
+.class-selection .sheet-close {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--faint);
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  font-size: 11px;
+}
+.class-selection .sheet-close:hover { color: var(--text); border-color: var(--line-strong); }
+.class-selection > .class-selection-body > p { margin: 6px 2px 10px; font-size: 11px; }
+
+/*
+ * Zwei Spalten. Bei acht Wegen sind das vier Reihen – in einer 348 px breiten
+ * Spalte ist das die einzige Aufteilung, in der der Name noch in eine Zeile
+ * passt.
  */
 .class-choices {
   grid-auto-flow: row;
   grid-auto-columns: auto;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
   overflow: visible;
 }
-@media (max-width: 819px) { .class-choices { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 619px) { .class-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 359px) { .class-choices { grid-template-columns: minmax(0, 1fr); } }
-/* Quer auf Touch ist das Band zwischen Kopfzeile und Sticks am schmalsten
-   (gemessen 136 px auf 844×390). Dort zählt nur, dass zwei Reihen reichen. */
-@media (pointer: coarse) and (orientation: landscape) {
-  .class-choices { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/*
+ * `class-choice.css` setzt seit Welle B `min-width: 220px` auf jede angereicherte
+ * Karte – gedacht für die breite Fassung mit Balken und Perk. In einer 348 px
+ * schmalen Ecke sprengt das jedes Raster: Gemessen waren die Karten 220 px breit
+ * in 320 px Raster, die rechte Spalte lief 64 px aus dem Panel. Die alte Regel
+ * `.class-choices button { min-width: 0 }` (F-Runde) verliert dagegen, weil der
+ * Attributselektor spezifischer ist.
+ *
+ * Und `padding-top: 34px` von dort ist hier zu viel: Die Rolle stand absolut in
+ * der Ecke, jetzt steht sie im Raster.
+ */
+.class-selection .class-choices button[data-enhanced='true'] {
+  min-width: 0;
+  padding-top: 8px;
 }
 
-/* Die Karte quer: Bild in der linken Spalte über beide Kopfzeilen, alles
-   andere rechts bzw. über die volle Breite darunter. */
+/* Die Karte quer: Bild links, Name und Rolle rechts. */
 .class-selection .class-choices button {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
-  grid-template-areas:
-    'bild name'
-    'bild rolle'
-    'text text'
-    'balken balken';
-  align-content: start;
-  column-gap: 11px;
-  row-gap: 1px;
+  min-width: 0;
+  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-areas: 'bild name' 'bild rolle';
+  align-content: center;
+  align-items: center;
+  column-gap: 9px;
+  row-gap: 0;
   min-height: 0;
-  padding: 11px 13px 12px;
+  padding: 8px 9px;
   text-align: left;
   overflow: hidden;
 }
 .class-selection .class-choice-preview {
   grid-area: bild;
-  height: 52px;
+  height: 32px;
   align-self: center;
   margin: 0;
 }
-.class-selection .class-choice-preview svg { width: 50px; height: 50px; }
-/* Die Rolle stand absolut in der Ecke – im Querformat hat sie eine Zeile. */
+.class-selection .class-choice-preview svg { width: 32px; height: 32px; }
+.class-selection .class-choices strong {
+  grid-area: name;
+  align-self: end;
+  font-size: 12px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .class-selection .class-choice-role {
   grid-area: rolle;
   position: static;
   align-self: start;
-  font-size: 9px;
+  font-size: 8px;
 }
-.class-selection .class-choices strong {
-  grid-area: name;
-  align-self: end;
-  font-size: 15px;
-  line-height: 1.15;
-}
-/* Beschreibung und Perk schließen sich aus (`class-choice.css`: sobald ein Perk
-   da ist, weicht die Beschreibung) – sie teilen sich deshalb eine Zeile. */
+/*
+ * Was in der Ecke keinen Platz hat, steht im Rad (Taste C): Beschreibung,
+ * Perk, Balken, Zielliste. Die Karte hier trägt genau so viel, wie man zum
+ * Wiedererkennen braucht – Form, Name, Rolle.
+ */
 .class-selection .class-choices button > span:not([class]),
-.class-selection .class-choice-perk {
-  grid-area: text;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  margin: 5px 0 0;
-  font-size: 11px;
-  line-height: 1.35;
-}
-/* Die vier Balken nebeneinander statt untereinander: 22 px statt 44. */
-.class-selection .class-choice-bars {
-  grid-area: balken;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 5px;
-  margin-top: 8px;
-}
-.class-selection .class-choice-bars > div {
-  grid-template-columns: none;
-  gap: 2px;
-}
-.class-selection .class-choice-bars i { height: 4px; }
-/* Die Sammelregel „`.class-choices span` weg" (F-Runde) trifft sonst auch die
-   Beschriftung der Balken – ein Balken ohne Namen misst nichts. */
-.class-selection .class-choice-bars span { display: block; font-size: 8px !important; }
-/* Level-Angabe und Zielliste tragen die Entscheidung nicht – im Fenster ist
-   jede Karte ohnehin wählbar, und wohin sie führt, zeigt das Rad. */
+.class-selection .class-choice-perk,
+.class-selection .class-choice-bars,
 .class-selection .class-choices small,
 .class-selection .class-choice-leads { display: none; }
 
-/* Flache Fenster: erst die Balken, dann der Text – die Form bleibt. */
-/*
- * Die Balken sind die erste Stufe, die fällt. Nicht aus Platznot allein: Mit
- * ihnen misst eine Karte 142 px statt 102, acht davon sind der Unterschied
- * zwischen 20 % und 28 % toter Bildfläche – und auf 720p kommt das
- * Upgrade-Panel mit weiteren 8 % dazu. Über 780 px Höhe ist der Platz da.
- */
-@media (max-height: 780px) {
-  .class-selection { padding: 12px 14px 14px; }
-  .class-selection > p { display: none; }
-  .class-selection .class-choice-bars { display: none; }
-  .class-selection .class-choices button { padding: 9px 11px 10px; }
-  .class-selection .class-choice-preview { height: 44px; }
-  .class-selection .class-choice-preview svg { width: 42px; height: 42px; }
-}
-/* Zweite Stufe: eine Zeile Text statt zwei. */
-@media (max-height: 700px) {
-  .class-selection .class-choices button > span:not([class]),
-  .class-selection .class-choice-perk { -webkit-line-clamp: 1; line-clamp: 1; }
-}
-/*
- * Dritte Stufe: das Bild schrumpft. Auf 1280×600 stehen Wahl und Upgrade-Panel
- * nebeneinander; gemessen kamen beide zusammen auf 33 % tote Fläche. Ein
- * kleineres Bild kostet weniger als eine Zeile Text – die Silhouette bleibt
- * auch auf 34 px erkennbar, ein halber Satz nicht.
- */
-@media (max-height: 620px) {
-  .class-selection .class-choices button { padding: 7px 9px 8px; grid-template-columns: 40px minmax(0, 1fr); column-gap: 9px; }
-  .class-selection .class-choice-preview { height: 34px; }
-  .class-selection .class-choice-preview svg { width: 34px; height: 34px; }
-}
-@media (max-height: 460px) {
-  .class-selection .class-choices button > span:not([class]),
-  .class-selection .class-choice-perk { display: none; }
-  .class-selection .class-choices button { grid-template-columns: 40px minmax(0, 1fr); }
-  .class-selection .class-choice-preview { height: 34px; }
-  .class-selection .class-choice-preview svg { width: 32px; height: 32px; }
+/* Flache Fenster: die erklärende Zeile über den Karten fällt weg. */
+@media (max-height: 640px) {
+  .class-selection > .class-selection-body > p { display: none; }
+  .class-selection-body { padding: 10px 11px 11px; }
 }
 
-/* ------------------------------------------------------------------ *
- * Klassen 4.1 – wer während der Wahl zur Seite tritt
- * ------------------------------------------------------------------ */
 /*
- * Ein zentriertes Fenster liegt zwangsläufig dort, wo sonst etwas anderes
- * liegt. Gemessen: Bestenliste, Killfeed und Upgrade-Panel lagen unter der
- * Wahl, auf 900×640 zusätzlich Spielerkarte und Minimap.
+ * Der Killfeed steht in genau dieser Ecke – direkt unter der Spielerkarte
+ * (gemessen [18, 169, 250, 122] auf 1280×720). Die linke Spalte ist damit
+ * belegt, und zwar in jeder Fenstergröße.
  *
- * Die Antwort ist dieselbe wie in F2 für Onboarding und Banner, nur eine Stufe
- * weiter gedacht: **Rangliste und Killfeed sind Beiwerk.** Wer gerade seine
- * Spezialisierung wählt, braucht nicht zu wissen, wer auf Platz vier steht –
- * das sind zehn Sekunden. Sie treten zur Seite und nehmen dabei auch keine
- * Klicks mehr (sonst zählte die tote Fläche sie weiter mit).
- *
- * Spielerkarte, Minimap und Modul bleiben: Leben, Ort und Fähigkeit sind
- * Bedienung, kein Beiwerk. Für sie weicht stattdessen das Fenster.
+ * Er tritt zurück, solange die Wahl **aufgeklappt** ist. Von allem, was hier
+ * liegt, ist er das Entbehrlichste – das stand schon in F6, als er dem
+ * Upgrade-Panel weichen musste. Zugeklappt ist er sofort wieder da, und die
+ * Leiste ist nur 40 px hoch.
  */
-:root:has(.class-selection:not([hidden])) #leaderboard,
-:root:has(.class-selection:not([hidden])) .killfeed {
+:root:has(.class-selection:not([hidden])[data-collapsed='false']) .killfeed {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s;
+}
+/*
+ * Zugeklappt bleibt der Killfeed – die Leiste ist nur 42 px hoch, und wer die
+ * Wahl aufschiebt, soll dafür nicht dauerhaft auf die Abschussmeldungen
+ * verzichten. Er rückt stattdessen unter die Leiste.
+ *
+ * 100 px statt der üblichen 9: Die Leiste beginnt bei `--wahl-oben` (190) und
+ * endet 42 px später, während der Killfeed an der Unterkante der Spielerkarte
+ * hängt – und die ist mal 142, mal 155, mal 170 px hoch. 100 räumt den
+ * ungünstigsten der drei Fälle und lässt in den anderen etwas Luft.
+ */
+:root:has(.class-selection:not([hidden])[data-collapsed='true']) .killfeed {
+  margin-top: 100px;
+}
+
+/*
+ * Das Upgrade-Panel steht in derselben Spalte. Aufgeklappt tritt es zurück:
+ * Sie teilen sich 348 px Breite, und übereinander passt beides nur auf hohen
+ * Schirmen. Zugeklappt ist es sofort wieder da – die Leiste ist 40 px hoch.
+ */
+:root:has(.class-selection:not([hidden])[data-collapsed='false']) .upgrade-panel {
   opacity: 0;
   pointer-events: none;
   transition: opacity .18s;
 }
 
 /*
- * Das Upgrade-Panel ist kein Beiwerk – es ist die zweite Hälfte desselben
- * Level-Ups. Ab 1100 px Breite ist Platz für beides: Das Fenster rückt aus der
- * Bildmitte in die freie Spur rechts davon und wird um genau den Betrag
- * schmaler, den das Panel belegt.
- */
-@media (min-width: 1100px) {
-  :root:has(.upgrade-panel:not([hidden])) .class-selection {
-    /* Rand plus Panelbreite – das Panel ist auf flachen Fenstern zweispaltig
-       und damit breiter (gemessen 300 px auf 720, 340 px auf 600). */
-    --wahl-links: calc(var(--edge-x) + 344px);
-    left: calc(50% + var(--wahl-links) / 2);
-    width: min(980px, calc(100vw - 40px - var(--wahl-links)));
-  }
-}
-/*
- * Darunter gibt es diese Spur nicht: 900 px minus 262 px Panel minus 202 px
- * Bestenliste lassen für acht Karten nichts übrig, das noch lesbar wäre.
- * Dann tritt das Panel zurück – die Punkte laufen nicht weg, die Wahl schon
- * (sie verschwindet, sobald man gewählt hat).
- */
-@media (max-width: 1099px) {
-  :root:has(.class-selection:not([hidden])) .upgrade-panel {
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .18s;
-  }
-}
-
-/*
- * Touch: Das Band liegt anders. Oben ist die Kopfzeile flacher (Spielerkarte
- * und Punkte-Badge enden bei 50 px), unten beginnt die Steuerung früher – die
- * Sticks stehen auf 844×390 ab 220 px, der Auto-Knopf ab 198 px.
+ * Touch: Dort liegt links unten der Bewegungs-Stick. Die Wahl rückt an den
+ * oberen Rand und bleibt schmal.
  */
 @media (pointer: coarse) {
   .class-selection {
-    --wahl-oben: 64px;
-    --wahl-unten: 226px;
+    /* Spielerkarte und Punkte-Badge enden bei 54 px (gemessen 900×500). */
+    --wahl-oben: 62px;
+    /* Über dem Bewegungs-Stick: der beginnt bei 302 px auf einem 500 px hohen
+       Schirm, also 198 px vom unteren Rand. */
+    --wahl-unten: 210px;
+    width: min(300px, calc(100vw - 2 * var(--edge-x)));
   }
 }
 /*
- * Handy quer: Dort beginnt der Auto-Knopf schon bei 183 px (667×375) bzw.
- * 282 px (900×500), das Band ist 111–180 px hoch. Was bleibt, ist Bild, Name
- * und Rolle – mehr passt nicht, und weniger als acht Karten ist keine Wahl.
+ * Handy quer: Zwischen Kopfzeile und Sticks bleiben rund 140 px. Hoch geht da
+ * nichts mehr, breit schon – vier Spalten mal zwei Reihen statt zwei mal vier.
  */
-@media (pointer: coarse) and (orientation: landscape) {
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 520px) {
   .class-selection {
-    --wahl-oben: 76px;
-    --wahl-unten: 244px;
-    padding: 8px 10px 10px;
+    --wahl-oben: 58px;
+    --wahl-unten: 176px;
+    width: min(560px, calc(100vw - 2 * var(--edge-x)));
   }
-  .class-selection > .panel-title { display: none; }
-  .class-selection .class-choices { gap: 6px; }
-  .class-selection .class-choices button { padding: 6px 8px 7px; grid-template-columns: 32px minmax(0, 1fr); column-gap: 8px; }
-  .class-selection .class-choices strong { font-size: 13px; }
-  .class-selection .class-choice-preview { height: 30px; }
-  .class-selection .class-choice-preview svg { width: 28px; height: 28px; }
+  .class-selection .class-choices { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .class-selection > .class-selection-body > p { display: none; }
+  .class-selection .class-choices button { padding: 6px 8px; grid-template-columns: 28px minmax(0, 1fr); column-gap: 7px; }
+  .class-selection .class-choice-preview { height: 26px; }
+  .class-selection .class-choice-preview svg { width: 26px; height: 26px; }
+  .class-selection .class-choices strong { font-size: 11px; }
 }
-/* Unter 440 px Höhe rückt die Bedienzone noch weiter hoch. */
-@media (pointer: coarse) and (orientation: landscape) and (max-height: 440px) {
-  .class-selection { --wahl-oben: 62px; --wahl-unten: 202px; }
-}
-
-/*
- * Ein Achievement-Popup mitten in der Wahl kostete gemessen 4,7 % Klickfläche
- * und stand über dem Fenster. Es weicht wie Onboarding und Banner (F2) – der
- * Eintrag bleibt im Profil, die Wahl kommt nicht wieder.
- */
-:root:has(.class-selection:not([hidden])) .achievement-popup {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .18s;
-}
-
 
 /* ================================================================== *
  * Klassen 4.1 – zwölf Upgrade-Slots passen nicht mehr untereinander

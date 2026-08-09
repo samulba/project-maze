@@ -38,10 +38,20 @@ const NS = 'http://www.w3.org/2000/svg';
 const BASIS_VIEW = 1000;
 const MIN_ZOOM = 0.75;
 const MAX_ZOOM = 6;
-const RADIEN = [0, 112, 214, 322, 430] as const;
+/*
+ * Ringradien. Nachgerechnet statt geschätzt, weil Ring 2 der Engpass ist:
+ * Dort stehen 24 Klassen. Bei Radius 214 (Stand 4.1) waren das 2π·214/24 = 56
+ * Einheiten je Knoten bei 48 Einheiten Durchmesser – die Kreise berührten sich
+ * fast, und genau das meint Sams „ist noch nicht clean".
+ *
+ * Jetzt 238: 62 Einheiten je Knoten bei 42 Durchmesser, also 20 Einheiten
+ * Luft. Der äußere Ring bleibt bei 448, damit Knoten (17) und Beschriftung
+ * (~24 darunter) mit 489 unter dem Rand der viewBox (500) bleiben.
+ */
+const RADIEN = [0, 124, 238, 352, 448] as const;
 const MITTE = 500;
 /** Knotengrößen je Ring – innen wichtiger, also größer. */
-const GROESSE = [46, 32, 24, 20, 18] as const;
+const GROESSE = [44, 30, 21, 19, 17] as const;
 
 export interface WheelSelection {
   node: WheelNode;

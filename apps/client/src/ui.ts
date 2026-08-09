@@ -264,10 +264,24 @@ export class GameUI {
             </div>
           </div>
 
+          <!--
+            Klassen 4.2: Die Wahl steht in der Ecke, nicht in der Bildmitte, und
+            lässt sich zuklappen. Sams Begründung ist die bessere: „vlt will man
+            ja garnichts wählen" – eine Entscheidung, die man nicht treffen will,
+            darf einem nicht die Sicht auf die Arena nehmen.
+          -->
           <section class="class-selection glass" id="class-selection" hidden>
-            <div class="panel-title">NEUE SPEZIALISIERUNG</div>
-            <p>Wähle deinen nächsten Entwicklungspfad.</p>
-            <div class="class-choices" id="class-choices"></div>
+            <button class="class-selection-bar" id="class-selection-open" type="button">
+              <b>NEUE KLASSE</b><span id="class-selection-count"></span><i>▸</i>
+            </button>
+            <div class="class-selection-body">
+              <div class="panel-title">
+                NEUE SPEZIALISIERUNG
+                <button class="sheet-close" id="class-selection-close" type="button" aria-label="Klassenwahl zuklappen">✕</button>
+              </div>
+              <p>Wähle deinen nächsten Entwicklungspfad.</p>
+              <div class="class-choices" id="class-choices"></div>
+            </div>
           </section>
 
           <section class="death-screen" id="death-screen" hidden>
@@ -325,6 +339,14 @@ export class GameUI {
     this.minimap = this.require<HTMLCanvasElement>('#minimap');
     this.classSelection = this.require('#class-selection');
     this.classChoices = this.require('#class-choices');
+    // Zuklappen und wieder aufklappen. Der Zustand hängt am Element, nicht an
+    // einem Feld: So sieht CSS ihn ohne Umweg, und `updateClassSelection`
+    // setzt ihn bei einer neuen Auswahl in einer Zeile zurück.
+    this.classSelection.dataset.collapsed = 'false';
+    this.require<HTMLButtonElement>('#class-selection-close')
+      .addEventListener('click', () => { this.classSelection.dataset.collapsed = 'true'; });
+    this.require<HTMLButtonElement>('#class-selection-open')
+      .addEventListener('click', () => { this.classSelection.dataset.collapsed = 'false'; });
     this.deathScreen = this.require('#death-screen');
     this.deathKiller = this.require('#death-killer');
     this.deathStats = this.require('#death-stats');
@@ -568,6 +590,11 @@ export class GameUI {
     const key = self.dead ? '' : choices.join('|');
     if (key === this.lastClassChoicesKey) return;
     this.lastClassChoicesKey = key;
+    // Eine *neue* Auswahl klappt wieder auf: Wer die letzte weggeklickt hat,
+    // wollte diese eine nicht sehen – nicht alle künftigen.
+    this.classSelection.dataset.collapsed = 'false';
+    const zaehler = this.classSelection.querySelector('#class-selection-count');
+    if (zaehler) zaehler.textContent = `${choices.length} ${choices.length === 1 ? 'Weg' : 'Wege'} offen`;
     this.classChoices.replaceChildren();
     for (const choice of choices) {
       const definition = CLASS_DEFINITIONS[choice];

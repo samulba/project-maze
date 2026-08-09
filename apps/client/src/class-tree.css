@@ -212,10 +212,22 @@
  * `clip-path` begrenzt die Fläche auf den Kreis: Die Ecken des Quadrats gehören
  * weiter der Arena (auch fürs Klicken – geclippte Bereiche treffen nicht).
  */
-.class-overlay .codex-wheel {
+/*
+ * Der Clip sitzt am **SVG**, nicht am Kasten darum. Am Kasten schnitt er den
+ * Hinweis darunter mit ab („Mausrad zoomt · Ziehen verschiebt …" stand nur noch
+ * als Fragment da) – `clip-path` gilt für alle Nachfahren, auch für die, die
+ * gar nicht im Kreis liegen.
+ *
+ * Der Kasten gibt Klicks weiter, das SVG nimmt sie. Die Zoom-Ereignisse hängen
+ * ohnehin am SVG (`class-wheel.ts`), und was dort ankommt, steigt zum Kasten
+ * auf – Ziehen und Doppelklick funktionieren unverändert.
+ */
+.class-overlay .codex-wheel { pointer-events: none; }
+.class-overlay .codex-wheel .wheel-svg {
   pointer-events: auto;
   clip-path: circle(50%);
 }
+.class-overlay .wheel-hint { pointer-events: none; }
 .class-overlay .wheel-node,
 .class-overlay .codex-card,
 .class-overlay-close { pointer-events: auto; }
@@ -235,6 +247,26 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity .18s;
+}
+
+/*
+ * Klassen 4.2: ein Schleier – gegen die eigene frühere Entscheidung.
+ *
+ * Oben stand jahrelang „keine Abdunklung, die den Blick nimmt". Das galt für
+ * ein Rad mit 29 Knoten über einer Arena, durch die man weiterspielen sollte.
+ * Beides stimmt nicht mehr: Es sind 65 Knoten, und das Overlay ist seit 4.1
+ * eine Leseansicht mit zurücktretendem HUD. Was blieb, war Sams Befund –
+ * Wände, Formen und fliegende Projektile laufen zwischen den Knoten hindurch,
+ * und das Rad „ist noch nicht clean".
+ *
+ * Der Schleier nimmt keine Klicks (`pointer-events` bleibt aus) und ist zur
+ * Mitte hin dichter: Dort steht das Rad, außen bleibt die Arena erkennbar.
+ */
+.class-overlay:not([hidden]) {
+  background: radial-gradient(circle at 50% 50%,
+    color-mix(in srgb, var(--bg) 94%, transparent) 0 44%,
+    color-mix(in srgb, var(--bg) 82%, transparent) 100%);
+  backdrop-filter: blur(3px);
 }
 
 .class-overlay.codex {

@@ -234,7 +234,9 @@ function messenImBrowser() {
   // Eine Klassenwahl, von der man die Hälfte nicht sieht, ist keine Wahl.
   const wahl = document.querySelector('#class-selection');
   let wahlKarten = null;
-  if (wahl && !wahl.hidden) {
+  // Zugeklappt sind null von acht Karten sichtbar – und das ist der Sinn der
+  // Sache, nicht ihr Fehler. Gemessen wird nur der aufgeklappte Zustand.
+  if (wahl && !wahl.hidden && wahl.dataset.collapsed !== 'true') {
     const box = wahl.getBoundingClientRect();
     const karten = [...wahl.querySelectorAll('[data-class-choice]')];
     wahlKarten = {
@@ -244,6 +246,82 @@ function messenImBrowser() {
         return r.top >= box.top - 1 && r.bottom <= box.bottom + 1;
       }).length
     };
+  }
+
+  /*
+   * Innerhalb der Panels. Bis hierher hat dieser Prüfstand nur Panel gegen
+   * Panel gemessen – und genau die Lücke hat Sam gefunden: „an allen stellen
+   * wo es sich überschneidet". Zwei Karten, die sich innerhalb der Klassenwahl
+   * decken, waren für die Matrix unsichtbar, weil beide zum selben Kasten
+   * gehören.
+   *
+   * Gesucht wird zweierlei:
+   *
+   * 1. **Text, der nicht passt** – gemessen an `scrollWidth`/`scrollHeight`
+   *    gegen die sichtbare Fläche. Ausgenommen ist, wo das Abschneiden Absicht
+   *    ist: eigener Bildlauf, Ellipse, `line-clamp`.
+   * 2. **Geschwister, die sich decken** – nur statisch positionierte. Absolute
+   *    Positionierung ist eine Ansage, dass etwas übereinander liegen soll.
+   */
+  const innen = [];
+  const beschriftung = (e) => (typeof e.className === 'string' && e.className.trim()
+    ? `.${e.className.trim().split(/\s+/)[0]}`
+    : e.id ? `#${e.id}` : e.tagName.toLowerCase());
+  for (const [sel, name] of Object.entries(namen)) {
+    const wurzel = document.querySelector(sel);
+    if (!sichtbar(wurzel)) continue;
+    const kinder = [...wurzel.querySelectorAll('*')].filter((e) => {
+      if (e.tagName === 'SVG' || e.closest('svg')) return false;  // eigene Geometrie
+      if (!sichtbar(e)) return false;
+      const r = e.getBoundingClientRect();
+      return r.width > 2 && r.height > 2;
+    });
+
+    /*
+     * Inhalt, der breiter ist als sein Kasten. Das ist der Fehler, den weder
+     * die Panel-Matrix noch die Geschwisterprüfung findet – und genau der, den
+     * Sam am 08.08. in der Klassenwahl gesehen hat: `min-width: 220px` aus
+     * `class-choice.css` gegen ein 320 px breites Raster, rechte Spalte 64 px
+     * aus dem Panel heraus.
+     *
+     * Waagerecht ist immer ein Fehler; senkrecht nur dort, wo nicht absichtlich
+     * gescrollt wird (Upgrade-Liste und Death-Karte tun das).
+     */
+    for (const e of [wurzel, ...kinder]) {
+      const stil = getComputedStyle(e);
+      const scrolltQuer = ['auto', 'scroll'].includes(stil.overflowX);
+      const scrolltHoch = ['auto', 'scroll'].includes(stil.overflowY);
+      const gekuerzt = stil.textOverflow === 'ellipsis' || stil.webkitLineClamp !== 'none';
+      if (!scrolltQuer && !gekuerzt && e.scrollWidth > e.clientWidth + 2) {
+        innen.push(`${name}: Inhalt läuft ${e.scrollWidth - e.clientWidth} px über die Breite (${beschriftung(e)})`);
+      }
+      if (!scrolltHoch && !gekuerzt && e.scrollHeight > e.clientHeight + 2) {
+        innen.push(`${name}: Inhalt läuft ${e.scrollHeight - e.clientHeight} px über die Höhe (${beschriftung(e)})`);
+      }
+    }
+
+    // Geschwister paarweise. Nur direkte Nachbarn im selben Elternteil, sonst
+    // meldet jede Verschachtelung sich selbst.
+    const eltern = new Map();
+    for (const e of kinder) {
+      if (getComputedStyle(e).position !== 'static') continue;
+      const liste = eltern.get(e.parentElement) ?? [];
+      liste.push(e);
+      eltern.set(e.parentElement, liste);
+    }
+    for (const geschwister of eltern.values()) {
+      for (let i = 0; i < geschwister.length; i += 1) {
+        for (let j = i + 1; j < geschwister.length; j += 1) {
+          const a = geschwister[i].getBoundingClientRect();
+          const b = geschwister[j].getBoundingClientRect();
+          const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+          const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+          if (ox > 3 && oy > 3) {
+            innen.push(`${name}: ${beschriftung(geschwister[i])} deckt ${beschriftung(geschwister[j])} (${Math.round(ox)}×${Math.round(oy)} px)`);
+          }
+        }
+      }
+    }
   }
 
   // Wie viel des Bildes nimmt keine Klicks mehr an? Gefeuert wird über den
@@ -268,7 +346,7 @@ function messenImBrowser() {
     }
   }
 
-  return { flaechen, ueberlappungen, verdeckt, ausserhalb, wahlKarten, imTod,
+  return { flaechen, ueberlappungen, verdeckt, ausserhalb, wahlKarten, imTod, innen,
     kompakterTod: Boolean(totenschirm && totenschirm.classList.contains('spectating')),
     totAnteil: raster > 0 ? +(tot / raster * 100).toFixed(1) : null };
 }
@@ -292,6 +370,14 @@ const FAELLE = [
   { name: 'wahl-stufe3', w: 1280, h: 720, zustand: { level: 38, playerClass: 'gatling', punkte: 4 } },
   { name: 'wahl-ladung', w: 1280, h: 720, zustand: { level: 24, playerClass: 'sniper', punkte: 4, signature: 72 } },
   { name: 'wahl-touch', w: 900, h: 500, touch: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
+  // Zugeklappt ist ein eigener Zustand, kein Zwischenschritt: Dann ist der
+  // Killfeed wieder da, das Upgrade-Panel auch, und die Leiste steht mitten
+  // drin. Ohne diese Faelle war genau das ungeprueft.
+  { name: 'wahl-zu', w: 1280, h: 720, zuklappen: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
+  { name: 'wahl-zu-flach', w: 1280, h: 600, zuklappen: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
+  { name: 'wahl-zu-1080', w: 1920, h: 1080, zuklappen: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
+  { name: 'wahl-zu-ladung', w: 1280, h: 720, zuklappen: true, zustand: { level: 24, playerClass: 'sniper', punkte: 4, signature: 72 } },
+  { name: 'wahl-zu-touch', w: 844, h: 390, touch: true, zuklappen: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
   { name: 'upgrades-zehn', w: 1280, h: 720, zustand: { level: 24, playerClass: 'storm', punkte: 6 } },
   { name: 'ruhig', w: 1280, h: 720, zustand: { level: 9, playerClass: 'core' } },
 
@@ -462,6 +548,10 @@ async function main() {
       await page.keyboard.press('KeyC');
       await page.waitForTimeout(600);
     }
+    if (fall.zuklappen) {
+      await page.click('#class-selection-close').catch(() => {});
+      await page.waitForTimeout(400);
+    }
     const messung = await page.evaluate(messenImBrowser);
     if (SHOTS) await page.screenshot({ path: `.probe/ui-${fall.name}.png` });
     await page.close();
@@ -479,6 +569,11 @@ async function main() {
       zeile.push(`${v.name} verdeckt durch ${Object.keys(v.durch).join(', ')}`);
     }
     for (const a of messung.ausserhalb) zeile.push(`${a.name} ragt aus dem Bild (${JSON.stringify(a)})`);
+    // Doppelte zusammenfassen: Acht gleich gebaute Wahlkarten melden denselben
+    // Fehler achtmal, und eine Liste, die man nicht liest, findet nichts.
+    const gezaehlt = new Map();
+    for (const i of messung.innen ?? []) gezaehlt.set(i, (gezaehlt.get(i) ?? 0) + 1);
+    for (const [text, anzahl] of gezaehlt) zeile.push(anzahl > 1 ? `${text} — ${anzahl}×` : text);
     if (messung.wahlKarten && messung.wahlKarten.sichtbar < messung.wahlKarten.gesamt) {
       zeile.push(`Klassenwahl nur ${messung.wahlKarten.sichtbar}/${messung.wahlKarten.gesamt} Karten sichtbar`);
     }
