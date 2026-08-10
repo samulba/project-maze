@@ -14,9 +14,11 @@ heute die häufigste Laptop-Auflösung und kam kein einziges Mal vor.** Ebenso
 wenig 4K, Ultrawide, ein iPad im Querformat oder das Admin-Portal, das
 überhaupt nicht geprüft wurde.
 
-Jetzt sind es **185 Fälle**: 18 echte Gerätegrößen × 4 Zustände (Klassenwahl
+Jetzt sind es **181 Fälle**: 17 echte Gerätegrößen × 4 Zustände (Klassenwahl
 offen, zugeklappt, Rad offen, Tod auf hohem Level), 55 Startscreen-Fälle über
 elf Größen und acht Fälle für das Admin-Portal.
+
+**Endstand: 181/181 ohne Befund.**
 
 Dazu drei neue Messungen:
 
@@ -56,6 +58,19 @@ dichter und kostet nichts.
 **`100vh` im Klassenpanel.** Auf iOS meint das die Höhe *ohne* Adressleiste;
 das Panel hätte dort unter der Leiste geendet, genau auf dem Ziel-Stick. Jetzt
 relativ zum Kasten, in dem es wirklich liegt.
+
+### 4K im Spiel ist hier nicht messbar – und das war teuer
+
+Der Software-Renderer dieses Containers bekommt eine 4K-Arena nicht gestartet.
+Erst lief der Join in einen Timeout, dann der Seitenaufruf selbst – und danach
+war der Browser so beschädigt, dass **alle 48 folgenden Fälle** scheiterten,
+vom iPhone SE bis zum Portal. Vier unmessbare Fälle haben damit einen ganzen
+Durchlauf wertlos gemacht.
+
+Sie sind raus. Der Verlust ist nachgerechnet klein: Oberhalb von rund 1920 px
+skaliert das HUD stufenlos über `clamp()`, es gibt keine Regel, die zwischen
+2560×1440 und 3840×2160 umschaltet. Der **Startscreen** wird weiterhin auf
+3840×2160 geprüft – der braucht keine Arena.
 
 ### Eine bewusste Ausnahme
 
