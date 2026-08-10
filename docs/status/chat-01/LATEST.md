@@ -2,6 +2,70 @@
 
 **Stand: 2026-08-09**
 
+## Kompletter UI-Check über alle Geräte
+
+Sams Auftrag: *„mach jetzt einen KOMPLETTEN UI check und fix alles auf allen
+geräten was du findest was nicht sitzt! und das GRÜNDLICH!"*
+
+### Zuerst: der Prüfstand konnte es gar nicht finden
+
+Die Matrix fuhr 80 Fälle – und hatte eine peinliche Lücke. **1366×768 ist bis
+heute die häufigste Laptop-Auflösung und kam kein einziges Mal vor.** Ebenso
+wenig 4K, Ultrawide, ein iPad im Querformat oder das Admin-Portal, das
+überhaupt nicht geprüft wurde.
+
+Jetzt sind es **185 Fälle**: 18 echte Gerätegrößen × 4 Zustände (Klassenwahl
+offen, zugeklappt, Rad offen, Tod auf hohem Level), 55 Startscreen-Fälle über
+elf Größen und acht Fälle für das Admin-Portal.
+
+Dazu drei neue Messungen:
+
+- **Trefferflächen auf Touch.** Ein Knopf unter 40 px wird mit dem Daumen nicht
+  zuverlässig getroffen. Auf keinem Screenshot zu sehen, erst beim Benutzen.
+- **Inhalt, der über seinen Kasten läuft** (seit 08.08.), jetzt auch für Seiten
+  mit eigenem Bildlauf.
+- **Geschwister, die sich decken**, und **Text, der nicht passt**.
+
+Zwei Regeln mussten dabei geschärft werden, weil sie falsch meldeten: Inhalt in
+einem absichtlich waagerecht scrollenden Kasten ist kein Fehler, und ein
+Inline-Element über zwei Zeilen liefert ein Rechteck, das beide umschließt –
+Geschwister darin lagen rechnerisch übereinander. Ein Prüfstand, der falsch
+meldet, wird nach dem dritten Mal ignoriert.
+
+### Was er gefunden hat
+
+| Befund | Wo | Ursache |
+| --- | --- | --- |
+| Startscreen scrollt, „Einstellungen" unter dem Rand | 1366×768 | Startkarte 796 px hoch, braucht 844 px Fenster |
+| 448 zu kleine Trefferflächen | alle Telefone | Upgrade-Reihen 32 px, Schließer 22–34 px, Überspringen 19 px, Respawn 34 px |
+| Upgrade-Panel überlappt das Klassenrad | 1440×900, 1536×864, 1512×982 | fehlte in der Liste der Panels, die während der Leseansicht zurücktreten |
+| Klassenwahl auf dem Auto-Knopf, 4 von 8 Karten sichtbar | 667×375 | Höhendeckel 4 px zu großzügig, Band zu klein für Überschrift + zwei Reihen |
+| Name läuft aus der Spielerkarte | 900×640 | fester `max-width: 160px` neben 52-px-Abzeichen in 187 px Innenraum |
+
+### Zwei Funde, die keine Layoutfehler waren
+
+**Der Vollbild-Weichzeichner hinter dem Klassenrad ist raus.** Aufgefallen ist
+er, weil eine Messung nicht reproduzierbar war: Der Prüfstand sah die
+Spielerkarte noch mit voller Deckkraft, 600 ms nachdem sie in 180 ms hätte
+verschwinden sollen. Ursache war kein Timing-Fehler im Test, sondern
+`backdrop-filter: blur()` über die **ganze** Bildfläche – in jedem Bild neu
+gerechnet, während die Arena weiterläuft. Auf einem schwachen Telefon ist das
+derselbe Effekt, nur dass dort niemand misst. Der Verlauf ist jetzt eine Spur
+dichter und kostet nichts.
+
+**`100vh` im Klassenpanel.** Auf iOS meint das die Höhe *ohne* Adressleiste;
+das Panel hätte dort unter der Leiste geendet, genau auf dem Ziel-Stick. Jetzt
+relativ zum Kasten, in dem es wirklich liegt.
+
+### Eine bewusste Ausnahme
+
+Die 65 Knoten im Klassenrad sind von der Trefferflächen-Prüfung ausgenommen.
+Das Rad ist eine Landkarte, keine Knopfleiste; alle Knoten auf 44 px zu bringen
+hieße, weniger zu zeigen. Die Antwort dort heißt Zoom – er ist gebaut, steht
+als Hinweis unter dem Rad, und ein Doppeltipp setzt zurück.
+
+---
+
 ## Klassen 4.2 – die Wahl in die Ecke, das Rad aufgeräumt
 
 Sams Befund: *„die UI fixen an allen stellen wo es sich überschneidet! vorallem

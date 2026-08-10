@@ -243,7 +243,12 @@
 :root:has(.class-overlay:not([hidden])) #leaderboard,
 :root:has(.class-overlay:not([hidden])) .killfeed,
 :root:has(.class-overlay:not([hidden])) .minimap,
-:root:has(.class-overlay:not([hidden])) .points-badge {
+:root:has(.class-overlay:not([hidden])) .points-badge,
+/* Das Upgrade-Panel fehlte in dieser Liste. Gemessen (09.08.) überlappte es
+   das Rad auf 1440×900, 1536×864 und 1512×982 – genau in dem Bereich, in dem
+   Panelbreite und Radgröße sich treffen. Es gehört zur selben Sorte: eine
+   Bedienung, die während einer Leseansicht nicht gebraucht wird. */
+:root:has(.class-overlay:not([hidden])) .upgrade-panel {
   opacity: 0;
   pointer-events: none;
   transition: opacity .18s;
@@ -264,10 +269,20 @@
  */
 .class-overlay:not([hidden]) {
   background: radial-gradient(circle at 50% 50%,
-    color-mix(in srgb, var(--bg) 94%, transparent) 0 44%,
-    color-mix(in srgb, var(--bg) 82%, transparent) 100%);
-  backdrop-filter: blur(3px);
+    color-mix(in srgb, var(--bg) 97%, transparent) 0 46%,
+    color-mix(in srgb, var(--bg) 86%, transparent) 100%);
 }
+/*
+ * Hier stand `backdrop-filter: blur(3px)`. Er ist wieder draußen, und der
+ * Grund ist gemessen, nicht ästhetisch: Ein Weichzeichner über die **ganze**
+ * Bildfläche wird in jedem Bild neu gerechnet, während die Arena weiterläuft.
+ * Im Prüfstand (Software-Rendering, 1920×1080) brauchte allein der Übergang
+ * danach über eine Sekunde statt der angesetzten 0,18 s – auf einem schwachen
+ * Telefon ist das derselbe Effekt, nur dass dort niemand misst.
+ *
+ * Der Verlauf ist dafür eine Spur dichter. Das trennt das Rad von der Arena
+ * genauso gut und kostet nichts.
+ */
 
 .class-overlay.codex {
   /* Die Spalte ist exakt so breit wie das Rad. Mit `1fr` konnte das Rad seine
@@ -316,8 +331,10 @@
   position: absolute;
   top: clamp(10px, 2vh, 22px);
   right: clamp(10px, 2vw, 26px);
-  width: 38px;
-  height: 38px;
+  /* 40 statt 38: zwei Pixel, die auf dem Telefon den Unterschied zwischen
+     „trifft" und „trifft daneben" machen (Prüfstand, 09.08.). */
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--line);
   border-radius: 11px;
   color: var(--muted);

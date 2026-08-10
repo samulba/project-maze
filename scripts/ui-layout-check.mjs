@@ -336,6 +336,14 @@ function messenImBrowser() {
   if (window.matchMedia('(pointer: coarse)').matches) {
     for (const e of document.querySelectorAll('#hud button, #hud [role="button"], #hud select, #hud input')) {
       if (!sichtbar(e)) continue;
+      /*
+       * Die Knoten im Klassenrad sind ausgenommen – und das ist eine
+       * Entscheidung, keine Nachlässigkeit: Das Rad ist eine Landkarte mit 65
+       * Zielen, keine Knopfleiste. Alle auf 44 px zu bringen hieße, weniger zu
+       * zeigen. Die Antwort dort heißt Zoom; er ist gebaut, er steht als
+       * Hinweis unter dem Rad, und ein Doppeltipp setzt zurück.
+       */
+      if (e.closest('.wheel-node')) continue;
       const r = e.getBoundingClientRect();
       if (r.width < 40 || r.height < 40) {
         innen.push(`Trefferfläche zu klein: ${Math.round(r.width)}×${Math.round(r.height)} px (${beschriftung(e)})`);
@@ -366,6 +374,7 @@ function messenImBrowser() {
   }
 
   return { flaechen, ueberlappungen, verdeckt, ausserhalb, wahlKarten, imTod, innen,
+    _dbg: { radDa: Boolean(rad), radHidden: rad ? rad.hidden : null, kartenOpazitaet: spielerkarte ? getComputedStyle(spielerkarte).opacity : null, leseansicht },
     kompakterTod: Boolean(totenschirm && totenschirm.classList.contains('spectating')),
     totAnteil: raster > 0 ? +(tot / raster * 100).toFixed(1) : null };
 }
@@ -808,7 +817,12 @@ async function main() {
     // zusammen mit allem übrigen gemessen.
     if (fall.rad) {
       await page.keyboard.press('KeyC');
-      await page.waitForTimeout(600);
+      // 1200 statt 600 ms: Die zurücktretenden HUD-Panels haben zwar nur
+      // 0,18 s Übergang, aber unter Software-Rendering auf 1920×1080 liegt
+      // der erste Bildwechsel danach deutlich später. Bei 600 ms wurde die
+      // Spielerkarte mitten im Ausblenden gemessen – und die Leseansicht,
+      // die daran hängt, damit gar nicht erkannt.
+      await page.waitForTimeout(1200);
     }
     if (fall.zuklappen) {
       await page.click('#class-selection-close').catch(() => {});
@@ -842,6 +856,7 @@ async function main() {
     if (!fall.touch && messung.totAnteil !== null && messung.totAnteil > TOT_GRENZE) {
       zeile.push(`${messung.totAnteil} % der Bildfläche nimmt keine Klicks an (Grenze ${TOT_GRENZE} %)`);
     }
+    if (process.env.DBG) console.log('   dbg', JSON.stringify(messung._dbg));
     melden({ fall: fall.name, fenster: `${fall.w}×${fall.h}`, tot: messung.totAnteil, probleme: zeile });
     } catch (error) {
       melden({ fall: fall.name, fenster: `${fall.w}×${fall.h}`, tot: null,

@@ -657,6 +657,19 @@
   .class-selection .class-choice-preview svg { width: 26px; height: 26px; }
   .class-selection .class-choices strong { font-size: 11px; }
 }
+/*
+ * Unter 440 px Höhe wird es eng, und zwar nachgerechnet: Gemessen auf 667×375
+ * stand das Panel 187 px tief, der Auto-Knopf beginnt bei 183 – vier Pixel
+ * Überlappung. Ein tieferer Deckel allein hätte das Raster erdrückt (gemessen
+ * 4 von 8 Karten sichtbar), also fällt zusätzlich die Überschrift: Die Leiste
+ * darüber hat ohnehin „NEUE KLASSE" gesagt, und die Karten tragen Bild und
+ * Namen.
+ */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 440px) {
+  .class-selection { --wahl-oben: 56px; --wahl-unten: 200px; }
+  .class-selection > .class-selection-body > .panel-title { display: none; }
+  .class-selection-body { padding: 7px 9px 9px; }
+}
 
 /* ================================================================== *
  * Klassen 4.1 – zwölf Upgrade-Slots passen nicht mehr untereinander
@@ -699,4 +712,36 @@
   .upgrade-panel { width: clamp(268px, 30vw, 340px); }
   .upgrade-list button { min-height: 27px; padding: 4px 6px; }
   .upgrade-list button > span { font-size: 9px; }
+}
+
+
+/* ================================================================== *
+ * Klassen 4.2 – Trefferflächen auf Touch
+ * ================================================================== */
+/*
+ * Gefunden vom erweiterten Prüfstand (09.08.), der zum ersten Mal misst, wie
+ * groß ein Bedienelement auf einem Zeigegerät ohne Zeiger ist. Ergebnis auf
+ * 844×390 und 667×375:
+ *
+ *   Upgrade-Reihen        118 × 32 px   (zwölfmal)
+ *   Schließer der Sheets    34 × 34 px  und  22 × 22 px
+ *   Onboarding-Überspringen 98 × 19 px
+ *   Respawn / Zum Startscreen im Zuschauen-Modus  234 × 34 px
+ *
+ * 40 px ist die Grenze, unter der Apple und Google unabhängig voneinander
+ * warnen – darunter trifft der Daumen zuverlässig daneben. Auf keinem
+ * Screenshot ist das zu sehen; es fällt erst auf, wenn man es benutzt.
+ *
+ * Die Regeln gelten **nur für Touch**. Mit Maus ist ein 32-px-Ziel kein
+ * Problem, und dort ist Platz das knappere Gut.
+ */
+@media (pointer: coarse) {
+  .upgrade-list button { min-height: 44px; }
+  .sheet-close { width: 40px; height: 40px; }
+  .class-selection .sheet-close { width: 40px; height: 40px; }
+  .onboarding-skip { min-height: 40px; padding-inline: 14px; }
+  .death-screen .death-card button { min-height: 44px; }
+  /* Der kompakte Zuschauen-Modus deckelte die Knöpfe auf 34 px – auf dem
+     Telefon ist das genau der Knopf, den man am dringendsten trifft. */
+  .death-screen.spectating .death-card button { height: auto; min-height: 44px; }
 }
