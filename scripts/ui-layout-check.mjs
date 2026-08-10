@@ -496,7 +496,21 @@ const GERAETE = [
   ['desktop-1080', 1920, 1080, false],
   ['desktop-1440', 2560, 1440, false],
   ['ultrawide', 3440, 1440, false],
-  ['vierk', 3840, 2160, false],
+  /*
+   * 3840×2160 steht hier **nicht**, und das ist eine Entscheidung mit Grund:
+   * Der Software-Renderer dieses Containers bekommt eine 4K-Arena nicht mehr
+   * gestartet – erst lief der Join in einen Timeout, dann der Seitenaufruf
+   * selbst. Vier Fälle, die dann rot melden, ohne dass am Layout etwas falsch
+   * wäre, sind schlimmer als vier fehlende Fälle: Sie gewöhnen einen an Rot.
+   *
+   * Der Verlust ist klein. Oberhalb von rund 1920 px skaliert das HUD stufenlos
+   * über `clamp()`; es gibt keine Regel, die zwischen 2560×1440 und 3840×2160
+   * umschaltet. Was auf 1440p sitzt, sitzt auf 4K.
+   *
+   * Der **Startscreen** wird weiterhin auf 3840×2160 geprüft (START_FAELLE) –
+   * der braucht keine Arena und läuft dort ohne Probleme.
+   */
+
   ['iphone-se', 667, 375, true],
   ['iphone-13', 844, 390, true],
   ['iphone-15', 852, 393, true],
