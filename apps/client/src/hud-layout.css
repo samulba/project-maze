@@ -431,7 +431,14 @@
    * das Panel hätte dort unter der Leiste geendet, genau auf dem Ziel-Stick.
    * Prozent folgt dem Kasten, in dem es wirklich liegt.
    */
-  max-height: calc(100% - var(--edge-y) * 2 - var(--wahl-oben) - var(--wahl-unten));
+  /*
+   * Der Rand wird **einmal** abgezogen, nicht zweimal: Er steckt oben schon in
+   * `top: calc(var(--edge-y) + var(--wahl-oben))`. Der doppelte Abzug kostete
+   * auf dem iPad mini 114 px – dort ist `--edge-y` wegen Safe-Area und
+   * Sichtversatz groß – und schnitt zwei von acht Karten ab, obwohl 126 px
+   * Platz frei blieben.
+   */
+  max-height: calc(100% - var(--edge-y) - var(--wahl-oben) - var(--wahl-unten));
   margin: 0;
   translate: none;
   padding: 0;
@@ -665,10 +672,43 @@
  * darüber hat ohnehin „NEUE KLASSE" gesagt, und die Karten tragen Bild und
  * Namen.
  */
+/*
+ * Handy quer unter 440 px Höhe – der engste Fall, den es gibt (667×375).
+ *
+ * Nachgerechnet: Zwischen Kopfzeile (endet bei 50) und Auto-Knopf (beginnt bei
+ * 183) liegen 125 px. Acht Karten mit daumentauglichen 40 px brauchen in zwei
+ * Reihen mit Überschrift 136. **Es passt nicht** – und jeder Weg, es passend
+ * zu rechnen, kostet entweder die Trefferfläche (Versuch: 28 px hohe Karten)
+ * oder Karten (Versuch: vier von acht sichtbar).
+ *
+ * Also andersherum: Solange die Wahl **aufgeklappt** ist, tritt die Steuerung
+ * zurück. Das ist keine Notlösung, sondern die ehrliche Beschreibung dessen,
+ * was ohnehin gilt – wer mit dem Daumen acht Karten liest, fährt in dieser
+ * Sekunde nicht. Zugeklappt (ein Tipp auf ✕) ist alles sofort wieder da, und
+ * die Leiste ist 42 px hoch.
+ *
+ * Ein erster Versuch, stattdessen die Überschrift auszublenden, war ein
+ * Fehler: Der Schließen-Knopf sitzt darin, und ohne ihn liess sich die Wahl
+ * auf genau den Geräten nicht mehr zuklappen, auf denen sie am meisten im Weg
+ * ist.
+ */
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 440px) {
-  .class-selection { --wahl-oben: 56px; --wahl-unten: 200px; }
-  .class-selection > .class-selection-body > .panel-title { display: none; }
+  .class-selection { --wahl-oben: 50px; --wahl-unten: 14px; }
   .class-selection-body { padding: 7px 9px 9px; }
+  .class-selection .class-choices { gap: 6px; }
+  .class-selection .class-choices button { padding: 7px 9px; }
+
+  /* Ab 441 px Höhe passt beides nebeneinander – deshalb steht diese Regel
+     ausdrücklich *in* der Abfrage und nicht davor mit einer Rücknahme. */
+  :root:has(.class-selection:not([hidden])[data-collapsed='false']) .move-stick,
+  :root:has(.class-selection:not([hidden])[data-collapsed='false']) .aim-stick,
+  :root:has(.class-selection:not([hidden])[data-collapsed='false']) .auto-fire,
+  :root:has(.class-selection:not([hidden])[data-collapsed='false']) .secondary-action,
+  :root:has(.class-selection:not([hidden])[data-collapsed='false']) .core-ability {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .18s;
+  }
 }
 
 /* ================================================================== *
