@@ -28,7 +28,30 @@
  *
  * Umgebungsvariablen: `URL` (Standard `http://127.0.0.1:2599`),
  * `PW_CHROMIUM` (Standard `/opt/pw-browsers/chromium`), `SHOTS=1` legt zu
- * jedem Fall ein Bild unter `.probe/` ab.
+ * jedem Fall ein Bild unter `.probe/` ab, `ONLY=<text>` engt die Matrix auf
+ * passende Fälle ein (beim Reparieren will man nicht alle abwarten), `DBG=1`
+ * gibt die Zwischenwerte der Leseansicht-Erkennung aus.
+ *
+ * ## Was geprüft wird (Stand 09.08., 185 Fälle)
+ *
+ * | Bereich | Fälle | Frage |
+ * | --- | --- | --- |
+ * | Startscreen | 55 | Ist alles erreichbar, ohne die Seite zu scrollen? |
+ * | Spiel-HUD | 122 | Überlappt sich etwas, ragt etwas heraus, nimmt zu viel keine Klicks? |
+ * | Admin-Portal | 8 | Läuft etwas über seinen Kasten, sind die Knöpfe treffbar? |
+ *
+ * Gemessen wird in vier Schichten:
+ *
+ * 1. **Panel gegen Panel** – Überlappung, Verdeckung, Rand des Bildes.
+ * 2. **Innerhalb eines Panels** – Inhalt über dem Kasten, sich deckende
+ *    Geschwister, nicht passender Text. (Seit 08.08.; vorher war das die
+ *    Lücke, durch die Sams Befunde fielen.)
+ * 3. **Tote Fläche** – wie viel des Bildes keine Klicks mehr annimmt.
+ * 4. **Trefferflächen auf Touch** – alles unter 40 px. (Seit 09.08.)
+ *
+ * Zwei Dinge sind bewusst **nicht** Befunde: Inhalt in einem Kasten, der
+ * absichtlich waagerecht scrollt, und die Knoten des Klassenrades (eine
+ * Landkarte mit 65 Zielen ist keine Knopfleiste – die Antwort dort heißt Zoom).
  */
 
 import { chromium } from 'playwright-core';
