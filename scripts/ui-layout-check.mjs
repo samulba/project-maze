@@ -817,7 +817,10 @@ async function main() {
     try {
     const { page, fehler } = await oeffnen(fall);
     await page.fill('#player-name', fall.name.slice(0, 18));
-    await page.click('#join-button');
+    // Wie beim Startscreen: Auf 3840×2160 mit Software-Rendering dauert der
+    // erste Klick gelegentlich länger als die 30 s Voreinstellung. Das ist die
+    // Testmaschine, nicht die Seite.
+    await page.click('#join-button', { timeout: 90_000 });
     // Touch im Hochformat ist kein Spielzustand: Das Spiel blendet das HUD aus
     // und zeigt „Bitte Gerät drehen". Statt auf ein HUD zu warten, das
     // absichtlich nicht kommt, wird genau dieser Zustand geprüft.
