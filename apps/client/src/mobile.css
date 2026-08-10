@@ -340,19 +340,16 @@
   :root:has(.achievement-popup:not([hidden])) .arena-event-banner,
   :root:has(.bounty-banner:not([hidden])) .arena-event-banner { display: none; }
 
-  /* --- 3f. Klassenwahl: knapp über den Sticks ----------------------- */
-  .class-selection {
-    left: 50%;
-    top: 50%;
-    bottom: auto;
-    width: min(680px, calc(100vw - 20px));
-    max-height: min(84dvh, 560px);
-    padding: 12px;
-    translate: -50% -50%;
-    overflow: auto;
-  }
-  /* Auch auf Touch ein Fenster: das Raster scrollt vertikal im Panel, statt
-     die Karten seitlich aus dem Bild zu schieben. */
+  /* --- 3f. Klassenwahl -------------------------------------------- */
+  /*
+   * Die Platzierung liegt seit Klassen 4.2 vollständig in `hud-layout.css`
+   * (Ecke links, zuklappbar). Was hier stand – mittiges Fenster, `translate`,
+   * eigener Höhendeckel – wurde von dort ohnehin überschrieben und stand nur
+   * noch als zweite, falsche Wahrheit im Blatt. Genau aus solchen Resten kam
+   * der `min-width: 220px`-Fehler vom 08.08.
+   */
+  /* Das Raster scrollt senkrecht im Panel, statt die Karten seitlich aus dem
+     Bild zu schieben. */
   .class-choices {
     grid-auto-flow: row;
     grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
@@ -398,7 +395,6 @@
   .level-badge b { font-size: 15px; }
   .points-badge { height: 40px; padding: 0 11px; }
   .upgrade-panel { max-height: 74dvh; }
-  .class-selection { max-height: 92dvh; }
   .class-choices { grid-template-columns: repeat(auto-fit, minmax(116px, 1fr)); }
   /* Unter 430 px Hoehe ist jede Briefmarke zu viel: Ohne diese Zeile standen
      die Karten unter dem Panelrand und die Wahl war unsichtbar (Pruefstand). */

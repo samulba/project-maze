@@ -304,7 +304,10 @@ function messenImBrowser() {
     // meldet jede Verschachtelung sich selbst.
     const eltern = new Map();
     for (const e of kinder) {
-      if (getComputedStyle(e).position !== 'static') continue;
+      const stil = getComputedStyle(e);
+      // Inline-Text über zwei Zeilen liefert ein Rechteck, das beide Zeilen
+      // umschließt – Geschwister darin lägen rechnerisch übereinander.
+      if (stil.position !== 'static' || stil.display.startsWith('inline')) continue;
       const liste = eltern.get(e.parentElement) ?? [];
       liste.push(e);
       eltern.set(e.parentElement, liste);
@@ -320,6 +323,22 @@ function messenImBrowser() {
             innen.push(`${name}: ${beschriftung(geschwister[i])} deckt ${beschriftung(geschwister[j])} (${Math.round(ox)}×${Math.round(oy)} px)`);
           }
         }
+      }
+    }
+  }
+
+  /*
+   * Trefferflächen auf Touch. Ein Knopf, den man mit dem Daumen nicht trifft,
+   * ist genauso kaputt wie einer, der aus dem Bild ragt – nur sieht man es auf
+   * keinem Screenshot. 40 px ist die Untergrenze, unter der Apple und Google
+   * unabhängig voneinander warnen.
+   */
+  if (window.matchMedia('(pointer: coarse)').matches) {
+    for (const e of document.querySelectorAll('#hud button, #hud [role="button"], #hud select, #hud input')) {
+      if (!sichtbar(e)) continue;
+      const r = e.getBoundingClientRect();
+      if (r.width < 40 || r.height < 40) {
+        innen.push(`Trefferfläche zu klein: ${Math.round(r.width)}×${Math.round(r.height)} px (${beschriftung(e)})`);
       }
     }
   }
@@ -427,6 +446,50 @@ const FAELLE = [
 ];
 
 /**
+ * Geräte, auf denen MAZERS wirklich geöffnet wird.
+ *
+ * Die Liste ist nicht geraten, sondern die gängigen Auflösungen – und sie
+ * schließt eine peinliche Lücke: **1366×768 ist bis heute die häufigste
+ * Laptop-Auflösung überhaupt** und kam in dieser Matrix nicht ein einziges Mal
+ * vor. Ebenso wenig 4K, Ultrawide oder irgendein iPad im Querformat.
+ *
+ * Querformat ist bei Telefonen die spielbare Lage (im Hochformat zeigt das
+ * Spiel den Drehen-Hinweis), deshalb stehen sie hier breit-vor-hoch.
+ */
+const GERAETE = [
+  ['laptop-1366', 1366, 768, false],
+  ['laptop-1440', 1440, 900, false],
+  ['laptop-1536', 1536, 864, false],
+  ['macbook-1512', 1512, 982, false],
+  ['desktop-1080', 1920, 1080, false],
+  ['desktop-1440', 2560, 1440, false],
+  ['ultrawide', 3440, 1440, false],
+  ['vierk', 3840, 2160, false],
+  ['iphone-se', 667, 375, true],
+  ['iphone-13', 844, 390, true],
+  ['iphone-15', 852, 393, true],
+  ['iphone-15-max', 932, 430, true],
+  ['pixel', 915, 412, true],
+  ['ipad-mini', 1024, 768, true],
+  ['ipad', 1180, 820, true],
+  ['ipad-pro', 1366, 1024, true],
+  ['ipad-hoch', 820, 1180, true],
+  ['tablet-hoch', 768, 1024, true]
+];
+
+/*
+ * Je Gerät drei Zustände: die Klassenwahl mit Punkten (der vollste Moment im
+ * Spiel), das offene Rad (das größte Overlay) und der Tod auf hohem Level
+ * (die größte Karte). Wer diese drei übersteht, übersteht das Spiel.
+ */
+for (const [name, w, h, touch] of GERAETE) {
+  FAELLE.push({ name: `geraet-${name}`, w, h, touch, zustand: { level: 10, playerClass: 'core', punkte: 4 } });
+  FAELLE.push({ name: `geraet-${name}-zu`, w, h, touch, zuklappen: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } });
+  FAELLE.push({ name: `geraet-${name}-rad`, w, h, touch, rad: true, zustand: { level: 38, playerClass: 'gatling', punkte: 6 } });
+  FAELLE.push({ name: `geraet-${name}-tod`, w, h, touch, zustand: { tot: true, level: 44, playerClass: 'storm' } });
+}
+
+/**
  * Startscreen und Unterseiten. Andere Frage als im Spiel, deshalb eigene Liste:
  * Hier geht es um Erreichbarkeit, nicht um Kollision.
  */
@@ -434,10 +497,15 @@ const START_FAELLE = [];
 for (const [w, h, label, touch] of [
   [1280, 900, 'desktop', false],
   [1280, 620, 'flach', false],
+  [1366, 768, 'laptop', false],
   [2560, 1080, '21-9', false],
+  [3840, 2160, 'vierk', false],
   [390, 844, 'handy', true],
+  [375, 667, 'handy-klein', true],
   [844, 390, 'handy-quer', true],
-  [820, 1180, 'tablet', true]
+  [667, 375, 'handy-quer-klein', true],
+  [820, 1180, 'tablet', true],
+  [1180, 820, 'tablet-quer', true]
 ]) {
   for (const seite of ['start', 'profil', 'achievements', 'bestenliste', 'einstellungen']) {
     START_FAELLE.push({ name: `seite-${seite}-${label}`, w, h, touch, seite });
@@ -453,6 +521,200 @@ for (const [w, h, label, touch] of [
  * nicht ihr Hindernis. Der Wert wird trotzdem gemeldet – nur nicht bewertet.
  */
 const TOT_GRENZE = 32;
+
+/**
+ * Läuft im Browser: prüft eine Seite, die gescrollt wird (das Admin-Portal).
+ *
+ * Andere Frage als im Spiel und andere als auf dem Startscreen: Hier darf
+ * senkrecht gescrollt werden, waagerecht nie – und kein Kasten darf breiter
+ * sein als sein Elternteil. Genau das ist der Fehler, der auf einem Telefon
+ * eine Tabelle über den Rand schiebt.
+ */
+function messenPortal() {
+  const probleme = [];
+  const wurzel = document.querySelector('#admin-root');
+  if (!wurzel) return { probleme: ['#admin-root fehlt'] };
+
+  if (document.documentElement.scrollWidth > window.innerWidth + 1) {
+    probleme.push(`Seite scrollt quer (${document.documentElement.scrollWidth - window.innerWidth} px)`);
+  }
+
+  const sichtbar = (e) => {
+    const s = getComputedStyle(e);
+    if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) < 0.05) return false;
+    const r = e.getBoundingClientRect();
+    return r.width > 2 && r.height > 2;
+  };
+  const name = (e) => (typeof e.className === 'string' && e.className.trim()
+    ? `.${e.className.trim().split(/\s+/)[0]}` : e.id ? `#${e.id}` : e.tagName.toLowerCase());
+
+  /*
+   * Steht dieses Element in einem Kasten, der waagerecht scrollt? Dann ist
+   * seine Breite kein Fehler, sondern der Zweck des Kastens. Ohne diese Frage
+   * meldete die Prüfung jede breite Tabelle auf dem Telefon – also genau das,
+   * was absichtlich in einem eigenen Bildlauf liegt.
+   */
+  const inScrollkasten = (e) => {
+    for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) {
+      if (['auto', 'scroll'].includes(getComputedStyle(p).overflowX)) return true;
+    }
+    return false;
+  };
+  /* Inline-Text über zwei Zeilen liefert ein Rechteck, das beide umschließt –
+     ein `<small>` in der zweiten Zeile liegt dann rechnerisch „unter" dem
+     `<strong>` der ersten. Verglichen werden deshalb nur Block-Elemente. */
+  const istBlock = (e) => !getComputedStyle(e).display.startsWith('inline');
+
+  const alle = [wurzel, ...wurzel.querySelectorAll('*')].filter((e) => !e.closest('svg') && sichtbar(e));
+  const gesehen = new Set();
+  for (const e of alle) {
+    const stil = getComputedStyle(e);
+    const scrolltQuer = ['auto', 'scroll'].includes(stil.overflowX);
+    const gekuerzt = stil.textOverflow === 'ellipsis' || stil.webkitLineClamp !== 'none';
+    if (!scrolltQuer && !gekuerzt && !inScrollkasten(e) && e.scrollWidth > e.clientWidth + 2) {
+      const text = `Inhalt läuft ${e.scrollWidth - e.clientWidth} px über die Breite (${name(e)})`;
+      if (!gesehen.has(text)) { gesehen.add(text); probleme.push(text); }
+    }
+    const r = e.getBoundingClientRect();
+    if (!inScrollkasten(e) && (r.left < -1 || r.right > window.innerWidth + 1)) {
+      const text = `${name(e)} ragt seitlich aus dem Bild`;
+      if (!gesehen.has(text)) { gesehen.add(text); probleme.push(text); }
+    }
+  }
+
+  // Bedienelemente müssen ganz im Bild liegen und groß genug zum Treffen sein.
+  for (const e of wurzel.querySelectorAll('button, select, a')) {
+    if (!sichtbar(e)) continue;
+    const r = e.getBoundingClientRect();
+    if (r.left < -1 || r.right > window.innerWidth + 1) probleme.push(`Bedienelement ${name(e)} ragt aus dem Bild`);
+    if (r.height < 24) probleme.push(`Bedienelement ${name(e)} ist nur ${Math.round(r.height)} px hoch`);
+  }
+
+  // Geschwister, die sich decken – dieselbe Regel wie im Spiel.
+  const eltern = new Map();
+  for (const e of alle) {
+    if (getComputedStyle(e).position !== 'static' || !e.parentElement || !istBlock(e)) continue;
+    const liste = eltern.get(e.parentElement) ?? [];
+    liste.push(e);
+    eltern.set(e.parentElement, liste);
+  }
+  for (const geschwister of eltern.values()) {
+    for (let i = 0; i < geschwister.length; i += 1) {
+      for (let j = i + 1; j < geschwister.length; j += 1) {
+        const a = geschwister[i].getBoundingClientRect();
+        const b = geschwister[j].getBoundingClientRect();
+        const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (ox > 3 && oy > 3) {
+          const text = `${name(geschwister[i])} deckt ${name(geschwister[j])} (${Math.round(ox)}×${Math.round(oy)} px)`;
+          if (!gesehen.has(text)) { gesehen.add(text); probleme.push(text); }
+        }
+      }
+    }
+  }
+  return { probleme };
+}
+
+/**
+ * Beispieldaten für das Portal. Bewusst am oberen Ende: lange Namen, große
+ * Zahlen, viele Klassen – ein Layout, das mit leeren Tabellen sitzt, sagt
+ * nichts darüber, ob es auch mit vollen sitzt.
+ */
+function portalDaten() {
+  const tag = (i) => new Date(Date.UTC(2026, 6, 10 + i)).toISOString();
+  const kurve = [2, 3, 5, 4, 9, 14, 11, 8, 7, 12, 10, 9, 15, 22, 41, 63, 58, 44, 31, 26, 24, 21, 19, 23, 20, 18, 17, 22, 25, 28];
+  const daily = kurve.map((players, i) => ({
+    day: tag(i), players,
+    newPlayers: Math.max(1, Math.round(players * 0.4)),
+    sessions: Math.round(players * 1.6), accounts: Math.round(players * 0.22),
+    runs: players * 7, kills: players * 19, totalSeconds: players * 640, bestLevel: 30 + i
+  }));
+  const summe = (rows) => {
+    const s = rows.reduce((a, r) => ({
+      players: a.players + r.players, newPlayers: a.newPlayers + r.newPlayers,
+      sessions: a.sessions + r.sessions, accounts: a.accounts + r.accounts,
+      runs: a.runs + r.runs, kills: a.kills + r.kills, totalSeconds: a.totalSeconds + r.totalSeconds
+    }), { players: 0, newPlayers: 0, sessions: 0, accounts: 0, runs: 0, kills: 0, totalSeconds: 0 });
+    return { ...s, avgSessionSeconds: s.sessions ? Math.round(s.totalSeconds / s.sessions * 10) / 10 : 0 };
+  };
+  const klassen = [
+    ['rapid', 'Rapid', 'rapid'], ['sniper', 'Sniper', 'precision'], ['rammer', 'Rammer', 'impact'],
+    ['drone', 'Controller', 'control'], ['storm', 'Storm', 'rapid'], ['siege', 'Siege', 'siege'],
+    ['aegis', 'Aegis', 'aegis'], ['specter', 'Specter', 'specter'], ['tempest', 'Tempest', 'tempest'],
+    ['siegebreaker', 'Siegebreaker', 'precision'], ['juggernaut', 'Juggernaut', 'impact'], ['vortex', 'Vortex', 'rapid']
+  ].map(([id, label, branch], i) => ({
+    playerClass: id, label, branch, runs: 420 - i * 32, share: Math.round((420 - i * 32) / 30) / 10,
+    avgLevel: 12 + i, avgScore: 2400 + i * 380, avgSeconds: 150 + i * 22,
+    kills: (420 - i * 32) * 3, bestScore: 48210, bestLevel: 60
+  }));
+  return {
+    overview: {
+      live: {
+        humans: 7, bots: 11, projectiles: 63, drones: 12, shapes: 238, draining: false,
+        uptimeSeconds: 51300, commit: '26b506b', deploymentId: 'a91f22c8',
+        tick: { averageMs: 8.4, p95Ms: 12.1, maxMs: 24.1, budgetMs: 25, busyRatio: 0.34, overrunsTotal: 0, ticksTotal: 402000 },
+        auth: { enabled: true, mode: 'jwks', verified: 214, rejected: 2 },
+        features: { perks: true, signatureSiege: true, signatureAegis: true, arenaDirector: true,
+          spectator: true, achievements: true, projectileSpeedV2: true, repulseTravel: false, snapshotDeltas: false }
+      },
+      persistence: { enabled: true, queued: 0, written: 4821, dropped: 0, failedFlushes: 0 },
+      sessions: { enabled: true, open: 7, queued: 1, written: 1930, dropped: 0, discarded: 88 },
+      days: 30, database: true, daily,
+      today: summe(daily.slice(-1)), window: summe(daily),
+      classes: klassen,
+      unusedClasses: ['Ragnarok', 'Sanctum', 'Eidolon', 'Cataclysm', 'Behemoth', 'Aviary', 'Siegebreaker', 'Hailstorm'],
+      top: [1, 2, 3].map((rank) => ({
+        rank, playerName: 'Maximallanganame', score: 48210 - rank * 3000, level: 58 - rank,
+        playerClass: 'leviathan', kills: 96, durationSeconds: 1840,
+        achievedAt: new Date(Date.UTC(2026, 7, 8, 12)).toISOString()
+      }))
+    },
+    players: Array.from({ length: 8 }, (_, i) => ({
+      deviceId: `${i}`.repeat(4) + 'abcdef0123456789',
+      firstSeen: new Date(Date.UTC(2026, 6, 12 + i)).toISOString(),
+      lastSeen: new Date(Date.UTC(2026, 7, 8, 9 + i)).toISOString(),
+      sessions: 41 - i * 4, runs: (41 - i * 4) * 6, kills: (41 - i * 4) * 14,
+      totalSeconds: (41 - i * 4) * 640, bestScore: 49200 - i * 4000, bestLevel: 60 - i * 5,
+      lastUserId: i % 3 === 0 ? '11111111-2222-4333-8444-555555555555' : null,
+      lastName: i === 0 ? 'Maximallanganame' : `Spieler${i}`
+    })),
+    playersTotal: 143, sortierung: 'active', tage: 30, aktualisiert: Date.UTC(2026, 7, 8, 20, 4)
+  };
+}
+
+/**
+ * Baut die Portalseite ohne Server und ohne Login. Der Login ist an anderer
+ * Stelle geprüft (Unit-Tests des Torwächters); hier geht es allein darum, ob
+ * das Layout auf einem Telefon sitzt – und dafür muss die Seite gefüllt sein.
+ */
+async function portalSeite() {
+  const { build } = await import('esbuild');
+  const gebaut = await build({
+    entryPoints: ['apps/client/src/admin/view.ts'],
+    bundle: true, format: 'esm', write: false, logLevel: 'silent'
+  });
+  const modul = gebaut.outputFiles[0].text;
+  const css = (await import('node:fs')).readFileSync('apps/client/src/admin/admin.css', 'utf8');
+  const daten = portalDaten();
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head>
+    <body class="admin"><div id="admin-root"></div>
+    <script type="module">${modul}
+      document.querySelector('#admin-root').innerHTML = renderPortal(${JSON.stringify(daten)});
+    </script></body></html>`;
+}
+
+/** Die Geräte, auf denen das Portal geprüft wird – Sam sieht es auch mobil. */
+const PORTAL_FAELLE = [
+  ['portal-desktop', 1920, 1080, false],
+  ['portal-laptop', 1366, 768, false],
+  ['portal-schmal', 1024, 800, false],
+  ['portal-tablet', 820, 1180, true],
+  ['portal-tablet-quer', 1180, 820, true],
+  ['portal-handy', 390, 844, true],
+  ['portal-handy-klein', 375, 667, true],
+  ['portal-handy-quer', 844, 390, true]
+];
 
 async function main() {
   const browser = await chromium.launch({ executablePath: EXE, args: ['--use-gl=swiftshader', '--no-sandbox'] });
@@ -586,6 +848,28 @@ async function main() {
         probleme: [`kommt nicht hoch: ${String(error).split('\n')[0].slice(0, 120)}`] });
     }
   }
+  // --- Admin-Portal ------------------------------------------------------
+  if (PORTAL_FAELLE.some((f) => nurWenn(f[0]))) {
+    const seite = await portalSeite();
+    for (const [name, w, h, touch] of PORTAL_FAELLE.filter((f) => nurWenn(f[0]))) {
+      try {
+        const page = await browser.newPage({ viewport: { width: w, height: h }, ...(touch ? { hasTouch: true, isMobile: true } : {}) });
+        const fehler = [];
+        page.on('pageerror', (e) => fehler.push(String(e).slice(0, 140)));
+        await page.setContent(seite, { waitUntil: 'load' });
+        await page.waitForSelector('.kopf', { timeout: 15_000 });
+        const messung = await page.evaluate(messenPortal);
+        if (SHOTS) await page.screenshot({ path: `.probe/ui-${name}.png`, fullPage: true });
+        await page.close();
+        melden({ fall: name, fenster: `${w}×${h}`, tot: null,
+          probleme: [...fehler.map((f) => `Skriptfehler: ${f}`), ...messung.probleme] });
+      } catch (error) {
+        melden({ fall: name, fenster: `${w}×${h}`, tot: null,
+          probleme: [`kommt nicht hoch: ${String(error).split('\n')[0].slice(0, 120)}`] });
+      }
+    }
+  }
+
   await browser.close();
 
   const kaputt = befunde.filter((b) => b.probleme.length > 0).length;

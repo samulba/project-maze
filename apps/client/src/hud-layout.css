@@ -242,8 +242,28 @@
  * erklärende Zeile – aus vier Reihen werden zwei, das spart rund 110 px und
  * bringt alles ins Bild.
  */
-@media (max-height: 620px) {
+/*
+ * Nachgemessen (09.08.), nachdem der Prüfstand zum ersten Mal 1366×768 fährt –
+ * bis heute die häufigste Laptop-Auflösung, und sie fehlte in dieser Matrix
+ * komplett: Die Startkarte ist **796 px hoch** und braucht mit Rand 844 px
+ * Fensterhöhe. Auf 768 scrollte der Startscreen als Ganzes, und
+ * „Einstellungen" lag unter dem Rand.
+ *
+ * Die Navigation ist der größte Posten (279 px für vier Einträge). Zweispaltig
+ * sind es 146 – das bringt die Karte auf 711 px und alles ins Bild, ohne dass
+ * ein einziger Eintrag verschwindet.
+ */
+@media (max-height: 880px) {
   .start-nav { grid-template-columns: 1fr 1fr; }
+  /* Die zwei Spalten allein liessen 10 px zu viel stehen (gemessen 779 gegen
+     769). Sie kommen aus dem Abstand über der Navigation.
+     Nicht aus dem Innenrand der Karte: Der ist auf dieser Höhe bereits null,
+     eine `padding`-Regel hätte welchen *hinzugefügt* (Versuch: 803 statt 715). */
+  .start-nav { margin-top: 8px; }
+}
+/* Noch flacher: Dann fällt zusätzlich die erklärende Zeile, aus zwei Reihen
+   wird eine. */
+@media (max-height: 620px) {
   .start-nav span { display: none; }
   .start-nav button { grid-template-areas: 'titel marke pfeil'; padding: 9px 11px; }
 }
@@ -403,9 +423,15 @@
   top: calc(var(--edge-y) + var(--wahl-oben));
   bottom: auto;
   height: fit-content;
-  width: min(348px, calc(100vw - 2 * var(--edge-x)));
+  width: min(348px, calc(100% - 2 * var(--edge-x)));
   max-width: none;
-  max-height: calc(100vh - var(--edge-y) * 2 - var(--wahl-oben) - var(--wahl-unten));
+  /*
+   * Prozent statt `vh`: Das Panel hängt in `.hud` (`inset: 0`), nicht am
+   * Ansichtsfenster. Auf iOS meint `100vh` die Höhe **ohne** Adressleiste –
+   * das Panel hätte dort unter der Leiste geendet, genau auf dem Ziel-Stick.
+   * Prozent folgt dem Kasten, in dem es wirklich liegt.
+   */
+  max-height: calc(100% - var(--edge-y) * 2 - var(--wahl-oben) - var(--wahl-unten));
   margin: 0;
   translate: none;
   padding: 0;
@@ -623,7 +649,11 @@
   .class-selection .class-choices { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
   .class-selection > .class-selection-body > p { display: none; }
   .class-selection .class-choices button { padding: 6px 8px; grid-template-columns: 28px minmax(0, 1fr); column-gap: 7px; }
-  .class-selection .class-choice-preview { height: 26px; }
+  /* `mobile.css` blendet das Tankbild unter 430 px Höhe aus – das stammt aus
+     der Zeit, als es 64 px hoch war und die Karten unter den Panelrand schob.
+     Bei 26 px ist es die Silhouette, an der man die Klasse überhaupt erkennt,
+     und ohne sie bliebe hier eine leere Spalte stehen. */
+  .class-selection .class-choice-preview { display: grid; height: 26px; }
   .class-selection .class-choice-preview svg { width: 26px; height: 26px; }
   .class-selection .class-choices strong { font-size: 11px; }
 }
