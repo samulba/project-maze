@@ -13,6 +13,23 @@
  */
 
 /* ------------------------------------------------------------------ *
+ * Warum das Zurücktreten ohne Übergang passiert
+ * ------------------------------------------------------------------ */
+/*
+ * Alle Regeln in dieser Datei, die ein Panel zur Seite treten lassen, setzen
+ * `transition: none` – nicht aus Bequemlichkeit, sondern weil ein Übergang hier
+ * genau das erzeugt, was er verhindern soll: In den 180 ms, in denen das
+ * weichende Panel noch da ist, **überlappen sich beide sichtbar**. Auf einem
+ * schnellen Rechner sieht man es kaum; auf einem langsamen Telefon ist es der
+ * halbe Sekundenbruchteil, in dem das Bild falsch aussieht. Der Prüfstand hat
+ * es zweimal gemeldet, bevor ich verstanden habe, dass er recht hat.
+ *
+ * Der **Rückweg** ist weiterhin weich: Sobald die Regel nicht mehr greift,
+ * kommt `transition` wieder aus der Grundregel des Panels (`style.css`), und
+ * das Einblenden läuft wie gewohnt.
+ */
+
+/* ------------------------------------------------------------------ *
  * F1 – Die Klassenwahl schluckte Klicks
  * ------------------------------------------------------------------ */
 /*
@@ -46,7 +63,7 @@
  */
 :root:has(.class-selection:not([hidden])) .onboarding,
 :root:has(.class-selection:not([hidden])) .arena-event-banner,
-:root:has(.class-selection:not([hidden])) .bounty-banner { opacity: 0; transition: opacity .18s; }
+:root:has(.class-selection:not([hidden])) .bounty-banner { opacity: 0; transition: none; }
 
 /* ------------------------------------------------------------------ *
  * F3 – Klassenwahl und Upgrade-Panel kämpften um dieselbe Fläche
@@ -602,7 +619,7 @@
 :root:has(.class-selection:not([hidden])[data-collapsed='false']) .killfeed {
   opacity: 0;
   pointer-events: none;
-  transition: opacity .18s;
+  transition: none;
 }
 /*
  * Zugeklappt bleibt der Killfeed – die Leiste ist nur 42 px hoch, und wer die
@@ -626,7 +643,7 @@
 :root:has(.class-selection:not([hidden])[data-collapsed='false']) .upgrade-panel {
   opacity: 0;
   pointer-events: none;
-  transition: opacity .18s;
+  transition: none;
 }
 
 /*
@@ -707,7 +724,7 @@
   :root:has(.class-selection:not([hidden])[data-collapsed='false']) .core-ability {
     opacity: 0;
     pointer-events: none;
-    transition: opacity .18s;
+    transition: none;
   }
 }
 

@@ -768,7 +768,10 @@ async function main() {
     try {
     const { page, fehler } = await oeffnen(fall);
     if (fall.seite !== 'start') {
-      await page.click(`[data-goto="${fall.seite}"]`);
+      // Großzügiges Zeitfenster: Auf 3840×2160 mit Software-Rendering braucht
+      // der erste Klick gelegentlich über 30 s – das ist die Testmaschine,
+      // nicht die Seite.
+      await page.click(`[data-goto="${fall.seite}"]`, { timeout: 90_000 });
       await page.waitForTimeout(350);
     }
     const messung = await page.evaluate(messenStartscreen, fall.seite);

@@ -251,7 +251,7 @@
 :root:has(.class-overlay:not([hidden])) .upgrade-panel {
   opacity: 0;
   pointer-events: none;
-  transition: opacity .18s;
+  transition: none;
 }
 
 /*
