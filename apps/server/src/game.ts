@@ -4,6 +4,7 @@ import {
   EMPTY_UPGRADES,
   GAME,
   UPGRADE_IDS,
+  upgradeAppliesTo,
   respawnClassFrom,
   isValidClassChoice,
   respawnLevelFrom,
@@ -120,7 +121,10 @@ export function botState(index: number): BotState {
     hunter: ['damage', 'penetration', 'projectileSpeed', 'reload', 'moveSpeed', 'maxHealth', 'regen', 'bodyDamage'],
     kiter: ['moveSpeed', 'projectileSpeed', 'damage', 'reload', 'penetration', 'maxHealth', 'regen', 'bodyDamage'],
     brawler: ['bodyDamage', 'maxHealth', 'moveSpeed', 'regen', 'damage', 'reload', 'penetration', 'projectileSpeed'],
-    controller: ['damage', 'reload', 'moveSpeed', 'maxHealth', 'regen', 'bodyDamage', 'penetration', 'projectileSpeed']
+    // Controller haben kein Rohr – Durchschlag und Kugeltempo stehen hier
+    // nicht mehr, sonst bricht die Vergabeschleife bei der Ablehnung ab und
+    // der Bot bleibt auf seinen Punkten sitzen.
+    controller: ['damage', 'reload', 'maxHealth', 'moveSpeed', 'regen', 'bodyDamage']
   };
   return {
     style,
@@ -221,6 +225,11 @@ export class MazeGame {
   applyUpgrade(playerId: string, upgrade: UpgradeId): boolean {
     const player = this.players.get(playerId);
     if (!player || player.dead || player.availablePoints <= 0 || !UPGRADE_IDS.includes(upgrade) || player.upgrades[upgrade] >= GAME.maxUpgradeLevel) return false;
+    // Kein Punkt fuer etwas, das bei dieser Klasse nichts tut. Drohnenklassen
+    // haben kein Rohr; Kugeltempo, Durchschlag und Reichweite werden bei ihnen
+    // nirgends gelesen. Die Pruefung steht hier in der Basis, damit jede
+    // Tuning-Schicht sie erbt.
+    if (!upgradeAppliesTo(player.playerClass, upgrade)) return false;
     const previousMaximum = player.maxHealth;
     player.upgrades[upgrade] += 1;
     player.availablePoints -= 1;

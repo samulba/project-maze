@@ -1,4 +1,5 @@
 import { type PlayerClass } from '@project-maze/shared';
+import { stellungConfigFor } from './family-upgrades.js';
 import { MazeGame } from './game.js';
 import {
   SIGNATURE_MAX,
@@ -120,9 +121,18 @@ interface SiegeInternals {
 export function tuneSiegeSignature<T extends MazeGame>(
   game: T,
   enabled = false,
-  config: StellungConfig = DEFAULT_STELLUNG
+  config: StellungConfig = DEFAULT_STELLUNG,
+  familyUpgrades = false
 ): T {
   if (!enabled) return game;
+  /*
+   * Konfiguration dieses Spielers: ohne Familien-Upgrades der Festwert, mit
+   * ihnen Aufbautempo sowie Schadens- und Reichweitenbonus aus seinen Punkten.
+   * Die Stillstandsschwelle bleibt fest – sie entscheidet, *ob* man steht, und
+   * das soll kein Upgrade verschieben.
+   */
+  const konfigFuer = (player: RuntimePlayer): StellungConfig =>
+    (familyUpgrades ? stellungConfigFor(config, player.upgrades) : config);
   const internals = game as unknown as SiegeInternals;
   const stellung = signatureStateFor(game, 'siege');
 
@@ -145,8 +155,9 @@ export function tuneSiegeSignature<T extends MazeGame>(
       // Alle in diesem Tick entstandenen eigenen Projektile SIND die eine
       // Salve – bei Mehrlauf-Klassen (Bombard 2, Howitzer 3) trägt damit jedes
       // Rohr denselben Aufschlag, statt ihn unter sich aufzuteilen.
-      const damageScale = siegeDamageScale(charged, config);
-      const rangeScale = siegeRangeScale(charged, config);
+      const eigene = konfigFuer(player);
+      const damageScale = siegeDamageScale(charged, eigene);
+      const rangeScale = siegeRangeScale(charged, eigene);
       for (const [id, projectile] of internals.projectiles) {
         if (before.has(id) || projectile.ownerId !== player.id) continue;
         projectile.damage *= damageScale;
@@ -163,7 +174,7 @@ export function tuneSiegeSignature<T extends MazeGame>(
       // Wucht: `moveCircle` nullt blockierte Achsen, und wer gegen eine Wand
       // drückt, steht tatsächlich – der soll seine Stellung auch behalten.
       rate = Math.hypot(player.velocity.x, player.velocity.y) < config.standstillSpeed
-        ? config.buildPerSecond
+        ? konfigFuer(player).buildPerSecond
         : -config.decayPerSecond;
     }
     advanceSignature(stellung, player, dt, inFamily, rate);

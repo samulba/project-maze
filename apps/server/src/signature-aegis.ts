@@ -1,4 +1,5 @@
 import { type PlayerClass } from '@project-maze/shared';
+import { schildConfigFor } from './family-upgrades.js';
 import { MazeGame } from './game.js';
 import { distanceSquared, normalize } from './physics.js';
 import {
@@ -97,9 +98,18 @@ interface AegisInternals {
 export function tuneAegisSignature<T extends MazeGame>(
   game: T,
   enabled = false,
-  config: SchildConfig = DEFAULT_SCHILD
+  config: SchildConfig = DEFAULT_SCHILD,
+  familyUpgrades = false
 ): T {
   if (!enabled) return game;
+  /*
+   * Konfiguration dieses Trägers: ohne Familien-Upgrades der Festwert, mit
+   * ihnen Ladetempo und Entladungsschaden aus seinen Punkten. Radius und
+   * Rückstoß bleiben unangetastet – ein weiter wirkender Stoß wäre eine andere
+   * Fähigkeit, keine stärkere.
+   */
+  const konfigFuer = (player: RuntimePlayer): SchildConfig =>
+    (familyUpgrades ? schildConfigFor(config, player.upgrades) : config);
   const internals = game as unknown as AegisInternals;
   const schild = signatureStateFor(game, 'aegis');
   /**
@@ -151,7 +161,7 @@ export function tuneAegisSignature<T extends MazeGame>(
         // mindern). Nur das Zünden ist durch `discharging` gesperrt. Der Wrap
         // trägt die Angreifer-Id des Trägers – so zählen Kills der Entladung
         // ihm, samt Serie, XP und Killfeed.
-        applyDamage(target, config.dischargeDamage, owner.id, now);
+        applyDamage(target, konfigFuer(owner).dischargeDamage, owner.id, now);
       }
     } finally {
       discharging = false;
@@ -187,7 +197,7 @@ export function tuneAegisSignature<T extends MazeGame>(
     }
     // Geladen wird der tatsächlich erlittene Schaden, nicht der angesetzte:
     // Die Rüstung bremst damit auch das Nachladen des Schildes.
-    const charged = Math.min(SIGNATURE_MAX, before + taken * config.chargePerDamage);
+    const charged = Math.min(SIGNATURE_MAX, before + taken * konfigFuer(target).chargePerDamage);
     setSchild(target, charged);
     if (charged >= SIGNATURE_MAX && !discharging) discharge(target, now);
   };

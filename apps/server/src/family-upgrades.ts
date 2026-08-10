@@ -3,6 +3,10 @@ import { MazeGame } from './game.js';
 import type { MomentumConfig } from './signature-rapid.js';
 import type { WuchtConfig } from './signature-impact.js';
 import type { ChargeConfig } from './signature-precision.js';
+import type { StealthConfig } from './signature-specter.js';
+import type { HeatConfig } from './signature-tempest.js';
+import type { StellungConfig } from './signature-siege.js';
+import type { SchildConfig } from './signature-aegis.js';
 
 /**
  * Klassen 3.0 – KL4: **Familien-Upgrades**.
@@ -33,8 +37,18 @@ import type { ChargeConfig } from './signature-precision.js';
 export const FAMILY_UPGRADE_IDS = ['signatureRate', 'signaturePower'] as const;
 export type FamilyUpgradeId = (typeof FAMILY_UPGRADE_IDS)[number];
 
-/** Familien mit eigener Signature. `core` ist bewusst nicht dabei. */
-export type SignatureFamily = 'rapid' | 'impact' | 'precision' | 'control';
+/**
+ * Familien mit eigener Signature. `core` ist bewusst nicht dabei.
+ *
+ * Klassen 4.3: Die vier Familien aus 4.0/4.1 (SPECTER, TEMPEST, SIEGE, AEGIS)
+ * standen hier nicht – ihre Signatures liefen, aber die beiden Slots blieben
+ * für sie gesperrt. Im Client sahen sie sogar **frei** aus, weil `familyUpgradeLocked`
+ * nur `core` kannte: ein Knopf, der einen Punkt zu kosten scheint und still
+ * verworfen wird. Genau das, was diese Datei an anderer Stelle als
+ * „Punktegrab" ausdrücklich verhindern soll.
+ */
+export type SignatureFamily = 'rapid' | 'impact' | 'precision' | 'control'
+  | 'specter' | 'tempest' | 'siege' | 'aegis';
 
 const FAMILY_UPGRADE_SET = new Set<string>(FAMILY_UPGRADE_IDS);
 
@@ -68,8 +82,29 @@ export const FAMILY_SCALING = {
    * durch die Ein-Schuss-Grenze verriegelt (Lancer trägt heute 86 % des Lebens
    * des dünnsten Gegners seiner Stufe). Sockel 0,40, voll ausgebaut 1,00.
    */
-  precision: { powerBase: 0.4, powerPerPoint: 0.06 }
+  precision: { powerBase: 0.4, powerPerPoint: 0.06 },
+  /*
+   * Die vier nachgezogenen Familien folgen derselben Form wie RAPID und
+   * IMPACT: Sockel bei rund einem Drittel des bisherigen Festwerts, voller
+   * Ausbau bei rund dem 1,3-Fachen. Wer nicht investiert, ist schwächer als
+   * vorher; wer investiert, stärker. Das ist der Preis dafür, dass der Slot
+   * überhaupt eine Entscheidung ist – und er ist für alle Familien derselbe,
+   * damit man die Form einmal lernt und überall wiedererkennt.
+   */
+  /** `ambushBonus`, bisher fest 0,35. */
+  specter: { powerBase: 0.12, powerPerPoint: 0.0335 },
+  /** `maxBonus` der Hitze, bisher fest 0,40. */
+  tempest: { powerBase: 0.14, powerPerPoint: 0.038 },
+  /** `maxDamageBonus` der Stellung, bisher fest 0,45. Die Reichweite folgt im selben Verhältnis. */
+  siege: { powerBase: 0.16, powerPerPoint: 0.043 },
+  /** `dischargeDamage` des Schilds, bisher fest 34. */
+  aegis: { powerBase: 12, powerPerPoint: 3.2 }
 } as const;
+
+/** Gemeinsame Form: Sockel plus Punkte, hart gedeckelt auf `maxUpgradeLevel`. */
+const skaliert = (familie: 'specter' | 'tempest' | 'siege' | 'aegis', powerLevel: number): number =>
+  FAMILY_SCALING[familie].powerBase
+  + FAMILY_SCALING[familie].powerPerPoint * Math.max(0, Math.min(GAME.maxUpgradeLevel, powerLevel));
 
 /** Punktestand eines Slots, hart auf den erlaubten Bereich begrenzt. */
 export const familyUpgradeLevel = (upgrades: UpgradeLevels, id: FamilyUpgradeId): number =>
@@ -93,11 +128,32 @@ export const impactBodyDamageBonus = (powerLevel: number): number =>
  * sind. Für Tests und den Balance-Report; im Tick rechnen die Schichten mit den
  * beiden Skalaren oben, um je Tick keine Objekte zu erzeugen.
  */
-export const momentumConfigFor = (config: MomentumConfig, upgrades: UpgradeLevels): MomentumConfig => ({
-  ...config,
-  buildPerSecond: familyBuildRate(config.buildPerSecond, familyUpgradeLevel(upgrades, 'signatureRate')),
-  maxReloadBonus: rapidReloadBonus(familyUpgradeLevel(upgrades, 'signaturePower'))
-});
+export const momentumConfigFor = (config: MomentumConfig, upgrades: UpgradeLevels): MomentumConfig => {
+  const rate = familyUpgradeLevel(upgrades, 'signatureRate');
+  return {
+    ...config,
+    buildPerSecond: familyBuildRate(config.buildPerSecond, rate),
+    /*
+     * `signatureRate` hält das Momentum auch – nicht nur, es schneller
+     * aufzubauen.
+     *
+     * Der Balance-Report hat den Slot als **TOT** geführt (0,04× eines
+     * Basis-Upgrades) und sich selbst erklärt, warum: „Schneller volles
+     * Momentum hebt die Decke nicht, es kommt nur früher dort an." Wer ohnehin
+     * dauerhaft feuert, kauft ihn nie.
+     *
+     * Der Zerfall **in Fahrt ohne Feuer** ist die andere Hälfte derselben
+     * Sache: Er bestraft das Umsetzen zwischen zwei Gefechten. Ihn zu bremsen
+     * ist genau der Wert, den der Report nicht messen konnte, und er ist im
+     * Spiel sofort spürbar.
+     *
+     * Bewusst **nicht** gebremst: `decayPerSecond` im Stand. „Momentum gibt es
+     * nur in Fahrt" ist die Familie – das darf kein Upgrade aufweichen.
+     */
+    holdDecayPerSecond: config.holdDecayPerSecond / (1 + FAMILY_SCALING.buildPerPoint * rate),
+    maxReloadBonus: rapidReloadBonus(familyUpgradeLevel(upgrades, 'signaturePower'))
+  };
+};
 
 /**
  * Wucht-Konfiguration eines Spielers.
@@ -111,6 +167,59 @@ export const wuchtConfigFor = (config: WuchtConfig, upgrades: UpgradeLevels): Wu
   ...config,
   buildPerSecond: familyBuildRate(config.buildPerSecond, familyUpgradeLevel(upgrades, 'signatureRate')),
   maxBodyDamageBonus: impactBodyDamageBonus(familyUpgradeLevel(upgrades, 'signaturePower'))
+});
+
+/**
+ * Die vier nachgezogenen Familien (Klassen 4.3).
+ *
+ * Alle vier folgen demselben Schnitt wie RAPID und IMPACT: `signatureRate`
+ * beschleunigt den **Aufbau**, `signaturePower` erhöht die **Wirkung**. Was
+ * jeweils der Aufbau ist, sagt die Signature selbst:
+ *
+ * | Familie | Aufbau (`signatureRate`) | Wirkung (`signaturePower`) |
+ * | --- | --- | --- |
+ * | SPECTER | wie schnell die Tarnung lädt | Bonus des Erstschlags |
+ * | TEMPEST | Hitze je Schuss | Schadensbonus bei voller Hitze |
+ * | SIEGE | wie schnell die Stellung steht | Schadens- **und** Reichweitenbonus |
+ * | AEGIS | Ladung je erlittenem Schaden | Schaden der Entladung |
+ *
+ * Was bewusst **nicht** skaliert: bei SPECTER die Rempelstrafe (sonst wäre
+ * Tarnung und Rammen wieder gleichzeitig möglich), bei TEMPEST die Sperrzeit
+ * nach der Überhitzung (sie ist das Risiko, nicht die Belohnung), bei SIEGE die
+ * Stillstandsschwelle und bei AEGIS Radius und Rückstoß – ein weiter wirkender
+ * Stoß wäre eine andere Fähigkeit, keine stärkere.
+ */
+export const stealthConfigFor = (config: StealthConfig, upgrades: UpgradeLevels): StealthConfig => ({
+  ...config,
+  buildPerSecond: familyBuildRate(config.buildPerSecond, familyUpgradeLevel(upgrades, 'signatureRate')),
+  ambushBonus: skaliert('specter', familyUpgradeLevel(upgrades, 'signaturePower'))
+});
+
+export const heatConfigFor = (config: HeatConfig, upgrades: UpgradeLevels): HeatConfig => ({
+  ...config,
+  heatPerShot: familyBuildRate(config.heatPerShot, familyUpgradeLevel(upgrades, 'signatureRate')),
+  maxBonus: skaliert('tempest', familyUpgradeLevel(upgrades, 'signaturePower'))
+});
+
+export const stellungConfigFor = (config: StellungConfig, upgrades: UpgradeLevels): StellungConfig => {
+  const schaden = skaliert('siege', familyUpgradeLevel(upgrades, 'signaturePower'));
+  // Die Reichweite folgt dem Schaden im selben Verhältnis: Die Stellung ist
+  // *eine* Sache – weiter und härter –, nicht zwei getrennte Schrauben.
+  // 0,45 ist der bisherige Festwert des Schadensbonus – das Verhältnis zu ihm
+  // ist der Faktor, mit dem auch die Reichweite mitgeht.
+  const anteil = schaden / 0.45;
+  return {
+    ...config,
+    buildPerSecond: familyBuildRate(config.buildPerSecond, familyUpgradeLevel(upgrades, 'signatureRate')),
+    maxDamageBonus: schaden,
+    maxRangeBonus: config.maxRangeBonus * anteil
+  };
+};
+
+export const schildConfigFor = (config: SchildConfig, upgrades: UpgradeLevels): SchildConfig => ({
+  ...config,
+  chargePerDamage: familyBuildRate(config.chargePerDamage, familyUpgradeLevel(upgrades, 'signatureRate')),
+  dischargeDamage: skaliert('aegis', familyUpgradeLevel(upgrades, 'signaturePower'))
 });
 
 /** PRECISION: Anteil des vollen Ladebonus bei `n` Punkten in `signaturePower`. */

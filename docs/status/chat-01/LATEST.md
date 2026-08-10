@@ -2,6 +2,88 @@
 
 **Stand: 2026-08-09**
 
+## Balance 4.3 – tote Slots, stille Knöpfe, zwei Apex-Fallen
+
+Sams Auftrag: *„FIX alle möglichen BUGS vorallem auch SINNEBUGS, BALANCE das
+game richtig"*. Der Balance-Report und eine systematische Dominanzprüfung waren
+der Einstieg; gefunden hat sich vor allem Unsinn, nicht Unbalance.
+
+### Fünf von zwölf Upgrade-Plätzen taten bei Drohnenklassen nichts
+
+Die zehn CONTROL-Klassen haben **kein einziges Rohr**. Kugeltempo, Durchschlag
+und Reichweite werden im Server nur dort gelesen, wo aus einem Rohr etwas
+herauskommt – für sie waren das drei wirkungslose Plätze, die sich trotzdem
+kaufen ließen und einen Punkt kosteten. Dazu zwei Familien-Slots, die ihrer
+Familie gar nicht offenstanden.
+
+Das ist der messbare Kern von Sams „es gibt jetzt zu viele Upgrades INGAME".
+Neu entscheidet `upgradeAppliesTo()` in `shared` an **einer** Stelle, was wirkt:
+Der Client blendet aus, der Server lehnt ab. Ein Overseer sieht jetzt neun
+Plätze statt zwölf – und alle neun tun etwas.
+
+### Vier von acht Familien konnten ihre Signature-Slots nie freischalten
+
+SPECTER, TEMPEST, SIEGE und AEGIS standen nicht in `FAMILY_UPGRADE_BRANCHES`.
+Ihre Signatures liefen, aber die beiden Slots waren gesperrt – und im Client
+sahen sie sogar **frei** aus, weil die Sperre nur `core` kannte. Ein Knopf, der
+einen Punkt zu kosten scheint und still verworfen wird.
+
+Alle vier sind jetzt verdrahtet, nach demselben Schnitt wie RAPID und IMPACT:
+
+| Familie | `signatureRate` | `signaturePower` |
+| --- | --- | --- |
+| SPECTER | Tarn-Aufbau | Erstschlag-Bonus |
+| TEMPEST | Hitze je Schuss | Hitze-Schaden |
+| SIEGE | Stellung-Aufbau | Stellung-Stärke (Schaden **und** Reichweite) |
+| AEGIS | Schild-Ladung | Entladungs-Schaden |
+
+Was bewusst *nicht* skaliert, steht im Code: SPECTERs Rempelstrafe (sonst wären
+Tarnen und Rammen wieder gleichzeitig möglich), TEMPESTs Sperrzeit nach der
+Überhitzung (das Risiko, nicht die Belohnung), SIEGEs Stillstandsschwelle und
+AEGIS' Radius und Rückstoß.
+
+### Der RAPID-Slot, den der Report selbst als TOT geführt hat
+
+`signatureRate` lag bei **0,04×** eines Basis-Upgrades – und der Report lieferte
+die Begründung gleich mit: „Schneller volles Momentum hebt die Decke nicht."
+
+Der Slot bremst jetzt zusätzlich den Zerfall **in Fahrt ohne Feuer**. Das ist
+die andere Hälfte derselben Sache: Er bestraft das Umsetzen zwischen zwei
+Gefechten, und ihn zu bremsen ist sofort spürbar. Der Zerfall **im Stand**
+bleibt unangetastet – „Momentum gibt es nur in Fahrt" ist die Familie selbst.
+
+### Zwei Apex-Klassen waren schlechter als Klassen 14 Level darunter
+
+Eine Dominanzprüfung über alle 65 Klassen zeigt: Kein Kader-Eintrag wird von
+einer Schwesterklasse in allem geschlagen. Aber zwei **Apex**-Klassen führten
+auf keiner einzigen Achse.
+
+- **Eclipse** stand hinter Lancer (Stufe 3 desselben Pfades) bei Reichweite
+  (3900 gegen 4346) und Einzelschuss (74 gegen 82) und hinter Deadeye beim
+  Dauerschaden. Jetzt führt er Reichweite (4446) und Einzelschuss (86); den
+  Dauerschaden behält Deadeye – das ist Absicht.
+- **Sovereign** hatte 163,3 Drohnendruck, Overseer (Stufe 28) 165,5. Auf der
+  einzigen Achse, die CONTROL hat, war der Gipfel der schlechtere Kauf.
+  Sovereign geht auf 169,2 (Deckel 170), Overseer auf 158,6 – der Deckel gehört
+  dem Apex.
+
+Ein neuer Test hält die Regel fest: **Jeder Apex muss auf mindestens einer
+Achse die Spitze seiner Familie sein.** Bewusst „mindestens eine" und nicht
+„alle" – Blitz darf schneller bleiben als Leviathan.
+
+### Ein Bericht, der etwas anderes behauptete als der Code
+
+Der Balance-Report schrieb „PRECISION/CONTROL: Signature steht noch nicht,
+Slots gesperrt" – als fester Text, während beide Signatures längst liefen. Er
+liest das jetzt aus `FAMILY_SCALING`.
+
+### Was geprüft und in Ordnung war
+
+Alle 15 Perk-Mechaniken sind serverseitig umgesetzt – keine Lücke zwischen dem,
+was eine Karte verspricht, und dem, was passiert.
+
+---
+
 ## Kompletter UI-Check über alle Geräte
 
 Sams Auftrag: *„mach jetzt einen KOMPLETTEN UI check und fix alles auf allen

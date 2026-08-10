@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   CLASS_DEFINITIONS,
   PLAYER_CLASS_IDS,
+  PROJECTILE_UPGRADE_IDS,
+  UPGRADE_IDS,
+  upgradeAppliesTo,
   availableClassChoices,
   classAvailableAtLevel,
   respawnClassFrom,
@@ -136,6 +139,34 @@ describe('progression and input rules', () => {
    */
   it('setzt nach dem Tod auf die Anfangsklasse zurueck', () => {
     for (const id of PLAYER_CLASS_IDS) expect(respawnClassFrom(id)).toBe('core');
+  });
+
+  /**
+   * Sams „es gibt jetzt zu viele Upgrades INGAME" hatte einen messbaren Kern:
+   * Für die zehn Drohnenklassen waren drei der zwölf Plätze wirkungslos. Sie
+   * haben kein Rohr, und Kugeltempo, Durchschlag und Reichweite werden im
+   * Server nur dort gelesen, wo aus einem Rohr etwas herauskommt.
+   */
+  it('haelt Projektil-Upgrades von Klassen ohne Rohr fern', () => {
+    const ohneRohr = PLAYER_CLASS_IDS.filter((id) => CLASS_DEFINITIONS[id].barrelCount === 0);
+    expect(ohneRohr.length).toBeGreaterThan(0);
+    for (const id of ohneRohr) {
+      for (const upgrade of PROJECTILE_UPGRADE_IDS) {
+        expect(upgradeAppliesTo(id, upgrade), `${id}/${upgrade}`).toBe(false);
+      }
+      // Alles andere wirkt sehr wohl – Drohnen erben Schaden, Nachladen und
+      // Leben ihres Trägers (`drone-tuning.ts`).
+      for (const upgrade of ['damage', 'reload', 'maxHealth', 'regen', 'moveSpeed', 'bodyDamage'] as const) {
+        expect(upgradeAppliesTo(id, upgrade), `${id}/${upgrade}`).toBe(true);
+      }
+    }
+  });
+
+  it('laesst Klassen mit Rohr jedes Upgrade', () => {
+    const mitRohr = PLAYER_CLASS_IDS.filter((id) => CLASS_DEFINITIONS[id].barrelCount > 0);
+    for (const id of mitRohr) {
+      for (const upgrade of UPGRADE_IDS) expect(upgradeAppliesTo(id, upgrade), `${id}/${upgrade}`).toBe(true);
+    }
   });
 
   it('sanitizes player names', () => {

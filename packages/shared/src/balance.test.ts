@@ -63,6 +63,47 @@ describe('class balance metrics', () => {
     }
   });
 
+  /**
+   * Ein Apex muss auf mindestens einer Achse die Spitze seiner Familie sein.
+   *
+   * Anlass (09.08.): Zwei taten das nicht. Eclipse stand hinter Lancer bei
+   * Reichweite und Einzelschuss und hinter Deadeye beim Dauerschaden; Sovereign
+   * hatte weniger Drohnendruck als Overseer – eine Klasse von Stufe 28. Wer auf
+   * Level 42 aufstieg, wurde in beiden Familien schlechter.
+   *
+   * Bewusst „mindestens eine" und nicht „alle": Ein Apex soll die Familie
+   * krönen, nicht ihre Spezialisten ersetzen. Blitz darf schneller bleiben als
+   * Leviathan – aber irgendetwas muss der Gipfel am besten können.
+   *
+   * Achsen, die für die ganze Familie null sind (Drohnendruck bei Schützen,
+   * Reichweite bei Drohnenklassen), zählen nicht: Dort führt jeder.
+   */
+  it('gibt jedem Apex mindestens eine Achse, auf der er seine Familie anfuehrt', () => {
+    const achsen = [
+      'forwardProjectileDps', 'burstDamage', 'dronePressure',
+      'bodyThreat', 'effectiveDurability', 'mobility', 'projectileRange'
+    ] as const;
+
+    const apexe = PLAYER_CLASS_IDS.filter((id) => CLASS_DEFINITIONS[id].apexOf !== undefined);
+    expect(apexe.length).toBeGreaterThan(0);
+
+    for (const apex of apexe) {
+      const familie = CLASS_DEFINITIONS[apex].apexOf!;
+      const geschwister = PLAYER_CLASS_IDS.filter((id) =>
+        id !== apex && CLASS_DEFINITIONS[id].branch === familie && CLASS_DEFINITIONS[id].unlockLevel >= 15);
+      const meine = classBalanceMetrics(apex);
+
+      const fuehrt = achsen.filter((achse) => {
+        const werte = geschwister.map((id) => classBalanceMetrics(id)[achse]);
+        // Achse, auf der die ganze Familie null ist – sagt nichts aus.
+        if (meine[achse] === 0 && werte.every((wert) => wert === 0)) return false;
+        return werte.every((wert) => meine[achse] >= wert);
+      });
+
+      expect(fuehrt.length, `${apex} fuehrt auf keiner Achse`).toBeGreaterThan(0);
+    }
+  });
+
   it('keeps final impact classes meaningfully distinct', () => {
     const juggernaut = classBalanceMetrics('juggernaut');
     const fortress = classBalanceMetrics('fortress');

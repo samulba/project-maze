@@ -221,8 +221,23 @@ for (const row of familyRows) {
     verdict(ratios)
   ].join(' '));
 }
-console.log('\nPRECISION  beide            — Signature steht noch nicht, Slots gesperrt');
-console.log('CONTROL    beide            — Signature steht noch nicht, Slots gesperrt');
+/*
+ * Bis 09.08. stand hier „PRECISION/CONTROL: Signature steht noch nicht" – als
+ * fester Text, der nie jemand nachgezogen hat. Beide Signatures liefen zu dem
+ * Zeitpunkt schon lange. Ein Bericht, der etwas anderes behauptet als der
+ * Code, ist schlimmer als gar keiner: Er beantwortet die Frage, ohne sie zu
+ * prüfen. Deshalb liest diese Zeile jetzt die Wahrheit aus `FAMILY_SCALING`.
+ */
+const skaliert = Object.keys(FAMILY_SCALING).filter((k) => k !== 'buildPerPoint');
+const gemessen = new Set(familyRows.map((row) => row.family.toLowerCase()));
+const offenAberUngemessen = skaliert.filter((f) => !gemessen.has(f));
+if (offenAberUngemessen.length > 0) {
+  console.log(`\n${offenAberUngemessen.map((f) => f.toUpperCase()).join(', ')}`);
+  console.log('  Slots wirken (Skalierung steht in FAMILY_SCALING), aber diese Tabelle misst sie');
+  console.log('  noch nicht – ihre Ausgabe ist keine Feuerrate und kein Koerperschaden, sondern');
+  console.log('  Tarnung, Hitze, Stellung, Schild bzw. Flotte. Bis dahin gilt die gemeinsame Form:');
+  console.log('  Sockel bei rund einem Drittel des alten Festwerts, Vollausbau bei rund dem 1,3-Fachen.');
+}
 console.log(`\nSockel + Punkte (Variante B): RAPID ${FAMILY_SCALING.rapid.powerBase} + ${FAMILY_SCALING.rapid.powerPerPoint}/Punkt,`
   + ` IMPACT ${FAMILY_SCALING.impact.powerBase} + ${FAMILY_SCALING.impact.powerPerPoint}/Punkt,`
   + ` Aufbau ×(1 + ${FAMILY_SCALING.buildPerPoint}·n).`);

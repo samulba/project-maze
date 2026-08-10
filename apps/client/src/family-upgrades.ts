@@ -50,7 +50,16 @@ export const UPGRADE_SLOT_IDS: readonly UpgradeSlotId[] = [
  */
 const FAMILY_LABELS: Partial<Record<string, Record<FamilyUpgradeId, string>>> = {
   rapid: { signatureRate: 'Momentum-Aufbau', signaturePower: 'Momentum-Maximum' },
-  impact: { signatureRate: 'Aufprall-Erholung', signaturePower: 'Wucht-Skalierung' }
+  impact: { signatureRate: 'Aufprall-Erholung', signaturePower: 'Wucht-Skalierung' },
+  // Klassen 4.3: Die vier nachgezogenen Familien bekommen ihre eigenen Wörter,
+  // weil ihre Slots jetzt wirklich etwas tun. Bis dahin standen dort die
+  // neutralen – und der Knopf war klickbar, ohne zu wirken.
+  precision: { signatureRate: 'Ladetempo', signaturePower: 'Ladeschuss-Stärke' },
+  control: { signatureRate: 'Nachschub-Tempo', signaturePower: 'Flotten-Stärke' },
+  specter: { signatureRate: 'Tarn-Aufbau', signaturePower: 'Erstschlag-Bonus' },
+  tempest: { signatureRate: 'Hitze je Schuss', signaturePower: 'Hitze-Schaden' },
+  siege: { signatureRate: 'Stellung-Aufbau', signaturePower: 'Stellung-Stärke' },
+  aegis: { signatureRate: 'Schild-Ladung', signaturePower: 'Entladungs-Schaden' }
 };
 
 const NEUTRAL_LABELS: Record<FamilyUpgradeId, string> = {

@@ -2,8 +2,10 @@ import {
   CLASS_DEFINITIONS,
   GAME,
   availableClassChoices,
+  upgradeAppliesTo,
   xpAtLevelStart,
   type PlayerClass,
+  type UpgradeId,
   type PlayerSnapshot,
   type WorldSnapshot
 } from '@project-maze/shared';
@@ -531,7 +533,13 @@ export class GameUI {
       // Solange `upgrades` ihn nicht kennt, würde ein Klick eine Nachricht
       // auslösen, die der Server mit einer Fehlermeldung verwirft – ein Knopf
       // ins Leere ist schlimmer als gar keiner.
-      const known = !family || levels[id] !== undefined;
+      // Was bei dieser Klasse nichts tut, steht auch nicht im Panel. Für einen
+      // Controller sind das Kugeltempo, Durchschlag und Reichweite – er hat
+      // kein Rohr. Der Server lehnt sie ohnehin ab (`upgradeAppliesTo`); ein
+      // Knopf, der einen Punkt zu kosten scheint und nichts bewirkt, ist genau
+      // die Sorte „zu viele Upgrades", über die Sam gestolpert ist.
+      const wirkt = family || upgradeAppliesTo(self.playerClass, id as UpgradeId);
+      const known = wirkt && (!family || levels[id] !== undefined);
       const currentLevel = levels[id] ?? 0;
       const pips = this.root.querySelectorAll<HTMLElement>(`[data-pips="${id}"] i`);
       pips.forEach((pip, index) => pip.classList.toggle('filled', index < currentLevel));

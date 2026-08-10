@@ -1,6 +1,6 @@
 import { type PlayerClass } from '@project-maze/shared';
 import { tunedStatsFor } from './combat-tuning.js';
-import { familyBuildRate, familyUpgradeLevel, rapidReloadBonus } from './family-upgrades.js';
+import { familyUpgradeLevel, momentumConfigFor, rapidReloadBonus } from './family-upgrades.js';
 import { MazeGame } from './game.js';
 import {
   SIGNATURE_MAX,
@@ -139,14 +139,14 @@ export function tuneRapidSignature<T extends MazeGame>(
     let rate = 0;
     if (inFamily && !player.dead) {
       const moving = isMovingFast(player, tunedStatsFor(player).moveSpeed, config.moveThreshold);
-      const build = familyUpgrades
-        ? familyBuildRate(config.buildPerSecond, familyUpgradeLevel(player.upgrades, 'signatureRate'))
-        : config.buildPerSecond;
+      // Eine Konfiguration statt zweier Einzelrechnungen: Aufbau **und** der
+      // Zerfall in Fahrt ohne Feuer haengen beide an `signatureRate`.
+      const eigene = familyUpgrades ? momentumConfigFor(config, player.upgrades) : config;
       rate = !moving
         ? -config.decayPerSecond
         : player.primary
-          ? build
-          : -config.holdDecayPerSecond;
+          ? eigene.buildPerSecond
+          : -eigene.holdDecayPerSecond;
     }
     advanceSignature(momentum, player, dt, inFamily, rate);
   };

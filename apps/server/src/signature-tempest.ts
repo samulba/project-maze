@@ -1,4 +1,5 @@
 import { type PlayerClass } from '@project-maze/shared';
+import { heatConfigFor } from './family-upgrades.js';
 import { MazeGame } from './game.js';
 import {
   SIGNATURE_MAX,
@@ -120,9 +121,18 @@ const setHeat = (state: SignatureState, player: RuntimePlayer, value: number): v
 export function tuneTempestSignature<T extends MazeGame>(
   game: T,
   enabled = false,
-  config: HeatConfig = DEFAULT_HEAT
+  config: HeatConfig = DEFAULT_HEAT,
+  familyUpgrades = false
 ): T {
   if (!enabled) return game;
+  /*
+   * Konfiguration dieses Spielers: ohne Familien-Upgrades der Festwert, mit
+   * ihnen Hitze je Schuss und Schadensbonus aus seinen Punkten. Die Sperrzeit
+   * nach der Überhitzung bleibt fest – sie ist das Risiko der Familie, nicht
+   * ihre Belohnung.
+   */
+  const konfigFuer = (player: RuntimePlayer): HeatConfig =>
+    (familyUpgrades ? heatConfigFor(config, player.upgrades) : config);
   const internals = game as unknown as TempestInternals;
   const heat = signatureStateFor(game, 'tempest');
   const clocks = new Map<string, HeatClock>();
@@ -144,9 +154,9 @@ export function tuneTempestSignature<T extends MazeGame>(
     }
     // Die Salve nutzt den Stand, den sie vorfindet – erst danach wird geheizt.
     const before = heat.get(player.id) ?? 0;
-    originalFire(player, { ...stats, damage: stats.damage * heatDamageScale(before, config) });
+    originalFire(player, { ...stats, damage: stats.damage * heatDamageScale(before, konfigFuer(player)) });
     firedId = player.id;
-    const raw = before + config.heatPerShot;
+    const raw = before + konfigFuer(player).heatPerShot;
     setHeat(heat, player, Math.min(SIGNATURE_MAX, raw));
     if (raw >= SIGNATURE_MAX) overheatedId = player.id;
   };

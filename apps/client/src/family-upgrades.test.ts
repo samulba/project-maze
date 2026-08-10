@@ -44,10 +44,17 @@ describe('Familien-Upgrade-Plätze (KL4)', () => {
     expect(familyUpgradeLabel('juggernaut', 'signaturePower')).toBe('Wucht-Skalierung');
   });
 
-  it('bleibt bei Precision und Control neutral, solange ihre Signature fehlt', () => {
-    // Lieber namenlos als falsch benannt – dieselbe Regel wie beim Signature-Balken.
-    expect(familyUpgradeLabel('sniper', 'signatureRate')).toBe('Signature-Tempo');
-    expect(familyUpgradeLabel('warden', 'signaturePower')).toBe('Signature-Stärke');
+  it('gibt jeder der acht Familien eigene Woerter – nur Core bleibt neutral', () => {
+    // Klassen 4.3: Alle acht Signatures stehen und alle acht Slots wirken, also
+    // traegt jede Familie ihren eigenen Namen. Neutral bleibt nur, was keine
+    // Familie hat – dieselbe Regel wie beim Signature-Balken: lieber namenlos
+    // als falsch benannt.
+    expect(familyUpgradeLabel('sniper', 'signatureRate')).toBe('Ladetempo');
+    expect(familyUpgradeLabel('warden', 'signaturePower')).toBe('Flotten-Stärke');
+    expect(familyUpgradeLabel('shade', 'signaturePower')).toBe('Erstschlag-Bonus');
+    expect(familyUpgradeLabel('scorch', 'signatureRate')).toBe('Hitze je Schuss');
+    expect(familyUpgradeLabel('bombard', 'signaturePower')).toBe('Stellung-Stärke');
+    expect(familyUpgradeLabel('reflector', 'signatureRate')).toBe('Schild-Ladung');
     expect(familyUpgradeLabel('core', 'signatureRate')).toBe('Signature-Tempo');
   });
 

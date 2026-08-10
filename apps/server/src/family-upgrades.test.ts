@@ -35,7 +35,9 @@ interface Internals {
   spendBotPoints(player: any): void;
 }
 
-const ALL_FAMILIES: SignatureFamily[] = ['rapid', 'impact', 'precision', 'control'];
+const ALL_FAMILIES: SignatureFamily[] = [
+  'rapid', 'impact', 'precision', 'control', 'specter', 'tempest', 'siege', 'aegis'
+];
 
 const createGame = (families: SignatureFamily[] = ['rapid', 'impact'], familyUpgrades = true) => {
   const game = tuneImpactSignature(
@@ -173,9 +175,32 @@ describe('familien-upgrades – zahlen', () => {
     expect(config.decayPerSecond).toBe(DEFAULT_WUCHT.decayPerSecond);
 
     const momentum = momentumConfigFor(DEFAULT_MOMENTUM, upgrades);
+    // Der Zerfall **im Stand** bleibt unangetastet: „Momentum gibt es nur in
+    // Fahrt" ist die Familie selbst und darf von keinem Punkt aufgeweicht
+    // werden. Ebenso die Schwelle, ab der Fahrt als Fahrt zählt.
     expect(momentum.decayPerSecond).toBe(DEFAULT_MOMENTUM.decayPerSecond);
-    expect(momentum.holdDecayPerSecond).toBe(DEFAULT_MOMENTUM.holdDecayPerSecond);
     expect(momentum.moveThreshold).toBe(DEFAULT_MOMENTUM.moveThreshold);
+  });
+
+  it('RAPID: signatureRate haelt das Momentum auch beim Umsetzen', () => {
+    /*
+     * Klassen 4.3. Der Balance-Report hat den Slot als TOT gefuehrt (0,04x
+     * eines Basis-Upgrades) und die Begruendung gleich mitgeliefert: Schneller
+     * volles Momentum hebt die Decke nicht. Der Zerfall in Fahrt **ohne**
+     * Feuer ist die andere Haelfte derselben Sache – er bestraft das Umsetzen
+     * zwischen zwei Gefechten, und ihn zu bremsen ist im Spiel sofort spuerbar.
+     */
+    const ohne = momentumConfigFor(DEFAULT_MOMENTUM, EMPTY_UPGRADES());
+    expect(ohne.holdDecayPerSecond).toBe(DEFAULT_MOMENTUM.holdDecayPerSecond);
+
+    const upgrades = EMPTY_UPGRADES();
+    upgrades.signatureRate = GAME.maxUpgradeLevel;
+    const voll = momentumConfigFor(DEFAULT_MOMENTUM, upgrades);
+    expect(voll.holdDecayPerSecond).toBeLessThan(DEFAULT_MOMENTUM.holdDecayPerSecond);
+    // Derselbe Faktor wie beim Aufbau – eine Zahl, zwei Richtungen.
+    expect(voll.holdDecayPerSecond).toBeCloseTo(
+      DEFAULT_MOMENTUM.holdDecayPerSecond / (1 + FAMILY_SCALING.buildPerPoint * GAME.maxUpgradeLevel), 6
+    );
   });
 
   it('begrenzt Punktestände außerhalb des erlaubten Bereichs', () => {
@@ -214,11 +239,11 @@ describe('familien-upgrades – familiensperre', () => {
     }
   });
 
-  it('sperrt Familien ohne laufende Signature – Precision und Control', () => {
+  it('sperrt jede Familie, deren Signature nicht in der Liste steht', () => {
     const { game, internals } = createGame();
-    for (const playerClass of ['deadeye', 'overseer'] as PlayerClass[]) {
+    for (const playerClass of ['deadeye', 'overseer', 'shade', 'scorch', 'bombard', 'reflector'] as PlayerClass[]) {
       const branch = CLASS_DEFINITIONS[playerClass].branch;
-      expect(['precision', 'control']).toContain(branch);
+      expect(['precision', 'control', 'specter', 'tempest', 'siege', 'aegis']).toContain(branch);
       const { id } = spawn(game, internals, playerClass);
       for (const upgrade of FAMILY_UPGRADE_IDS) {
         expect(game.applyUpgrade(id, upgrade), `${playerClass}/${upgrade}`).toBe(false);
@@ -226,9 +251,15 @@ describe('familien-upgrades – familiensperre', () => {
     }
 
     // Sobald ihre Signature steht, reicht ein Eintrag in der Familienliste.
-    const open = createGame(ALL_FAMILIES);
-    const { id } = spawn(open.game, open.internals, 'deadeye');
-    for (const upgrade of FAMILY_UPGRADE_IDS) expect(open.game.applyUpgrade(id, upgrade)).toBe(true);
+    // Klassen 4.3: Das gilt jetzt fuer alle acht – vier davon standen nie in
+    // der Liste, obwohl ihre Signature lief.
+    for (const playerClass of ['deadeye', 'overseer', 'shade', 'scorch', 'bombard', 'reflector'] as PlayerClass[]) {
+      const open = createGame(ALL_FAMILIES);
+      const { id } = spawn(open.game, open.internals, playerClass);
+      for (const upgrade of FAMILY_UPGRADE_IDS) {
+        expect(open.game.applyUpgrade(id, upgrade), `${playerClass}/${upgrade}`).toBe(true);
+      }
+    }
   });
 
   it('hält den Deckel je Slot ein und lässt die acht Basiswerte unberührt', () => {

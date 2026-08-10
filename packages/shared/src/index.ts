@@ -96,6 +96,42 @@ export const UPGRADE_IDS = [
 ] as const;
 
 export type UpgradeId = (typeof UPGRADE_IDS)[number];
+
+/**
+ * Upgrades, die nur an Projektilen hängen.
+ *
+ * Zehn Klassen der CONTROL-Familie haben **kein einziges Rohr** – sie kämpfen
+ * ausschließlich mit Drohnen. Für sie tun diese drei Werte nachweislich nichts:
+ * `projectileSpeed`, `penetration` und `projectileRange` werden im Server nur
+ * dort gelesen, wo aus einem Rohr etwas herauskommt (`combat-tuning.ts`,
+ * `game.ts`, `projectile-speed.ts`). Trotzdem standen sie im Panel, ließen sich
+ * kaufen und verbrauchten einen Punkt.
+ *
+ * Das ist der Kern von Sams „es gibt jetzt zu viele Upgrades INGAME": Für einen
+ * Controller waren fünf der zwölf Plätze wertlos – diese drei plus die beiden
+ * Familien-Slots, die seiner Familie nicht offenstehen.
+ */
+export const PROJECTILE_UPGRADE_IDS = ['projectileSpeed', 'penetration', 'projectileRange'] as const;
+
+/**
+ * Wirkt dieses Upgrade bei dieser Klasse überhaupt?
+ *
+ * Die Antwort hängt an einer einzigen Frage – hat die Klasse ein Rohr? –, und
+ * genau deshalb steht sie hier in `shared` und nicht doppelt in Client und
+ * Server: Der Client blendet aus, was nichts tut, der Server lehnt es ab.
+ * Fiele die Antwort an den beiden Orten unterschiedlich aus, gäbe es wieder
+ * einen Knopf, der einen Punkt frisst.
+ *
+ * Familien-Slots sind hier **nicht** enthalten: Ob die offenstehen, hängt nicht
+ * an der Klasse, sondern daran, welche Signatures der Server eingehängt hat –
+ * das weiß nur er (`apps/server/src/family-upgrades.ts`).
+ */
+export function upgradeAppliesTo(playerClass: PlayerClass, upgrade: UpgradeId): boolean {
+  if ((PROJECTILE_UPGRADE_IDS as readonly string[]).includes(upgrade)) {
+    return CLASS_DEFINITIONS[playerClass].barrelCount > 0;
+  }
+  return true;
+}
 export type ShapeKind = 'square' | 'triangle' | 'pentagon';
 export type ThemeId = 'midnight' | 'void' | 'classic';
 
@@ -287,8 +323,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
   }),
   overseer: classDef({
     id: 'overseer', label: 'Overseer', description: 'Acht leichtere Drohnen für anspruchsvolle Schwarmkontrolle.', parent: 'warden',
+    // Balance 4.3: 12 -> 11,5 Schaden. Overseer stand mit 165,5 Drohnendruck bei
+    // 99,7 % des Familien-Deckels und damit ueber dem eigenen Apex.
     unlockLevel: 28, branch: 'control', maxHealth: 128, regen: 3, acceleration: 1320, moveSpeed: 246,
-    reload: 0.58, projectileSpeed: 0, projectileLife: 0, damage: 12, projectileRadius: 0,
+    reload: 0.58, projectileSpeed: 0, projectileLife: 0, damage: 11.5, projectileRadius: 0,
     penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
     droneCount: 8, droneRespawn: 0.88
   }),
@@ -385,15 +423,40 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
   }),
   eclipse: classDef({
     id: 'eclipse', label: 'Eclipse', description: 'Ein Schuss wie eine Finsternis – wer ihn sieht, sieht ihn zu spät.', parent: 'sniper',
+    /*
+     * Balance 4.3: Der Apex fuehrte auf **keiner** Achse.
+     *
+     * Gemessen stand er hinter Lancer (Stufe 3 desselben Pfades) bei
+     * Reichweite (3900 gegen 4346) und Einzelschuss (74 gegen 82), hinter
+     * Deadeye und Phantom beim Dauerschaden. Wer auf Level 42 zu Eclipse
+     * aufstieg, wurde schlechter – das ist kein Gipfel, das ist eine Falle.
+     *
+     * Er bekommt jetzt die Spitze auf den beiden Achsen, die PRECISION
+     * ausmachen: Reichweite (1560 x 2,85 = 4446) und Einzelschuss (86). Beim
+     * Dauerschaden bleibt Deadeye vorn – das ist Absicht, der ist die
+     * schnellfeuernde Praezision, Eclipse der eine Schuss.
+     */
     unlockLevel: 42, branch: 'precision', apexOf: 'precision', maxHealth: 90, regen: 1.5, acceleration: 1220, moveSpeed: 230,
-    reload: 1.15, projectileSpeed: 1560, projectileLife: 2.5, damage: 74, projectileRadius: 10,
+    reload: 1.15, projectileSpeed: 1560, projectileLife: 2.85, damage: 86, projectileRadius: 10,
     penetration: 100, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 66,
     droneCount: 0, droneRespawn: 0
   }),
   sovereign: classDef({
     id: 'sovereign', label: 'Sovereign', description: 'Sieben Wächter, ein Wille – der Hofstaat regiert das Feld.', parent: 'drone',
-    unlockLevel: 42, branch: 'control', apexOf: 'control', maxHealth: 142, regen: 3.2, acceleration: 1240, moveSpeed: 238,
-    reload: 0.6, projectileSpeed: 0, projectileLife: 0, damage: 14, projectileRadius: 0,
+    /*
+     * Balance 4.3: Derselbe Fehler wie bei Eclipse, nur eine Familie weiter.
+     *
+     * Der Drohnendruck des Apex lag bei 163,3 – **unter** dem von Overseer
+     * (165,5), einer Klasse von Stufe 28. Auf der einzigen Achse, die CONTROL
+     * ueberhaupt hat, war der Gipfel der schlechtere Kauf.
+     *
+     * Sovereign geht auf 169,2 (Deckel 170), Overseer auf 158,6. Der Deckel
+     * gehoert dem Apex; eine Klasse von Stufe 28 hatte bei 99,7 % davon
+     * nichts verloren. Haltbarkeit steigt mit, damit Carrier ihn nicht auch
+     * dort schlaegt.
+     */
+    unlockLevel: 42, branch: 'control', apexOf: 'control', maxHealth: 156, regen: 3.4, acceleration: 1240, moveSpeed: 238,
+    reload: 0.6, projectileSpeed: 0, projectileLife: 0, damage: 14.5, projectileRadius: 0,
     penetration: 0, bodyDamage: 13, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
     droneCount: 7, droneRespawn: 1
   }),

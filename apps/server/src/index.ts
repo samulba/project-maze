@@ -181,20 +181,6 @@ const SIGNATURE_CONTROL_ENABLED = !['false', '0', 'off']
 const FAMILY_UPGRADES_ENABLED = !['false', '0', 'off']
   .includes((process.env.FAMILY_UPGRADES_ENABLED ?? '').trim().toLowerCase());
 /**
- * Für welche Familien die Slots wirklich kaufbar sind: nur die, deren Signature
- * gebaut **und** eingeschaltet ist. Ein Slot ohne laufende Signature wäre ein
- * Punktegrab – der Spieler zahlt, und nichts passiert. Precision und Control
- * kommen automatisch dazu, sobald ihre Signature hier eingehängt wird.
- */
-const FAMILY_UPGRADE_BRANCHES: SignatureFamily[] = FAMILY_UPGRADES_ENABLED
-  ? ([
-      SIGNATURE_RAPID_ENABLED ? 'rapid' : null,
-      SIGNATURE_IMPACT_ENABLED ? 'impact' : null,
-      SIGNATURE_PRECISION_ENABLED ? 'precision' : null,
-      SIGNATURE_CONTROL_ENABLED ? 'control' : null
-    ].filter(Boolean) as SignatureFamily[])
-  : [];
-/**
  * Projektiltempo 2.0: Dämpfer für alle Zweige, ein mit dem Level fallender
  * Deckel und ein Boden, unter den keine Kugel fällt. Dazu ein flacheres
  * Upgrade und ein Vorhalt-Ausgleich für die Bots. Standardmäßig aus – ohne
@@ -249,6 +235,27 @@ const SIGNATURE_SIEGE_ENABLED = !['false', '0', 'off']
  */
 const SIGNATURE_AEGIS_ENABLED = !['false', '0', 'off']
   .includes((process.env.SIGNATURE_AEGIS_ENABLED ?? '').trim().toLowerCase());
+
+/**
+ * Für welche Familien die Slots wirklich kaufbar sind: nur die, deren Signature
+ * gebaut **und** eingeschaltet ist. Ein Slot ohne laufende Signature wäre ein
+ * Punktegrab – der Spieler zahlt, und nichts passiert. Precision und Control
+ * kommen automatisch dazu, sobald ihre Signature hier eingehängt wird.
+ */
+const FAMILY_UPGRADE_BRANCHES: SignatureFamily[] = FAMILY_UPGRADES_ENABLED
+  ? ([
+      SIGNATURE_RAPID_ENABLED ? 'rapid' : null,
+      SIGNATURE_IMPACT_ENABLED ? 'impact' : null,
+      SIGNATURE_PRECISION_ENABLED ? 'precision' : null,
+      SIGNATURE_CONTROL_ENABLED ? 'control' : null,
+      // Klassen 4.3: Diese vier fehlten. Ihre Signatures liefen, aber die
+      // beiden Slots blieben gesperrt – im Client sahen sie sogar frei aus.
+      SIGNATURE_SPECTER_ENABLED ? 'specter' : null,
+      SIGNATURE_TEMPEST_ENABLED ? 'tempest' : null,
+      SIGNATURE_SIEGE_ENABLED ? 'siege' : null,
+      SIGNATURE_AEGIS_ENABLED ? 'aegis' : null
+    ].filter(Boolean) as SignatureFamily[])
+  : [];
 /**
  * Der Rueckstoss des Repulse wird ueber die Wirkdauer getragen, statt sofort
  * von der Bewegungsintegration gefressen zu werden. Ohne den Schalter legt ein
@@ -367,16 +374,20 @@ const encodedGame = tuneSnapshotEncoding(
                               FAMILY_UPGRADES_ENABLED
                             ),
                             SIGNATURE_TEMPEST_ENABLED,
-                            DEFAULT_HEAT
+                            DEFAULT_HEAT,
+                            FAMILY_UPGRADES_ENABLED
                             ),
                             SIGNATURE_SPECTER_ENABLED,
-                            DEFAULT_STEALTH
+                            DEFAULT_STEALTH,
+                            FAMILY_UPGRADES_ENABLED
                             ),
                             SIGNATURE_AEGIS_ENABLED,
-                            DEFAULT_SCHILD
+                            DEFAULT_SCHILD,
+                            FAMILY_UPGRADES_ENABLED
                             ),
                             SIGNATURE_SIEGE_ENABLED,
-                            DEFAULT_STELLUNG
+                            DEFAULT_STELLUNG,
+                            FAMILY_UPGRADES_ENABLED
                             )
                           ),
                           SIGNATURE_CONTROL_ENABLED,

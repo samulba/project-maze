@@ -1,4 +1,5 @@
 import { type PlayerClass } from '@project-maze/shared';
+import { stealthConfigFor } from './family-upgrades.js';
 import { MazeGame } from './game.js';
 import {
   SIGNATURE_MAX,
@@ -97,9 +98,17 @@ const setStealth = (state: SignatureState, player: RuntimePlayer, value: number)
 export function tuneSpecterSignature<T extends MazeGame>(
   game: T,
   enabled = false,
-  config: StealthConfig = DEFAULT_STEALTH
+  config: StealthConfig = DEFAULT_STEALTH,
+  familyUpgrades = false
 ): T {
   if (!enabled) return game;
+  /*
+   * Die Konfiguration dieses Spielers. Ohne Familien-Upgrades ist das der
+   * Festwert; mit ihnen kommen Aufbautempo und Erstschlag-Bonus aus seinen
+   * Punkten (`signatureRate` / `signaturePower`).
+   */
+  const konfigFuer = (player: RuntimePlayer): StealthConfig =>
+    (familyUpgrades ? stealthConfigFor(config, player.upgrades) : config);
   const internals = game as unknown as SpecterInternals;
   const stealth = signatureStateFor(game, 'specter');
   /**
@@ -140,7 +149,7 @@ export function tuneSpecterSignature<T extends MazeGame>(
         // die Tarnung gleich darunter auf 0.
         for (const [id, projectile] of internals.projectiles) {
           if (!before.has(id) && projectile.ownerId === player.id) {
-            projectile.damage *= 1 + config.ambushBonus;
+            projectile.damage *= 1 + konfigFuer(player).ambushBonus;
           }
         }
       }
@@ -151,7 +160,7 @@ export function tuneSpecterSignature<T extends MazeGame>(
 
     let rate = 0;
     if (inFamily && !player.dead) {
-      rate = now >= (quietUntil.get(player.id) ?? 0) ? config.buildPerSecond : 0;
+      rate = now >= (quietUntil.get(player.id) ?? 0) ? konfigFuer(player).buildPerSecond : 0;
     } else {
       // Tod und Familienwechsel löschen auch die Ruhe-Uhr: Ein Respawn soll
       // nicht die Störung seines vorigen Lebens abwarten müssen.
