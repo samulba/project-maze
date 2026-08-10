@@ -181,7 +181,27 @@ const tokenFor = (subject: string): Promise<string> => new SignJWT({ role: 'auth
   .setExpirationTime('1h')
   .sign(new TextEncoder().encode(AUTH_SECRET));
 
-const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 10));
+/**
+ * Wartet, bis der Handler geantwortet hat.
+ *
+ * Vorher stand hier ein festes `setTimeout(10)`. Das reichte, solange die
+ * Maschine nichts anderes zu tun hatte – lief daneben der UI-Prüfstand, kam
+ * die asynchrone Token-Prüfung später zurück, und der Test las den
+ * Anfangswert 200 statt der 202, die der Handler danach setzt. Ein Test, der
+ * von der Auslastung der Maschine abhängt, ist kein Test.
+ *
+ * `state.body` ist bis zum ersten `json()` `null` – das ist das Signal, auf
+ * das gewartet wird, statt auf eine Frist zu hoffen.
+ */
+const settle = async (fertig: () => boolean = () => false, grenzeMs = 3000): Promise<void> => {
+  const start = Date.now();
+  do {
+    await new Promise((resolve) => setTimeout(resolve, 2));
+  } while (!fertig() && Date.now() - start < grenzeMs);
+};
+
+/** Kurzform für den Normalfall: warten, bis genau diese Antwort steht. */
+const beantwortet = (call: { state: { body: unknown } }) => (): boolean => call.state.body !== null;
 
 afterEach(() => {
   delete process.env.SUPABASE_URL;
@@ -807,7 +827,7 @@ describe('profile write (POST /profile)', () => {
     const game = withPersistence(client);
 
     const call = post(game, { displayName: 'Ada Lovelace' }, `Bearer ${await tokenFor(USER_ID)}`);
-    await settle();
+    await settle(beantwortet(call));
 
     expect(call.state.status).toBe(202);
     expect(call.state.body).toEqual({ displayName: 'Ada Lovelace', pending: true });
@@ -823,8 +843,8 @@ describe('profile write (POST /profile)', () => {
     const other = '9c858901-8a57-4791-81fe-4c455b099bc9';
 
     // Ein untergeschobenes userId-Feld darf keine Wirkung haben.
-    post(game, { displayName: 'Fremd', userId: other }, `Bearer ${await tokenFor(USER_ID)}`);
-    await settle();
+    const untergeschoben = post(game, { displayName: 'Fremd', userId: other }, `Bearer ${await tokenFor(USER_ID)}`);
+    await settle(beantwortet(untergeschoben));
 
     await flushPersistence(game);
     expect(client.profiles).toEqual([{ userId: USER_ID, displayName: 'Fremd' }]);
@@ -839,14 +859,14 @@ describe('profile write (POST /profile)', () => {
     const token = await tokenFor(USER_ID);
     for (const header of [undefined, 'Bearer kaputt', `Basic ${token}`]) {
       const call = post(game, { displayName: 'Ada' }, header);
-      await settle();
+      await settle(beantwortet(call));
       expect(call.state.status).toBe(401);
     }
 
     // Ohne aktivierten Login gibt es kein Konto – also auch kein Profil.
     resetAuth();
     const offline = post(game, { displayName: 'Ada' }, `Bearer ${token}`);
-    await settle();
+    await settle(beantwortet(offline));
     expect(offline.state.status).toBe(401);
     expect(client.profiles).toHaveLength(0);
     stopPersistence(game);
@@ -860,12 +880,12 @@ describe('profile write (POST /profile)', () => {
 
     for (const body of [undefined, {}, { displayName: 42 }]) {
       const call = post(game, body, header);
-      await settle();
+      await settle(beantwortet(call));
       expect(call.state.status).toBe(400);
     }
 
     const blank = post(game, { displayName: '   ' }, header);
-    await settle();
+    await settle(beantwortet(blank));
     expect(blank.state.status).toBe(400);
     expect(client.profiles).toHaveLength(0);
     stopPersistence(game);
