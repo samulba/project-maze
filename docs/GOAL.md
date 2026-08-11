@@ -30,6 +30,7 @@ unten, und die ist prüfbar.
 | Keine Serverlags bei voller Arena | Tick p95 < 25 ms **und ≤ 160 KB/s pro Spieler** | ✅ 138,8 KB/s bei 80 Spielern, Tick p95 10,4 ms |
 | Die Leitung Server→Client ist heil | `npm run wire-probe` grün | ✅ |
 | Auf dem Handy lässt sich **spielen**, nicht nur gucken | `npm run touch-probe` grün | ✅ 844×390 |
+| Die Fortschrittsschleife trägt: farmen → aufsteigen → Klasse → Upgrade | `npm run progress-probe` grün | ✅ |
 | Mehrere Modi | Drei spielbare Modi im Client wählbar | ❌ 1 von 3 (nur Maze) |
 | Es fühlt sich groß an | 675.000 px² je Spieler, Dichte-Test grün | ✅ 9000 × 6000, 80 Spieler |
 | **Fremde kommen wieder** | Admin-Portal: wiederkehrende `device_id` über 7 Tage | 🔍 misst ab jetzt |
@@ -318,6 +319,10 @@ npm run wire-probe
 # Laesst sich auf dem Handy wirklich spielen? (gleiche Voraussetzung)
 npm run touch-probe
 BREITE=667 HOEHE=375 npm run touch-probe    # iPhone SE quer
+
+# Traegt die Fortschrittsschleife? Farmt bis Stufe 5, waehlt eine Klasse,
+# vergibt einen Punkt -- und prueft jedes Mal das sichtbare Ergebnis.
+npm run progress-probe
 
 # UI auf 17 echten Geraetegroessen.
 # Nichts Schweres nebenher laufen lassen: Unter Last laufen einzelne Faelle in
