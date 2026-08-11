@@ -29,6 +29,7 @@ unten, und die ist prüfbar.
 | Kein Knopf ohne Server-Antwort | Alle 8 Familien-Signatures serverseitig verdrahtet | ✅ |
 | Keine Serverlags bei voller Arena | Tick p95 < 25 ms **und ≤ 160 KB/s pro Spieler** | ✅ 138,8 KB/s bei 80 Spielern, Tick p95 10,4 ms |
 | Die Leitung Server→Client ist heil | `npm run wire-probe` grün | ✅ |
+| Auf dem Handy lässt sich **spielen**, nicht nur gucken | `npm run touch-probe` grün | ✅ 844×390 |
 | Mehrere Modi | Drei spielbare Modi im Client wählbar | ❌ 1 von 3 (nur Maze) |
 | Es fühlt sich groß an | 675.000 px² je Spieler, Dichte-Test grün | ✅ 9000 × 6000, 80 Spieler |
 | **Fremde kommen wieder** | Admin-Portal: wiederkehrende `device_id` über 7 Tage | 🔍 misst ab jetzt |
@@ -176,6 +177,16 @@ Szenario überhaupt. **Die Schalter sind die Voraussetzung, nicht die Kür.**
    mitzuziehen, bekommt einen roten Test statt einer leeren Arena.
 3. **Handy richtig hinbekommen.** Kein Nachklapp, sondern gleichrangig mit der
    Karte – „muss natürlich mit dabei sein" (Sam, 11.08.).
+
+   Angefangen: `npm run touch-probe` beweist, dass sich auf 844 × 390 wirklich
+   spielen lässt – Bewegung über den Onboarding-Schritt, Feuern über echte XP.
+   Bisher prüfte **nichts** das: Die Layout-Harness sagt nur, ob die Sticks
+   sitzen. Mit lahmgelegten Sticks bleibt sie grün, während das Spiel
+   unspielbar ist – genau dieser Fall ist jetzt abgedeckt.
+
+   Was noch offen ist: die übrigen Formate (667 × 375 bis 932 × 430) durch
+   dieselbe Probe, und die Frage, ob sich das Zielen per Daumen auch *gut*
+   anfühlt – das ist keine Messung, das braucht Sams Daumen.
 4. **FFA als zweiter Modus** – der heutige Modus ohne Wandgenerierung. Klein,
    weil `world.ts` nur übersprungen wird; trotzdem ein anderes Spiel.
 5. **Battle Royale als dritter Modus** – schrumpfende Zone, Siegbedingung,
@@ -216,7 +227,13 @@ npm run loadtest -- --url ws://127.0.0.1:2567 --clients 80 --duration 110 --ramp
 # Leitung Server→Client (braucht zusaetzlich: npx vite --port 5199 apps/client)
 npm run wire-probe
 
-# UI auf 17 echten Geraetegroessen
+# Laesst sich auf dem Handy wirklich spielen? (gleiche Voraussetzung)
+npm run touch-probe
+BREITE=667 HOEHE=375 npm run touch-probe    # iPhone SE quer
+
+# UI auf 17 echten Geraetegroessen.
+# Nichts Schweres nebenher laufen lassen: Unter Last laufen einzelne Faelle in
+# einen Timeout und melden rot, ohne dass am Layout etwas falsch waere.
 PW_CHROMIUM=/opt/pw-browsers/chromium node scripts/ui-layout-check.mjs
 ```
 
