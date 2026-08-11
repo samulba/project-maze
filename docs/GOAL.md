@@ -123,6 +123,16 @@ Szenario überhaupt. **Die Schalter sind die Voraussetzung, nicht die Kür.**
    Nächster Schritt: `GAME.worldWidth/worldHeight/maxPlayers/shapeTargetCount`
    in `packages/shared/src/index.ts` – das sind die vier Zahlen, mit denen die
    Messung oben gemacht wurde.
+
+   **Das geht nicht per Railway-Variable.** Der Client liest `GAME.worldWidth`
+   direkt (Hintergrundraster in `renderer.ts`, Grenzen in `prediction.ts`). Ein
+   Env-Schalter nur auf dem Server würde beide Seiten auseinanderlaufen lassen –
+   Raster und Vorhersage in der falschen Größe. `shared` bleibt die eine
+   Wahrheit; die Änderung ist ein Deploy, kein Regler.
+
+   Abgesichert ist die Regel durch den Test „haelt die Arena-Dichte im
+   vereinbarten Korridor": Wer die Karte vergrößert, ohne `maxPlayers`
+   mitzuziehen, bekommt einen roten Test statt einer leeren Arena.
 3. Team-Arena als zweiter Modus.
 4. Handy auf die „spielbar"-Latte bringen.
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CLASS_DEFINITIONS,
+  GAME,
   PLAYER_CLASS_IDS,
   PROJECTILE_UPGRADE_IDS,
   UPGRADE_IDS,
@@ -167,6 +168,48 @@ describe('progression and input rules', () => {
     for (const id of mitRohr) {
       for (const upgrade of UPGRADE_IDS) expect(upgradeAppliesTo(id, upgrade), `${id}/${upgrade}`).toBe(true);
     }
+  });
+
+  /**
+   * Sams Wunsch war „die Karten auch groesser". Der Haken daran ist messbar:
+   * Dieselben 40 Spieler auf doppelter Flaeche heisst leere Karte und lange
+   * Wege ohne Gegner – die groessere Karte macht das Spiel dann schlechter,
+   * nicht besser.
+   *
+   * Deshalb ist nicht die Kantenlaenge die feste Groesse, sondern die Dichte
+   * (`docs/GOAL.md`, Entscheidung 3). Wer `worldWidth` anfasst, ohne
+   * `maxPlayers` mitzuziehen, faellt hier auf.
+   *
+   * Der Korridor ist bewusst breit: Er soll Tuning erlauben und nur die grobe
+   * Entgleisung fangen. Aendert sich die Regel, aendert sie sich hier – an
+   * genau einer Stelle.
+   */
+  it('haelt die Arena-Dichte im vereinbarten Korridor', () => {
+    const flaecheProSpieler = (GAME.worldWidth * GAME.worldHeight) / GAME.maxPlayers;
+    expect(flaecheProSpieler).toBeGreaterThanOrEqual(450_000);
+    expect(flaecheProSpieler).toBeLessThanOrEqual(750_000);
+
+    // Die Formen skalieren mit der Flaeche mit, sonst ist eine groessere Karte
+    // auch eine aermere: weniger XP je Weg, langsamerer Aufstieg.
+    const flaecheProForm = (GAME.worldWidth * GAME.worldHeight) / GAME.shapeTargetCount;
+    expect(flaecheProForm).toBeGreaterThanOrEqual(70_000);
+    expect(flaecheProForm).toBeLessThanOrEqual(125_000);
+  });
+
+  /**
+   * Der Sichtradius haengt an der Dichte: Er entscheidet, wie viele Gegner ein
+   * Spieler gleichzeitig sieht – und damit sowohl das Spielgefuehl als auch die
+   * Bandbreite je Spieler (Snapshots tragen nur, was im Radius liegt).
+   *
+   * Bleibt `viewRadius` beim Vergroessern der Karte unveraendert, stimmt die
+   * gemessene Bandbreite je Kopf weiter (155,1 KB/s bei 80 Spielern auf
+   * 9000x6000). Waechst er mit, explodiert sie still.
+   */
+  it('haelt den Sichtradius unabhaengig von der Kartengroesse', () => {
+    expect(GAME.viewRadius).toBeLessThanOrEqual(1300);
+    // Man muss mehr sehen koennen als das eigene Zielen reicht, sonst schiesst
+    // man auf Gegner, die noch gar nicht gezeichnet sind.
+    expect(GAME.viewRadius).toBeGreaterThan(GAME.maxAimDistance);
   });
 
   it('sanitizes player names', () => {
