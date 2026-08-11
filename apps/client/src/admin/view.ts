@@ -178,10 +178,27 @@ function betrieb(overview: Overview): string {
   return `<ul class="betrieb">${liste}</ul>${schalter(live.features)}`;
 }
 
-/** Vergleicht die zweite Hälfte des Zeitraums mit der ersten. */
-function haelften(rows: readonly DailyRow[]): { jung: Summary; alt: Summary } | null {
+/**
+ * Vergleicht die zweite Hälfte des Zeitraums mit der ersten – **gleich lange
+ * Hälften**, sonst vergleicht die Kachel Äpfel mit Birnen.
+ *
+ * Der erste Anlauf teilte bei `Math.floor(länge / 2)` und gab der jüngeren
+ * Hälfte den Rest. Bei sieben Tagen standen damit vier Tage gegen drei: Eine
+ * vollkommen flache Woche – jeden Tag dieselben zehn Spieler – meldete auf
+ * jeder Kachel **+33 %**. Das ist die schlimmste Sorte Fehler in einem Portal,
+ * in das man täglich zehn Sekunden schaut: Die Zahl sieht nach Wachstum aus,
+ * das Wachstum kommt aus der Division.
+ *
+ * Betroffen war nicht nur die Sieben-Tage-Ansicht. Fehlt in einem längeren
+ * Fenster ein Tag ohne Daten – bei einem jungen Spiel der Normalfall –, ist die
+ * Zeilenzahl ungerade, und derselbe Aufschlag entsteht.
+ *
+ * Bei ungerader Zeilenzahl fällt deshalb der **älteste** Tag heraus: Verglichen
+ * werden die letzten k Tage mit den k davor.
+ */
+export function haelften(rows: readonly DailyRow[]): { jung: Summary; alt: Summary } | null {
   if (rows.length < 4) return null;
-  const mitte = Math.floor(rows.length / 2);
+  const k = Math.floor(rows.length / 2);
   const summe = (teil: readonly DailyRow[]): Summary => teil.reduce((acc, row) => ({
     players: acc.players + row.players,
     newPlayers: acc.newPlayers + row.newPlayers,
@@ -192,7 +209,7 @@ function haelften(rows: readonly DailyRow[]): { jung: Summary; alt: Summary } | 
     totalSeconds: acc.totalSeconds + row.totalSeconds,
     avgSessionSeconds: 0
   }), { players: 0, newPlayers: 0, sessions: 0, accounts: 0, runs: 0, kills: 0, totalSeconds: 0, avgSessionSeconds: 0 });
-  return { alt: summe(rows.slice(0, mitte)), jung: summe(rows.slice(mitte)) };
+  return { alt: summe(rows.slice(rows.length - 2 * k, rows.length - k)), jung: summe(rows.slice(rows.length - k)) };
 }
 
 export interface ViewState {
