@@ -56,7 +56,7 @@
 .core-ability[data-module="repulse"] > i { background:var(--success); }
 .core-ability[data-module="barrier"] > i { background:var(--accent); }
 .core-ability[data-module="repair"] > i { background:var(--success); }
-.arena-event-banner,.bounty-banner {
+.arena-event-banner,.bounty-banner,.royale-banner {
   position:fixed;
   left:50%;
   z-index:28;
@@ -75,13 +75,23 @@
   backdrop-filter:blur(16px);
   font-family:inherit;
 }
-.arena-event-banner[hidden],.bounty-banner[hidden] { display:none; }
-.arena-event-banner strong,.bounty-banner strong { font-size:10px; letter-spacing:.12em; }
-.arena-event-banner span,.bounty-banner span { color:var(--muted); font-size:10px; }
+.arena-event-banner[hidden],.bounty-banner[hidden],.royale-banner[hidden] { display:none; }
+.arena-event-banner strong,.bounty-banner strong,.royale-banner strong { font-size:10px; letter-spacing:.12em; }
+.arena-event-banner span,.bounty-banner span,.royale-banner span { color:var(--muted); font-size:10px; }
 .arena-event-banner[data-phase="warning"] { border-color:rgba(214,164,84,.34); }
 .arena-event-banner[data-phase="active"] { border-color:rgba(222,175,88,.62); }
 .bounty-banner { border-color:color-mix(in srgb,var(--danger) 42%,transparent); }
 .bounty-banner.self { border-color:var(--danger); background:color-mix(in srgb,var(--danger) 16%,var(--strong)); }
+/*
+ * Die Royale-Zeile trägt ihre Dringlichkeit im Rand, nicht in der Schriftgröße:
+ * Sie steht dauerhaft im Bild, und etwas dauerhaft Lautes liest irgendwann
+ * niemand mehr. Nur „draußen" darf schreien.
+ */
+.royale-banner { border-color:rgba(123,214,255,.38); }
+.royale-banner[data-state="schrumpft"] { border-color:rgba(123,214,255,.7); }
+.royale-banner[data-state="outside"] { border-color:var(--danger); background:color-mix(in srgb,var(--danger) 18%,var(--strong)); }
+.royale-banner[data-state="outside"] strong { color:var(--danger); }
+.royale-banner[data-state="over"] { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 14%,var(--strong)); }
 
 /*
  * Obere Mitte: eine Spalte, kein Stapel übereinander.
@@ -92,11 +102,34 @@
  * `--top-stack` verschiebt die ganze Spalte (siehe onboarding.css).
  */
 :root { --top-stack:calc(var(--edge-y) + 42px); --top-step:44px; }
-.arena-event-banner,.bounty-banner,.toasts { top:var(--top-stack); }
-:root:has(.arena-event-banner:not([hidden])) .bounty-banner,
+.royale-banner,.arena-event-banner,.bounty-banner,.toasts { top:var(--top-stack); }
+
+/*
+ * Reihenfolge von oben: Royale, Ereignis, Kopfgeld, Toasts. Jede Zeile rückt um
+ * so viele Schritte nach, wie über ihr wirklich sichtbar sind.
+ *
+ * Die Royale-Zeile steht oben, weil sie als einzige jede Sekunde zählt – die
+ * anderen beiden sagen, was gerade passiert, sie sagt, wie lange man noch da
+ * ist. In allen anderen Modi ist sie versteckt, dann greifen exakt die
+ * Regeln von vorher.
+ *
+ * Vier Zeilen sind hier die Grenze: Die Anzahl der Kombinationen verdoppelt
+ * sich mit jeder weiteren. Eine fünfte gehört in eine echte Flex-Spalte, nicht
+ * in noch eine Verzweigung.
+ */
+:root:has(.royale-banner:not([hidden])) .arena-event-banner { top:calc(var(--top-stack) + var(--top-step)); }
+
+:root:has(.royale-banner:not([hidden])) .bounty-banner,
+:root:has(.arena-event-banner:not([hidden])) .bounty-banner { top:calc(var(--top-stack) + var(--top-step)); }
+:root:has(.royale-banner:not([hidden])):has(.arena-event-banner:not([hidden])) .bounty-banner { top:calc(var(--top-stack) + 2 * var(--top-step)); }
+
+:root:has(.royale-banner:not([hidden])) .toasts,
 :root:has(.arena-event-banner:not([hidden])) .toasts,
 :root:has(.bounty-banner:not([hidden])) .toasts { top:calc(var(--top-stack) + var(--top-step)); }
+:root:has(.royale-banner:not([hidden])):has(.arena-event-banner:not([hidden])) .toasts,
+:root:has(.royale-banner:not([hidden])):has(.bounty-banner:not([hidden])) .toasts,
 :root:has(.arena-event-banner:not([hidden])):has(.bounty-banner:not([hidden])) .toasts { top:calc(var(--top-stack) + 2 * var(--top-step)); }
+:root:has(.royale-banner:not([hidden])):has(.arena-event-banner:not([hidden])):has(.bounty-banner:not([hidden])) .toasts { top:calc(var(--top-stack) + 3 * var(--top-step)); }
 @media (max-width:700px) {
   .core-loadout-fields { grid-template-columns:1fr; }
   .core-loadout-heading { align-items:flex-start; flex-direction:column; gap:5px; }
@@ -104,5 +137,5 @@
   .core-ability-key { display:none; }
   .core-ability strong,.core-ability small { padding:0; text-align:center; align-self:center; }
   .core-ability strong { font-size:10px; }
-  .arena-event-banner,.bounty-banner { min-width:0; width:calc(100% - 28px); border-radius:12px; }
+  .arena-event-banner,.bounty-banner,.royale-banner { min-width:0; width:calc(100% - 28px); border-radius:12px; }
 }

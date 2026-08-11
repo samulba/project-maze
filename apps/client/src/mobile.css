@@ -296,20 +296,26 @@
     opacity: .92;
   }
 
-  /* --- 3e. EIN Meldungs-Slot oben Mitte ----------------------------- */
-  /* Event, Bounty, Achievement und Toast teilen sich eine Stelle, unterhalb
-     der Statusleiste. Sichtbar ist immer nur die wichtigste Meldung. */
-  /* Die Spalten-Logik vom Desktop (gameplay-ui.css) rueckt Banner und Toasts
-     gegeneinander ab und schlaegt hier per :has()-Spezifitaet jede einfache
-     Klassenregel. Statt sie einzeln zu ueberschreiben, bekommt sie einen
-     Schrittabstand von 0: Alle landen im selben Slot, sichtbar ist ohnehin nur
-     eines. */
+  /* --- 3e. Meldungs-Slot oben Mitte --------------------------------- */
+  /* Event, Bounty, Royale, Achievement und Toast teilen sich eine Stelle
+     unterhalb der Statusleiste – untereinander, nicht uebereinander.
+   *
+   * Hier stand `--top-step: 0` mit der Begruendung, sichtbar sei ohnehin nur
+   * eine Meldung. Das war nie eine Regel, nur eine Annahme, und sie stimmt
+   * nicht: Der Pruefstand hat Bounty und Royale gleichzeitig gemessen, 27 px
+   * ineinander. Event und Bounty lagen schon vorher so uebereinander – nur
+   * stand das Bounty-Banner nicht in der Liste des Pruefstands, deshalb hat es
+   * niemand gesehen.
+   *
+   * 34 px statt 44 wie am Desktop: Die Banner sind hier flacher (7 px Polster
+   * statt 9) und der Platz nach unten ist knapp. */
   :root {
     --top-stack: calc(max(10px, env(safe-area-inset-top)) + var(--view-y, 0px) + 52px);
-    --top-step: 0px;
+    --top-step: 34px;
   }
   .arena-event-banner,
   .bounty-banner,
+  .royale-banner,
   .toasts,
   .achievement-popup {
     position: fixed;
@@ -325,7 +331,8 @@
     z-index: 30;
   }
   .arena-event-banner,
-  .bounty-banner {
+  .bounty-banner,
+  .royale-banner {
     min-width: 0;
     padding: 7px 13px;
     border-radius: 999px;

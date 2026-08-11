@@ -384,6 +384,8 @@
 :root:has(.class-overlay:not([hidden])) .onboarding,
 :root:has(.class-overlay:not([hidden])) .arena-event-banner,
 :root:has(.class-overlay:not([hidden])) .bounty-banner,
+/* Der rote Bildschirmrand der Zone bleibt: Er liegt im Spielfeld, nicht im HUD. */
+:root:has(.class-overlay:not([hidden])) .royale-banner,
 :root:has(.class-overlay:not([hidden])) .achievement-popup,
 :root:has(.class-overlay:not([hidden])) .network-pill,
 :root:has(.class-overlay:not([hidden])) .class-selection {

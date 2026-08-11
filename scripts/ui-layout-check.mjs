@@ -183,6 +183,10 @@ function messenImBrowser() {
     '.core-ability': 'Modul',
     '.onboarding': 'Onboarding',
     '.arena-event-banner': 'Event-Banner',
+    // Beide standen bisher nicht in der Liste. Ein Element, das der Pruefstand
+    // nicht kennt, kann er auch nicht kollidieren sehen - und meldet gruen.
+    '.bounty-banner': 'Bounty-Banner',
+    '.royale-banner': 'Royale-Banner',
     '.spectator-banner': 'Zuschauerband',
     '.points-badge': 'Punkte-Badge',
     '.move-stick': 'Bewegungs-Stick',

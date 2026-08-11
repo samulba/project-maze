@@ -12,6 +12,7 @@ import {
   type PassiveModifierId
 } from '@project-maze/shared/gameplay';
 import { vibrate } from './input';
+import { royaleBannerCopy } from './royale-banner';
 
 type ExtendedSnapshot = WorldSnapshot & Partial<GameplayWorldExtension>;
 type SendMessage = (message: object) => void;
@@ -29,6 +30,15 @@ const EVENT_COPY: Partial<Record<string, { name: string; active: string; where: 
   fracture: { name: 'FRACTURE', active: 'einzelne Wände sind arenaweit aufgebrochen', where: 'arenaweit' }
 };
 
+/** Zweizeiliges Banner ohne HTML-Senke – Titel und Zeile darunter als Text. */
+const setBanner = (host: HTMLElement, titel: string, zeile: string): void => {
+  const stark = document.createElement('strong');
+  const span = document.createElement('span');
+  stark.textContent = titel;
+  span.textContent = zeile;
+  host.replaceChildren(stark, span);
+};
+
 export class GameplayUI {
   private readonly root: HTMLElement;
   private readonly send: SendMessage;
@@ -40,6 +50,7 @@ export class GameplayUI {
   private readonly abilityCooldown: HTMLElement;
   private readonly eventBanner: HTMLElement;
   private readonly bountyBanner: HTMLElement;
+  private readonly royaleBanner: HTMLElement;
   private self: PlayerSnapshot | null = null;
   private connected = false;
 
@@ -124,6 +135,11 @@ export class GameplayUI {
     this.bountyBanner.className = 'bounty-banner';
     this.bountyBanner.hidden = true;
     hud.append(this.bountyBanner);
+
+    this.royaleBanner = document.createElement('div');
+    this.royaleBanner.className = 'royale-banner';
+    this.royaleBanner.hidden = true;
+    hud.append(this.royaleBanner);
 
     // Auf Touch zählt der Moment des Aufsetzens: Warten auf `click` (Press *und* Release
     // am selben Punkt) kostet in einem Gefecht spürbar Zeit.
@@ -213,6 +229,26 @@ export class GameplayUI {
         : `<strong>BOUNTY</strong><span>${bountyTarget?.name ?? 'Dominanter Spieler'} · ${bountyValue} Bonus</span>`;
     } else {
       this.bountyBanner.hidden = true;
+    }
+
+    /*
+     * Battle Royale: Zwei Zahlen entscheiden über jede Sekunde – wie viele noch
+     * leben und ob man selbst noch drin steht. Beide stehen deshalb dauerhaft
+     * im Bild, nicht nur als Warnung, wenn es zu spät ist.
+     *
+     * Der rote Bildschirmrand und der Richtungspfeil sagen bereits *dass* man
+     * draußen ist. Hier steht, was es kostet: Ohne die Zahl weiß niemand, ob
+     * der Weg zurück noch reicht oder ob es Zeit ist, jemanden mitzunehmen.
+     */
+    const royale = royaleBannerCopy(extended.royaleZone ?? null, self);
+    this.royaleBanner.hidden = royale === null;
+    if (royale) {
+      this.royaleBanner.dataset.state = royale.state;
+      // Der Siegername kommt von einem anderen Spieler und geht deshalb durch
+      // `textContent` statt durch `innerHTML`. Der Server putzt Namen zwar
+      // bereits, aber eine Regel drei Schichten entfernt ist kein Schutz, auf
+      // den diese Zeile sich verlassen sollte.
+      setBanner(this.royaleBanner, royale.title, royale.line);
     }
 
     const canChange = self.dead || self.invulnerable;

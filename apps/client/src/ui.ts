@@ -9,7 +9,7 @@ import {
   type PlayerSnapshot,
   type WorldSnapshot
 } from '@project-maze/shared';
-import type { ArenaEventKind } from '@project-maze/shared/gameplay';
+import type { ArenaEventKind, RoyaleZoneSnapshot } from '@project-maze/shared/gameplay';
 import { arenaEventStyle, cssColor } from './arena-event-style';
 import { classPreviewSvg } from './class-preview';
 import {
@@ -21,6 +21,7 @@ import {
   upgradeHotkeyLabel,
   type UpgradeSlotId
 } from './family-upgrades';
+import { royaleDeathHint } from './royale-banner';
 import { signatureLabel, signatureRatio } from './signature';
 import { START_NAV } from './start-nav';
 import { spectatedName } from './spectator';
@@ -30,6 +31,16 @@ export interface JoinOptions {
   name: string;
   theme: ClientThemeId;
 }
+
+/**
+ * Die Royale-Zone aus einem Snapshot – `null` in jedem anderen Modus.
+ *
+ * Eine Stelle, an der der Cast steht, statt an dreien: Radar, Death-Screen und
+ * Banner fragen dasselbe Feld ab, und ein Tippfehler im Feldnamen soll nicht
+ * dreimal möglich sein.
+ */
+const royaleZoneOf = (snapshot: WorldSnapshot): RoyaleZoneSnapshot | null =>
+  (snapshot as WorldSnapshot & { royaleZone?: RoyaleZoneSnapshot | null }).royaleZone ?? null;
 
 /**
  * `Partial`, damit die Tabelle nicht bricht, wenn `UPGRADE_IDS` in `shared`
@@ -653,6 +664,19 @@ export class GameUI {
     // Dieselben Zahlen in einer Zeile statt in sechs Kacheln.
     this.deathSummary.textContent = `LEVEL ${self.deathLevel} · ${self.kills} KILLS · ${self.score.toLocaleString('de-DE')} SCORE · ${aliveText}`;
     this.deathStats.innerHTML = `<div><span>Erreicht</span><b>Level ${self.deathLevel}</b></div><div><span>Neustart</span><b>Level ${self.respawnLevel}</b></div><div><span>Score</span><b>${self.score.toLocaleString('de-DE')}</b></div><div><span>Kills</span><b>${self.kills}</b></div><div><span>Überlebt</span><b>${aliveText}</b></div><div><span>Beste Streak</span><b>${self.bestStreak}</b></div>`;
+    /*
+     * Battle Royale kennt keinen Respawn innerhalb der Runde. Der Knopf bleibt
+     * deshalb aus, und der Text sagt, worauf man wartet – ein Countdown auf
+     * `canRespawnAt` wäre hier eine Lüge: Der Server hat die Zeit auf Unendlich
+     * geschoben, gedrückt würde nichts passieren. Zurück ins Spiel kommt man
+     * nicht durch Klicken, sondern durch die nächste Runde.
+     */
+    const zone = royaleZoneOf(snapshot);
+    if (zone) {
+      this.respawnButton.disabled = true;
+      this.respawnCountdown.textContent = royaleDeathHint(zone);
+      return;
+    }
     this.respawnButton.disabled = remaining > 0;
     const autoInSeconds = Math.max(0, Math.ceil((self.autoRespawnAt - snapshot.serverTime) / 1000));
     // Menschen werden nicht mehr zwangs-respawnt (nur das 10-Minuten-AFK-Netz) –
@@ -760,7 +784,7 @@ export class GameUI {
      * wird vom `clip` sauber abgeschnitten – das ist gewollt, denn dann ist die
      * Grenze weit weg und die Antwort lautet ohnehin „drin".
      */
-    const zone = (extended as { royaleZone?: { center: { x: number; y: number }; radius: number; phase: string } | null }).royaleZone;
+    const zone = royaleZoneOf(snapshot);
     if (zone) {
       const mitte = toRadar(zone.center);
       context.beginPath();
