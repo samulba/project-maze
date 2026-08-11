@@ -1,11 +1,11 @@
 import {
-  ACCELERATION_SCALE,
   CLASS_DEFINITIONS,
   EMPTY_UPGRADES,
   GAME,
   UPGRADE_IDS,
   classAvailableAtLevel,
   isValidClassChoice,
+  movementStatsFor,
   respawnClassFrom,
   upgradeAppliesTo,
   upgradePointsAtLevel,
@@ -82,8 +82,9 @@ interface CombatInternals {
  */
 const projectileSpeedScaleFor = (branch: string): number => (branch === 'precision' ? 0.9 : 0.75);
 
-// ACCELERATION_SCALE kommt aus shared: Die Client-Prediction muss exakt
-// dieselbe Beschleunigung rechnen wie der Server (siehe CLIENT_PREDICTION.md).
+// Tempo und Beschleunigung rechnet  aus shared – dieselbe
+// Funktion, die auch die Client-Vorhersage benutzt. Zwei Fassungen derselben
+// Formel waeren in jedem Tick sichtbares Gummiband (siehe CLIENT_PREDICTION.md).
 
 export function tunedStatsFor(player: RuntimePlayer): TunedStats {
   const base = CLASS_DEFINITIONS[player.playerClass];
@@ -99,11 +100,13 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
     base.projectileSpeed * speedScale * (1 + player.upgrades.projectileSpeed * 0.04),
     base.projectileLife / speedScale
   );
+  // Eine Quelle fuer Tempo und Beschleunigung – der Client rechnet dieselbe.
+  const bewegung = movementStatsFor(base, player.upgrades.moveSpeed, modifier.moveMultiplier);
   return {
     maxHealth: Math.round(base.maxHealth * (1 + player.upgrades.maxHealth * 0.09) * modifier.healthMultiplier),
     regen: base.regen + player.upgrades.regen * 0.5,
-    acceleration: base.acceleration * ACCELERATION_SCALE * (1 + player.upgrades.moveSpeed * 0.018) * modifier.moveMultiplier,
-    moveSpeed: base.moveSpeed * (1 + player.upgrades.moveSpeed * 0.03) * modifier.moveMultiplier,
+    acceleration: bewegung.acceleration,
+    moveSpeed: bewegung.moveSpeed,
     reload: Math.max(0.09, base.reload * modifier.reloadMultiplier * Math.pow(0.95, player.upgrades.reload)),
     projectileSpeed: flight.speed * modifier.projectileSpeedMultiplier,
     // Reichweite ist seit Klassen 4.0 eine bewusste Entscheidung (eigener

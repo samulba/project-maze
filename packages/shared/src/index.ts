@@ -819,6 +819,62 @@ export const respawnClassFrom = (_playerClass:PlayerClass):PlayerClass => 'core'
  */
 export const ACCELERATION_SCALE = 1.12;
 
+/**
+ * Bewegungswerte aus Grundklasse, Tempo-Upgrade und Rahmen – **die einzige
+ * Stelle**, an der diese Rechnung steht.
+ *
+ * Vorher stand sie zweimal: einmal im Server (`tunedStatsFor`) und einmal in
+ * der Client-Vorhersage (`prediction.ts`). Beide waren zeichengleich, aber nur
+ * per Hand gleichgehalten. Genau dieses Muster – eine Regel an einer Stelle
+ * gepflegt, an einer zweiten dupliziert – hat in diesem Server schon zweimal
+ * still versagt (`upgradeAppliesTo` und `respawnClassFrom` wurden von einer
+ * Tuning-Schicht ueberschrieben und liefen monatelang nicht).
+ *
+ * Hier waere der Schaden besonders unangenehm: Weicht der Client um wenige
+ * Prozent ab, zieht der Server ihn in jedem Tick zurueck. Das ist das
+ * Gummiband, an dem man ein Prototyp-Gefuehl sofort erkennt – und es waere kein
+ * Absturz, sondern ein schleichendes Ruckeln, das kein Test meldet.
+ *
+ * `ACCELERATION_SCALE` steckt bereits drin; Aufrufer multiplizieren ihn nicht
+ * noch einmal.
+ */
+/**
+ * Aufbau und Abbau der Signature, soweit sie sich aus der **eigenen Eingabe**
+ * ergeben – und damit die einzigen Signature-Zahlen, die der Client vorhersagen
+ * kann und muss.
+ *
+ * Sie standen zweimal: im Server (`DEFAULT_MOMENTUM`, `DEFAULT_WUCHT`) und in
+ * `apps/client/src/prediction.ts`. Der Client darf `apps/server` nicht
+ * importieren, deshalb war es dort abgeschrieben – mit einem Kommentar, der
+ * genau diese Auflösung vorschlug. Beide Fassungen waren gleich, aber nur per
+ * Hand gleichgehalten, und eine Abweichung zeigt sich nicht als Fehler, sondern
+ * als Momentum-Balken, der im Client anders füllt als im Server.
+ *
+ * Nur diese vier Zahlen gehören hierher. Was danach damit passiert
+ * (`maxReloadBonus`, `maxBodyDamageBonus`, Kontaktverbrauch) bleibt im Server:
+ * Der Client sagt den Füllstand voraus, nicht die Wirkung.
+ */
+export const SIGNATURE_MOVEMENT = {
+  /** Anteil der eigenen Höchstgeschwindigkeit, ab dem „in Fahrt" gilt. */
+  moveThreshold: 0.45,
+  buildPerSecond: 30,
+  decayPerSecond: 50,
+  /** Nur RAPID: fährt, hält die Feuertaste aber nicht. */
+  holdDecayPerSecond: 10
+} as const;
+
+export function movementStatsFor(
+  base: { moveSpeed: number; acceleration: number },
+  moveUpgradeLevel: number,
+  moveMultiplier = 1
+): { moveSpeed: number; acceleration: number } {
+  const punkte = Math.max(0, moveUpgradeLevel);
+  return {
+    moveSpeed: base.moveSpeed * (1 + punkte * 0.03) * moveMultiplier,
+    acceleration: base.acceleration * ACCELERATION_SCALE * (1 + punkte * 0.018) * moveMultiplier
+  };
+}
+
 export const availableClassChoices = (current:PlayerClass, level:number):PlayerClass[] => PLAYER_CLASS_IDS.filter((id) => {
   if (id === current) return false;
   const definition = CLASS_DEFINITIONS[id];

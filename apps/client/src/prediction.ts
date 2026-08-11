@@ -1,5 +1,6 @@
 import {
-  ACCELERATION_SCALE,
+  SIGNATURE_MOVEMENT,
+  movementStatsFor,
   CLASS_DEFINITIONS,
   GAME,
   type InputMessage,
@@ -47,19 +48,16 @@ export const NO_INPUT_PROCESSED = -1;
 /**
  * Aufbau- und Abbauraten der Familien-Signature (Doku, Abschnitte 6 und 7).
  *
- * Die Zahlen stehen im Server in `DEFAULT_MOMENTUM`/`DEFAULT_WUCHT`. Der Client
- * darf `apps/server` nicht importieren, also stehen sie hier ein zweites Mal –
- * die einzige abgeschriebene Zahlengruppe in diesem Modul. Vorschlag an 01 im
- * Statusbericht: nach `packages/shared`, mit derselben Begründung wie bei
- * `ACCELERATION_SCALE`.
+ * Die vier Raten kommen jetzt aus `SIGNATURE_MOVEMENT` in `packages/shared` –
+ * derselben Quelle, aus der der Server `DEFAULT_MOMENTUM` und `DEFAULT_WUCHT`
+ * speist. Vorher standen sie hier abgeschrieben, mit dem Vorschlag im
+ * Kommentar, genau das aufzulösen; erledigt.
+ *
+ * `maximum` bleibt hier: Es ist keine abgeschriebene Serverzahl, sondern der
+ * Wertebereich des Balkens (0–100), den auch der Snapshot benutzt.
  */
 export const SIGNATURE_TUNING = {
-  /** Anteil der eigenen Höchstgeschwindigkeit, ab dem „in Fahrt" gilt. */
-  moveThreshold: 0.45,
-  buildPerSecond: 30,
-  decayPerSecond: 50,
-  /** Nur Rapid: fährt, hält die Feuertaste aber nicht. */
-  holdDecayPerSecond: 10,
+  ...SIGNATURE_MOVEMENT,
   maximum: 100
 } as const;
 
@@ -187,9 +185,17 @@ export function moveCircle(
 /**
  * Die getunten Werte, mit denen der Server rechnet (Doku, Abschnitt 4).
  *
- * `ACCELERATION_SCALE` kommt aus `packages/shared` und wird **nicht** von Hand
- * gespiegelt: Ein zweiter Zahlenwert im Client liefe bei der nächsten
- * Balance-Runde still auseinander – 12 % daneben, konstant, in jede Richtung.
+ * Die Rechnung selbst steht **nicht** hier, sondern in `movementStatsFor` in
+ * `packages/shared` – derselben Funktion, die der Server in `tunedStatsFor`
+ * aufruft. Vorher stand die Formel zweimal, zeichengleich, aber nur per Hand
+ * gleichgehalten: `* (1 + n * 0.03)` fuers Tempo, `* (1 + n * 0.018)` fuer die
+ * Beschleunigung. Eine Balance-Runde, die eine der beiden Zahlen anfasst, haette
+ * genuegt – und der Fehler waere kein Absturz gewesen, sondern ein Gummiband in
+ * jedem Tick, das kein Test meldet.
+ *
+ * Dass genau dieses Muster in diesem Projekt still versagt, ist belegt: Zwei
+ * Regeln aus `MazeGame` wurden von einer Tuning-Schicht ueberschrieben und
+ * liefen monatelang nicht.
  */
 export function predictionStats(
   player: { playerClass: PlayerClass; upgrades: UpgradeLevels },
@@ -197,11 +203,7 @@ export function predictionStats(
 ): PredictionStats {
   const base = CLASS_DEFINITIONS[player.playerClass] ?? CLASS_DEFINITIONS.core;
   const frame = PASSIVE_MODIFIER_DEFINITIONS[modifier ?? 'standard'] ?? PASSIVE_MODIFIER_DEFINITIONS.standard;
-  const moveUpgrade = player.upgrades?.moveSpeed ?? 0;
-  return {
-    moveSpeed: base.moveSpeed * (1 + moveUpgrade * 0.03) * frame.moveMultiplier,
-    acceleration: base.acceleration * ACCELERATION_SCALE * (1 + moveUpgrade * 0.018) * frame.moveMultiplier
-  };
+  return movementStatsFor(base, player.upgrades?.moveSpeed ?? 0, frame.moveMultiplier);
 }
 
 /** Familie mit vorhersagbarer Signature, oder `null` (Core, Precision, Control). */

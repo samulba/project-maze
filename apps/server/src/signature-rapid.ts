@@ -1,4 +1,4 @@
-import { type PlayerClass } from '@project-maze/shared';
+import { SIGNATURE_MOVEMENT, type PlayerClass } from '@project-maze/shared';
 import { tunedStatsFor } from './combat-tuning.js';
 import { familyUpgradeLevel, momentumConfigFor, rapidReloadBonus } from './family-upgrades.js';
 import { MazeGame } from './game.js';
@@ -54,12 +54,16 @@ export const DEFAULT_MOMENTUM: MomentumConfig = {
   // 3,3 s Dauerfeuer in Bewegung bis Vollausschlag, 2 s Stehen zurück auf null.
   // Der Aufbau ist bewusst träger als der Abbau: Anfahren kostet, Anhalten
   // kostet mehr. Beide Werte sind Kandidaten für die Telemetrie-Runde KL5.
-  buildPerSecond: 30,
-  decayPerSecond: 50,
-  holdDecayPerSecond: 10,
+  // Die vier Zahlen kommen aus `SIGNATURE_MOVEMENT` in shared, weil die
+  // Client-Vorhersage denselben Fuellstand rechnen muss und `apps/server` nicht
+  // importieren darf. Zwei Fassungen waeren ein Balken, der im Client anders
+  // faellt als im Server.
+  buildPerSecond: SIGNATURE_MOVEMENT.buildPerSecond,
+  decayPerSecond: SIGNATURE_MOVEMENT.decayPerSecond,
+  holdDecayPerSecond: SIGNATURE_MOVEMENT.holdDecayPerSecond,
   // 45 % der eigenen Höchstgeschwindigkeit. Ein strafender Tank fällt beim
   // Richtungswechsel kurz darunter – die Schwelle darf ihn nicht bestrafen.
-  moveThreshold: 0.45,
+  moveThreshold: SIGNATURE_MOVEMENT.moveThreshold,
   maxReloadBonus: 0.25
 };
 

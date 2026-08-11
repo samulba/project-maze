@@ -1,4 +1,4 @@
-import { type PlayerClass } from '@project-maze/shared';
+import { SIGNATURE_MOVEMENT, type PlayerClass } from '@project-maze/shared';
 import { ROOKIE_PROTECTION_LEVEL } from './bot-brain.js';
 import { tunedStatsFor } from './combat-tuning.js';
 import { familyBuildRate, familyUpgradeLevel, wuchtConfigFor } from './family-upgrades.js';
@@ -54,9 +54,11 @@ export interface WuchtConfig {
 
 export const DEFAULT_WUCHT: WuchtConfig = {
   // Gleiche Taktung wie Momentum: 3,3 s bis Vollausschlag, 2 s zurück auf null.
-  buildPerSecond: 30,
-  decayPerSecond: 50,
-  moveThreshold: 0.45,
+  // Wie bei Momentum aus `SIGNATURE_MOVEMENT` in shared – die Client-Vorhersage
+  // rechnet denselben Fuellstand.
+  buildPerSecond: SIGNATURE_MOVEMENT.buildPerSecond,
+  decayPerSecond: SIGNATURE_MOVEMENT.decayPerSecond,
+  moveThreshold: SIGNATURE_MOVEMENT.moveThreshold,
   maxBodyDamageBonus: 1.5,
   // 0,17 s Dauerkontakt verbrauchen eine volle Ladung. Dieser Wert ist der
   // eigentliche Schutz gegen den Ramm-Tod: Er begrenzt, was *ein* Anlauf
