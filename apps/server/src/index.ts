@@ -26,7 +26,7 @@ import {
 import { attachAchievementSnapshots, tuneAchievements } from './achievements.js';
 import { tuneArenaDirector } from './arena-director.js';
 import { tuneArenaEvents } from './arena-events.js';
-import { tuneRoyale } from './arena-royale.js';
+import { DEFAULT_ROYALE, tuneRoyale } from './arena-royale.js';
 import { tuneArenaSystems } from './arena-systems.js';
 import { authStatus, initAuth, verifyAuthToken } from './auth.js';
 import {
@@ -126,6 +126,20 @@ const ARENA_MODE: ArenaMode = (() => {
   console.warn(`ARENA_MODE="${roh}" ist unbekannt – starte als "maze". Gueltig: ${ARENA_MODE_IDS.join(', ')}`);
   return 'maze';
 })();
+/**
+ * Zeitraffer für die Royale-Zone. `1` ist Normaltempo, `10` macht aus zehn
+ * Minuten eine.
+ *
+ * Es gibt ihn aus zwei Gründen, und beide sind praktisch: Die Endphase eines
+ * Battle Royale liegt sonst zehn Minuten hinter jedem Start – wer sie ansehen
+ * oder abstimmen will, wartet jedes Mal. Und ein Test, der die Warnung am
+ * Bildschirmrand belegen soll, kann nicht minutenlang auf den ersten Ring
+ * warten.
+ *
+ * Bewusst kein Opt-out-Flag: Der Standard ist Normaltempo, und wer ihn
+ * verstellt, will es.
+ */
+const ROYALE_SPEED = integerEnvironment('ROYALE_SPEED', 1, 1, 60);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN?.trim() || '*';
 const ENABLE_DEV_TOOLS = process.env.ENABLE_DEV_TOOLS === 'true';
 /**
@@ -473,7 +487,12 @@ const encodedGame = tuneSnapshotEncoding(
               )
             )
           )
-          ),
+          , {
+            ...DEFAULT_ROYALE,
+            graceMs: Math.round(DEFAULT_ROYALE.graceMs / ROYALE_SPEED),
+            shrinkMs: Math.round(DEFAULT_ROYALE.shrinkMs / ROYALE_SPEED),
+            holdMs: Math.round(DEFAULT_ROYALE.holdMs / ROYALE_SPEED)
+          }),
           ACHIEVEMENTS_ENABLED
         )
       )
