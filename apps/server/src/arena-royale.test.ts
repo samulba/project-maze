@@ -453,3 +453,93 @@ describe('Battle-Royale-Runden', () => {
     expect(game.requestRespawn(a, now + 10_000)).toBe(true);
   });
 });
+
+/**
+ * Teil 3: die Vorwarnung.
+ *
+ * Ohne sie erfaehrt ein Spieler vom Schrumpfen erst, wenn es laeuft -- dann ist
+ * die Entscheidung "noch eine Form oder schon losfahren" bereits gefallen.
+ * Genau diese Entscheidung ist der Takt des Modus.
+ */
+describe('Battle-Royale-Vorwarnung', () => {
+  interface Innereien { players: Map<string, any>; killPlayer(target: any, attackerId: string | null, now: number, environmentName: string): void; }
+
+  it('zaehlt in der Schonfrist auf die erste Verengung herunter', () => {
+    setArenaMode('royale');
+    const game = ohneFormen(createGame());
+    game.addPlayer('Spieler');
+    const start = Date.now();
+
+    game.step(1 / GAME.tickRate, start);
+    const frueh = royaleZoneFor(game, start)!;
+    expect(frueh.phase).toBe('wartet');
+    expect(frueh.nextShrinkInMs).toBeGreaterThan(DEFAULT_ROYALE.graceMs - 1_000);
+
+    const spaeter = laufe(game, start, 10);
+    const zone = royaleZoneFor(game, spaeter)!;
+    expect(zone.nextShrinkInMs).toBeLessThan(frueh.nextShrinkInMs - 9_000);
+    expect(zone.nextShrinkInMs).toBeGreaterThan(0);
+  });
+
+  it('verspricht waehrend einer laufenden Verengung keine zweite', () => {
+    setArenaMode('royale');
+    const game = ohneFormen(createGame(SCHNELL));
+    game.addPlayer('Spieler');
+    let now = Date.now();
+    // Bis in die erste Verengung hinein laufen (Schonfrist 1 s, Schrumpfen 400 ms).
+    // Der Zonenzustand entsteht erst im ersten Schritt, deshalb erst laufen, dann fragen.
+    do { now += 25; game.step(1 / GAME.tickRate, now); } while (royaleZoneFor(game, now)!.phase !== 'schrumpft');
+    expect(royaleZoneFor(game, now)!.nextShrinkInMs).toBe(0);
+  });
+
+  /**
+   * Am Mindestradius haelt die Zone in Zyklen weiter. Wer dort die Restzeit der
+   * Phase melden wuerde, kuendigte ein Schrumpfen an, das nie kommt -- eine
+   * Anzeige, die einmal luegt, glaubt danach niemand mehr.
+   */
+  it('kuendigt am Mindestradius nichts mehr an', () => {
+    setArenaMode('royale');
+    const game = ohneFormen(createGame(SCHNELL));
+    game.addPlayer('Spieler');
+    let now = laufe(game, Date.now(), 20);
+    const zone = royaleZoneFor(game, now)!;
+    expect(zone.radius).toBeLessThanOrEqual(SCHNELL.minRadius + 0.001);
+    expect(zone.nextShrinkInMs).toBe(0);
+    // Auch ueber einen ganzen weiteren Haltezyklus hinweg bleibt es dabei.
+    now = laufe(game, now, 3);
+    expect(royaleZoneFor(game, now)!.nextShrinkInMs).toBe(0);
+  });
+
+  it('kuendigt in der Rundenpause nichts an', () => {
+    setArenaMode('royale');
+    const game = ohneFormen(createGame({ ...DEFAULT_ROYALE, graceMs: 1_000, shrinkMs: 400, holdMs: 400, roundBreakMs: 5_000 }));
+    const internals = game as unknown as Innereien;
+    const a = game.addPlayer('Alpha');
+    const b = game.addPlayer('Beta');
+
+    let now = Date.now();
+    game.step(1 / GAME.tickRate, now);
+    internals.killPlayer(internals.players.get(a), b, now, 'Arena');
+    now += 25;
+    game.step(1 / GAME.tickRate, now);
+
+    const zone = royaleZoneFor(game, now)!;
+    expect(zone.roundOver).toBe(true);
+    expect(zone.nextShrinkInMs).toBe(0);
+    expect(zone.nextRoundInMs).toBeGreaterThan(4_000);
+  });
+
+  it('rechnet die Restzeiten gegen die Uhr des Snapshots, nicht gegen die eigene', () => {
+    setArenaMode('royale');
+    const game = ohneFormen(createGame());
+    const id = game.addPlayer('Spieler');
+    const start = Date.now();
+    game.step(1 / GAME.tickRate, start);
+
+    // Ein Snapshot, der zehn Sekunden spaeter gebaut wird, meldet zehn Sekunden
+    // weniger Vorwarnung -- sonst haengt die Anzeige an der Uhr des Prozesses.
+    const jetzt = (game.snapshot(id, start) as any).royaleZone.nextShrinkInMs;
+    const spaeter = (game.snapshot(id, start + 10_000) as any).royaleZone.nextShrinkInMs;
+    expect(jetzt - spaeter).toBeGreaterThan(9_900);
+  });
+});

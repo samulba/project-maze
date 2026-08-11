@@ -160,6 +160,24 @@ export interface RoyaleZoneSnapshot {
   /** Ziel der laufenden Verengung; gleich `radius`, solange die Zone hält. */
   targetRadius: number;
   phase: 'wartet' | 'schrumpft' | 'haelt';
+  /**
+   * Millisekunden, bis die **nächste Verengung beginnt**. `0`, solange schon
+   * eine läuft, in der Rundenpause und sobald die Zone ihren Mindestradius
+   * erreicht hat – dann kommt keine mehr.
+   *
+   * Bewusst diese eine Bedeutung statt „Restzeit der laufenden Phase": Am
+   * Mindestradius hält die Zone in Zyklen weiter, ein Phasenende wäre dort ein
+   * angekündigtes Schrumpfen, das nie kommt. Eine Anzeige, die einmal lügt,
+   * glaubt danach niemand mehr.
+   *
+   * Relativ und nicht als Zeitpunkt, weil der Client keine mit dem Server
+   * abgeglichene Uhr hat – `nextRoundInMs` steht aus demselben Grund so da.
+   *
+   * Ohne diese Zahl erfährt ein Spieler erst vom Schrumpfen, wenn es schon
+   * läuft – dann ist die Entscheidung „noch eine Form oder schon losfahren"
+   * bereits gefallen. Genau diese Entscheidung ist der Takt des Modus.
+   */
+  nextShrinkInMs: number;
   /** Schaden je Sekunde außerhalb, steigt mit jeder Stufe. */
   damagePerSecond: number;
   /** Wie viele Stufen die Zone schon hinter sich hat. */

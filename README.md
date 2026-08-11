@@ -32,8 +32,38 @@ npm run balance   # Balance-Report für Klassen, Module und Frames
 npm run balance:live  # Live-Balance einer laufenden Instanz aus /metrics
 npm run loadtest  # N simulierte Clients gegen eine laufende Arena
 npm run check     # Typecheck + Tests + Build
+npm run royale-probe  # Battle Royale end-to-end im echten Browser (siehe Modi)
 npm start         # Produktion: ein Prozess liefert Client + Server (siehe docs/DEPLOY.md)
 ```
+
+## Modi
+
+Der Modus ist eine Eigenschaft der **Arena**, nicht des Spielers: ein Prozess,
+eine Arena, umgeschaltet über `ARENA_MODE` – derselbe Weg wie `BOT_COUNT`. Wer
+zwei Modi gleichzeitig anbieten will, startet zwei Dienste.
+
+| `ARENA_MODE` | Modus | Was ihn ausmacht |
+|---|---|---|
+| `maze` (Standard) | Maze | Wände in Bahnen: Deckung, Ecken, Sichtlinien |
+| `ffa` | Free for All | Offene Arena ohne Wände – Reichweite und Tempo statt Deckung |
+| `royale` | Battle Royale | Die Zone schrumpft in Stufen; wer stirbt, ist bis zur nächsten Runde raus. Lebt nur noch einer, ist die Runde entschieden, und nach kurzer Pause fängt alles von vorne an |
+
+Im Client steht der Modus im Etikett der Statuspille (`MAZERS · BATTLE ROYALE`);
+im Royale nennt eine Leiste in der oberen Mitte, wie viele noch leben und was
+die Zone als Nächstes tut.
+
+Battle Royale im Zeitraffer ansehen – `ROYALE_SPEED` teilt Schonfrist,
+Schrumpf- und Haltezeit, `20` bringt die erste Verengung nach zwei Sekunden:
+
+```bash
+npm run build
+ARENA_MODE=royale ROYALE_SPEED=20 PORT=2599 node apps/server/dist/index.js
+```
+
+Dieselbe Zeile ist die Voraussetzung für `npm run royale-probe` (mit
+`BOT_COUNT=1 ARENA_DIRECTOR_ENABLED=false`): Die Probe spielt eine ganze Runde
+im echten Browser durch – Zone sehen, draußen bluten, ausscheiden, Sieger, neue
+Runde – und prüft, was auf dem Schirm steht, nicht was der Server denkt.
 
 ## Live gehen
 

@@ -162,22 +162,37 @@ export function nextZoneCenter(
   return { x: center.x + Math.cos(winkel) * abstand, y: center.y + Math.sin(winkel) * abstand };
 }
 
-/** Aktueller Stand der Zone für Anzeige und Tests. */
-export function royaleZoneFor(game: MazeGame): RoyaleZoneSnapshot | null {
+/**
+ * Aktueller Stand der Zone für Anzeige und Tests.
+ *
+ * `now` ist ein Parameter und kein `Date.now()` im Rumpf, weil der Snapshot
+ * ohnehin eine Uhrzeit mitbringt: Die beiden Restzeiten dürfen nicht gegen eine
+ * andere Uhr gerechnet werden als der Rest desselben Snapshots.
+ */
+export function royaleZoneFor(game: MazeGame, now = Date.now()): RoyaleZoneSnapshot | null {
   const state = states.get(game);
   if (!state) return null;
   const internals = game as unknown as RoyaleInternals;
+  /*
+   * Die Vorwarnung gilt nur, wenn wirklich noch eine Verengung kommt: nicht
+   * während einer laufenden, nicht in der Rundenpause und nicht mehr, sobald
+   * der Mindestradius erreicht ist. Dort hält die Zone in Zyklen weiter – ein
+   * Countdown wäre dann ein Versprechen, das nie eingelöst wird.
+   */
+  const nochEineVerengung =
+    !state.roundOver && state.phase !== 'schrumpft' && state.radius > state.config.minRadius + 0.001;
   return {
     center: { ...state.center },
     radius: state.radius,
     targetRadius: state.targetRadius,
     phase: state.phase,
+    nextShrinkInMs: nochEineVerengung ? Math.max(0, state.phaseEndsAt - now) : 0,
     damagePerSecond: royaleDamagePerSecond(state.stage, state.config),
     stage: state.stage,
     alive: lebende(internals).length,
     roundOver: state.roundOver,
     winnerName: state.winnerName,
-    nextRoundInMs: state.roundOver ? Math.max(0, state.nextRoundAt - Date.now()) : 0
+    nextRoundInMs: state.roundOver ? Math.max(0, state.nextRoundAt - now) : 0
   };
 }
 
@@ -324,7 +339,7 @@ export function tuneRoyale<T extends MazeGame>(game: T, config: RoyaleConfig = D
       if (snapshot.royaleZone !== undefined) snapshot.royaleZone = null;
       return snapshot;
     }
-    snapshot.royaleZone = royaleZoneFor(game);
+    snapshot.royaleZone = royaleZoneFor(game, now);
     return snapshot;
   }) as T['snapshot'];
 

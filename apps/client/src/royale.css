@@ -1,0 +1,143 @@
+/*
+ * Rundenstand im Battle Royale.
+ *
+ * Er belegt den ersten Platz der oberen Mitte – derselben Spalte, in der schon
+ * Ereignis-Banner, Kopfgeld und Toasts stehen (gameplay-ui.css). Kein eigener
+ * Platz mit fester Höhe: Genau daraus sind dort schon einmal übereinander
+ * liegende Banner entstanden, und der erste Anlauf dieser Leiste lag prompt
+ * auf der Onboarding-Karte. Wer sich in die Spalte hängt, rückt automatisch
+ * mit, wenn über ihm etwas Platz braucht.
+ *
+ * Farbe kommt aus dem Zustand, nicht aus der Dekoration: ruhig bleibt gedeckt,
+ * `warnung` nimmt das Rot der Zone auf (dieselbe Sprache wie der rote Rand am
+ * Bildschirm), `sieg` das Cyan des Zonenrings.
+ */
+.royale-bar {
+  position: fixed;
+  top: var(--top-stack-start);
+  left: 50%;
+  z-index: 37;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--faint);
+  background: color-mix(in srgb, var(--strong) 92%, transparent);
+  translate: -50% 0;
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  transition: border-color .25s ease, color .25s ease;
+}
+.royale-bar[hidden] { display: none !important; }
+
+/* Solange der Rundenstand steht, beginnt die Bannerreihe eine Stufe tiefer. */
+:root:has(.royale-bar:not([hidden])) { --top-stack: calc(var(--top-stack-start) + var(--top-step)); }
+
+/*
+ * Auf der Todeskarte steht der Rundenstand ohnehin (`.royale-death-note`) –
+ * die Leiste weicht so lange. Sonst liegt sie auf der Karte: Solange das
+ * Onboarding läuft, beginnt die Spalte 150 px tiefer, und genau dort fängt die
+ * Karte an. Zweimal dieselbe Auskunft, einmal davon übereinander, wäre die
+ * schlechteste von beiden Antworten.
+ */
+:root:has(#death-screen:not([hidden])) .royale-bar { display: none; }
+
+/*
+ * Der Rundenstand auf der Todeskarte. Ganz oben, direkt unter der Zeile
+ * „RUN BEENDET": Die Karte ist höher als ein 720-px-Bildschirm, und unten beim
+ * Respawn-Knopf hat diesen Satz niemand gesehen.
+ */
+.royale-death-note {
+  margin: 0 0 4px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, #7bd6ff 45%, transparent);
+  border-radius: 10px;
+  color: #bfeaff;
+  background: color-mix(in srgb, #7bd6ff 10%, transparent);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.royale-death-note[hidden] { display: none !important; }
+
+/*
+ * Beim Zuschauen zieht sich die Todeskarte in die Ecke zusammen, damit man die
+ * Arena sieht (spectator.css). Dort ist die Notiz überflüssig: Unter dem Knopf
+ * steht derselbe Satz, und die Karte ist klein genug, dass er im Bild bleibt –
+ * der Grund für die Notiz war die *große* Karte, die unten abgeschnitten wird.
+ *
+ * Sie fällt deshalb weg, statt die Karte 26 px höher zu machen: Die wächst
+ * sonst nach oben in den Killfeed, und die Layout-Prüfung hat genau das
+ * gemeldet (3 px auf 1280 × 720).
+ */
+.death-screen.spectating p.royale-death-note { display: none; }
+.royale-bar b {
+  color: var(--text);
+  font-size: 14px;
+  letter-spacing: .02em;
+}
+.royale-bar i {
+  align-self: center;
+  width: 1px;
+  height: 12px;
+  background: var(--line);
+}
+.royale-bar-status {
+  max-width: 52vw;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Die Zone zieht an – dieselbe Farbe wie der Warnrand am Bildschirm. */
+.royale-bar[data-tone='warnung'] {
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+}
+.royale-bar[data-tone='warnung'] .royale-bar-status { color: var(--danger); }
+
+/* Runde entschieden – Cyan wie der Zonenring, damit klar ist, worum es ging. */
+.royale-bar[data-tone='sieg'] {
+  border-color: color-mix(in srgb, #7bd6ff 65%, transparent);
+  background: color-mix(in srgb, #7bd6ff 12%, var(--strong));
+}
+.royale-bar[data-tone='sieg'] .royale-bar-status,
+.royale-bar[data-tone='sieg'] b { color: #bfeaff; }
+
+/*
+ * Auf dem Handy ist die obere Mitte der knappste Platz des ganzen Bildes: Dort
+ * liegt der Meldungs-Slot, und die Onboarding-Karte rückt quer an den rechten
+ * Rand (onboarding.css) – auf 667 × 375 lag sie prompt auf der Leiste.
+ *
+ * Der Rundenstand geht deshalb nach LINKS, unter die Statuskarte. Er bleibt
+ * dabei sichtbar, statt zu weichen: Ohne ihn spielt man den Modus blind. Und
+ * er springt nicht: links ist er immer, mit oder ohne Onboarding.
+ */
+@media (pointer: coarse) {
+  .royale-bar {
+    left: max(10px, env(safe-area-inset-left));
+    translate: none;
+  }
+
+  /*
+   * Auf Touch teilen sich Banner und Toasts EINEN Slot (`--top-step: 0`,
+   * mobile.css) – sichtbar ist ohnehin nur die wichtigste Meldung. Der
+   * Rundenstand kann sich da nicht einreihen, weil er dauerhaft steht: Er
+   * bekommt den Slot, die Meldungen rücken um seine Höhe nach.
+   */
+  :root:has(.royale-bar:not([hidden])) { --top-stack: calc(var(--top-stack-start) + 30px); }
+  .royale-bar {
+    gap: 6px;
+    padding: 5px 10px;
+    font-size: 8px;
+    letter-spacing: .1em;
+  }
+  .royale-bar b { font-size: 12px; }
+  .royale-bar-status { max-width: 44vw; }
+}

@@ -305,7 +305,7 @@
      Schrittabstand von 0: Alle landen im selben Slot, sichtbar ist ohnehin nur
      eines. */
   :root {
-    --top-stack: calc(max(10px, env(safe-area-inset-top)) + var(--view-y, 0px) + 52px);
+    --top-stack-start: calc(max(10px, env(safe-area-inset-top)) + var(--view-y, 0px) + 52px);
     --top-step: 0px;
   }
   .arena-event-banner,

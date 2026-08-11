@@ -29,7 +29,7 @@ ist, entscheidet, wer es spielt.
 > Zusammen sagen sie: *Es ist nicht aus diesen Gründen kaputt.*
 >
 > Sie sagen **nicht**: *Es macht Spaß.* Kein Testlauf dieser Welt kann das
-> sagen. Elf grüne Zeilen sind ein Spiel, das nicht offensichtlich kaputt ist –
+> sagen. Zwölf grüne Zeilen sind ein Spiel, das nicht offensichtlich kaputt ist –
 > und ein Spiel, das nicht kaputt ist, kann trotzdem langweilig sein.
 >
 > Wer diese Liste als Fortschrittsbalken liest, verwechselt „läuft" mit „ist
@@ -44,7 +44,7 @@ ist, entscheidet, wer es spielt.
 | Zeile | Womit geprüft | Stand heute |
 |---|---|---|
 | Regeln und Typen stimmen | `npm run check` grün | ✅ |
-| Keine UI, die sich überlappt oder aus dem Bild läuft | `scripts/ui-layout-check.mjs` 181/181 | ✅ |
+| Keine UI, die sich überlappt oder aus dem Bild läuft | `scripts/ui-layout-check.mjs` 193/193 | ✅ |
 | Kein Tank ist Müll, keiner ist Pflicht | Balance-Korridore in `packages/shared/src/balance.test.ts` | ✅ |
 | Das Labyrinth bleibt ein Labyrinth | Wanddeckung 3,8–5,2 % der Fläche (`world.test.ts`) | ✅ 4,53 % |
 | Kein Upgrade ohne Wirkung | `upgradeAppliesTo`, geprüft durch die **ganze** Tuning-Kette | ✅ |
@@ -53,18 +53,19 @@ ist, entscheidet, wer es spielt.
 | Die Leitung Server→Client ist heil | `npm run wire-probe` grün | ✅ |
 | Auf dem Handy lässt sich **spielen**, nicht nur gucken | `npm run touch-probe` grün | ✅ 844×390 |
 | Die Fortschrittsschleife trägt: farmen → aufsteigen → Klasse → Upgrade | `npm run progress-probe` grün | ✅ |
-| Mehrere Modi | Drei spielbare Modi | ⏳ **2 von 3** (Maze, FFA) – Battle Royale fehlt |
+| Mehrere Modi | Drei spielbare Modi, `npm run royale-probe` grün | ✅ Maze, FFA, Battle Royale |
 | Es fühlt sich groß an | 675.000 px² je Spieler, Dichte-Test grün | ✅ 9000 × 6000, 80 Spieler |
 | **Fremde kommen wieder** | Admin-Portal: wiederkehrende `device_id` über 7 Tage | 🔍 misst ab jetzt |
 
-**Stand 11.08.: elf von zwölf technischen Zeilen grün, offen sind die Modi.**
-Das ist ausdrücklich **kein** „91 % fertig" – siehe den Kasten oben. Es heißt:
-Elf Wege, auf denen sich das Spiel wie ein Prototyp anfühlen könnte, sind
-ausgeschlossen und mit einem Befehl nachprüfbar.
+**Stand 11.08.: alle zwölf technischen Zeilen grün.**
+Das ist ausdrücklich **kein** „fertig" – siehe den Kasten oben. Es heißt: Zwölf
+Wege, auf denen sich das Spiel wie ein Prototyp anfühlen könnte, sind
+ausgeschlossen und mit einem Befehl nachprüfbar. Die Zeile, die zählt, ist die
+dreizehnte, und die misst gerade erst an.
 
 **Der eigentliche Stand ist: unvalidiert.** Kein Mensch außer den Bots hat
-dieses Spiel in seinem heutigen Zustand gespielt. Die drei Dinge, die den
-Ausschlag geben, sind alle offen:
+dieses Spiel in seinem heutigen Zustand gespielt. Die Dinge, die den Ausschlag
+geben, sind alle offen:
 
 1. Die **Supabase-Migration** und die Railway-Variablen sind nicht gesetzt –
    also misst das Portal nicht, ob Fremde wiederkommen. Ohne diese Zahl bleibt
@@ -75,6 +76,11 @@ Ausschlag geben, sind alle offen:
    Maus, kein Korridor.
 3. Ob die größere Karte sich groß anfühlt oder nur leer, hat niemand gespielt.
    Gemessen ist die Dichte, nicht das Gefühl.
+4. Ob die **Royale-Runde die richtige Länge** hat, ist geraten: 40 s Schonfrist,
+   dann Stufen aus 30 s Schrumpfen und 45 s Halten, Endphase nach rund zehn
+   Minuten. Belegt ist, dass die Runde läuft und ablesbar ist – nicht, dass sie
+   sich richtig anfühlt. `ROYALE_SPEED=20` macht aus dem Ausprobieren eine
+   Minute statt zehn; die Zahlen selbst gehören danach Sam.
 
 Was zur Karte gehört, ist systematisch nachgeprüft und nicht nur angenommen:
 Bandbreite, Tick-Budget, Bot-Dichte, Wanddeckung, Arena-Events, Spawn-Verteilung
@@ -92,26 +98,28 @@ Modi hat er anders entschieden als vorgeschlagen.
 
 ### 1. Welche Modi? → Maze (aktuell) + FFA + Battle Royale. Drei.
 
-Im Code gibt es **keine** Modi-Infrastruktur; `mode: 'maze-alpha'` ist ein
-hartkodiertes Etikett in `index.ts` und `telemetry.ts`. „Mehrere Modi" ist also
-Neuland, kein Feinschliff.
+Als das entschieden wurde, gab es im Code **keine** Modi-Infrastruktur:
+`mode: 'maze-alpha'` war ein hartkodiertes Etikett in `index.ts` und
+`telemetry.ts`. „Mehrere Modi" war also Neuland, kein Feinschliff – heute ist
+`ARENA_MODE` der Schalter, und der Modus steht in `/health`, in der Telemetrie
+und im Etikett des Clients.
 
-**Stand 11.08.: Maze und FFA laufen**, umgeschaltet über `ARENA_MODE`. Der Modus
+**Stand 11.08.: alle drei laufen**, umgeschaltet über `ARENA_MODE`. Der Modus
 ist eine Eigenschaft der Arena, nicht des Spielers – ein Prozess, eine Arena,
-derselbe Weg wie `BOT_COUNT`. Wer beide *gleichzeitig* anbieten will, startet
+derselbe Weg wie `BOT_COUNT`. Wer mehrere *gleichzeitig* anbieten will, startet
 zwei Dienste; mehrere Arenen in einem Prozess wären deutlich mehr Umbau, weil
 dann jede Regel wissen müsste, in welcher sie läuft.
 
-| Modus | Was ihn ausmacht | Aufwand |
+| Modus | Was ihn ausmacht | Stand |
 |---|---|---|
 | **Maze** | Der heutige Modus: Wände in Bahnen (`world.ts`), Deckung, Ecken | ✅ da |
-| **FFA** | Offene Arena ohne Wände – das Diep.io-Gefühl, freie Sichtlinien | klein |
-| **Battle Royale** | Schrumpfende Zone, letzter Überlebender | groß |
+| **FFA** | Offene Arena ohne Wände – das Diep.io-Gefühl, freie Sichtlinien | ✅ da |
+| **Battle Royale** | Schrumpfende Zone, letzter Überlebender | ✅ da |
 
-FFA ist billig, weil es der heutige Modus **ohne** Wandgenerierung ist – und
+FFA war billig, weil es der heutige Modus **ohne** Wandgenerierung ist – und
 trotzdem ein völlig anderes Spiel: ohne Deckung zählen Reichweite und Tempo
-statt Ecken. Battle Royale ist der eigentliche Bau (Zonen-System, Siegbedingung,
-verändertes Spawn-Verhalten) und kommt zuletzt.
+statt Ecken. Battle Royale war der eigentliche Bau (Zonen-System, Ausscheiden,
+Runden) und kam zuletzt – so wie Sam es angeordnet hatte.
 
 Team-Arena, Boss-Runden und 2v2 sind **nach** 1.0.
 
@@ -320,8 +328,32 @@ es Sam.
    wird: Kollision, Sichtlinie und Snapshot lesen alle `activeWalls`, und das
    ist in FFA leer. Fracture fliegt dort aus der Event-Rotation – ohne Wände
    wäre es ein angekündigtes Ereignis, bei dem nichts passiert.
-5. **Battle Royale als dritter Modus** – schrumpfende Zone, Siegbedingung,
-   verändertes Spawn-Verhalten. Der eigentliche Bau.
+5. ~~**Battle Royale als dritter Modus**~~ ✅ **erledigt** – `ARENA_MODE=royale`.
+   Zone in Stufen (schrumpfen und halten im Wechsel, Schaden steigt je Stufe,
+   wanderndes Zentrum), Ausscheiden statt Respawn, Rundenende beim letzten
+   Lebenden, Pause, dann alles auf Anfang.
+
+   Zwei Dinge daran sind mehr wert als der Zonencode selbst:
+
+   * **Ausscheiden ist keine zweite Respawn-Regel.** Die Schicht schiebt
+     `autoRespawnAt` und `canRespawnAt` auf Unendlich, statt die Regeln der
+     Basis nachzubauen – genau dieser Nachbau hat hier schon zweimal eine Regel
+     verschluckt (siehe „Eine Fehlerklasse, die zweimal zugeschlagen hat").
+   * **Der Bildschirm sagt, wie die Runde steht.** Wie viele leben noch, wann
+     wird es enger, wer hat gewonnen, wann geht es weiter. Ohne das war Royale
+     eine Karte mit tödlichem Rand: Der Server wusste alles davon, der Spieler
+     nichts. Der handfeste Beweis war der Death-Screen – er rechnete aus der
+     Unendlich-Zeile oben „Respawn verfügbar in Infinitys" und bot einen Knopf
+     an, der nie freigeht, während **alle** Servertests grün blieben.
+
+   Nachprüfbar mit `npm run royale-probe`: eine ganze Runde im echten Browser,
+   gewertet wird das Sichtbare, nicht der Serverzustand.
+
+   Offen und ausdrücklich Sams Entscheidung, keine Fehlerbehebung: In der
+   Rundenpause hält die **Zone** an, damit der Sieger seinen Moment hat – Formen
+   und Bots tun das nicht. Ein angeschlagener Sieger kann in der Pause noch an
+   einer Form sterben (in der Probe genau einmal passiert). Ob die Pause
+   komplett unverwundbar sein soll, ist eine Gefühlsfrage, keine Regelfrage.
 
 ### Warum die Reihenfolge so ist
 
@@ -365,6 +397,13 @@ BREITE=667 HOEHE=375 npm run touch-probe    # iPhone SE quer
 # Traegt die Fortschrittsschleife? Farmt bis Stufe 5, waehlt eine Klasse,
 # vergibt einen Punkt -- und prueft jedes Mal das sichtbare Ergebnis.
 npm run progress-probe
+
+# Traegt eine ganze Royale-Runde? Zone sehen, draussen bluten, ausscheiden,
+# Sieger, neue Runde -- gewertet wird, was auf dem Schirm steht.
+# Braucht einen eigenen Server: Zeitraffer, ein Bot, kein Direktor.
+ARENA_MODE=royale ROYALE_SPEED=20 BOT_COUNT=1 ARENA_DIRECTOR_ENABLED=false \
+  PORT=2599 node apps/server/dist/index.js &
+URL=http://127.0.0.1:2599 npm run royale-probe
 
 # UI auf 17 echten Geraetegroessen.
 # Nichts Schweres nebenher laufen lassen: Unter Last laufen einzelne Faelle in

@@ -109,7 +109,7 @@ const HOST = process.env.HOST?.trim() || '0.0.0.0';
  */
 const BOT_COUNT = integerEnvironment('BOT_COUNT', 18, 0, 40);
 /**
- * Der Modus dieser Arena – `maze` (Standard) oder `ffa`.
+ * Der Modus dieser Arena – `maze` (Standard), `ffa` oder `royale`.
  *
  * Eine Arena je Prozess, wie `WALLS` und `BOT_COUNT`: Wer beide Modi anbieten
  * will, startet zwei Dienste. Das spart eine Menge Zustand, den sonst jede

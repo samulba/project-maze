@@ -21,6 +21,7 @@ import {
   upgradeHotkeyLabel,
   type UpgradeSlotId
 } from './family-upgrades';
+import { royaleDeathText, royaleZoneOf } from './royale-hud';
 import { signatureLabel, signatureRatio } from './signature';
 import { START_NAV } from './start-nav';
 import { spectatedName } from './spectator';
@@ -120,6 +121,8 @@ export class GameUI {
   private readonly deathSummary: HTMLElement;
   private readonly respawnButton: HTMLButtonElement;
   private readonly respawnCountdown: HTMLElement;
+  /** Rundenstand auf der Todeskarte – nur im Battle Royale sichtbar. */
+  private readonly royaleDeathNote: HTMLElement;
   private readonly upgradeButtons = new Map<UpgradeSlotId, HTMLButtonElement>();
   private readonly vignette: HTMLElement;
   private entered = false;
@@ -289,6 +292,13 @@ export class GameUI {
           <section class="death-screen" id="death-screen" hidden>
             <div class="death-card glass">
               <div class="eyebrow danger">RUN BEENDET</div>
+              <!--
+                Der Rundenstand im Royale steht GANZ OBEN, nicht unten beim
+                Respawn-Knopf: Die Karte ist länger als ein 720-px-Bildschirm,
+                und dort unten hat ihn niemand gesehen. Es ist die einzige
+                Auskunft, die im Royale zählt – „bin ich raus, und wie lange".
+              -->
+              <p class="royale-death-note" id="royale-death-note" hidden></p>
               <figure class="death-portrait" id="death-portrait"></figure>
               <h2>ELIMINIERT</h2>
               <p id="death-killer">Eliminiert von Arena</p>
@@ -356,6 +366,7 @@ export class GameUI {
     this.deathSummary = this.require('#death-summary');
     this.respawnButton = this.require<HTMLButtonElement>('#respawn-button');
     this.respawnCountdown = this.require('#respawn-countdown');
+    this.royaleDeathNote = this.require('#royale-death-note');
     this.vignette = this.require('#damage-vignette');
 
     this.require<HTMLInputElement>('#player-name').addEventListener('input', () => { this.nameTouched = true; });
@@ -586,7 +597,12 @@ export class GameUI {
     this.renderLeaderboard(snapshot);
     this.renderKillfeed(snapshot);
     this.renderRadar(snapshot, self);
-    if (self.deaths > this.lastDeathCount) this.toast('Run beendet', `Du startest auf Level ${self.respawnLevel} neu.`, 'danger');
+    if (self.deaths > this.lastDeathCount) {
+      // Im Royale ist der Tod das Ende der Runde, kein Neustart auf Level x –
+      // die gewohnte Meldung wäre dort schlicht falsch.
+      if (royaleZoneOf(snapshot)) this.toast('Ausgeschieden', 'Du bist raus, bis die Runde vorbei ist.', 'danger');
+      else this.toast('Run beendet', `Du startest auf Level ${self.respawnLevel} neu.`, 'danger');
+    }
     this.lastDeathCount = self.deaths;
     return self;
   }
@@ -653,6 +669,23 @@ export class GameUI {
     // Dieselben Zahlen in einer Zeile statt in sechs Kacheln.
     this.deathSummary.textContent = `LEVEL ${self.deathLevel} · ${self.kills} KILLS · ${self.score.toLocaleString('de-DE')} SCORE · ${aliveText}`;
     this.deathStats.innerHTML = `<div><span>Erreicht</span><b>Level ${self.deathLevel}</b></div><div><span>Neustart</span><b>Level ${self.respawnLevel}</b></div><div><span>Score</span><b>${self.score.toLocaleString('de-DE')}</b></div><div><span>Kills</span><b>${self.kills}</b></div><div><span>Überlebt</span><b>${aliveText}</b></div><div><span>Beste Streak</span><b>${self.bestStreak}</b></div>`;
+    /*
+     * Im Battle Royale gibt es keinen Wiedereinstieg in die laufende Runde –
+     * der Server schiebt `canRespawnAt` dafür auf Unendlich. Ein Countdown
+     * darüber rechnete „Respawn verfügbar in Infinitys": eine Zahl, die es
+     * nicht gibt, über einem Knopf, der nie freigeht. Hier steht deshalb, was
+     * wirklich passiert – und der Knopf verschwindet, statt tot dazustehen.
+     */
+    const royaleText = royaleDeathText(royaleZoneOf(snapshot));
+    this.respawnButton.hidden = royaleText !== null;
+    this.royaleDeathNote.hidden = royaleText === null;
+    if (royaleText !== null) {
+      this.royaleDeathNote.textContent = royaleText;
+      // Unten steht dasselbe noch einmal: Die Karte laesst sich scrollen, und
+      // wer unten landet, soll dort nicht den alten Respawn-Text vorfinden.
+      this.respawnCountdown.textContent = royaleText;
+      return;
+    }
     this.respawnButton.disabled = remaining > 0;
     const autoInSeconds = Math.max(0, Math.ceil((self.autoRespawnAt - snapshot.serverTime) / 1000));
     // Menschen werden nicht mehr zwangs-respawnt (nur das 10-Minuten-AFK-Netz) –
@@ -760,7 +793,7 @@ export class GameUI {
      * wird vom `clip` sauber abgeschnitten – das ist gewollt, denn dann ist die
      * Grenze weit weg und die Antwort lautet ohnehin „drin".
      */
-    const zone = (extended as { royaleZone?: { center: { x: number; y: number }; radius: number; phase: string } | null }).royaleZone;
+    const zone = royaleZoneOf(snapshot);
     if (zone) {
       const mitte = toRadar(zone.center);
       context.beginPath();

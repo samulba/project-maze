@@ -32,13 +32,20 @@
  * passende Fälle ein (beim Reparieren will man nicht alle abwarten), `DBG=1`
  * gibt die Zwischenwerte der Leseansicht-Erkennung aus.
  *
- * ## Was geprüft wird (Stand 09.08., 185 Fälle)
+ * ## Was geprüft wird (Stand 11.08., 193 Fälle)
  *
  * | Bereich | Fälle | Frage |
  * | --- | --- | --- |
  * | Startscreen | 55 | Ist alles erreichbar, ohne die Seite zu scrollen? |
- * | Spiel-HUD | 122 | Überlappt sich etwas, ragt etwas heraus, nimmt zu viel keine Klicks? |
+ * | Spiel-HUD | 130 | Überlappt sich etwas, ragt etwas heraus, nimmt zu viel keine Klicks? |
  * | Admin-Portal | 8 | Läuft etwas über seinen Kasten, sind die Knöpfe treffbar? |
+ *
+ * Zwölf der HUD-Fälle sind Battle Royale (`zustand.royale`): Die Rundenleiste
+ * sitzt in der oberen Mitte, also dort, wo schon Onboarding, Banner und Toasts
+ * stehen. Der erste Anlauf lag prompt auf der Onboarding-Karte -- und die Fälle
+ * haben nebenbei einen Fehler gefunden, der gar nichts mit Royale zu tun hat:
+ * Bei flachen Seitenverhältnissen ragte die Bestenliste in die
+ * Onboarding-Karte, weil das Spielfeld schmaler wird als das Fenster.
  *
  * Gemessen wird in vier Schichten:
  *
@@ -104,6 +111,24 @@ const SHIM = `
               const opfer = p.players.find((x) => String(x.id) !== String(p.selfId));
               if (opfer) { p.bountyTargetId = opfer.id; p.gameplay = p.gameplay || {};
                 p.gameplay[String(opfer.id)] = { ...(p.gameplay?.[String(opfer.id)] ?? {}), bountyValue: 1200 }; }
+            }
+            if (z.royale) {
+              /*
+               * Battle-Royale-Rundenstand. Der Modus haengt am Server
+               * (ARENA_MODE), die Leiste aber nur an diesem Feld -- also wird es
+               * hier untergeschoben, statt fuer die Layoutpruefung eine zweite
+               * Arena zu starten.
+               */
+              const mitte = ich ? { x: ich.position.x + 400, y: ich.position.y + 300 } : { x: 4500, y: 3000 };
+              p.royaleZone = {
+                center: mitte, radius: 2600, targetRadius: 1900,
+                phase: z.royale.sieg ? 'haelt' : 'schrumpft',
+                nextShrinkInMs: z.royale.sieg ? 0 : 18000,
+                damagePerSecond: 7.5, stage: 2, alive: z.royale.sieg ? 1 : 23,
+                roundOver: Boolean(z.royale.sieg),
+                winnerName: z.royale.sieg ? 'Nova' : null,
+                nextRoundInMs: z.royale.sieg ? 9000 : 0
+              };
             }
             if (z.achievements && !window.__achievementsGesendet) {
               // freshAchievements ist das Feld, aus dem der Client seine Popups
@@ -184,6 +209,8 @@ function messenImBrowser() {
     '.onboarding': 'Onboarding',
     '.arena-event-banner': 'Event-Banner',
     '.spectator-banner': 'Zuschauerband',
+    '.royale-bar': 'Royale-Leiste',
+    '#royale-death-note': 'Royale-Rundennotiz',
     '.points-badge': 'Punkte-Badge',
     '.move-stick': 'Bewegungs-Stick',
     '.aim-stick': 'Ziel-Stick',
@@ -457,6 +484,23 @@ const FAELLE = [
   // --- Das Rad (KL3) ----------------------------------------------------
   // Ein Vollbild-Overlay auf 844×390 ist die härteste Prüfung, die es gibt –
   // und es öffnet mitten im Gefecht, also mit allem anderen zusammen.
+  // Battle Royale: die Leiste sitzt in der oberen Mitte, also dort, wo schon
+  // Onboarding, Banner und Toasts stehen -- genau die Stelle, an der der erste
+  // Anlauf auf der Onboarding-Karte lag.
+  { name: 'royale', w: 1280, h: 720, zustand: { royale: {} } },
+  { name: 'royale-flach', w: 1280, h: 600, zustand: { royale: {} } },
+  { name: 'royale-sieg', w: 1280, h: 720, zustand: { royale: { sieg: true } } },
+  { name: 'royale-wahl', w: 1280, h: 720, zustand: { level: 10, playerClass: 'core', punkte: 4, royale: {} } },
+  { name: 'royale-oben-alles', w: 1280, h: 720, zustand: { royale: {}, event: 'fracture', bounty: true, achievements: ['fivestreak'] } },
+  { name: 'royale-tot', w: 1280, h: 720, zustand: { tot: true, royale: {} } },
+  { name: 'royale-tot-sieg', w: 1280, h: 720, zustand: { tot: true, royale: { sieg: true } } },
+  // Zuschauen schrumpft die Todeskarte auf das Noetigste -- der Rundenstand
+  // gehoert dann dazu, denn die Leiste weicht dem Death-Screen.
+  { name: 'royale-zuschauen', w: 1280, h: 720, zustand: { tot: true, zuschauen: true, royale: {} } },
+  { name: 'royale-zuschauen-touch', w: 844, h: 390, touch: true, zustand: { tot: true, zuschauen: true, royale: {} } },
+  { name: 'royale-touch', w: 844, h: 390, touch: true, zustand: { royale: {} } },
+  { name: 'royale-touch-klein', w: 667, h: 375, touch: true, zustand: { royale: {} } },
+  { name: 'royale-touch-alles', w: 844, h: 390, touch: true, zustand: { royale: {}, event: 'fracture', bounty: true } },
   { name: 'rad', w: 1280, h: 720, rad: true, zustand: {} },
   { name: 'rad-punkte', w: 1280, h: 720, rad: true, zustand: { level: 24, playerClass: 'storm', punkte: 6 } },
   { name: 'rad-wahl', w: 1280, h: 720, rad: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },

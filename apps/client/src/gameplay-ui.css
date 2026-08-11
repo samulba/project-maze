@@ -89,9 +89,16 @@
  * Ereignis-Banner, Kopfgeld-Banner und Toasts saßen alle auf festen Höhen und
  * lagen deshalb gelegentlich übereinander. Sie teilen sich jetzt einen
  * Startpunkt und rücken nur nach, wenn über ihnen wirklich etwas steht.
- * `--top-stack` verschiebt die ganze Spalte (siehe onboarding.css).
+ * `--top-stack-start` verschiebt die ganze Spalte (siehe onboarding.css).
  */
-:root { --top-stack:calc(var(--edge-y) + 42px); --top-step:44px; }
+/*
+ * Zwei Anfaenge, seit der Royale-Rundenstand den ersten Platz belegt:
+ * `--top-stack-start` ist der Anfang der Spalte, `--top-stack` der Anfang der
+ * *nachrueckenden* Banner. Der Rundenstand steht dauerhaft da, die Banner
+ * kommen und gehen -- also beginnt die Bannerreihe eine Stufe tiefer, solange
+ * er sichtbar ist (royale.css). Ohne Royale sind beide identisch.
+ */
+:root { --top-stack-start:calc(var(--edge-y) + 42px); --top-stack:var(--top-stack-start); --top-step:44px; }
 .arena-event-banner,.bounty-banner,.toasts { top:var(--top-stack); }
 :root:has(.arena-event-banner:not([hidden])) .bounty-banner,
 :root:has(.arena-event-banner:not([hidden])) .toasts,

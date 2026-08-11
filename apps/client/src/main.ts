@@ -32,6 +32,7 @@ import { PredictionToggle } from './prediction-panel';
 import { QualityControl } from './quality-panel';
 import { GameRenderer } from './renderer';
 import { SnapshotHydrator, isWireSnapshot, type WireServerMessage } from './snapshot-hydrator';
+import { RoyaleBar } from './royale-hud';
 import { SpectatorBanner } from './spectator';
 import { StartBackdrop } from './start-backdrop';
 import { StartLeaderboard } from './start-leaderboard';
@@ -49,6 +50,7 @@ import './gameplay-ui.css';
 import './controls.css';
 import './mobile.css';
 import './spectator.css';
+import './royale.css';
 import './onboarding.css';
 import './achievements.css';
 import './auth.css';
@@ -156,6 +158,9 @@ void authReady.then((client) => {
 // die ins Spielfeld gehören – siehe class-codex.ts.
 const classOverlay = new ClassOverlay(ui.root.querySelector<HTMLElement>('#hud') ?? ui.root);
 const spectator = new SpectatorBanner(ui.root);
+// Der Rundenstand im Battle Royale. Meldet sich in jedem anderen Modus von
+// selbst ab – dort kostet die Leiste kein Pixel.
+const royaleBar = new RoyaleBar(ui.root);
 const onboarding = new OnboardingCoach(ui.root);
 const achievements = new AchievementPopups(ui.root);
 new BalanceLab(ui.root, send);
@@ -340,6 +345,7 @@ function connect(): void {
     previousModuleActiveUntil = 0;
     gameplayUI.onDisconnect();
     spectator.reset();
+    royaleBar.reset();
     achievements.reset();
     onboarding.pause();
     if (input?.resetAll()) ui.setAutoFire(false);
@@ -411,6 +417,7 @@ function updateWorld(snapshot: WorldSnapshot): void {
   gameplayUI.update(snapshot);
   gameplayEffects.update(snapshot);
   spectator.update(snapshot);
+  royaleBar.update(snapshot);
   achievements.update(snapshot);
   onboarding.update(snapshot, input?.isMoving ?? false);
   const self = snapshot.players.find((player) => player.id === snapshot.selfId) ?? null;

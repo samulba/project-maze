@@ -21,6 +21,27 @@
   pointer-events: none;
 }
 .onboarding[hidden] { display: none !important; }
+
+/*
+ * Die Karte darf nicht in die Seitenpanels laufen.
+ *
+ * Sie ist mittig und 520 px breit, Spielerkarte und Bestenliste hängen dagegen
+ * am *Spielfeld* (`--edge-x` enthält den Letterbox-Rand). Bei flachen
+ * Seitenverhältnissen wird das Feld schmaler als das Fenster, die Panels rücken
+ * nach innen – und die Karte blieb, wo sie war: Auf 1280 × 600 ragte die
+ * Bestenliste 23 px über sie. Gefunden hat das erst der Royale-Fall der
+ * Layout-Prüfung, weil er als einziger flacher Fall einen frischen Spieler
+ * zeigt (die anderen tragen Level oder Tod – dann ist der Hinweis längst weg).
+ *
+ * Die Karte bekommt deshalb den Platz *zwischen* den beiden Panels, mit deren
+ * eigenen Breiten gerechnet (style.css) plus einem sichtbaren Abstand.
+ */
+@media (min-width: 901px) {
+  .onboarding {
+    width: min(520px, calc(100vw - 2 * var(--edge-x)
+      - clamp(250px, 13.02vw, 330px) - clamp(278px, 14.48vw, 366px) - 40px));
+  }
+}
 .onboarding.enter { animation: onboarding-in .26s ease-out; }
 .onboarding-head { display: flex; align-items: center; gap: 9px; margin-bottom: 3px; }
 .onboarding-eyebrow {
@@ -65,7 +86,7 @@
    den Hinweis, solange das Onboarding läuft – aber nur, wenn darunter
    überhaupt Platz ist. */
 @media (min-height: 560px) {
-  :root.onboarding-active { --top-stack: calc(var(--edge-y) + 150px); }
+  :root.onboarding-active { --top-stack-start: calc(var(--edge-y) + 150px); }
 }
 
 /* Das erklärte Bedienelement pulsiert dezent mit. */
@@ -117,5 +138,5 @@
   :root.onboarding-active .bounty-banner { display: none; }
   /* Toasts bleiben – sie melden Dinge, die auch Anfänger sehen müssen –,
      rücken aber unter die Karte. */
-  :root.onboarding-active { --top-stack: calc(var(--edge-y) + 130px); }
+  :root.onboarding-active { --top-stack-start: calc(var(--edge-y) + 130px); }
 }

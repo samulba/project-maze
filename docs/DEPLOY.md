@@ -30,6 +30,8 @@ Der Server findet `apps/client/dist` automatisch und liefert ihn aus.
 |----------|---------|-----------|
 | `PORT` | `2567` | HTTP+WebSocket-Port (Hoster setzen PORT meist selbst) |
 | `BOT_COUNT` | `8` | Bots beim Start (0–18) |
+| `ARENA_MODE` | `maze` | Modus dieser Arena: `maze` (Wände), `ffa` (offen), `royale` (schrumpfende Zone, Runden). **Eine Arena je Prozess** – zwei Modi gleichzeitig heißt zwei Dienste. Unbekannte Werte starten als `maze` mit Warnung im Log; der laufende Modus steht in `/health` unter `mode` |
+| `ROYALE_SPEED` | `1` | Nur für `royale`: Zeitraffer der Zone (1–60). Teilt Schonfrist, Schrumpf- und Haltezeit – `20` bringt die erste Verengung nach zwei Sekunden. Zum Ansehen und Abstimmen, nicht für den Betrieb |
 | `ALLOWED_ORIGIN` | `*` | Kommagetrennte erlaubte Origins; bei Single-Service auf die eigene Domain setzen, z. B. `https://maze.example.com` |
 | `ENABLE_DEV_TOOLS` | aus | NIEMALS in Produktion auf `true` (Balance-Lab/Debug) |
 | `SNAPSHOT_DELTAS` | aus | Lässt unveränderte Snapshot-Felder weg (~40 % weniger Bytes); braucht einen puffernden Client |
