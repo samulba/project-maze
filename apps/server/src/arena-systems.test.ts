@@ -4,6 +4,7 @@ import { ARENA_EVENT_ROTATION, tuneArenaSystems } from './arena-systems';
 import { tuneCombatScaling } from './combat-tuning';
 import { MazeGame } from './game';
 import { tuneLoadoutSystem } from './loadout-system';
+import { setArenaMode } from './world';
 
 interface Internals {
   players: Map<string, any>;
@@ -83,6 +84,47 @@ describe('arena systems', () => {
     expect(ARENA_EVENT_ROTATION).toEqual(['coreSurge', 'overcharge', 'hunterSignal', 'fracture']);
     const kinds = collectEventKinds(game, viewerId, ARENA_EVENT_ROTATION.length + 1, Date.now());
     expect(kinds).toEqual([...ARENA_EVENT_ROTATION, ARENA_EVENT_ROTATION[0]]);
+  });
+
+  /**
+   * In FFA gibt es keine Waende -- also waere Fracture ein angekuendigtes
+   * Ereignis, bei dem sichtbar nichts passiert. Die Rotation wird deshalb
+   * gefiltert, und zwar die ganze Liste statt des einzelnen Termins: Sonst
+   * kaeme in FFA jedes vierte Mal eine Pause statt eines Events.
+   *
+   * Diese Regel stand bisher nur als Code und Kommentar da. Sie ist genau die
+   * Sorte, die still kaputtgeht -- man sieht ihr Fehlen erst, wenn ein Banner
+   * etwas ankuendigt, das nicht kommt, und dann haelt man das Spiel fuer
+   * kaputt statt fuer anders.
+   */
+  it('laesst Fracture in FFA aus der Rotation -- ohne Luecke im Takt', () => {
+    setArenaMode('ffa');
+    try {
+      const game = createGame();
+      const viewerId = game.addPlayer('Observer');
+      // Mehr als eine volle Runde: So faellt auch ein Aussetzer statt einer
+      // Ersetzung auf -- vier Termine muessen vier ECHTE Events liefern.
+      // Fuenf Termine passen in das Zeitbudget der Hilfsfunktion (900 s bei
+      // rund 180 s je Ereignis) und decken eine volle Runde plus Umbruch ab.
+      const kinds = collectEventKinds(game, viewerId, 5, Date.now());
+      expect(kinds).toHaveLength(5);
+      expect(kinds).not.toContain('fracture');
+      expect(kinds).toEqual(['coreSurge', 'overcharge', 'hunterSignal', 'coreSurge', 'overcharge']);
+    } finally {
+      setArenaMode('maze');
+    }
+  });
+
+  it('behaelt Fracture, wo es Waende gibt', () => {
+    setArenaMode('royale');
+    try {
+      const game = createGame();
+      const viewerId = game.addPlayer('Observer');
+      const kinds = collectEventKinds(game, viewerId, 4, Date.now());
+      expect(kinds).toContain('fracture');
+    } finally {
+      setArenaMode('maze');
+    }
   });
 
   it('flutet nur während Core Surge zusätzliche Formen in die Zone', () => {
