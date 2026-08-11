@@ -38,6 +38,16 @@ Die letzte Zeile ist die einzige, die wir nicht selbst bestehen können. Alles
 darüber kann grün sein und das Spiel trotzdem langweilig – deswegen steht sie
 drin.
 
+**Stand 11.08.: neun von elf Zeilen grün.** Offen sind genau zwei – die Modi
+(bewusst zurückgestellt, siehe Reihenfolge) und die Wiederkehr, für die Sam
+erst die Supabase-Migration und die Railway-Variablen setzen muss.
+
+Was zur Karte gehört, ist systematisch nachgeprüft und nicht nur angenommen:
+Bandbreite, Tick-Budget, Bot-Dichte, Wanddeckung, Arena-Events, Spawn-Verteilung
+(Notausgang greift in 20.000 Ziehungen nie), Formen-Nachschub, Rate-Limits
+(Respawn läuft nicht über die Join-Grenze), Handy-Layout und Touch-Bedienung.
+Ein echter Befund kam dabei heraus – die Arena-Events – und der ist behoben.
+
 ---
 
 ## Die drei Entscheidungen
