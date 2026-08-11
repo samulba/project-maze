@@ -28,7 +28,27 @@ function enhanceButton(button: HTMLButtonElement): void {
 
   const bars = document.createElement('div');
   bars.className = 'class-choice-bars';
-  const attack = Math.max(metrics.projectileDps, metrics.dronePressure, metrics.bodyThreat * 0.75);
+  /*
+   * „Angriff" heißt: was ankommt, wenn ich ziele.
+   *
+   * Hier stand `projectileDps` – die Summe ALLER Rohre, auch der nach hinten
+   * gerichteten. Bei 53 der 55 Klassen mit Rohr ist das dasselbe. Bei zwei
+   * nicht, und dort log der Balken kräftig:
+   *
+   *   Octo     173,3 gesamt, davon 65,0 nach vorn  (38 %) → Balken stand auf 100 %
+   *   Flanker   91,7 gesamt, davon 45,8 nach vorn  (50 %) → Balken stand auf  87 %
+   *
+   * Octo saß damit am oberen Anschlag der Skala – die Karte versprach den
+   * härtesten Angriff im Spiel, während zwei Drittel davon zur Seite und nach
+   * hinten gingen. Wer danach wählt, wird enttäuscht, und genau dieses Gefühl
+   * unterscheidet ein fertiges Spiel von einem Prototyp.
+   *
+   * `forwardProjectileDps` zählt nur Rohre innerhalb von ±60° zur Blickrichtung.
+   * Damit bedeutet derselbe Balken bei allen Klassen dasselbe. Dass Octo auch
+   * rundum austeilt, bleibt seine Stärke – sie gehört in die Beschreibung, nicht
+   * in einen Balken, der „Angriff" heißt.
+   */
+  const attack = Math.max(metrics.forwardProjectileDps, metrics.dronePressure, metrics.bodyThreat * 0.75);
   const values = [
     ['Angriff', percent(attack / 1.05)],
     ['Defense', percent(metrics.effectiveDurability / 3)],
