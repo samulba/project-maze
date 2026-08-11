@@ -100,21 +100,41 @@ const BOT_COUNT = integerEnvironment('BOT_COUNT', 8, 0, 18);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN?.trim() || '*';
 const ENABLE_DEV_TOOLS = process.env.ENABLE_DEV_TOOLS === 'true';
 /**
- * Lässt unveränderte Statik- und Wandfelder aus dem Snapshot weg. Setzt einen
- * Client voraus, der den letzten Stand puffert – bis der ausgeliefert ist,
- * bleibt der Schalter aus. Das Runden der Zahlen läuft unabhängig davon.
+ * Lässt unveränderte Statik- und Wandfelder aus dem Snapshot weg.
+ *
+ * Die Bedingung dafür stand als Kommentar hier: „Setzt einen Client voraus, der
+ * den letzten Stand puffert – bis der ausgeliefert ist, bleibt der Schalter
+ * aus." Der Client ist ausgeliefert. `snapshot-hydrator.ts` sitzt an der
+ * Socket-Grenze und routet *jeden* Snapshot durch den Hydrator; volle
+ * Snapshots laufen dort unverändert durch. Damit ist der Schalter jetzt an.
+ *
+ * Gemessen (32 Clients, 30 s): 229,6 → 142,1 KB/s pro Spieler, also −38 %.
+ * Das ist keine Kosmetik – siehe `docs/GOAL.md`, Entscheidung 3: Ohne diese
+ * Ersparnis ist eine größere Karte mit mehr Spielern das teuerste Szenario
+ * überhaupt, mit ihr das günstigste pro Kopf.
+ *
+ * Opt-out-Flag: `false` stellt exakt den Stand davor wieder her.
  */
-const SNAPSHOT_DELTAS = process.env.SNAPSHOT_DELTAS === 'true';
+const SNAPSHOT_DELTAS = !['false', '0', 'off']
+  .includes((process.env.SNAPSHOT_DELTAS ?? '').trim().toLowerCase());
 /**
  * Serverseitige Achievement-Engine. Rein beobachtend und nur im Arbeitsspeicher;
  * ohne den Schalter wird die Schicht gar nicht erst angehängt.
  */
 const ACHIEVEMENTS_ENABLED = process.env.ACHIEVEMENTS_ENABLED === 'true';
 /**
- * Ersetzt UUIDs im Snapshot durch kurze Zahlen. Setzt – wie SNAPSHOT_DELTAS –
- * einen Client voraus, der die neue Feldform kennt; bis dahin aus.
+ * Ersetzt UUIDs im Snapshot durch kurze Zahlen. Dieselbe Bedingung wie bei
+ * `SNAPSHOT_DELTAS`, und dieselbe Antwort: Der Client kennt die Feldform
+ * (`snapshot-hydrator.ts`, „überführt kurze Zahlen-IDs (SHORT_NET_IDS) in
+ * Strings"), also ist der Schalter an.
+ *
+ * Gemessen obendrauf: 142,1 → 118,8 KB/s pro Spieler. Zusammen mit den Deltas
+ * −48 % gegenüber vorher.
+ *
+ * Opt-out-Flag: `false` stellt exakt den Stand davor wieder her.
  */
-const SHORT_NET_IDS = process.env.SHORT_NET_IDS === 'true';
+const SHORT_NET_IDS = !['false', '0', 'off']
+  .includes((process.env.SHORT_NET_IDS ?? '').trim().toLowerCase());
 /**
  * Nach dem Tod live dem eigenen Killer zusehen. Braucht einen Client, der die
  * Kamera auf `spectatorTargetId` zentriert; bis dahin aus.

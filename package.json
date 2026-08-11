@@ -20,6 +20,7 @@
     "perf:live": "node scripts/perf-live.mjs",
     "preloadtest": "npm run build -w @project-maze/shared",
     "loadtest": "node scripts/loadtest.mjs",
+    "wire-probe": "node scripts/wire-probe.mjs",
     "build": "npm run build -w @project-maze/shared && npm run build -w @project-maze/server && npm run build -w @project-maze/client && npm run precompress",
     "precompress": "node scripts/precompress.mjs apps/client/dist",
     "start": "node apps/server/dist/index.js",
