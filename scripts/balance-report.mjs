@@ -1,4 +1,11 @@
 import { allClassBalanceMetrics } from '../packages/shared/dist/balance.js';
+import { DEFAULT_MOMENTUM as MOM, momentumReloadScale } from '../apps/server/dist/signature-rapid.js';
+import { DEFAULT_BUDGET, unitHealthScale } from '../apps/server/dist/signature-control.js';
+import { DEFAULT_STEALTH, ambushDamageScale } from '../apps/server/dist/signature-specter.js';
+import { DEFAULT_HEAT, heatDamageScale } from '../apps/server/dist/signature-tempest.js';
+import { DEFAULT_STELLUNG, siegeDamageScale, siegeRangeScale } from '../apps/server/dist/signature-siege.js';
+import { DEFAULT_SCHILD } from '../apps/server/dist/signature-aegis.js';
+
 import { CLASS_DEFINITIONS, EMPTY_UPGRADES, GAME } from '../packages/shared/dist/index.js';
 import { tunedStatsFor } from '../apps/server/dist/combat-tuning.js';
 import {
@@ -332,6 +339,46 @@ console.log('Schaden ausgebauter Lancer traegt 127,9 Schaden, der duennste voll 
 console.log('Gegner seiner Stufe hat 148 Leben (86 %). Jeder Ladefaktor ueber 1,16x erzeugt einen');
 console.log('Ein-Schuss-Tod aus voller Entfernung. Deshalb kauft der volle Ausschlag Groesse und');
 console.log('Durchschlag statt Schaden – und kostet dabei Kadenz. Das DPS-Optimum liegt bei 58 %.');
+
+/*
+ * Alle acht Familien nebeneinander.
+ *
+ * Der Report hatte drei davon ausfuehrlich (RAPID, IMPACT, PRECISION) und
+ * schwieg ueber die anderen fuenf. Das ist ausgerechnet dort die groesste
+ * Luecke, wo Sams Ziel am konkretesten ist: "nicht alles nur irgendwelche
+ * langweiligen Kugeln, sondern irgendwas, was die ganze Mechanik aendert".
+ * Ob das stimmt, entscheidet nicht die Bonushoehe -- die ist bei fuenf
+ * Familien ein Statfaktor -- sondern die BEDINGUNG, unter der sich die Leiste
+ * fuellt. Genau die steht deshalb in der ersten Spalte.
+ */
+console.log('\nACHT FAMILIEN — WAS DIE LEISTE FUELLT UND WAS SIE BRINGT\n');
+console.log('FAMILIE     LEISTE FUELLT SICH DURCH        ERZWINGT                    WIRKUNG BEI VOLL');
+console.log('─'.repeat(100));
+const familien = [
+  ['RAPID', 'fahren UND feuern', 'staendig in Bewegung',
+    `Nachladen ${((1 - momentumReloadScale(100)) * 100).toFixed(0)} % kuerzer`],
+  ['SIEGE', 'stillstehen', 'Position beziehen',
+    `Schaden +${((siegeDamageScale(100) - 1) * 100).toFixed(0)} %, Reichweite +${((siegeRangeScale(100) - 1) * 100).toFixed(0)} %`],
+  ['PRECISION', 'Feuertaste halten', 'Timing statt Klickrate',
+    `Schaden ${(1 / DEFAULT_CHARGE.minDamageScale).toFixed(1)}x, Groesse +${((chargeRadiusScale(100) - 1) * 100).toFixed(0)} %`],
+  ['IMPACT', 'schnell fahren', 'rammen',
+    `Rammschaden +${(DEFAULT_WUCHT.maxBodyDamageBonus * 100).toFixed(0)} %`],
+  ['SPECTER', 'ungesehen bleiben', 'flankieren',
+    `ab ${DEFAULT_STEALTH.ambushThreshold}: Hinterhalt +${((ambushDamageScale(100) - 1) * 100).toFixed(0)} %`],
+  ['TEMPEST', 'jede Salve heizt', 'Dauerfeuer aushalten',
+    `Schaden +${((heatDamageScale(100) - 1) * 100).toFixed(0)} %`],
+  ['CONTROL', 'Nachschub-Konto', 'Flotte verwalten',
+    `Drohnen-Leben +${((unitHealthScale(GAME.maxUpgradeLevel) - 1) * 100).toFixed(0)} %`],
+  ['AEGIS', 'ERLITTENER Schaden', 'Treffer einstecken wollen',
+    `Entladung ${DEFAULT_SCHILD.dischargeDamage} auf ${DEFAULT_SCHILD.dischargeRadius}, Ruestung ${(DEFAULT_SCHILD.armorReduction * 100).toFixed(0)} %`]
+];
+for (const [name, fuellt, erzwingt, wirkung] of familien) {
+  console.log(name.padEnd(12) + fuellt.padEnd(32) + erzwingt.padEnd(28) + wirkung);
+}
+console.log('\nRAPID und SIEGE sind bewusst Gegenteile: dort zahlt Fahrt, hier Stillstand. Zwei');
+console.log('Familien, die sich auf demselben Feld gegenseitig bestrafen, ergeben eine echte');
+console.log('Positionsentscheidung statt zweier unabhaengiger Buffs. AEGIS ist die einzige');
+console.log('Familie, die getroffen werden WILL – ihre Leiste laedt nur aus erlittenem Schaden.');
 
 console.log('\nCORE MODULES\n');
 console.log('MODULE             ROLE        COOLDOWN   ACTIVE');

@@ -143,9 +143,34 @@ Szenario überhaupt. **Die Schalter sind die Voraussetzung, nicht die Kür.**
 
 ## Was schon steht
 
-- 65 Klassen in 8 Familien, jede Familie mit einer **eigenen Mechanik** statt
-  nur anderer Kugeln: MOMENTUM, LADUNG, EINHEITEN, WUCHT, TARNUNG, HITZE,
-  STELLUNG, SCHILD. Genau das war „nicht nur langweilige Kugeln".
+- 65 Klassen in 8 Familien. „Nicht nur langweilige Kugeln" war Sams Wunsch –
+  hier steht, warum das stimmt, statt es zu behaupten.
+
+  Entscheidend ist **nicht** die Bonushöhe; die ist bei fünf der acht Familien
+  ein Statfaktor. Entscheidend ist die **Bedingung, unter der sich die Leiste
+  füllt** – denn die bestimmt, wie man spielt:
+
+  | Familie | Leiste füllt sich durch | erzwingt | Wirkung bei voll |
+  |---|---|---|---|
+  | RAPID | fahren **und** feuern | ständig in Bewegung | Nachladen −25 % |
+  | SIEGE | **stillstehen** | Position beziehen | Schaden +45 %, Reichweite +50 % |
+  | PRECISION | Feuertaste **halten** | Timing statt Klickrate | Schaden ×2,2, Größe +40 % |
+  | IMPACT | schnell fahren | rammen | Rammschaden +150 % |
+  | SPECTER | ungesehen bleiben | flankieren | ab 95: Hinterhalt +35 % |
+  | TEMPEST | jede Salve heizt | Dauerfeuer aushalten | Schaden +40 % |
+  | CONTROL | Nachschub-Konto | Flotte verwalten | Drohnen-Leben +45 % |
+  | AEGIS | **erlittener** Schaden | Treffer einstecken *wollen* | Entladung 34 auf Radius 240, Rüstung 18 % |
+
+  RAPID und SIEGE sind im Code ausdrücklich als Gegenteile gebaut – „wer steht,
+  wird zur Kanone" gegen „wer fährt, lädt nach". Zwei Familien, die sich auf
+  demselben Feld gegenseitig bestrafen, ergeben eine echte Positionsentscheidung
+  statt zweier unabhängiger Buffs. AEGIS ist die einzige Familie, die getroffen
+  werden *will*.
+
+  Nachzulesen mit `npm run balance` – der Report zeigt die Tabelle inzwischen
+  für alle acht Familien. Vorher standen dort nur RAPID, IMPACT und PRECISION
+  ausführlich, und er schwieg über die fünf neueren: ausgerechnet dort, wo das
+  Ziel am konkretesten ist.
 - Wechselnde Ziele in der Arena: Elite Shapes, Core Surge, Bounty auf den
   dominanten Spieler.
 - Serverautorität sauber durchgezogen, Client schickt nur Eingaben.
