@@ -88,6 +88,66 @@ export class GameplayEffects {
       this.drawArenaWideHint(viewport, arenaEventStyle(event.kind), event.phase === 'active');
     }
 
+    /*
+     * Die Battle-Royale-Zone – und sie ist bewusst das Gegenteil einer
+     * Event-Zone. Dort markiert der Ring, wohin man WILL; hier markiert er,
+     * wo es aufhört, sicher zu sein. Deshalb drei Dinge statt eines Rings:
+     *
+     * 1. Die **Grenze** als kräftiger Ring – die Linie, die zählt.
+     * 2. Das **Schrumpfziel** als schwacher Ring, solange sie sich zusammenzieht.
+     *    Ohne den weiß man, dass es enger wird, aber nicht wohin – und läuft
+     *    zweimal.
+     * 3. Ein **roter Rand am Bildschirm**, sobald man draußen steht. Ein Ring
+     *    irgendwo im Feld reicht nicht: Wer weit draußen ist, sieht ihn gar
+     *    nicht mehr und verliert Leben, ohne zu wissen warum. Unsichtbarer
+     *    Schaden ist der schlimmste Bug, den ein Spiel haben kann.
+     */
+    const zone = snapshot.royaleZone;
+    if (zone) {
+      const center = this.toScreen(zone.center, self, viewport);
+      const radius = zone.radius * viewport.scale;
+      const puls = 0.62 + Math.sin(this.time * 2.4) * 0.14;
+      this.graphics.circle(center.x, center.y, radius)
+        .stroke({ color: 0x7bd6ff, alpha: puls, width: 3 });
+      if (zone.phase === 'schrumpft' && zone.targetRadius < zone.radius) {
+        this.graphics.circle(center.x, center.y, zone.targetRadius * viewport.scale)
+          .stroke({ color: 0x7bd6ff, alpha: 0.3, width: 2 });
+      }
+      const abstand = Math.hypot(self.position.x - zone.center.x, self.position.y - zone.center.y);
+      if (abstand > zone.radius) {
+        const warnPuls = 0.28 + Math.sin(this.time * 6) * 0.1;
+        this.graphics.rect(viewport.x, viewport.y, viewport.width, viewport.height)
+          .stroke({ color: 0xef5f6f, alpha: warnPuls, width: 14 });
+
+        /*
+         * Ein Pfeil zur Zone – und der ist keine Verzierung, sondern die
+         * eigentliche Auskunft.
+         *
+         * Der Ring ist zu Beginn rund 5000 Einheiten weit weg, das Sichtfenster
+         * misst 1600 × 900. Er ist also die längste Zeit des Spiels gar nicht
+         * im Bild. Ein roter Rand allein sagt „lauf", aber nicht „wohin" – und
+         * wer in die falsche Richtung läuft, stirbt schneller, als wenn er
+         * stehen bliebe. Deshalb zeigt der Pfeil zum Zentrum, sobald man
+         * draußen ist.
+         */
+        const richtung = Math.atan2(zone.center.y - self.position.y, zone.center.x - self.position.x);
+        const mx = viewport.x + viewport.width / 2;
+        const my = viewport.y + viewport.height / 2;
+        const weg = Math.min(viewport.width, viewport.height) * 0.3;
+        const spitze = { x: mx + Math.cos(richtung) * weg, y: my + Math.sin(richtung) * weg };
+        const quer = richtung + Math.PI / 2;
+        const breite = 16;
+        const laenge = 30;
+        this.graphics.poly([
+          spitze.x, spitze.y,
+          spitze.x - Math.cos(richtung) * laenge + Math.cos(quer) * breite,
+          spitze.y - Math.sin(richtung) * laenge + Math.sin(quer) * breite,
+          spitze.x - Math.cos(richtung) * laenge - Math.cos(quer) * breite,
+          spitze.y - Math.sin(richtung) * laenge - Math.sin(quer) * breite
+        ]).fill({ color: 0x7bd6ff, alpha: 0.85 });
+      }
+    }
+
     const eliteIds = new Set(snapshot.eliteShapeIds ?? []);
     for (const shape of snapshot.shapes) {
       if (!eliteIds.has(shape.id)) continue;

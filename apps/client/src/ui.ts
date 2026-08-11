@@ -753,6 +753,23 @@ export class GameUI {
       context.arc(center.x, center.y, (event.radius / halfWorldWidth) * (width / 2), 0, Math.PI * 2);
       context.stroke();
     }
+    /*
+     * Die Royale-Zone auf dem Radar. Sie ist hier wichtiger als im Spielfeld:
+     * Der Radar zeigt nur die nähere Umgebung, und genau dort entscheidet sich,
+     * ob man noch drin ist. Ein Kreis, der über den Radarrand hinausreicht,
+     * wird vom `clip` sauber abgeschnitten – das ist gewollt, denn dann ist die
+     * Grenze weit weg und die Antwort lautet ohnehin „drin".
+     */
+    const zone = (extended as { royaleZone?: { center: { x: number; y: number }; radius: number; phase: string } | null }).royaleZone;
+    if (zone) {
+      const mitte = toRadar(zone.center);
+      context.beginPath();
+      context.strokeStyle = cssColor(0x7bd6ff, zone.phase === 'schrumpft' ? 0.95 : 0.6);
+      context.lineWidth = 1.5;
+      context.arc(mitte.x, mitte.y, (zone.radius / halfWorldWidth) * (width / 2), 0, Math.PI * 2);
+      context.stroke();
+    }
+
     const elites = new Set(extended.eliteShapeIds ?? []);
     for (const shape of snapshot.shapes) {
       const elite = elites.has(shape.id);
