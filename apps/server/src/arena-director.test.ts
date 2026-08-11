@@ -69,17 +69,39 @@ function settle(game: MazeGame, start: number, windows = 20): number {
 }
 
 describe('Zielgröße der Population', () => {
+  /*
+   * Die Erwartungen leiten sich aus `config` ab statt aus festen Zahlen.
+   * Grund: `baseBots` folgt dem Platz je Bot, nicht einer Lieblingszahl – als
+   * die Arena von 6000 × 4000 auf 9000 × 6000 wuchs, wurde aus 8 eine 18, ohne
+   * dass sich an der Regel etwas geändert hätte. Fest verdrahtete Zahlen
+   * hätten hier sechs Tests rot gefärbt, die inhaltlich völlig in Ordnung
+   * waren – und beim nächsten Mal wieder.
+   */
   it('gibt einem Menschen eine belebte Arena und nimmt je weiterem einen Bot weg', () => {
-    expect(targetBotCount(1)).toBe(8);
-    expect(targetBotCount(2)).toBe(7);
-    expect(targetBotCount(3)).toBe(6);
-    expect(targetBotCount(4)).toBe(5);
+    expect(targetBotCount(1)).toBe(config.baseBots);
+    expect(targetBotCount(2)).toBe(config.baseBots - config.botsPerHuman);
+    expect(targetBotCount(3)).toBe(config.baseBots - 2 * config.botsPerHuman);
+    expect(targetBotCount(4)).toBe(config.baseBots - 3 * config.botsPerHuman);
   });
 
   it('hält die Untergrenze ein, egal wie voll die Arena wird', () => {
-    expect(targetBotCount(6)).toBe(3);
-    expect(targetBotCount(12)).toBe(3);
+    // Genau ein Mensch mehr, als noetig ist, um den Boden zu erreichen.
+    const bisZumBoden = 1 + Math.ceil((config.baseBots - config.minimumBots) / config.botsPerHuman);
+    expect(targetBotCount(bisZumBoden)).toBe(config.minimumBots);
+    expect(targetBotCount(bisZumBoden + 6)).toBe(config.minimumBots);
     expect(targetBotCount(GAME.maxPlayers)).toBe(config.minimumBots);
+  });
+
+  /**
+   * Der eigentliche Zweck von `baseBots`: Ein Spieler, der allein hereinkommt,
+   * darf keine gespenstisch leere Karte sehen. Gemessen wird deshalb der Platz
+   * je Bot, nicht die Anzahl – 3,0 Mio px² war der von Sam freigegebene Wert
+   * auf der alten Karte („elf Bots hießen Dauerbeschuss ohne Verschnaufpause").
+   */
+  it('haelt die Bot-Dichte der leeren Arena im freigegebenen Bereich', () => {
+    const flaecheJeBot = (GAME.worldWidth * GAME.worldHeight) / targetBotCount(1);
+    expect(flaecheJeBot).toBeGreaterThanOrEqual(2.4e6);
+    expect(flaecheJeBot).toBeLessThanOrEqual(3.6e6);
   });
 
   it('hält die leere Arena bevölkert, damit der erste Spieler nicht wartet', () => {
@@ -179,45 +201,61 @@ describe('Phasing im laufenden Spiel', () => {
   });
 
   it('baut Bots ab, wenn Menschen dazukommen, und wieder auf, wenn sie gehen', () => {
-    const game = createGame(8);
+    const game = createGame(config.baseBots);
     let now = settle(game, 1_000_000, 1);
-    expect(botsOf(game)).toHaveLength(8);
+    expect(botsOf(game)).toHaveLength(config.baseBots);
 
     const humanIds = [game.addPlayer('A'), game.addPlayer('B'), game.addPlayer('C')];
-    expect(targetBotCount(3)).toBe(6);
+    expect(targetBotCount(3)).toBe(config.baseBots - 2 * config.botsPerHuman);
     now = settle(game, now);
-    expect(botsOf(game)).toHaveLength(6);
+    expect(botsOf(game)).toHaveLength(targetBotCount(3));
 
     for (const id of humanIds) game.removePlayer(id);
     now = settle(game, now);
     expect(botsOf(game)).toHaveLength(targetBotCount(0));
   });
 
+  /**
+   * Geprueft wird die *Schrittweite*, nicht der Endstand: Egal wie weit die
+   * Population ueber dem Ziel liegt, je Fenster geht hoechstens ein Bot.
+   * Deshalb misst der Test die Differenz statt einer absoluten Zahl – so
+   * ueberlebt er jede Aenderung an `baseBots`, ohne seine Aussage zu verlieren.
+   */
   it('braucht für jeden Schritt ein eigenes Fenster', () => {
-    const game = createGame(11);
+    // Deutlich ueber der Zielgroesse starten, damit viel abzubauen waere.
+    const game = createGame(config.baseBots + 12);
     const start = 1_000_000;
-    settle(game, start, 1); // ein Fenster: 11 → 10 (Ziel der leeren Arena ist 8)
     game.addPlayer('A');
     game.addPlayer('B');
-    game.addPlayer('C'); // Ziel jetzt 6 – vier Bots zu viel
+    game.addPlayer('C'); // Ziel sinkt um zwei – es gaebe reichlich abzubauen.
 
-    // Nach zwei weiteren Fenstern dürfen erst zwei gegangen sein.
-    let now = start + config.phaseIntervalMs * 2;
-    for (let index = 0; index < 2; index += 1) {
+    const vorher = botsOf(game).length;
+    const ziel = targetBotCount(3);
+    expect(vorher - ziel).toBeGreaterThan(4);
+
+    const fenster = 2;
+    let now = start + config.phaseIntervalMs;
+    for (let index = 0; index < fenster; index += 1) {
       park(game);
       game.step(1 / 40, now);
       now += config.phaseIntervalMs;
     }
-    expect(botsOf(game)).toHaveLength(8);
+    // Genau ein Abgang je Fenster – nicht mehr, obwohl das Ziel noch weit weg
+    // ist und alle Bots geparkt, also unauffaellig entfernbar sind.
+    expect(botsOf(game)).toHaveLength(vorher - fenster);
+    expect(botsOf(game).length).toBeGreaterThan(ziel);
   });
 
   it('entfernt keinen Bot, solange alle in Sichtweite eines Menschen sind', () => {
-    const game = createGame(11);
-    settle(game, 1_000_000, 1);
+    // Bewusst ohne `settle`: Die Population muss beim Start ueber dem Ziel
+    // liegen, sonst prueft der Test nichts – ein Phasing-Fenster vorweg haette
+    // sie schon auf die Zielgroesse gezogen.
+    const game = createGame(config.baseBots + 3);
     const humanId = game.addPlayer('Beobachter');
     const internals = game as unknown as Internals;
     const human = internals.players.get(humanId);
     human.position = { x: 3_000, y: 2_000 };
+    const vorher = botsOf(game).length;
 
     let now = 2_000_000;
     for (let index = 0; index < 6; index += 1) {
@@ -230,10 +268,12 @@ describe('Phasing im laufenden Spiel', () => {
       now += config.phaseIntervalMs;
       game.step(1 / 40, now);
     }
-    // Zielgröße ist 8 (ein Fenster in settle hat 11 → 10 abgebaut), aber kein
-    // Bot ist unauffällig entfernbar – niemand weicht mitten im Gefecht.
-    expect(botsOf(game)).toHaveLength(10);
-    expect(arenaDirectorStatus(game).target).toBe(8);
+    // Die Population liegt ueber dem Ziel, aber kein einziger Bot ist
+    // unauffaellig entfernbar – niemand weicht mitten im Gefecht, und niemand
+    // verschwindet vor den Augen eines Menschen. Also bleibt der Stand exakt.
+    expect(botsOf(game)).toHaveLength(vorher);
+    expect(vorher).toBeGreaterThan(arenaDirectorStatus(game).target);
+    expect(arenaDirectorStatus(game).target).toBe(config.baseBots);
   });
 });
 
@@ -276,7 +316,7 @@ describe('Neue Bots im laufenden Spiel', () => {
 
 describe('Fremde Bots', () => {
   it('fasst Spieler ohne Bot-Zustand nicht an (Guardian, Debug-Dummies)', () => {
-    const game = createGame(8);
+    const game = createGame(config.baseBots);
     const internals = game as unknown as Internals;
     settle(game, 1_000_000, 1);
 
@@ -287,7 +327,7 @@ describe('Fremde Bots', () => {
     guardian.bot = null;
     guardian.position = { x: 5_600, y: 3_600 };
 
-    expect(botsOf(game)).toHaveLength(8);
+    expect(botsOf(game)).toHaveLength(config.baseBots);
     settle(game, 3_000_000);
     expect(internals.players.has(guardianId)).toBe(true);
     // Der Guardian zählt weder als Mensch noch als Direktor-Bot.

@@ -9,19 +9,54 @@ export const SHAPE_CONFIG: Record<ShapeKind, ShapeConfig> = {
 };
 function seededRandom(seed: number): () => number { let state = seed >>> 0; return () => { state = (state * 1664525 + 1013904223) >>> 0; return state / 0x100000000; }; }
 const wall = (id: string, x: number, y: number, width: number, height: number): Wall => ({ id, x, y, width, height });
+/**
+ * Kantenlänge einer Bahn. Das ist die eigentliche Design-Einheit des Labyrinths.
+ *
+ * Vorher standen hier feste Bahn-*Anzahlen* (4 Reihen, 6 Spalten). Solange die
+ * Karte 6000 × 4000 war, hieß das 1000er-Bahnen. Als sie auf 9000 × 6000 wuchs,
+ * blieben es vier Reihen – nur eben 1500 hoch, mit gleich großen Wänden darin:
+ * Die Deckung fiel von 4,4 % auf 3,5 % der Fläche, das Labyrinth wurde also
+ * spürbar offener, ohne dass das jemand entschieden hätte.
+ *
+ * Eine Wand ist als Deckung so viel wert, wie sie im Verhältnis zum *Spieler*
+ * groß ist, nicht zur Karte. Deshalb bleibt die Wandgröße fest und die Zahl der
+ * Bahnen wächst mit – so trägt jede Kartengröße dasselbe Labyrinth.
+ *
+ * Die Auslass-Wahrscheinlichkeiten unten (0,44 / 0,48, vorher 0,34 / 0,38)
+ * gehören dazu: Mit mitwachsenden Bahnen allein lag die Deckung bei 5,2 %, also
+ * 18 % über dem alten Wert. Jetzt sind es 4,53 % bei 89 Wänden – gegenüber
+ * 4,4 % und 40 Wänden auf der 2,25-fach kleineren Karte. `world.test.ts` hält
+ * den Korridor fest, damit die nächste Kartenänderung nicht wieder still am
+ * Spielgefühl dreht.
+ */
+const BAHN = 1000;
+
 function generateWalls(): Wall[] {
   const random = seededRandom(0x4d415a45); const walls: Wall[] = []; let id = 0;
+  const reihen = Math.max(1, Math.round(GAME.worldHeight / BAHN));
+  const spalten = Math.max(1, Math.round(GAME.worldWidth / BAHN));
   for (let x = 650; x < GAME.worldWidth - 500; x += 650) {
-    for (let row = 0; row < 4; row += 1) {
-      if (random() < 0.34) continue; const laneHeight = GAME.worldHeight / 4; const height = 280 + random() * 390; const y = row * laneHeight + 110 + random() * Math.max(80, laneHeight - height - 180); walls.push(wall(`v${id++}`, x + (random() - 0.5) * 110, y, 54, height));
+    for (let row = 0; row < reihen; row += 1) {
+      if (random() < 0.44) continue; const laneHeight = GAME.worldHeight / reihen; const height = 280 + random() * 390; const y = row * laneHeight + 110 + random() * Math.max(80, laneHeight - height - 180); walls.push(wall(`v${id++}`, x + (random() - 0.5) * 110, y, 54, height));
     }
   }
   for (let y = 560; y < GAME.worldHeight - 430; y += 570) {
-    for (let column = 0; column < 6; column += 1) {
-      if (random() < 0.38) continue; const laneWidth = GAME.worldWidth / 6; const width = 320 + random() * 500; const x = column * laneWidth + 120 + random() * Math.max(80, laneWidth - width - 190); walls.push(wall(`h${id++}`, x, y + (random() - 0.5) * 95, width, 54));
+    for (let column = 0; column < spalten; column += 1) {
+      if (random() < 0.48) continue; const laneWidth = GAME.worldWidth / spalten; const width = 320 + random() * 500; const x = column * laneWidth + 120 + random() * Math.max(80, laneWidth - width - 190); walls.push(wall(`h${id++}`, x, y + (random() - 0.5) * 95, width, 54));
     }
   }
-  walls.push(wall(`l${id++}`, 2750, 1710, 500, 54), wall(`l${id++}`, 2973, 1485, 54, 500), wall(`l${id++}`, 1150, 780, 420, 54), wall(`l${id++}`, 4450, 3090, 420, 54), wall(`l${id++}`, 850, 2850, 54, 420), wall(`l${id++}`, 5070, 680, 54, 420));
+  // Sechs gesetzte Landmarken – als Anteil der Karte, damit sie beim Wachsen
+  // verteilt bleiben, statt sich in der oberen linken Ecke zu sammeln.
+  const px = (anteil: number): number => Math.round(GAME.worldWidth * anteil);
+  const py = (anteil: number): number => Math.round(GAME.worldHeight * anteil);
+  walls.push(
+    wall(`l${id++}`, px(0.458), py(0.428), 500, 54),
+    wall(`l${id++}`, px(0.496), py(0.371), 54, 500),
+    wall(`l${id++}`, px(0.192), py(0.195), 420, 54),
+    wall(`l${id++}`, px(0.742), py(0.773), 420, 54),
+    wall(`l${id++}`, px(0.142), py(0.713), 54, 420),
+    wall(`l${id++}`, px(0.845), py(0.170), 54, 420)
+  );
   return walls.filter((candidate) => candidate.x >= 120 && candidate.y >= 120 && candidate.x + candidate.width <= GAME.worldWidth - 120 && candidate.y + candidate.height <= GAME.worldHeight - 120);
 }
 export const WALLS: Wall[] = generateWalls();

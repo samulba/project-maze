@@ -183,12 +183,24 @@ export class MazeGame {
   private tick = 0;
   private eventId = 0;
 
+  /**
+   * Harte Obergrenze der Startpopulation – ein Schutz gegen vertippte
+   * Konfiguration, keine Balance-Größe.
+   *
+   * Sie stand lange bei 18 und war damit identisch mit der damaligen
+   * Zielpopulation. Seit die Arena auf 9000 × 6000 gewachsen ist, liegt die
+   * Zielgröße selbst bei 18 (`DEFAULT_DIRECTOR_CONFIG.baseBots`) – der Deckel
+   * wäre also exakt die Zielgröße gewesen und hätte jede weitere Verdichtung
+   * still verschluckt, statt sie abzulehnen.
+   */
+  private static readonly MAX_BOTS = 40;
+
   constructor(botCount = 10) {
     for (let index = 0; index < GAME.shapeTargetCount; index += 1) {
       const shape = createShape(`shape-${index}`);
       this.shapes.set(shape.id, shape);
     }
-    for (let index = 0; index < Math.max(0, Math.min(18, botCount)); index += 1) {
+    for (let index = 0; index < Math.max(0, Math.min(MazeGame.MAX_BOTS, botCount)); index += 1) {
       this.createPlayer(BOT_NAMES[index % BOT_NAMES.length] ?? `Bot ${index + 1}`, true, botState(index));
     }
   }

@@ -24,12 +24,13 @@ unten, und die ist prüfbar.
 | Regeln und Typen stimmen | `npm run check` grün | ✅ |
 | Keine UI, die sich überlappt oder aus dem Bild läuft | `scripts/ui-layout-check.mjs` 181/181 | ✅ |
 | Kein Tank ist Müll, keiner ist Pflicht | Balance-Korridore in `packages/shared/src/balance.test.ts` | ✅ |
+| Das Labyrinth bleibt ein Labyrinth | Wanddeckung 3,8–5,2 % der Fläche (`world.test.ts`) | ✅ 4,53 % |
 | Kein Upgrade ohne Wirkung | `upgradeAppliesTo` + Test „haelt Projektil-Upgrades von Klassen ohne Rohr fern" | ✅ |
 | Kein Knopf ohne Server-Antwort | Alle 8 Familien-Signatures serverseitig verdrahtet | ✅ |
-| Keine Serverlags bei voller Arena | Tick p95 < 25 ms **und ≤ 160 KB/s pro Spieler** | ✅ 118,8 KB/s (war 229,6) |
+| Keine Serverlags bei voller Arena | Tick p95 < 25 ms **und ≤ 160 KB/s pro Spieler** | ✅ 138,8 KB/s bei 80 Spielern, Tick p95 10,4 ms |
 | Die Leitung Server→Client ist heil | `npm run wire-probe` grün | ✅ |
-| Mehrere Modi | Zwei spielbare Modi im Client wählbar | ❌ 0 von 2 |
-| Es fühlt sich groß an | Karte + Spielerzahl laut Entscheidung 3 | ❌ |
+| Mehrere Modi | Drei spielbare Modi im Client wählbar | ❌ 1 von 3 (nur Maze) |
+| Es fühlt sich groß an | 675.000 px² je Spieler, Dichte-Test grün | ✅ 9000 × 6000, 80 Spieler |
 | **Fremde kommen wieder** | Admin-Portal: wiederkehrende `device_id` über 7 Tage | 🔍 misst ab jetzt |
 
 Die letzte Zeile ist die einzige, die wir nicht selbst bestehen können. Alles
@@ -40,22 +41,28 @@ drin.
 
 ## Die drei Entscheidungen
 
-Drei Dinge waren im ursprünglichen Zielsatz offen. Sie sind jetzt entschieden,
-weil ein unentscheidbares Ziel kein Ziel ist.
+Drei Dinge waren im ursprünglichen Zielsatz offen. **Sam hat sie am 11.08.2026
+entschieden** – die Vorschläge kamen von mir, die Entscheidung von ihm. Bei den
+Modi hat er anders entschieden als vorgeschlagen.
 
-### 1. Welche Modi? → FFA + Team-Arena. Genau zwei.
+### 1. Welche Modi? → Maze (aktuell) + FFA + Battle Royale. Drei.
 
 Im Code gibt es **keine** Modi-Infrastruktur; `mode: 'maze-alpha'` ist ein
 hartkodiertes Etikett in `index.ts` und `telemetry.ts`. „Mehrere Modi" ist also
 Neuland, kein Feinschliff.
 
-Deshalb genau ein zweiter Modus zum 1.0, und zwar der, der die vorhandene
-Maschine am stärksten wiederverwendet: **Team-Arena, zwei Teams.** Er braucht
-ein Team-Feld am Spieler, kein Friendly Fire, Teamfarben und einen Teamscore.
-Kein neuer Kartentyp, keine neue Siegbedingung-Maschinerie.
+| Modus | Was ihn ausmacht | Aufwand |
+|---|---|---|
+| **Maze** | Der heutige Modus: Wände in Bahnen (`world.ts`), Deckung, Ecken | ✅ da |
+| **FFA** | Offene Arena ohne Wände – das Diep.io-Gefühl, freie Sichtlinien | klein |
+| **Battle Royale** | Schrumpfende Zone, letzter Überlebender | groß |
 
-Battle Royale (schrumpfende Zone), Boss-Runden und 2v2 sind **nach** 1.0. Sie
-brauchen je ein eigenes System und würden das Ziel unabschließbar machen.
+FFA ist billig, weil es der heutige Modus **ohne** Wandgenerierung ist – und
+trotzdem ein völlig anderes Spiel: ohne Deckung zählen Reichweite und Tempo
+statt Ecken. Battle Royale ist der eigentliche Bau (Zonen-System, Siegbedingung,
+verändertes Spawn-Verhalten) und kommt zuletzt.
+
+Team-Arena, Boss-Runden und 2v2 sind **nach** 1.0.
 
 ### 2. Handy drin oder raus? → Drin, aber als „spielbar", nicht als „gleichwertig".
 
@@ -69,7 +76,12 @@ Die Latte ist aber bewusst niedriger als am Desktop: **Handy = Querformat, alle
 Handy-Fälle der Harness grün, keine tote Klickfläche.** Kein Versprechen, dass
 man per Daumen gegen Maus-Spieler gewinnt.
 
-### 3. Wie viel größer? → Die Karte wächst nur zusammen mit der Spielerzahl.
+Wichtig zur Einordnung: „niedriger als Desktop" heißt **nicht** „nebenbei".
+Handy steht in der Reihenfolge vor den Modi – „muss natürlich mit dabei sein"
+(Sam, 11.08.). Ein Spiel, das auf dem Handy hakt, fühlt sich nicht fertig an,
+egal wie viele Modi es hat.
+
+### 3. Wie viel größer? → 9000 × 6000 bei 80 Spielern. Und: die Karte wächst nur zusammen mit der Spielerzahl.
 
 Das ist die wichtigste Entscheidung, weil „größere Karte" allein das Spiel
 **schlechter** macht: gleiche 40 Spieler auf doppelter Fläche heißt leere
@@ -77,22 +89,35 @@ Karte und lange Wege ohne Gegner.
 
 Die feste Größe ist deshalb nicht die Kantenlänge, sondern die **Dichte**:
 
-> **600.000 px² pro Spieler.** (Heute: 6000 × 4000 ÷ 40.)
+> **rund 600.000 px² pro Spieler.**
+> Vorher: 6000 × 4000 ÷ 40 = 600.000. Heute: 9000 × 6000 ÷ 80 = 675.000.
+> `packages/shared/src/index.test.ts` hält den Korridor 450.000–750.000 fest.
 
 „Größere Karte" heißt damit automatisch „mehr Spieler". Und genau das war die
 Frage, ob das ohne Lags geht. Gemessen, nicht geschätzt:
 
 | Arena | Spieler | Schalter | KB/s pro Spieler | Tick p95 | Budget |
 |---|---|---|---|---|---|
-| 6000 × 4000 | 32 | aus (heute) | **229,6** | 2,2 ms | 7 % |
+| 6000 × 4000 | 32 | aus (vorher) | **229,6** | 2,2 ms | 7 % |
 | 6000 × 4000 | 32 | `SNAPSHOT_DELTAS` | 142,1 | – | – |
 | 6000 × 4000 | 32 | beide | 118,8 | 2,6 ms | 7 % |
 | 9000 × 6000 | 80 | aus | 281,4 | 9,4 ms | 24 % |
-| **9000 × 6000** | **80** | **beide** | **155,1** | 9,3 ms | 21 % |
+| **9000 × 6000** | **80** | **beide (heute)** | **138,8** | 10,4 ms | 34 % |
 
 Ergebnis: Eine **2,25-fach größere Karte mit doppelt so vielen Spielern kostet
-pro Kopf weniger** als die heutige kleine Arena – 155,1 gegen 229,6 KB/s. Das
-Tick-Budget ist dabei zu 21 % ausgelastet, also fast vierfache Luft.
+pro Kopf weniger** als die alte kleine Arena – 138,8 gegen 229,6 KB/s.
+
+Zwei Dinge, die man beim Nachmessen wissen muss, sonst erschrickt man:
+
+* **Kurze Läufe messen den Einschwingvorgang, nicht den Betrieb.** Ein 30-s-Lauf
+  zeigt 166 KB/s, ein 110-s-Lauf 138,8. Der Unterschied sind die Bots: Der
+  Direktor baut sie ab, sobald Menschen kommen, aber nur einzeln und nur, wenn
+  gerade keiner zusieht.
+* **Der Abbau lässt sich nicht beschleunigen.** Ein Aufholmechanismus (mehrere
+  Abgänge je Fenster) brachte gemessen 6 statt 7 Bots nach 95 s – Rauschen. Der
+  Engpass ist die Regel „niemand verschwindet vor den Augen eines Spielers":
+  Bei voller Arena ist schlicht kein Bot unbeobachtet. Der Mechanismus wurde
+  wieder entfernt, statt als wirkungslose Stellschraube stehenzubleiben.
 
 Die Bedingung dafür sind zwei Schalter, die **fertig und getestet im Repo
 liegen und trotzdem aus sind**: `SNAPSHOT_DELTAS` und `SHORT_NET_IDS`. Der
@@ -119,12 +144,28 @@ Szenario überhaupt. **Die Schalter sind die Voraussetzung, nicht die Kür.**
 
 1. ~~Die zwei Bandbreiten-Schalter anschalten.~~ ✅ **erledigt** – beide sind
    jetzt Opt-out statt Opt-in, gesichert durch `npm run wire-probe`.
-2. Karte und Spielerzahl bei 600.000 px²/Spieler hochziehen.
-   Nächster Schritt: `GAME.worldWidth/worldHeight/maxPlayers/shapeTargetCount`
-   in `packages/shared/src/index.ts` – das sind die vier Zahlen, mit denen die
-   Messung oben gemacht wurde.
+2. ~~Karte und Spielerzahl hochziehen.~~ ✅ **erledigt** – 9000 × 6000 bei
+   80 Spielern, 562 Formen. Dazu musste die Bot-Population mitwachsen (8 → 18):
+   Der Direktor hält bei *einem* Menschen die Arena belebt, und acht Bots auf
+   54 Mio px² wären eine gespenstisch leere Karte gewesen – ausgerechnet beim
+   ersten Eindruck eines neuen Spielers. Maßgeblich ist auch hier nicht die
+   Zahl, sondern der Platz je Bot: 3,0 Mio px², exakt der Wert, den Sam auf der
+   alten Karte freigegeben hatte.
 
-   **Das geht nicht per Railway-Variable.** Der Client liest `GAME.worldWidth`
+   Zwei Dinge wären dabei fast still verlorengegangen, beide beim ersten
+   Eindruck am teuersten:
+
+   * **Das Labyrinth wurde offener.** Die Bahn-*Anzahlen* standen fest (4 Reihen,
+     6 Spalten), also wurden die Bahnen größer statt zahlreicher – Deckung fiel
+     von 4,4 % auf 3,5 %. Die Design-Einheit ist die Bahn*breite*, nicht ihre
+     Anzahl; jetzt wächst die Zahl mit (1,65 Wände je Mio px² gegen vorher 1,67).
+   * **Zwei Tests fielen über die Karte statt über das Verhalten.** Beide
+     benutzten Festpunkte, die auf der alten Karte in einer Wand lagen bzw.
+     freies Feld waren. Einer wäre still wirkungslos geworden, statt rot – er
+     hätte eine Kollision geprüft, die gar nicht mehr stattfindet. Beide suchen
+     ihre Position jetzt, statt sie zu raten.
+
+   **Kartengröße geht nicht per Railway-Variable.** Der Client liest `GAME.worldWidth`
    direkt (Hintergrundraster in `renderer.ts`, Grenzen in `prediction.ts`). Ein
    Env-Schalter nur auf dem Server würde beide Seiten auseinanderlaufen lassen –
    Raster und Vorhersage in der falschen Größe. `shared` bleibt die eine
@@ -133,24 +174,44 @@ Szenario überhaupt. **Die Schalter sind die Voraussetzung, nicht die Kür.**
    Abgesichert ist die Regel durch den Test „haelt die Arena-Dichte im
    vereinbarten Korridor": Wer die Karte vergrößert, ohne `maxPlayers`
    mitzuziehen, bekommt einen roten Test statt einer leeren Arena.
-3. Team-Arena als zweiter Modus.
-4. Handy auf die „spielbar"-Latte bringen.
-
-In dieser Reihenfolge – 1 war Voraussetzung für 2, und 2 macht 3 erst
-interessant (Teams auf einer engen Karte sind ein Knäuel).
+3. **Handy richtig hinbekommen.** Kein Nachklapp, sondern gleichrangig mit der
+   Karte – „muss natürlich mit dabei sein" (Sam, 11.08.).
+4. **FFA als zweiter Modus** – der heutige Modus ohne Wandgenerierung. Klein,
+   weil `world.ts` nur übersprungen wird; trotzdem ein anderes Spiel.
+5. **Battle Royale als dritter Modus** – schrumpfende Zone, Siegbedingung,
+   verändertes Spawn-Verhalten. Der eigentliche Bau.
 
 ### Warum die Reihenfolge so ist
 
+**Modi kommen zuletzt** – ausdrücklich: „Modi erst wenn alles sitzt" (Sam,
+11.08.). Ein zweiter Modus auf einem wackeligen Fundament verdoppelt nur die
+Zahl der Stellen, an denen es hakt. Erst sitzt das eine Spiel, dann kommt das
+zweite dazu.
+
 Ohne Schritt 1 hätte Schritt 2 das Spiel *verschlechtert*: die große Arena ohne
 Deltas war mit 281,4 KB/s pro Spieler das teuerste Szenario der ganzen Messung.
-Erst mit den Schaltern wird „größer" billiger als „klein von vorher".
+Erst mit den Schaltern wurde „größer" billiger als „klein von vorher".
+
+Und wenn die Modi dann dran sind, sind sie froh über den Platz: FFA ohne Wände
+braucht Sichtlinien, die sich lohnen, und eine Battle-Royale-Zone, die auf
+6000 × 4000 schrumpft, ist nach zwei Minuten ein Faustkampf.
+
+### Spielerzahl: 80 ist ein Zwischenstand, kein Endwert
+
+„Wenns iwann voll is sind 40 schon wenig – aber das können wir ja dann
+skalieren" (Sam, 11.08.). Genau so ist es gebaut: Die Dichte-Regel (600.000 px²
+je Spieler) macht das Hochziehen zu einer Rechnung statt zu einer Diskussion.
+Der nächste Schritt wäre 12000 × 8000 bei 160 Spielern – noch nicht gemessen,
+und der Tick läge dann grob bei 70 % Auslastung statt 34 %. Vorher messen.
 
 ## Wie man das nachmisst
 
 ```bash
-# Bandbreite und Tick-Budget unter Last
+# Bandbreite und Tick-Budget unter Last.
+# Mindestens 100 s laufen lassen: Kuerzere Laeufe messen den Einschwingvorgang
+# (der Direktor baut seine Bots erst ab) und zeigen rund 20 % zu viel.
 node apps/server/dist/index.js &
-npm run loadtest -- --url ws://127.0.0.1:2567 --clients 32 --duration 30 --json
+npm run loadtest -- --url ws://127.0.0.1:2567 --clients 80 --duration 110 --ramp 6 --json
 
 # Leitung Server→Client (braucht zusaetzlich: npx vite --port 5199 apps/client)
 npm run wire-probe
@@ -163,6 +224,9 @@ PW_CHROMIUM=/opt/pw-browsers/chromium node scripts/ui-layout-check.mjs
 
 ## Was das Ziel *nicht* ist
 
-Damit es abschließbar bleibt: kein Battle Royale, keine Boss-Runden, kein
-Ranked, keine Clans, keine Skins, kein Handy-Hochformat. Alles davon kann gut
-sein – aber nach 1.0.
+Damit es abschließbar bleibt: keine Team-Arena, keine Boss-Runden, kein 2v2,
+kein Ranked, keine Clans, keine Skins, kein Handy-Hochformat. Alles davon kann
+gut sein – aber nach 1.0.
+
+(Battle Royale stand hier zwischenzeitlich auch. Sam hat es am 11.08. bewusst
+**ins** Ziel geholt und stattdessen die Team-Arena herausgenommen.)

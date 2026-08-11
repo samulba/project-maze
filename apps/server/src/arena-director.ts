@@ -39,9 +39,20 @@ export interface ArenaDirectorConfig {
 }
 
 export const DEFAULT_DIRECTOR_CONFIG: ArenaDirectorConfig = {
-  // 8 statt 11: Elf Bots hießen Dauerbeschuss ohne Verschnaufpause (Feedback
-  // Sam). Acht halten die Arena lebendig, lassen aber Räume zum Farmen.
-  baseBots: 8,
+  /*
+   * 18 auf der 9000 × 6000er Arena.
+   *
+   * Die maßgebliche Größe ist nicht die Zahl, sondern der Platz je Bot. Sams
+   * Befund „elf Bots hießen Dauerbeschuss ohne Verschnaufpause" galt für die
+   * alte 6000 × 4000er Karte: acht Bots waren dort 3,0 Mio px² je Bot, und
+   * genau das war die freigegebene Verschnaufpause.
+   *
+   * Auf 54 Mio px² ergeben dieselben 3,0 Mio px² je Bot achtzehn Stück. Die
+   * Zahl steigt also, das Spielgefühl bleibt – acht Bots wären hier eine
+   * gespenstisch leere Karte, und das trifft ausgerechnet den ersten Eindruck
+   * eines neuen Spielers, der allein hereinkommt.
+   */
+  baseBots: 18,
   botsPerHuman: 1,
   minimumBots: 3,
   phaseIntervalMs: 5_000,
@@ -203,6 +214,18 @@ export function tuneArenaDirector<T extends MazeGame>(
       state.nextChangeAt = now + config.phaseIntervalMs;
       return;
     }
+    /*
+     * Ein Abgang je Fenster – und das ist nicht der begrenzende Faktor.
+     *
+     * Gemessen (80 Clients auf 9000 × 6000): Mehrere Abgänge je Fenster zu
+     * erlauben brachte nach 95 s sechs statt sieben Bots und 138,8 statt
+     * 140,4 KB/s je Spieler – Rauschen. Der Engpass ist `pickDespawnCandidate`:
+     * Bei voller Arena ist kaum ein Bot außer Sichtweite *aller* Menschen, also
+     * gibt es schlicht keine Kandidaten. Die Regel „niemand verschwindet vor
+     * den Augen eines Spielers" gewinnt hier gegen jede Beschleunigung – und
+     * das ist richtig so. Ein Aufholmechanismus wurde deshalb wieder entfernt,
+     * statt ihn als wirkungslose Stellschraube stehen zu lassen.
+     */
     const candidate = pickDespawnCandidate(bots, humans, now, config);
     // Kein unauffälliger Kandidat: lieber einen Bot zu viel als einen, der
     // mitten im Kampf verschwindet. Im nächsten Durchgang erneut versuchen.

@@ -745,8 +745,8 @@ export interface PongMessage { type:'pong'; sentAt:number; serverTime:number; }
 export type ServerMessage = WorldSnapshot | WelcomeMessage | ErrorMessage | PongMessage;
 
 export const GAME = {
-  worldWidth: 6000,
-  worldHeight: 4000,
+  worldWidth: 9000,
+  worldHeight: 6000,
   visibleWorldWidth: 1600,
   visibleWorldHeight: 900,
   viewRadius: 1100,
@@ -756,8 +756,8 @@ export const GAME = {
   snapshotRate: 30,
   maxUpgradeLevel: 10,
   maxLevel: 60,
-  maxPlayers: 40,
-  shapeTargetCount: 250,
+  maxPlayers: 80,
+  shapeTargetCount: 562,
   respawnDelayMs: 2500,
   autoRespawnDelayMs: 7000,
   respawnInvulnerabilityMs: 2800,

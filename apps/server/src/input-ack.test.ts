@@ -5,7 +5,7 @@ import { MazeGame } from './game';
 import { NO_INPUT_PROCESSED, lastProcessedInputFor, tuneInputAck } from './input-ack';
 import { hardenSimulation } from './simulation-hardening';
 import { tuneSpectator } from './spectator';
-import { isFree } from './world';
+import { WALLS, isFree } from './world';
 
 interface Internals {
   players: Map<string, any>;
@@ -218,8 +218,18 @@ describe('Bewegungsintegration – Vertrag mit dem Client', () => {
     const game = createGame();
     const playerId = game.addPlayer('Fahrer');
     const player = (game as unknown as Internals).players.get(playerId);
-    // Genau in einer Wand: Beide Achsen sind blockiert.
-    player.position = { x: 3_000, y: 2_000 };
+    /*
+     * Genau in einer Wand: Beide Achsen sind blockiert.
+     *
+     * Die Wand wird gesucht, nicht geraten. Vorher stand hier der Festpunkt
+     * (3000, 2000) – der lag auf der 6000 × 4000er Karte in einer Wand und ist
+     * seit dem Wachstum auf 9000 × 6000 freies Feld. Der Test war damit still
+     * wirkungslos geworden, statt rot: Er haette eine Kollision geprueft, die
+     * gar nicht mehr stattfindet.
+     */
+    const wand = WALLS.find((kandidat) => kandidat.width >= 54 && kandidat.height >= 54);
+    expect(wand).toBeDefined();
+    player.position = { x: wand!.x + wand!.width / 2, y: wand!.y + wand!.height / 2 };
     expect(isFree(player.position, 22)).toBe(false);
     player.velocity = { x: 300, y: 300 };
 

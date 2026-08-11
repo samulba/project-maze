@@ -96,7 +96,12 @@ function integerEnvironment(name: string, fallback: number, minimum: number, max
 const PORT = integerEnvironment('PORT', 2567, 1, 65535);
 /** In Produktion hinter Reverse-Proxy auf 127.0.0.1 binden – nur Caddy/nginx erreicht den Prozess. */
 const HOST = process.env.HOST?.trim() || '0.0.0.0';
-const BOT_COUNT = integerEnvironment('BOT_COUNT', 8, 0, 18);
+/**
+ * Startpopulation der Arena. Der Standard folgt `DEFAULT_DIRECTOR_CONFIG`
+ * (Platz je Bot, nicht nackte Zahl); die Obergrenze liegt bewusst darüber,
+ * damit sich die Arena ohne Deploy dichter stellen lässt.
+ */
+const BOT_COUNT = integerEnvironment('BOT_COUNT', 18, 0, 40);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN?.trim() || '*';
 const ENABLE_DEV_TOOLS = process.env.ENABLE_DEV_TOOLS === 'true';
 /**

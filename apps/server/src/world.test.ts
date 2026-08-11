@@ -29,6 +29,34 @@ describe('world generation and collision', () => {
     expect(WALLS.length).toBeGreaterThan(20);
   });
 
+  /**
+   * Deckung ist das Wesen des Maze-Modus – und sie ist beim Vergroessern der
+   * Karte einmal still weggerutscht: Die Bahn-*Anzahlen* standen fest (4 Reihen,
+   * 6 Spalten), also wurden die Bahnen groesser statt zahlreicher, und die
+   * Deckung fiel von 4,4 % auf 3,5 % der Flaeche. Niemand haette das gemerkt,
+   * bis sich das Spiel offener anfuehlt und keiner sagen kann, warum.
+   *
+   * Der Korridor haelt beides fest: genug Waende, um Ecken und Hinterhalte zu
+   * haben, und nicht so viele, dass die Arena zur Enge wird.
+   */
+  it('haelt die Wanddeckung unabhaengig von der Kartengroesse', () => {
+    const wandflaeche = WALLS.reduce((summe, kandidat) => summe + kandidat.width * kandidat.height, 0);
+    const anteil = wandflaeche / (GAME.worldWidth * GAME.worldHeight);
+    expect(anteil).toBeGreaterThanOrEqual(0.038);
+    expect(anteil).toBeLessThanOrEqual(0.052);
+  });
+
+  /**
+   * Zweite Haelfte derselben Regel: Nicht nur die Flaeche muss stimmen, auch
+   * die Stueckzahl. Wenige riesige Waende deckten denselben Anteil ab, waeren
+   * als Labyrinth aber wertlos – Deckung entsteht aus Ecken, nicht aus Masse.
+   */
+  it('skaliert die Zahl der Waende mit der Flaeche', () => {
+    const proMillionPixel = WALLS.length / ((GAME.worldWidth * GAME.worldHeight) / 1e6);
+    expect(proMillionPixel).toBeGreaterThanOrEqual(1.3);
+    expect(proMillionPixel).toBeLessThanOrEqual(2.3);
+  });
+
   it('returns legal spawns and shapes', () => {
     for (let index = 0; index < 50; index += 1) {
       const spawn = randomSpawn();

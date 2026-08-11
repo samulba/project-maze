@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLASS_DEFINITIONS, type PlayerClass } from '@project-maze/shared';
+import { CLASS_DEFINITIONS, GAME, type PlayerClass } from '@project-maze/shared';
 import {
   BOT_CLASS_PATHS,
   DEFAULT_BOT_PACING,
@@ -11,6 +11,31 @@ import {
 } from './bot-brain';
 import { tuneCombatScaling } from './combat-tuning';
 import { MazeGame, botState } from './game';
+import { hasLineOfSight, isFree } from './world';
+
+/** Die drei Angreifer-Plätze rund um den Menschen, je 100 Einheiten entfernt. */
+const RING_VERSATZ = [{ x: 0, y: -100 }, { x: 0, y: 100 }, { x: -100, y: 0 }];
+
+/**
+ * Ein Fleck Arena, auf dem der Mensch und alle drei Angreifer frei stehen und
+ * sich gegenseitig sehen.
+ *
+ * Vorher stand hier der Festpunkt (2800, 2200). Der war auf der 6000 × 4000er
+ * Karte offen; nach dem Wachstum auf 9000 × 6000 lag einer der drei Ringplätze
+ * in einer Wand, der Bot hatte keine Sichtlinie und wählte gar kein Ziel – der
+ * Test fiel über die Karte, nicht über das Verhalten, das er prüfen soll.
+ */
+function freieMitte(): { x: number; y: number } {
+  for (let y = 400; y < GAME.worldHeight - 400; y += 50) {
+    for (let x = 400; x < GAME.worldWidth - 400; x += 50) {
+      const mitte = { x, y };
+      if (!isFree(mitte, 22)) continue;
+      const ring = RING_VERSATZ.map((v) => ({ x: x + v.x, y: y + v.y }));
+      if (ring.every((punkt) => isFree(punkt, 22) && hasLineOfSight(punkt, mitte))) return mitte;
+    }
+  }
+  throw new Error('Keine freie Kampfflaeche in der Arena gefunden');
+}
 
 interface Internals {
   players: Map<string, any>;
@@ -198,7 +223,7 @@ describe('bot brain', () => {
     const internals = game as unknown as Internals;
     const humanId = game.addPlayer('Star');
     const human = internals.players.get(humanId);
-    human.position = { x: 2800, y: 2200 };
+    human.position = freieMitte();
     human.level = 20;
     human.invulnerable = false;
     human.invulnerableUntil = 0;
@@ -210,7 +235,7 @@ describe('bot brain', () => {
     }
     // Gleiche Level und je 100 Einheiten Abstand: Der Mensch ist für alle drei
     // das nächste und bestbewertete Ziel, ganz ohne Zufall.
-    const ring = [{ x: 2800, y: 2100 }, { x: 2800, y: 2300 }, { x: 2700, y: 2200 }];
+    const ring = RING_VERSATZ.map((v) => ({ x: human.position.x + v.x, y: human.position.y + v.y }));
     attackers.forEach((bot, index) => {
       bot.position = ring[index]!;
       bot.level = human.level;
