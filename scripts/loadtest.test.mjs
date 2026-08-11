@@ -3,6 +3,7 @@ import {
   clientRandom,
   exitCodeFor,
   formatReport,
+  hinweiseZu,
   mulberry32,
   parseArgs,
   quantile,
@@ -258,5 +259,58 @@ describe('loadtest self tracking', () => {
     expect(c.dead).toBe(true);
     readSelf(c, { selfId: 'uuid-self', players: [player({ dead: false })] });
     expect(c.dead).toBe(false);
+  });
+});
+
+/**
+ * Ein Lasttest, der fuenf von achtzig Clients misst und dabei "96 KB/s je
+ * Client" meldet, ist schlimmer als keiner: Die Zahl sieht besser aus als die
+ * echte. Genau das passiert gegen einen Standard-Server, weil das Rate-Limit
+ * fuenf Verbindungen je IP erlaubt -- und ein Lasttest kommt von EINER IP.
+ */
+describe('loadtest close-code hints', () => {
+  it('erklaert 1013 als Rate-Limit statt es nur zu zaehlen', () => {
+    const [hinweis] = hinweiseZu({ 1013: 75 });
+    expect(hinweis).toContain('RATE_LIMIT_CONNECTIONS_PER_IP');
+    expect(hinweis).toContain('EINER IP');
+  });
+
+  it('schweigt, wenn nichts abgewiesen wurde', () => {
+    expect(hinweiseZu({})).toEqual([]);
+    expect(hinweiseZu({ 1000: 3 })).toEqual([]);
+  });
+
+  it('meldet mehrere Ursachen in stabiler Reihenfolge', () => {
+    const hinweise = hinweiseZu({ 1013: 2, 1008: 1 });
+    expect(hinweise).toHaveLength(2);
+    expect(hinweise[0]).toContain('Origin');
+    expect(hinweise[1]).toContain('Rate-Limit');
+  });
+
+  it('schreibt die unvollstaendige Messung in den Textbericht', () => {
+    const bericht = formatReport({
+      target: 'ws://127.0.0.1:2599',
+      requestedClients: 80,
+      rampSeconds: 6,
+      measuredSeconds: 110,
+      stoppedEarly: false,
+      inputRateHz: 40,
+      connections: {
+        joined: 5, joinRate: 0.0625, liveAtEnd: 5, rejectedArenaFull: 0,
+        connectionErrors: 0, rejectedJoins: 0, droppedDuringRun: 0,
+        closeCodes: { 1013: 75 }, hinweise: hinweiseZu({ 1013: 75 }), vollstaendig: false
+      },
+      throughput: {
+        snapshots: 100, snapshotsPerClientPerSecond: 30, inputsSent: 1,
+        upgradesSent: 0, classChoicesSent: 0, megabytesReceived: 1, kilobytesPerClientPerSecond: 96.1
+      },
+      latencyMs: { count: 1, average: 0, p50: 0, p95: 0, p99: 0, max: 0 },
+      snapshotIntervalMs: { count: 1, average: 33, p50: 33, p95: 33, p99: 33, max: 33 },
+      rttMs: { count: 1, average: 0, p50: 0, p95: 0, p99: 0, max: 0 },
+      joinMs: { count: 1, average: 0, p50: 0, p95: 0, p99: 0, max: 0 }
+    });
+    expect(bericht).toContain('MESSUNG UNVOLLSTAENDIG');
+    expect(bericht).toContain('nur 5 von 80');
+    expect(bericht).toContain('RATE_LIMIT_CONNECTIONS_PER_IP');
   });
 });

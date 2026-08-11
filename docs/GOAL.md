@@ -49,7 +49,7 @@ ist, entscheidet, wer es spielt.
 | Das Labyrinth bleibt ein Labyrinth | Wanddeckung 3,8–5,2 % der Fläche (`world.test.ts`) | ✅ 4,53 % |
 | Kein Upgrade ohne Wirkung | `upgradeAppliesTo`, geprüft durch die **ganze** Tuning-Kette | ✅ |
 | Kein Knopf ohne Server-Antwort | Alle 8 Familien-Signatures serverseitig verdrahtet | ✅ |
-| Keine Serverlags bei voller Arena | Tick p95 < 25 ms **und ≤ 160 KB/s pro Spieler** | ✅ 138,8 KB/s bei 80 Spielern, Tick p95 10,4 ms |
+| Keine Serverlags bei voller Arena | Tick p95 < 25 ms **und ≤ 160 KB/s pro Spieler** | ✅ Maze 142,7 KB/s / p95 7,6 ms · Royale 144,2 KB/s / p95 7,6 ms (je 80 Spieler) |
 | Die Leitung Server→Client ist heil | `npm run wire-probe` grün | ✅ |
 | Auf dem Handy lässt sich **spielen**, nicht nur gucken | `npm run touch-probe:all` grün | ✅ 5 Formate, 667×375 bis 932×430 |
 | Die Fortschrittsschleife trägt: farmen → aufsteigen → Klasse → Upgrade | `npm run progress-probe` grün | ✅ |
@@ -170,6 +170,29 @@ Frage, ob das ohne Lags geht. Gemessen, nicht geschätzt:
 
 Ergebnis: Eine **2,25-fach größere Karte mit doppelt so vielen Spielern kostet
 pro Kopf weniger** als die alte kleine Arena – 138,8 gegen 229,6 KB/s.
+
+**Nachgemessen am Stand mit allen drei Modi** (11.08., je 80 Clients, 110 s):
+
+| Modus | KB/s pro Spieler | Tick p95 | Budget | Ticks über 25 ms |
+|---|---|---|---|---|
+| Maze | 142,7 | 7,6 ms | 30 % | 2 |
+| Battle Royale | 144,2 | 7,6 ms | 18 % | 5 |
+
+Zwei Dinge stehen darin, die man sonst falsch läse:
+
+* **Royale kostet praktisch nichts extra** – 1 % mehr Bandbreite für Zone,
+  Rundenstand und Zonenschaden. Die Schicht rechnet nur im eigenen Modus und
+  hängt genau ein Feld an den Snapshot.
+* Das niedrigere **Budget** im Royale ist kein Vorteil, sondern die Regel des
+  Modus: Wer ausscheidet, wird nicht mehr simuliert. Die Arena wird im Lauf der
+  Runde billiger – am Ende steht ein Server, der fast nichts mehr tut.
+
+Die Ausreißer (bis 47 ms in einem Tick) liegen **nicht** an den Modi, sondern
+am Lasttest selbst: Sie fallen in den Join-Sturm, wenn 80 Verbindungen in sechs
+Sekunden aufschlagen, und in den Abbau am Ende. Im Betrieb dazwischen bleibt
+p95 bei 7,6 ms. Nachgestellt mit einem Zeitraffer-Lauf (`ROYALE_SPEED=20`, also
+zehn Rundenneustarts statt einem): Maximum 26 ms – der Neustart einer Runde mit
+80 Spielern ist es also auch nicht.
 
 Zwei Dinge, die man beim Nachmessen wissen muss, sonst erschrickt man:
 
@@ -397,10 +420,21 @@ und der Tick läge dann grob bei 70 % Auslastung statt 34 %. Vorher messen.
 
 ```bash
 # Bandbreite und Tick-Budget unter Last.
+#
+# Die beiden RATE_LIMIT-Variablen sind PFLICHT, nicht Kosmetik: Der Server
+# erlaubt fuenf gleichzeitige Verbindungen je IP, und ein Lasttest kommt immer
+# von EINER IP. Ohne sie messen 5 von 80 Clients -- und liefern mit rund
+# 96 KB/s ein Ergebnis, das besser aussieht als die Wahrheit. (Der Lasttest
+# sagt das inzwischen selbst: "MESSUNG UNVOLLSTAENDIG" plus Erklaerung.)
+#
 # Mindestens 100 s laufen lassen: Kuerzere Laeufe messen den Einschwingvorgang
 # (der Direktor baut seine Bots erst ab) und zeigen rund 20 % zu viel.
-node apps/server/dist/index.js &
+RATE_LIMIT_CONNECTIONS_PER_IP=100 RATE_LIMIT_JOINS_PER_MINUTE=200 \
+  node apps/server/dist/index.js &
 npm run loadtest -- --url ws://127.0.0.1:2567 --clients 80 --duration 110 --ramp 6 --json
+# Danach das Tick-Budget abholen -- es steht im Server, nicht im Lasttest:
+curl -s http://127.0.0.1:2567/health | grep -o '"tick":{[^}]*}'
+# Dasselbe fuer den Royale-Modus: ARENA_MODE=royale vor den Serverstart.
 
 # Leitung Server→Client (braucht zusaetzlich: npx vite --port 5199 apps/client)
 npm run wire-probe

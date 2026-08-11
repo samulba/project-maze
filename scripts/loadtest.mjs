@@ -10,6 +10,15 @@
  *   npm run loadtest -- --clients 50 --duration 30
  *   npm run loadtest -- --url wss://maze.example.com --clients 80 --json
  *
+ * **Gegen einen lokalen Server gehören zwei Variablen dazu**, sonst misst man
+ * fünf Clients statt achtzig: Der Server erlaubt `RATE_LIMIT_CONNECTIONS_PER_IP`
+ * (Standard 5) gleichzeitige Verbindungen je IP – und ein Lasttest kommt immer
+ * von *einer* IP. Der Lauf meldet das inzwischen selbst („MESSUNG
+ * UNVOLLSTAENDIG" plus Deutung des Close-Codes 1013), aber besser gleich:
+ *
+ *   RATE_LIMIT_CONNECTIONS_PER_IP=100 RATE_LIMIT_JOINS_PER_MINUTE=200 \
+ *     node apps/server/dist/index.js &
+ *
  * Exit-Code 1, sobald ein Client unerwartet scheitert (Verbindungsfehler,
  * ausbleibender Join, Abbruch während des Laufs). Eine volle Arena ist kein
  * Fehler, sondern ein Messergebnis und wird separat ausgewiesen.
@@ -487,7 +496,11 @@ export async function runLoadTest(options, hooks = {}) {
       connectionErrors: stats.connectionErrors,
       rejectedJoins: stats.rejectedJoins,
       droppedDuringRun: stats.droppedDuringRun,
-      closeCodes: stats.closeCodes
+      closeCodes: stats.closeCodes,
+      // Auch im JSON, nicht nur im Text: Wer `--json` auswertet, sieht sonst
+      // nur die Zahl 1013 und haelt eine Fuenf-Client-Messung fuer gueltig.
+      hinweise: hinweiseZu(stats.closeCodes),
+      vollstaendig: stats.joined >= options.clients - stats.rejectedArenaFull
     },
     throughput: {
       snapshots: stats.snapshots,
@@ -540,6 +553,19 @@ export function formatReport(report) {
   if (c.rejectedJoins > 0) lines.push(`  Abgelehnte Joins          ${c.rejectedJoins}`);
   const codes = Object.entries(c.closeCodes);
   lines.push(`  Unerwartete Close-Codes   ${codes.length > 0 ? codes.map(([code, count]) => `${code}×${count}`).join(', ') : 'keine'}`);
+  /*
+   * Eine unvollstaendige Messung muss man SEHEN, nicht ausrechnen: Fuenf von
+   * achtzig Clients liefern einen wunderbaren KB/s-Wert, der nichts bedeutet.
+   */
+  if (c.joined < report.requestedClients - c.rejectedArenaFull) {
+    lines.push('');
+    lines.push(`  !! MESSUNG UNVOLLSTAENDIG: nur ${c.joined} von ${report.requestedClients} Clients waren drin.`);
+    lines.push('     Die Durchsatz- und Latenzwerte unten gelten fuer diese wenigen, nicht fuer die Zielzahl.');
+  }
+  for (const hinweis of hinweiseZu(c.closeCodes)) {
+    lines.push('');
+    for (const zeile of hinweis.match(/.{1,74}(\s|$)/g) ?? [hinweis]) lines.push(`     ${zeile.trim()}`);
+  }
 
   const t = report.throughput;
   lines.push('', 'DURCHSATZ', '');
@@ -566,6 +592,36 @@ export function formatReport(report) {
   lines.push(`  zwischen zwei Snapshots (Soll ~${(1000 / 30).toFixed(0)} ms bei 30 Hz).`);
   lines.push('');
   return lines.join('\n');
+}
+
+/**
+ * Deutung der Close-Codes, mit denen ein Lauf scheitert – der Unterschied
+ * zwischen einer Zahl und einer Antwort.
+ *
+ * Anlass: Ein Lauf mit `--clients 80` gegen einen Standard-Server meldet
+ * `joined 5 / 80` und `1013×75`. Beides stimmt, und beides sagt einem, der die
+ * Codes nicht auswendig kann, nichts. Die eigentliche Auskunft ist: Das
+ * Rate-Limit erlaubt fünf Verbindungen je IP, und ein Lasttest kommt immer von
+ * *einer* IP. Wer das nicht sieht, misst fünf Clients, liest 96 KB/s und hält
+ * das für ein hervorragendes Ergebnis – es ist gar keines.
+ */
+const CLOSE_CODE_HINWEISE = {
+  1013: 'Code 1013 = „Try again later": Der Server hat die Verbindung wegen des'
+    + ' Rate-Limits abgewiesen. Es erlaubt RATE_LIMIT_CONNECTIONS_PER_IP (Standard 5)'
+    + ' gleichzeitige Verbindungen je IP – ein Lasttest kommt aber immer von EINER IP.'
+    + ' Fuer Lastlaeufe am Server setzen: RATE_LIMIT_CONNECTIONS_PER_IP=<clients>'
+    + ' und RATE_LIMIT_JOINS_PER_MINUTE ausreichend hoch.',
+  1008: 'Code 1008 = Origin abgewiesen: ALLOWED_ORIGIN am Server passt nicht zum Lasttest.',
+  1009: 'Code 1009 = Nachricht zu gross – das sollte im Lasttest nie vorkommen.'
+};
+
+/** Hinweise zu den Close-Codes dieses Laufs, in stabiler Reihenfolge. */
+export function hinweiseZu(closeCodes = {}) {
+  return Object.keys(closeCodes)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .filter((code) => CLOSE_CODE_HINWEISE[code])
+    .map((code) => CLOSE_CODE_HINWEISE[code]);
 }
 
 /** Exit-Code: 1, sobald Clients unerwartet scheitern. Volle Arena zählt nicht. */
