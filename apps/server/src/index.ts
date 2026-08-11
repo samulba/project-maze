@@ -58,12 +58,14 @@ import { tuneProgression } from './progression-tuning.js';
 import { tuneProjectileSpeed } from './projectile-speed.js';
 import { tunePerks } from './perks.js';
 import { createRateLimiter, messageKindOf, rateLimitsEnabled } from './rate-limits.js';
+import { preflightMeldung, supabasePreflight, type PreflightErgebnis } from './supabase-preflight.js';
 import {
   PROFILE_BODY_LIMIT,
   PROFILE_WRITE_COST,
   flushPersistence,
   leaderboardHandler,
   linkPlayerToUser,
+  persistenceConfig,
   persistenceStats,
   profileHandler,
   profileUpdateHandler,
@@ -785,11 +787,32 @@ const liveState = (): Record<string, unknown> => ({
   // Wie gesund der Takt läuft. Im Portal die Zeile, an der man einen
   // überlasteten Server erkennt, bevor Spieler es melden.
   tick: telemetryTickHealth(game),
-  persistence: persistenceStats(game),
+  persistence: { ...persistenceStats(game), schema: schemaZusammenfassung() },
   sessions: sessionsStats(game),
   auth: authStatus(),
   clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),
   abuse: rateLimiter.stats()
+});
+
+/*
+ * Ergebnis der Schema-Vorabpruefung, sobald sie durch ist. `null` heisst
+ * entweder „keine Datenbank konfiguriert" oder „laeuft noch" – beides wird in
+ * `/health` unterschieden, damit niemand ein fehlendes Feld als Entwarnung
+ * liest.
+ */
+let schemaBefund: PreflightErgebnis | null = null;
+
+/** Kurzfassung fuer `/health`: nur, was eine Entscheidung veraendert. */
+const schemaZusammenfassung = (): {
+  geprueft: boolean;
+  vollstaendig: boolean;
+  fehlend: string[];
+  offeneMigrationen: string[];
+} => ({
+  geprueft: schemaBefund !== null,
+  vollstaendig: schemaBefund?.vollstaendig ?? false,
+  fehlend: (schemaBefund?.befunde ?? []).filter((b) => b.stand === 'fehlt').map((b) => b.relation.name),
+  offeneMigrationen: [...(schemaBefund?.offeneMigrationen ?? [])]
 });
 
 app.get('/health', (_request: Request, response: Response) => {
@@ -868,3 +891,26 @@ if (CLIENT_DIST) {
 }
 
 server.listen(PORT, HOST, () => console.log(`Project Maze server listening on http://${HOST}:${PORT}`));
+
+/*
+ * Schema-Vorabpruefung, sobald der Server steht.
+ *
+ * Sie laeuft NACH `listen` und blockiert nichts: Das Spiel darf nie an der
+ * Statistik haengen. Ihr Zweck ist die Zweideutigkeit, die sonst erst Wochen
+ * spaeter auffaellt -- ein Admin-Portal voller Nullen sieht bei fehlender
+ * Tabelle genauso aus wie bei fehlenden Spielern. Ohne diese Zeilen merkt man
+ * eine vergessene Migration erst, wenn der erste Spieler wieder GEHT, und dann
+ * nur als gedrosselte Fehlerzeile im laufenden Log.
+ */
+const supabaseConfig = persistenceConfig();
+if (supabaseConfig) {
+  void supabasePreflight(supabaseConfig)
+    .then((ergebnis) => {
+      schemaBefund = ergebnis;
+      for (const zeile of preflightMeldung(ergebnis)) {
+        if (ergebnis.vollstaendig) console.log(zeile);
+        else console.warn(zeile);
+      }
+    })
+    .catch((error) => console.warn(`[supabase] Vorabpruefung nicht moeglich: ${String(error)}`));
+}

@@ -18,6 +18,12 @@ Der Inhalt einer Datei ändert sich durch das Verschieben nicht; jede Migration
 ist so geschrieben, dass ein versehentlicher zweiter Durchlauf nichts kaputt
 macht (`if not exists` / `on conflict do nothing`).
 
+**Ob eine Migration wirklich drin ist, muss man nicht raten.** Der Server prüft
+das beim Start und schreibt es ins Log (`[supabase] …`) sowie nach `/health`
+unter `persistence.schema`. Fehlt etwas, nennt die Meldung die Datei, die es
+anlegt. Diese Ablage-Tabelle ist die *Absicht*, `/health` ist der *Stand* – wer
+sie auseinanderlaufen sieht, glaubt `/health`.
+
 | Nr. | Datei | Inhalt | Status |
 | --- | --- | --- | --- |
 | 0001 | `applied/0001_runs.sql` | Tabelle `runs` (Leaderboard) | eingespielt 2026-08-05 |

@@ -104,6 +104,40 @@ Optional, beide mit sinnvollen Voreinstellungen:
 
 ## Schritt 5 – Prüfen, ob es funktioniert
 
+**Das Schnellste zuerst:** Der Server sieht beim Start selbst nach, ob das
+Schema steht, und schreibt das Ergebnis ins Log. Eine Zeile genügt als Antwort:
+
+```text
+[supabase] Schema vollstaendig – 8 Relationen geprueft.
+```
+
+Fehlt etwas, steht dort stattdessen, **was** fehlt, **wofür** es gebraucht wird
+und **welche Datei** es anlegt:
+
+```text
+[supabase] 4 Relation(en) fehlen – diese Daten gehen VERLOREN, das Spiel laeuft weiter:
+[supabase]   sessions (Besuche zählen) -> supabase/migrations/0005_sessions.sql
+[supabase]   devices (wiederkehrende Spieler) -> supabase/migrations/0005_sessions.sql
+[supabase] Einspielen: Supabase Studio -> SQL Editor -> Inhalt von 0005_sessions.sql ausfuehren.
+```
+
+Warum das der wichtigste Schritt ist: Eine vergessene Migration bringt den
+Server **nicht** zum Absturz. Er läuft weiter und verliert die betroffenen
+Daten still – und das Admin-Portal zeigt dann Nullen, die genauso aussehen wie
+„es war niemand da". Diese Zeilen lösen die Zweideutigkeit auf, bevor jemand
+Wochen auf einer Kennzahl plant, die gar nichts misst.
+
+Dasselbe steht in `/health`, falls das Log schon durchgelaufen ist:
+
+```json
+"persistence": { "enabled": true, "written": 0,
+  "schema": { "geprueft": true, "vollstaendig": true, "fehlend": [], "offeneMigrationen": [] } }
+```
+
+`"geprueft": false` heißt: keine Datenbank konfiguriert – oder die Prüfung läuft
+noch (sie startet erst, wenn der Server schon Anfragen annimmt, und blockiert
+den Start nie).
+
 1. `https://<deine-domain>/health` aufrufen. Es muss ein Block auftauchen:
 
    ```json
@@ -142,6 +176,8 @@ aufgerufen wird.
 | `/leaderboard` antwortet 404 | Persistenz ist aus | wie oben |
 | `/leaderboard` antwortet 503 | Erster Datenbankzugriff schlug fehl | Serverlog nach `[persistence]` durchsuchen; meist falsche URL oder falscher Schlüssel |
 | `failedFlushes` steigt, `written` bleibt 0 | Tabelle fehlt oder Schlüssel ist der öffentliche | Schritt 2 wiederholen; sicherstellen, dass der **geheime** Schlüssel eingetragen ist |
+| Admin-Portal zeigt überall Nullen | Migration `0005_sessions.sql` fehlt | `/health` unter `persistence.schema.offeneMigrationen` nachsehen; die genannten Dateien im SQL Editor ausführen |
+| `schema.geprueft` bleibt `false` | Keine Datenbank konfiguriert, oder die Prüfung kam nicht durch | Serverlog nach `[supabase]` durchsuchen – ein falscher Schlüssel meldet sich dort als „nicht pruefbar", nicht als fehlende Tabelle |
 | Runs fehlen, obwohl gespielt wurde | Score war 0, oder es war ein Bot | beides ist Absicht – nur echte Spieler mit Score > 0 landen im Leaderboard |
 | `permission denied for table runs` | Es wurde der öffentliche Schlüssel eingetragen | geheimen Schlüssel verwenden; RLS blockt den öffentlichen absichtlich |
 
