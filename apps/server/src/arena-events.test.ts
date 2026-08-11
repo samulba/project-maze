@@ -65,9 +65,26 @@ const createGame = (botCount = 0): MazeGame =>
   );
 
 /** Läuft die Event-Rotation ab, bis die gesuchte Art aktiv ist. */
+/**
+ * Haelt den Beobachter an einem festen, wandfreien Platz fest, waehrend auf das
+ * Event gewartet wird.
+ *
+ * Vorher stand er dort, wo `addPlayer` ihn zufaellig hingesetzt hat. Das war
+ * egal, solange Events immer in der Kartenmitte stattfanden – seit sie den
+ * Spielern folgen (`arena-systems.ts`), wandert damit der komplette Aufbau
+ * jedes Tests in diesem File mit. Ein Lauf ist so rot geworden und sechzehn
+ * gruen, ohne dass sich an der Software etwas geaendert haette.
+ */
 function advanceToEvent(game: MazeGame, viewerId: string, kind: string, start: number): { event: any; now: number } {
+  const internals = game as unknown as Internals;
+  const anker = freeSpotNear({ x: GAME.worldWidth / 2, y: GAME.worldHeight / 2 });
   let now = start;
   for (let index = 0; index < 700; index += 1) {
+    const viewer = internals.players.get(viewerId);
+    if (viewer) {
+      viewer.position = { ...anker };
+      viewer.dead = false;
+    }
     now += 1_000;
     game.step(1 / 40, now);
     const event = (game.snapshot(viewerId, now) as any).arenaEvent;
@@ -76,8 +93,35 @@ function advanceToEvent(game: MazeGame, viewerId: string, kind: string, start: n
   throw new Error(`Arena-Event "${kind}" wurde nicht aktiv`);
 }
 
-/** Wandfreier Platz nahe einem Punkt – hält die Aufbauten der Tests deterministisch. */
+/**
+ * Ein freier Platz nahe `center` – und einer, von dem aus man `center` auch
+ * *sieht*.
+ *
+ * Die Sichtlinie kam dazu, als die Arena-Events aufhoerten, immer in der
+ * Kartenmitte stattzufinden (`arena-systems.ts`). Vorher lagen Guardian und
+ * Herausforderer verlaesslich auf derselben freien Flaeche; seither landen sie
+ * mal hier, mal dort – und steht eine Wand dazwischen, trifft der Guardian
+ * nicht, obwohl an seinem Verhalten nichts falsch ist. Genau so ist der Test
+ * einmal rot geworden und dreimal gruen. Ein Test, der wuerfelt, ist schlimmer
+ * als keiner.
+ */
 function freeSpotNear(center: Vector2, clearance = 60): Vector2 {
+  return freeSpotSeenFrom(center, center, clearance);
+}
+
+/**
+ * Sucht nahe `center` einen freien Platz, von dem aus `blickziel` **sichtbar**
+ * ist – und das sind nicht zwangslaeufig derselbe Punkt.
+ *
+ * Genau daran ist der Guardian-Test gescheitert: Er setzte den Herausforderer
+ * 170 Einheiten neben den Guardian und suchte die Sichtlinie zu diesem
+ * Versatzpunkt statt zum Guardian selbst. `pickGuardianTarget` verlangt aber
+ * `hasLineOfSight(guardian.position, candidate.position)` – lag dazwischen eine
+ * Wand, sah der Guardian sein Ziel nie und feuerte nicht. Solange Events fest
+ * in der Kartenmitte lagen, fiel das nie auf; seit sie wandern, war der Test in
+ * einem Viertel der Laeufe rot.
+ */
+function freeSpotSeenFrom(center: Vector2, blickziel: Vector2, clearance = 60): Vector2 {
   for (let ring = 0; ring <= 8; ring += 1) {
     for (let step = 0; step < 16; step += 1) {
       const angle = (step / 16) * Math.PI * 2;
@@ -85,7 +129,7 @@ function freeSpotNear(center: Vector2, clearance = 60): Vector2 {
         x: center.x + Math.cos(angle) * ring * 45,
         y: center.y + Math.sin(angle) * ring * 45
       };
-      if (isFree(candidate, clearance)) return candidate;
+      if (isFree(candidate, clearance) && hasLineOfSight(candidate, blickziel)) return candidate;
     }
   }
   return { ...center };
@@ -502,23 +546,40 @@ describe('hunter signal event', () => {
 
     const challengerId = game.addPlayer('Challenger');
     const challenger = internals.players.get(challengerId);
-    challenger.position = freeSpotNear({ x: guardian.position.x + 170, y: guardian.position.y }, 40);
+    challenger.position = freeSpotSeenFrom({ x: guardian.position.x + 170, y: guardian.position.y }, guardian.position, 40);
     challenger.level = 20;
     challenger.invulnerable = false;
     challenger.invulnerableUntil = 0;
     challenger.health = challenger.maxHealth;
 
+    /*
+     * `primary` wird waehrend der Schleife mitgeschrieben, nicht danach
+     * abgelesen.
+     *
+     * Vorher stand am Ende `expect(guardian.primary).toBe(true)` – eine
+     * Momentaufnahme, die verlangt, dass der Guardian ausgerechnet in der
+     * letzten Millisekunde feuert. Er bewegt sich aber: `primary` gilt nur
+     * innerhalb `maxAimDistance + 60`, und wer kurz aus dieser Spanne laeuft,
+     * steht am Ende mit `false` da, obwohl er drei Sekunden lang geschossen
+     * hat. Solange Events fest in der Kartenmitte lagen, ging das immer gut;
+     * seit sie wandern, war der Test in vier von fuenfzehn Laeufen rot.
+     *
+     * Der Schaden bleibt die zweite, unabhaengige Bedingung – gefeuert zu haben
+     * genuegt nicht, es muss auch angekommen sein.
+     */
     // Der Herausforderer bleibt als Trainingsziel stehen, damit der Kill den Test nicht beendet.
     let damageTaken = 0;
+    let hatGefeuert = false;
     for (let index = 0; index < 120; index += 1) {
       now += 25;
       game.step(1 / 40, now);
+      if (guardian.primary) hatGefeuert = true;
       damageTaken += Math.max(0, challenger.maxHealth - challenger.health);
       challenger.health = challenger.maxHealth;
       challenger.invulnerable = false;
       challenger.invulnerableUntil = 0;
     }
-    expect(guardian.primary).toBe(true);
+    expect(hatGefeuert).toBe(true);
     expect(damageTaken).toBeGreaterThan(0);
   });
 

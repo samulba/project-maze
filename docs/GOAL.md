@@ -153,8 +153,17 @@ Szenario überhaupt. **Die Schalter sind die Voraussetzung, nicht die Kür.**
    Zahl, sondern der Platz je Bot: 3,0 Mio px², exakt der Wert, den Sam auf der
    alten Karte freigegeben hatte.
 
-   Zwei Dinge wären dabei fast still verlorengegangen, beide beim ersten
+   Drei Dinge wären dabei fast still verlorengegangen, beide beim ersten
    Eindruck am teuersten:
+
+   * **Die Arena-Events wären halb verschwunden.** Sie lagen fest in der
+     Kartenmitte mit festem Radius: auf der alten Karte 5 % der Fläche und nie
+     mehr als 3600 Einheiten entfernt, auf der neuen nur noch 2,2 % und bis zu
+     5400 Einheiten – bei Tempo 300 also achtzehn Sekunden Anfahrt für ein
+     Event, das vierzig dauert. Die Kartenecken wären dauerhaft belanglos
+     gewesen. Events suchen sich jetzt einen freien Platz in Reichweite eines
+     Spielers; der Radius bleibt, also stehen bei gleicher Dichte gleich viele
+     Leute drin wie vorher.
 
    * **Das Labyrinth wurde offener.** Die Bahn-*Anzahlen* standen fest (4 Reihen,
      6 Spalten), also wurden die Bahnen größer statt zahlreicher – Deckung fiel
