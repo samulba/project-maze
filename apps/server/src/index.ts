@@ -12,7 +12,11 @@ import {
   UPGRADE_IDS,
   sanitizePlayerName,
   type ClientMessage,
-  type ServerMessage
+  type ServerMessage,
+  ARENA_MODES,
+  ARENA_MODE_IDS,
+  isArenaMode,
+  type ArenaMode
 } from '@project-maze/shared';
 import {
   ACTIVE_MODULE_IDS,
@@ -86,6 +90,7 @@ import { tuneSnapshotEncoding } from './snapshot-encoding.js';
 import { createGracefulShutdown, installSignalHandlers } from './shutdown.js';
 import { servePrecompressed } from './static-assets.js';
 import { metricsHandler, telemetryTickHealth, tuneTelemetry } from './telemetry.js';
+import { setArenaMode } from './world.js';
 
 function integerEnvironment(name: string, fallback: number, minimum: number, maximum: number): number {
   const parsed = Number.parseInt(process.env[name] ?? '', 10);
@@ -102,6 +107,24 @@ const HOST = process.env.HOST?.trim() || '0.0.0.0';
  * damit sich die Arena ohne Deploy dichter stellen lässt.
  */
 const BOT_COUNT = integerEnvironment('BOT_COUNT', 18, 0, 40);
+/**
+ * Der Modus dieser Arena – `maze` (Standard) oder `ffa`.
+ *
+ * Eine Arena je Prozess, wie `WALLS` und `BOT_COUNT`: Wer beide Modi anbieten
+ * will, startet zwei Dienste. Das spart eine Menge Zustand, den sonst jede
+ * Regel mitschleppen müsste, und ist derselbe Weg, den die Konfiguration hier
+ * ohnehin schon geht.
+ *
+ * Ein Tippfehler fällt auf den Standard zurück und schreibt eine Zeile ins Log
+ * – still in einen unerwarteten Modus zu starten wäre schlimmer.
+ */
+const ARENA_MODE: ArenaMode = (() => {
+  const roh = (process.env.ARENA_MODE ?? '').trim().toLowerCase();
+  if (roh === '') return 'maze';
+  if (isArenaMode(roh)) return roh;
+  console.warn(`ARENA_MODE="${roh}" ist unbekannt – starte als "maze". Gueltig: ${ARENA_MODE_IDS.join(', ')}`);
+  return 'maze';
+})();
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN?.trim() || '*';
 const ENABLE_DEV_TOOLS = process.env.ENABLE_DEV_TOOLS === 'true';
 /**
@@ -324,6 +347,15 @@ const wss = new WebSocketServer({ server, maxPayload: 4096 });
 // Reihenfolge der äußeren Schichten: Encoding zuallerletzt, damit nur das
 // komprimiert wird, was wirklich über die Leitung geht – Persistenz und
 // Telemetrie sehen weiterhin vollständige Snapshots.
+/*
+ * Der Modus muss VOR dem Bau der Arena stehen. Der Konstruktor von `MazeGame`
+ * verteilt sofort 562 Formen und die Bots über die Karte und fragt dabei über
+ * `isFree` bereits die *wirksamen* Wände ab. Wer erst danach umschaltet, hat
+ * eine FFA-Arena, deren Startaufstellung noch um Wände herum gebaut wurde, die
+ * es gar nicht gibt – Formenlöcher an Stellen, wo für den Spieler nichts steht.
+ */
+setArenaMode(ARENA_MODE);
+
 const encodedGame = tuneSnapshotEncoding(
   // Sitzungserfassung außerhalb der Persistenz: Sie liest dieselben Ereignisse
   // (Tod, Verlassen), schreibt aber in eigene Tabellen und darf ausfallen, ohne
@@ -699,7 +731,8 @@ installSignalHandlers(gracefulShutdown);
 const liveState = (): Record<string, unknown> => ({
   humans: game.humanCount,
   ...game.entityCounts,
-  mode: 'maze-alpha',
+  mode: ARENA_MODE,
+  modeLabel: ARENA_MODES[ARENA_MODE].label,
   version: '1.0.0-alpha',
   // Zeigt, welcher Stand wirklich ausgeliefert wird – Railway setzt die Variable beim Build.
   commit: (process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT ?? 'unbekannt').slice(0, 7),

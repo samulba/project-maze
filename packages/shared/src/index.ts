@@ -820,6 +820,52 @@ export const respawnClassFrom = (_playerClass:PlayerClass):PlayerClass => 'core'
 export const ACCELERATION_SCALE = 1.12;
 
 /**
+ * Spielmodi. Sams Reihenfolge vom 11.08.: Maze (heute) + FFA + Battle Royale,
+ * und die Modi kommen zuletzt – „Modi erst wenn alles sitzt".
+ *
+ * Der Modus ist bewusst **eine Eigenschaft der Arena, nicht des Spielers**: Ein
+ * Serverprozess betreibt genau eine Arena, so wie `WALLS` prozessweit ist. Wer
+ * zwei Modi gleichzeitig anbieten will, startet zwei Prozesse – das ist
+ * derselbe Weg, den auch `BOT_COUNT` und `RATE_LIMIT_*` schon gehen, und er
+ * spart eine Menge Zustand, den sonst jede Regel mitschleppen müsste.
+ *
+ * `walls` ist der ganze Unterschied zwischen den ersten beiden Modi. Das klingt
+ * nach wenig und ist trotzdem ein anderes Spiel: Ohne Deckung zählen Reichweite
+ * und Tempo statt Ecken, SPECTER verliert seine Verstecke, SIEGE gewinnt freie
+ * Schusslinien.
+ */
+export const ARENA_MODE_IDS = ['maze', 'ffa'] as const;
+export type ArenaMode = typeof ARENA_MODE_IDS[number];
+
+export interface ArenaModeDefinition {
+  readonly id: ArenaMode;
+  readonly label: string;
+  /** Kurzbeschreibung für die Auswahl – ein Satz, kein Absatz. */
+  readonly blurb: string;
+  /** Erzeugt die Arena Wände? Der einzige mechanische Unterschied. */
+  readonly walls: boolean;
+}
+
+export const ARENA_MODES: Record<ArenaMode, ArenaModeDefinition> = {
+  maze: {
+    id: 'maze',
+    label: 'Maze',
+    blurb: 'Wände, Ecken und Deckung. Wer die Karte kennt, gewinnt Duelle, die er sonst verliert.',
+    walls: true
+  },
+  ffa: {
+    id: 'ffa',
+    label: 'Free for All',
+    blurb: 'Offene Arena ohne Wände. Freie Sichtlinien – Reichweite und Tempo entscheiden.',
+    walls: false
+  }
+};
+
+/** Prüft eine Modus-Angabe von außen (Umgebungsvariable, künftig Client). */
+export const isArenaMode = (value: unknown): value is ArenaMode =>
+  typeof value === 'string' && (ARENA_MODE_IDS as readonly string[]).includes(value);
+
+/**
  * Bewegungswerte aus Grundklasse, Tempo-Upgrade und Rahmen – **die einzige
  * Stelle**, an der diese Rechnung steht.
  *

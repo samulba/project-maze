@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import {
+  ARENA_MODES,
   GAME,
   type PlayerSnapshot,
   type ShapeSnapshot,
@@ -9,7 +10,7 @@ import {
 import type { ArenaEventKind, ArenaEventSnapshot, GameplayWorldExtension } from '@project-maze/shared/gameplay';
 import { MazeGame } from './game.js';
 import { distanceSquared } from './physics.js';
-import { createShape, isFree } from './world.js';
+import { createShape, currentArenaMode, isFree } from './world.js';
 
 /** Der geteilte `ArenaEventKind` deckt inzwischen alle Events ab – Aliase bleiben für die Event-Schicht. */
 export type ServerArenaEventKind = ArenaEventKind;
@@ -200,7 +201,20 @@ function spawnEventShape(internals: ArenaInternals, center: Vector2, radius: num
 
 function updateEvent(internals: ArenaInternals, state: ArenaState, now: number): void {
   if (!state.event && now >= state.nextEventAt) {
-    const kind = ARENA_EVENT_ROTATION[state.eventIndex % ARENA_EVENT_ROTATION.length] ?? 'coreSurge';
+    /*
+     * Fracture bricht Wandsegmente auf – in einer Arena ohne Wände ist das ein
+     * Ereignis, bei dem nichts passiert. Ein angekündigtes Event, das dann
+     * folgenlos bleibt, ist schlimmer als eines weniger: Es lehrt Spieler, die
+     * Ankündigung zu ignorieren.
+     *
+     * Die Rotation wird deshalb nach Modus gefiltert, nicht das einzelne Event
+     * übersprungen – sonst käme in FFA jedes vierte Mal eine Pause statt eines
+     * Events.
+     */
+    const rotation = ARENA_MODES[currentArenaMode()].walls
+      ? ARENA_EVENT_ROTATION
+      : ARENA_EVENT_ROTATION.filter((art) => art !== 'fracture');
+    const kind = rotation[state.eventIndex % rotation.length] ?? 'coreSurge';
     const timing = ARENA_EVENT_TIMINGS[kind];
     const startsAt = now + timing.warningMs;
     state.eventIndex += 1;

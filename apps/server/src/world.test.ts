@@ -11,6 +11,8 @@ import {
   randomSpawn,
   resetDisabledWalls,
   setWallDisabled,
+  setArenaMode,
+  currentArenaMode,
   wallsInView
 } from './world';
 
@@ -126,5 +128,60 @@ describe('deaktivierbare Wandsegmente', () => {
     resetDisabledWalls();
     expect(isFree(inside, 22)).toBe(false);
     expect(isWallDisabled(wall.id)).toBe(false);
+  });
+});
+
+/**
+ * FFA ist der heutige Modus OHNE Waende. Das klingt nach einer Kleinigkeit und
+ * ist ein anderes Spiel: keine Deckung, freie Sichtlinien, SPECTER verliert
+ * seine Verstecke.
+ *
+ * Geprueft wird das Ergebnis, nicht der Schalter -- `WALLS` bleibt erzeugt, nur
+ * wirkt es nicht mehr. Wer das verwechselt, prueft eine Variable statt der
+ * Arena, in der gespielt wird.
+ */
+describe('Arena-Modus', () => {
+  afterEach(() => setArenaMode('maze'));
+
+  it('nimmt im Maze-Modus jede Wand ernst', () => {
+    setArenaMode('maze');
+    const wand = WALLS.find((k) => k.width >= 54 && k.height >= 54)!;
+    const mitte = { x: wand.x + wand.width / 2, y: wand.y + wand.height / 2 };
+    expect(isFree(mitte, 22)).toBe(false);
+    expect(wallsInView(mitte).length).toBeGreaterThan(0);
+  });
+
+  it('laesst in FFA keine einzige Wand wirken', () => {
+    setArenaMode('ffa');
+    // Jede erzeugte Wand ist begehbar – die Karte ist offen.
+    for (const wand of WALLS) {
+      const mitte = { x: wand.x + wand.width / 2, y: wand.y + wand.height / 2 };
+      expect(isFree(mitte, 22), wand.id).toBe(true);
+    }
+    // Und es wird auch keine mehr an Clients gesendet.
+    expect(wallsInView({ x: GAME.worldWidth / 2, y: GAME.worldHeight / 2 })).toHaveLength(0);
+  });
+
+  it('gibt in FFA ueberall freie Sichtlinien', () => {
+    setArenaMode('maze');
+    const paare: Array<[{ x: number; y: number }, { x: number; y: number }]> = [];
+    for (let i = 0; i < 40; i += 1) {
+      const a = { x: 300 + (i * 211) % (GAME.worldWidth - 600), y: 300 + (i * 397) % (GAME.worldHeight - 600) };
+      const b = { x: 300 + (i * 613) % (GAME.worldWidth - 600), y: 300 + (i * 149) % (GAME.worldHeight - 600) };
+      paare.push([a, b]);
+    }
+    const imMaze = paare.filter(([a, b]) => hasLineOfSight(a, b)).length;
+    // Im Labyrinth ist mindestens eine Linie verstellt – sonst prueft der Test nichts.
+    expect(imMaze).toBeLessThan(paare.length);
+
+    setArenaMode('ffa');
+    expect(paare.every(([a, b]) => hasLineOfSight(a, b))).toBe(true);
+  });
+
+  it('setzt den Standard auf maze, damit ein Fehlstart nichts umbaut', () => {
+    setArenaMode('maze');
+    expect(currentArenaMode()).toBe('maze');
+    setArenaMode('ffa');
+    expect(currentArenaMode()).toBe('ffa');
   });
 });

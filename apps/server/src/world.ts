@@ -1,4 +1,4 @@
-import { GAME, type ShapeKind, type ShapeSnapshot, type Vector2, type Wall } from '@project-maze/shared';
+import { GAME, type ShapeKind, type ShapeSnapshot, type Vector2, type Wall, ARENA_MODES, type ArenaMode } from '@project-maze/shared';
 import { clamp, normalize } from './physics.js';
 
 interface ShapeConfig { radius: number; health: number; reward: number; bodyDamage: number; drift: number; }
@@ -76,11 +76,35 @@ export const FRACTURABLE_WALL_IDS: readonly string[] = WALLS
   .map((candidate) => candidate.id);
 const fracturable = new Set(FRACTURABLE_WALL_IDS);
 const wallsById = new Map(WALLS.map((candidate) => [candidate.id, candidate] as const));
+/**
+ * Der Modus dieser Arena. Prozessweit wie `WALLS` – ein Serverprozess betreibt
+ * genau eine Arena (siehe `ARENA_MODES` in shared).
+ */
+let arenaMode: ArenaMode = 'maze';
+
 /** Zwischenspeicher, damit der Normalfall ohne Fracture keine zusätzliche Prüfung kostet. */
 let activeWalls: Wall[] = WALLS;
 const refreshActiveWalls = (): void => {
+  // FFA hat keine Waende. Die Liste bleibt erzeugt – nur sieht sie niemand:
+  // Kollision, Sichtlinie und Snapshot lesen ausschliesslich `activeWalls`.
+  if (!ARENA_MODES[arenaMode].walls) { activeWalls = []; return; }
   activeWalls = disabledWallIds.size === 0 ? WALLS : WALLS.filter((candidate) => !disabledWallIds.has(candidate.id));
 };
+
+/**
+ * Stellt den Modus der Arena ein. Wird beim Start genau einmal gerufen; die
+ * Tests nutzen sie, um beide Modi zu pruefen.
+ *
+ * `WALLS` selbst bleibt unangetastet – es ist die *erzeugte* Karte, nicht die
+ * *wirksame*. Diese Trennung gab es schon fuer das Fracture-Event, das einzelne
+ * Segmente oeffnet; FFA ist derselbe Mechanismus mit allen Segmenten.
+ */
+export function setArenaMode(mode: ArenaMode): void {
+  arenaMode = mode;
+  refreshActiveWalls();
+}
+
+export const currentArenaMode = (): ArenaMode => arenaMode;
 
 export const wallById = (id: string): Wall | undefined => wallsById.get(id);
 export const isWallDisabled = (id: string): boolean => disabledWallIds.has(id);
