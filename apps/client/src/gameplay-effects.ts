@@ -2,6 +2,7 @@ import { Application, Container, Graphics } from 'pixi.js';
 import { GAME, type PlayerSnapshot, type Vector2, type WorldSnapshot } from '@project-maze/shared';
 import type { GameplayWorldExtension } from '@project-maze/shared/gameplay';
 import { GUARDIAN_COLOR, arenaEventStyle } from './arena-event-style';
+import { inRoyaleDanger } from './royale-banner';
 import { DEFAULT_VIEW_MODE, computeViewport, type ViewMode } from './viewport';
 
 type ExtendedSnapshot = WorldSnapshot & Partial<GameplayWorldExtension>;
@@ -113,8 +114,10 @@ export class GameplayEffects {
         this.graphics.circle(center.x, center.y, zone.targetRadius * viewport.scale)
           .stroke({ color: 0x7bd6ff, alpha: 0.3, width: 2 });
       }
-      const abstand = Math.hypot(self.position.x - zone.center.x, self.position.y - zone.center.y);
-      if (abstand > zone.radius) {
+      // Dieselbe Frage wie im HUD, deshalb dieselbe Funktion: Hier stand die
+      // Bedingung ohne `stage > 0`, die HUD-Zeile mit. In der Schonfrist hätte
+      // der Rand also gewarnt, während die Zeile daneben schwieg.
+      if (inRoyaleDanger(zone, self)) {
         const warnPuls = 0.28 + Math.sin(this.time * 6) * 0.1;
         this.graphics.rect(viewport.x, viewport.y, viewport.width, viewport.height)
           .stroke({ color: 0xef5f6f, alpha: warnPuls, width: 14 });

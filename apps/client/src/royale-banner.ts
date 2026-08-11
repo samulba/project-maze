@@ -24,6 +24,28 @@ const PHASE_COPY: Record<RoyaleZoneSnapshot['phase'], string> = {
   haelt: 'Zone hält'
 };
 
+/**
+ * Nimmt dieser Tank gerade Zonenschaden?
+ *
+ * Dieselben drei Bedingungen wie der Server, in derselben Reihenfolge:
+ * lebendig, Stufe über null, und echt außerhalb – der Rand zählt noch als
+ * drinnen (`abstand <= radius` überspringt dort den Schaden).
+ *
+ * `stage > 0` steht mit dabei, obwohl der Startkreis die Karte heute exakt
+ * umschließt und niemand in der Schonfrist draußen stehen *kann*. Genau darauf
+ * zu bauen hieße, eine Warnung an das zufällige Zusammentreffen zweier Zahlen
+ * aus zwei Dateien zu hängen. Ein kleinerer Startradius, und Rand, Pfeil und
+ * Banner warnten vor einem Schaden, den es nicht gibt.
+ *
+ * Steht hier und nicht dreimal einzeln, weil Bildschirmrand, Richtungspfeil und
+ * HUD-Zeile dieselbe Frage stellen. Als der Bildschirmrand seine eigene Fassung
+ * hatte, warnte er in der Schonfrist, während die HUD-Zeile schwieg.
+ */
+export function inRoyaleDanger(zone: RoyaleZoneSnapshot, self: Pick<PlayerSnapshot, 'position' | 'dead'>): boolean {
+  if (self.dead || zone.stage <= 0 || zone.roundOver) return false;
+  return Math.hypot(self.position.x - zone.center.x, self.position.y - zone.center.y) > zone.radius;
+}
+
 export function royaleBannerCopy(zone: RoyaleZoneSnapshot | null, self: PlayerSnapshot): RoyaleBannerCopy | null {
   if (!zone) return null;
   if (zone.roundOver) {
@@ -35,19 +57,7 @@ export function royaleBannerCopy(zone: RoyaleZoneSnapshot | null, self: PlayerSn
       line: `Neue Runde in ${Math.max(0, Math.ceil(zone.nextRoundInMs / 1000))}s`
     };
   }
-  const abstand = Math.hypot(self.position.x - zone.center.x, self.position.y - zone.center.y);
-  /*
-   * Dieselben drei Bedingungen wie der Server, in derselben Reihenfolge:
-   * lebendig, Stufe über null, und echt außerhalb – der Rand selbst zählt noch
-   * als drinnen (`abstand <= radius` überspringt dort den Schaden).
-   *
-   * `stage > 0` steht mit dabei, obwohl der Startkreis die Karte heute exakt
-   * umschließt und niemand in der Schonfrist draußen stehen *kann*. Genau
-   * darauf zu bauen hieße, eine Anzeige an das zufällige Zusammentreffen zweier
-   * Zahlen aus zwei Dateien zu hängen. Ein kleinerer Startradius, und das HUD
-   * warnte vor einem Schaden, den es nicht gibt.
-   */
-  if (!self.dead && zone.stage > 0 && abstand > zone.radius) {
+  if (inRoyaleDanger(zone, self)) {
     return {
       state: 'outside',
       title: 'AUSSERHALB DER ZONE',

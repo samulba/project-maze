@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PlayerSnapshot } from '@project-maze/shared';
 import type { RoyaleZoneSnapshot } from '@project-maze/shared/gameplay';
-import { royaleBannerCopy, royaleDeathHint } from './royale-banner';
+import { inRoyaleDanger, royaleBannerCopy, royaleDeathHint } from './royale-banner';
 
 /**
  * Die Royale-Zeile ist die einzige Anzeige, die im Battle Royale jede Sekunde
@@ -89,6 +89,49 @@ describe('Royale-Banner', () => {
     // auch wenn man geometrisch weit draussen steht.
     const copy = royaleBannerCopy(zone({ roundOver: true, nextRoundInMs: 5000 }), spieler(9000, 9000))!;
     expect(copy.state).toBe('over');
+  });
+});
+
+/**
+ * Bildschirmrand, Richtungspfeil und HUD-Zeile stellen dieselbe Frage. Sie
+ * hatten zwei Antworten: Der Rand kannte `stage > 0` nicht und haette in der
+ * Schonfrist gewarnt, waehrend die Zeile daneben schwieg. Seitdem eine
+ * Funktion, und diese Faelle halten sie zusammen.
+ */
+describe('Zonenschaden-Bedingung', () => {
+  it('meldet Gefahr nur jenseits des Radius', () => {
+    expect(inRoyaleDanger(zone(), spieler(1501, 1000))).toBe(true);
+    expect(inRoyaleDanger(zone(), spieler(1500, 1000))).toBe(false);
+    expect(inRoyaleDanger(zone(), spieler(1000, 1000))).toBe(false);
+  });
+
+  it('schweigt in der Schonfrist', () => {
+    expect(inRoyaleDanger(zone({ stage: 0 }), spieler(9000, 9000))).toBe(false);
+  });
+
+  it('schweigt in der Rundenpause', () => {
+    // Der Server setzt den Zonenschaden bei `roundOver` aus - der Sieger soll
+    // seinen Moment haben, nicht am Rand verbluten.
+    expect(inRoyaleDanger(zone({ roundOver: true }), spieler(9000, 9000))).toBe(false);
+  });
+
+  it('schweigt fuer Tote', () => {
+    expect(inRoyaleDanger(zone(), spieler(9000, 9000, true))).toBe(false);
+  });
+
+  it('deckt sich mit dem, was das Banner anzeigt', () => {
+    // Die eine Stelle, an der beide Antworten aufeinandertreffen: Was der
+    // Bildschirmrand rot faerbt, muss die Zeile auch benennen.
+    for (const fall of [
+      { z: zone(), s: spieler(1501, 1000) },
+      { z: zone(), s: spieler(1000, 1000) },
+      { z: zone({ stage: 0 }), s: spieler(9000, 9000) },
+      { z: zone({ roundOver: true }), s: spieler(9000, 9000) },
+      { z: zone(), s: spieler(9000, 9000, true) }
+    ]) {
+      const gefahr = inRoyaleDanger(fall.z, fall.s);
+      expect(royaleBannerCopy(fall.z, fall.s)!.state === 'outside').toBe(gefahr);
+    }
   });
 });
 
