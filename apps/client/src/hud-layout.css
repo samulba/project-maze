@@ -63,16 +63,28 @@
  */
 :root:has(.class-selection:not([hidden])) .onboarding,
 :root:has(.class-selection:not([hidden])) .arena-event-banner,
-:root:has(.class-selection:not([hidden])) .bounty-banner,
+:root:has(.class-selection:not([hidden])) .bounty-banner { opacity: 0; transition: none; }
+
 /*
- * Die Royale-Zeile weicht mit – aber nur, solange sie Status meldet.
+ * Die Royale-Zeile weicht auch – die Frage ist nur, ob auch dann, wenn sie
+ * gerade Schaden meldet.
  *
- * „AUSSERHALB DER ZONE" ist keine Meldung, die zehn Sekunden warten kann: Sie
- * laeuft, waehrend Leben verschwindet, und die Wahlkarte erscheint von selbst
- * beim Level-Up, ohne dass jemand darum gebeten hat. Eine Anzeige, die genau
- * dann verschwindet, wenn sie zaehlt, waere schlimmer als keine.
+ * „AUSSERHALB DER ZONE" läuft, während Leben verschwindet, und die Wahlkarte
+ * erscheint beim Level-Up von selbst, ohne dass jemand darum gebeten hat. Wo
+ * Platz ist, bleibt die Warnung deshalb stehen.
+ *
+ * Auf dem Handy ist kein Platz: Bei 390 px Höhe deckt die Wahlkarte den
+ * Meldungs-Slot, gemessen auf iPhone 13, 15 Max und Pixel. Dort weicht auch
+ * die Warnung – ohne dass die Auskunft verloren geht, denn der rote
+ * Bildschirmrand und der Pfeil zur Zone liegen im Spielfeld und bleiben
+ * sichtbar. Sie sagen „lauf" und „wohin"; nur die Zahl dahinter wartet.
  */
-:root:has(.class-selection:not([hidden])) .royale-banner:not([data-state="outside"]) { opacity: 0; transition: none; }
+@media (pointer: fine) {
+  :root:has(.class-selection:not([hidden])) .royale-banner:not([data-state="outside"]) { opacity: 0; transition: none; }
+}
+@media (pointer: coarse) {
+  :root:has(.class-selection:not([hidden])) .royale-banner { opacity: 0; transition: none; }
+}
 
 /* ------------------------------------------------------------------ *
  * F3 – Klassenwahl und Upgrade-Panel kämpften um dieselbe Fläche
