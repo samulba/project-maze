@@ -176,6 +176,35 @@ Szenario überhaupt. **Die Schalter sind die Voraussetzung, nicht die Kür.**
 - Serverautorität sauber durchgezogen, Client schickt nur Eingaben.
 - Admin-Portal, das beantworten kann, ob Spieler wiederkommen.
 
+## Eine Fehlerklasse, die zweimal zugeschlagen hat
+
+Der Server ist eine Basisklasse plus eine Kette von `tuneX(game)`-Schichten. Die
+Schichten dürfen Methoden **ersetzen** – und eine, die ersetzt statt umschließt,
+verschluckt still jede Regel, die in der Basis steht.
+
+`tuneCombatScaling` ersetzt `applyUpgrade`, `chooseClass`, `respawn` und
+`stepPlayer`. Zwei Regeln sind darin verlorengegangen, beide monatelang:
+
+| Regel in der Basis | Was tatsächlich lief |
+|---|---|
+| `upgradeAppliesTo` – kein Punkt für tote Slots | gar nicht geprüft; ein Controller konnte Kugeltempo kaufen |
+| `respawnClassFrom` – nach dem Tod zurück auf `core` | `classAvailableAtLevel` – also **genau Sams beklagtes Verhalten** |
+
+Der zweite ist der bittere: Der Kommentar in der Basis zitiert Sams Befund vom
+07.08. wörtlich, der Fix stand da – und lief nie. Der Test dazu prüfte
+`respawnClassFrom` **direkt** statt den Weg durch die Kette und blieb grün,
+während das Spiel das Gegenteil tat.
+
+**Die Lehre steht jetzt in den Tests:** Beide werden durch die echte
+Produktionskette geprüft, nicht gegen die Basis, und beide sind per Sabotage
+gegengeprüft. Wer eine Regel nur an der Hilfsfunktion testet, misst nicht, ob
+sie jemand aufruft.
+
+Noch offen und bewusst nicht angefasst: Basis und Schicht behalten nach dem Tod
+unterschiedlich viel Punktestand (0,45 gegen 0,5). Gelaufen ist immer 0,5. Das
+zu ändern wäre eine Balance-Entscheidung, keine Fehlerbehebung – dafür braucht
+es Sam.
+
 ## Was fehlt
 
 1. ~~Die zwei Bandbreiten-Schalter anschalten.~~ ✅ **erledigt** – beide sind

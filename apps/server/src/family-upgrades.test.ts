@@ -573,3 +573,44 @@ describe('Upgrade-Sperre durch die gesamte Tuning-Kette', () => {
     expect(player.availablePoints).toBe(3);
   });
 });
+
+/**
+ * Respawn setzt auf die Anfangsklasse zurueck -- geprueft am Spiel, nicht an
+ * der Hilfsfunktion.
+ *
+ * `packages/shared` testet `respawnClassFrom(id) === 'core'` fuer alle 65
+ * Klassen. Das war gruen, waehrend das laufende Spiel das Gegenteil tat:
+ * `tuneCombatScaling` ersetzt `respawn` vollstaendig und rief dort weiterhin
+ * `classAvailableAtLevel` auf -- also genau Sams beklagtes Verhalten vom
+ * 07.08. ("man ist direkt in einer klasse die man davor ausgewaehlt hat").
+ *
+ * Ein Test, der nur die Hilfsfunktion prueft, sagt nichts darueber, ob sie
+ * jemand aufruft. Dieser hier geht durch `requestRespawn`.
+ */
+describe('Respawn durch die gesamte Tuning-Kette', () => {
+  interface Innereien {
+    players: Map<string, any>;
+    killPlayer(target: any, attackerId: string | null, now: number, environmentName: string): void;
+  }
+
+  it('setzt auf core zurueck, egal wie hoch die Klasse war', () => {
+    for (const start of ['gatling', 'eclipse', 'sovereign', 'leviathan'] as PlayerClass[]) {
+      const game = tuneCombatScaling(new MazeGame(0));
+      const internals = game as unknown as Innereien;
+      const id = game.addPlayer('Gefallener');
+      const player = internals.players.get(id);
+      player.playerClass = start;
+      player.level = 60;
+
+      const now = Date.now();
+      internals.killPlayer(player, null, now, 'Arena');
+      expect(player.dead, start).toBe(true);
+      game.requestRespawn(id, now + GAME.respawnDelayMs + 1);
+
+      expect(player.dead, start).toBe(false);
+      expect(player.playerClass, `${start} -> nach dem Tod`).toBe('core');
+      // Die halbe Stufe bleibt – zurueckgesetzt wird die Klasse, nicht der Fortschritt.
+      expect(player.level, start).toBe(30);
+    }
+  });
+});

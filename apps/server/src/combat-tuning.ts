@@ -6,6 +6,7 @@ import {
   UPGRADE_IDS,
   classAvailableAtLevel,
   isValidClassChoice,
+  respawnClassFrom,
   upgradeAppliesTo,
   upgradePointsAtLevel,
   xpAtLevelStart,
@@ -203,7 +204,20 @@ export function tuneCombatScaling<T extends MazeGame>(game: T): T {
 
   internals.respawn = (player: RuntimePlayer, now: number): void => {
     const retainedLevel = Math.max(1, player.respawnLevel);
-    player.playerClass = classAvailableAtLevel(player.playerClass, retainedLevel);
+    /*
+     * Zurueck auf die Anfangsklasse -- Sams Befund vom 07.08.: „wenn es viele
+     * level hat und man stirbt ist man direkt in einer klasse die man davor
+     * ausgewaehlt hat, man sollte aber bei der anfangs klasse wieder sein".
+     *
+     * Hier stand `classAvailableAtLevel(player.playerClass, retainedLevel)` --
+     * also genau das beklagte Verhalten: Wer als Gatling auf 60 starb, kam auf
+     * 30 als Gatling zurueck, weil das auf der Stufe erlaubt ist. Der Fix ging
+     * in `MazeGame.respawn`, aber diese Schicht ersetzt die Basis vollstaendig
+     * und haengt fest in der Produktionskette. Der Bug war also nie behoben,
+     * und der Test dazu prueft `respawnClassFrom` direkt statt den Weg durch
+     * die Kette -- er blieb gruen, waehrend das Spiel das Gegenteil tat.
+     */
+    player.playerClass = respawnClassFrom(player.playerClass);
     player.position = internals.safeSpawn();
     player.velocity = { x: 0, y: 0 };
     player.level = retainedLevel;
