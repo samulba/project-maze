@@ -126,9 +126,39 @@ export const PROJECTILE_UPGRADE_IDS = ['projectileSpeed', 'penetration', 'projec
  * an der Klasse, sondern daran, welche Signatures der Server eingehängt hat –
  * das weiß nur er (`apps/server/src/family-upgrades.ts`).
  */
+/**
+ * Die beiden Slots, die an der Familien-Signature hängen.
+ *
+ * Sie werden ausschliesslich in den Familien-Tunern gelesen
+ * (`momentumConfigFor`, `stellungConfigFor`, …), und die greifen nur bei
+ * Klassen ihrer Familie. Wer zu keiner Familie gehört, hat hier zwei tote
+ * Plätze.
+ */
+export const SIGNATURE_UPGRADE_IDS = ['signatureRate', 'signaturePower'] as const;
+
+/**
+ * Wirkt dieses Upgrade bei dieser Klasse überhaupt?
+ *
+ * Zwei Regeln, beide aus demselben Befund: Ein Platz, der nichts tut, kostet
+ * trotzdem einen Punkt – und der Punkt ist weg.
+ *
+ * 1. **Projektil-Upgrades brauchen ein Rohr.** Kugeltempo, Durchschlag und
+ *    Reichweite werden im Server nur dort gelesen, wo aus einem Rohr etwas
+ *    herauskommt. Für die zehn Drohnenklassen waren drei der zwölf Plätze
+ *    wirkungslos (Sams „es gibt jetzt zu viele Upgrades INGAME").
+ * 2. **Signature-Upgrades brauchen eine Familie.** `core` gehört zu keiner der
+ *    acht – gemessen: null von acht `is…Class`-Prüfungen trifft zu. Das ist
+ *    nicht nur ein Randfall der Stufen 2 bis 4: `respawnClassFrom` setzt nach
+ *    JEDEM Tod auf `core` zurück, und zwar auf halber Stufe mit allen Punkten.
+ *    Wer auf Stufe 60 stirbt, steht als `core` mit 29 Punkten da – und zwei der
+ *    zwölf Plätze tun nichts.
+ */
 export function upgradeAppliesTo(playerClass: PlayerClass, upgrade: UpgradeId): boolean {
   if ((PROJECTILE_UPGRADE_IDS as readonly string[]).includes(upgrade)) {
     return CLASS_DEFINITIONS[playerClass].barrelCount > 0;
+  }
+  if ((SIGNATURE_UPGRADE_IDS as readonly string[]).includes(upgrade)) {
+    return CLASS_DEFINITIONS[playerClass].branch !== 'core';
   }
   return true;
 }

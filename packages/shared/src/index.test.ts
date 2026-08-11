@@ -4,6 +4,7 @@ import {
   GAME,
   PLAYER_CLASS_IDS,
   PROJECTILE_UPGRADE_IDS,
+  SIGNATURE_UPGRADE_IDS,
   UPGRADE_IDS,
   upgradeAppliesTo,
   availableClassChoices,
@@ -163,10 +164,43 @@ describe('progression and input rules', () => {
     }
   });
 
-  it('laesst Klassen mit Rohr jedes Upgrade', () => {
-    const mitRohr = PLAYER_CLASS_IDS.filter((id) => CLASS_DEFINITIONS[id].barrelCount > 0);
-    for (const id of mitRohr) {
+  it('laesst Klassen mit Rohr UND Familie jedes Upgrade', () => {
+    const voll = PLAYER_CLASS_IDS.filter(
+      (id) => CLASS_DEFINITIONS[id].barrelCount > 0 && CLASS_DEFINITIONS[id].branch !== 'core'
+    );
+    expect(voll.length).toBeGreaterThan(40);
+    for (const id of voll) {
       for (const upgrade of UPGRADE_IDS) expect(upgradeAppliesTo(id, upgrade), `${id}/${upgrade}`).toBe(true);
+    }
+  });
+
+  /**
+   * Zweiter Fund derselben Art wie die Projektil-Upgrades: `signatureRate` und
+   * `signaturePower` werden ausschliesslich in den Familien-Tunern gelesen, und
+   * `core` gehoert zu keiner der acht Familien – null von acht
+   * `is…Class`-Pruefungen trifft zu.
+   *
+   * Das ist kein Randfall der Stufen 2 bis 4. `respawnClassFrom` setzt nach
+   * JEDEM Tod auf `core` zurueck, auf halber Stufe und mit allen Punkten: Wer
+   * auf Stufe 60 stirbt, steht als `core` mit 29 Punkten da – und zwei der
+   * zwoelf Plaetze taeten nichts.
+   */
+  it('haelt Signature-Upgrades von Klassen ohne Familie fern', () => {
+    for (const upgrade of SIGNATURE_UPGRADE_IDS) {
+      expect(upgradeAppliesTo('core', upgrade), `core/${upgrade}`).toBe(false);
+    }
+    // Alles andere wirkt bei core sehr wohl – sonst waere die Startklasse
+    // ploetzlich ohne Fortschritt.
+    for (const upgrade of ['damage', 'reload', 'maxHealth', 'regen', 'moveSpeed', 'bodyDamage'] as const) {
+      expect(upgradeAppliesTo('core', upgrade), `core/${upgrade}`).toBe(true);
+    }
+    // Und jede Klasse MIT Familie behaelt beide Slots.
+    const mitFamilie = PLAYER_CLASS_IDS.filter((id) => CLASS_DEFINITIONS[id].branch !== 'core');
+    expect(mitFamilie).toHaveLength(PLAYER_CLASS_IDS.length - 1);
+    for (const id of mitFamilie) {
+      for (const upgrade of SIGNATURE_UPGRADE_IDS) {
+        expect(upgradeAppliesTo(id, upgrade), `${id}/${upgrade}`).toBe(true);
+      }
     }
   });
 

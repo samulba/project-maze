@@ -25,7 +25,7 @@ unten, und die ist prüfbar.
 | Keine UI, die sich überlappt oder aus dem Bild läuft | `scripts/ui-layout-check.mjs` 181/181 | ✅ |
 | Kein Tank ist Müll, keiner ist Pflicht | Balance-Korridore in `packages/shared/src/balance.test.ts` | ✅ |
 | Das Labyrinth bleibt ein Labyrinth | Wanddeckung 3,8–5,2 % der Fläche (`world.test.ts`) | ✅ 4,53 % |
-| Kein Upgrade ohne Wirkung | `upgradeAppliesTo` + Test „haelt Projektil-Upgrades von Klassen ohne Rohr fern" | ✅ |
+| Kein Upgrade ohne Wirkung | `upgradeAppliesTo`, geprüft durch die **ganze** Tuning-Kette | ✅ |
 | Kein Knopf ohne Server-Antwort | Alle 8 Familien-Signatures serverseitig verdrahtet | ✅ |
 | Keine Serverlags bei voller Arena | Tick p95 < 25 ms **und ≤ 160 KB/s pro Spieler** | ✅ 138,8 KB/s bei 80 Spielern, Tick p95 10,4 ms |
 | Die Leitung Server→Client ist heil | `npm run wire-probe` grün | ✅ |

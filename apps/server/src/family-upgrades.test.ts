@@ -464,3 +464,112 @@ describe('familien-upgrades – bot-pfade', () => {
     expect(player.availablePoints).toBe(10);
   });
 });
+
+/**
+ * Serverautoritaet fuer die beiden Signature-Slots.
+ *
+ * Der Client sperrt sie bei `core` bereits (`familyUpgradeLocked`, ausgegraut
+ * mit „Erst mit einer Familie ab Level 10"). Darauf darf sich der Server aber
+ * nicht verlassen -- er ist die Autoritaet, der Client nur die Anzeige. Ohne
+ * diese Pruefung nahm `applyUpgrade` den Punkt an und schrieb ihn in ein Feld,
+ * das bei `core` NIEMAND liest: Die Slots werden ausschliesslich in den
+ * Familien-Tunern ausgewertet, und `core` gehoert zu keiner der acht Familien.
+ * Der Punkt war damit still verbrannt.
+ *
+ * Das ist kein Randfall der Stufen 2 bis 4: `respawnClassFrom` setzt nach jedem
+ * Tod auf `core` zurueck, auf halber Stufe und mit allen Punkten.
+ */
+describe('Signature-Slots bei Klassen ohne Familie', () => {
+  interface Innereien {
+    players: Map<string, any>;
+    applyUpgrade(playerId: string, upgrade: UpgradeId): boolean;
+  }
+
+  it('lehnt sie fuer core ab, statt den Punkt zu verbrennen', () => {
+    const game = tuneCombatScaling(new MazeGame(0));
+    const internals = game as unknown as Innereien;
+    const id = game.addPlayer('Neuling');
+    const player = internals.players.get(id);
+    player.playerClass = 'core';
+    player.availablePoints = 5;
+
+    for (const upgrade of FAMILY_UPGRADE_IDS) {
+      expect(internals.applyUpgrade(id, upgrade as UpgradeId), upgrade).toBe(false);
+    }
+    // Der Punkt bleibt liegen, statt in einem toten Feld zu landen.
+    expect(player.availablePoints).toBe(5);
+    for (const upgrade of FAMILY_UPGRADE_IDS) {
+      expect(player.upgrades[upgrade] ?? 0, upgrade).toBe(0);
+    }
+  });
+
+  it('nimmt sie an, sobald eine Familie gewaehlt ist', () => {
+    const game = tuneCombatScaling(new MazeGame(0));
+    const internals = game as unknown as Innereien;
+    const id = game.addPlayer('Rapid');
+    const player = internals.players.get(id);
+    player.playerClass = 'rapid';
+    player.availablePoints = 5;
+
+    for (const upgrade of FAMILY_UPGRADE_IDS) {
+      expect(internals.applyUpgrade(id, upgrade as UpgradeId), upgrade).toBe(true);
+    }
+    expect(player.availablePoints).toBe(3);
+  });
+});
+
+/**
+ * Die Pruefung muss die GANZE Tuning-Kette ueberleben, nicht nur die Basis.
+ *
+ * `MazeGame.applyUpgrade` prueft `upgradeAppliesTo` -- mit dem Kommentar, die
+ * Pruefung stehe in der Basis, "damit jede Tuning-Schicht sie erbt". Das gilt
+ * aber nur fuer Schichten, die die Basis AUFRUFEN. `tuneCombatScaling` ersetzt
+ * `applyUpgrade` vollstaendig, und weil es fest in der Produktionskette haengt,
+ * war die Pruefung serverseitig wirkungslos: Ein Controller konnte Kugeltempo
+ * kaufen und den Punkt verlieren, obwohl er kein Rohr hat. Der Client versteckte
+ * den Knopf -- aber der Server ist die Autoritaet, nicht der Client.
+ *
+ * Dieser Test baut deshalb bewusst UEBER die Basis hinaus und prueft das
+ * Ergebnis, nicht die Absicht. Kommt eine weitere Schicht dazu, die
+ * `applyUpgrade` ersetzt statt umschliesst, faellt sie hier auf.
+ */
+describe('Upgrade-Sperre durch die gesamte Tuning-Kette', () => {
+  interface Innereien {
+    players: Map<string, any>;
+    applyUpgrade(playerId: string, upgrade: UpgradeId): boolean;
+  }
+
+  const faelle: Array<{ klasse: PlayerClass; upgrade: UpgradeId; grund: string }> = [
+    { klasse: 'warden', upgrade: 'projectileSpeed', grund: 'Drohnenklasse ohne Rohr' },
+    { klasse: 'warden', upgrade: 'penetration', grund: 'Drohnenklasse ohne Rohr' },
+    { klasse: 'warden', upgrade: 'projectileRange', grund: 'Drohnenklasse ohne Rohr' },
+    { klasse: 'core', upgrade: 'signatureRate' as UpgradeId, grund: 'keine Familie' },
+    { klasse: 'core', upgrade: 'signaturePower' as UpgradeId, grund: 'keine Familie' }
+  ];
+
+  for (const { klasse, upgrade, grund } of faelle) {
+    it(`lehnt ${upgrade} fuer ${klasse} ab (${grund})`, () => {
+      const game = tuneFamilyUpgrades(tuneCombatScaling(new MazeGame(0)), ['rapid', 'impact', 'precision', 'control', 'specter', 'tempest', 'siege', 'aegis']);
+      const internals = game as unknown as Innereien;
+      const id = game.addPlayer('Pruefling');
+      const player = internals.players.get(id);
+      player.playerClass = klasse;
+      player.availablePoints = 4;
+
+      expect(internals.applyUpgrade(id, upgrade)).toBe(false);
+      expect(player.availablePoints).toBe(4);
+      expect(player.upgrades[upgrade] ?? 0).toBe(0);
+    });
+  }
+
+  it('laesst durch, was bei der Klasse wirklich wirkt', () => {
+    const game = tuneFamilyUpgrades(tuneCombatScaling(new MazeGame(0)), ['rapid', 'impact', 'precision', 'control', 'specter', 'tempest', 'siege', 'aegis']);
+    const internals = game as unknown as Innereien;
+    const id = game.addPlayer('Pruefling');
+    const player = internals.players.get(id);
+    player.playerClass = 'warden';
+    player.availablePoints = 4;
+    expect(internals.applyUpgrade(id, 'damage')).toBe(true);
+    expect(player.availablePoints).toBe(3);
+  });
+});

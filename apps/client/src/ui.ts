@@ -538,6 +538,18 @@ export class GameUI {
       // kein Rohr. Der Server lehnt sie ohnehin ab (`upgradeAppliesTo`); ein
       // Knopf, der einen Punkt zu kosten scheint und nichts bewirkt, ist genau
       // die Sorte „zu viele Upgrades", über die Sam gestolpert ist.
+      //
+      // Das `family ||` sieht nach einer Hintertür aus – es lässt die beiden
+      // Signature-Slots an `upgradeAppliesTo` vorbei, und bei `core` wirken die
+      // nicht. Es bleibt trotzdem stehen, und zwar mit Absicht: Diese beiden
+      // werden weiter unten über `familyUpgradeLocked` gesperrt und tragen dann
+      // `FAMILY_LOCK_HINT` – „Erst mit einer Familie ab Level 10". Ausgegraut
+      // mit Begründung ist hier besser als unsichtbar; der Spieler sieht, dass
+      // es die Plätze gibt und was sie freischaltet. Verstecken hiesse, den
+      // halben Fortschrittsbaum zu verheimlichen.
+      //
+      // Der Server verlaesst sich darauf ausdrücklich NICHT: `applyUpgrade`
+      // lehnt sie über dieselbe Prüfung ab, egal was der Client schickt.
       const wirkt = family || upgradeAppliesTo(self.playerClass, id as UpgradeId);
       const known = wirkt && (!family || levels[id] !== undefined);
       const currentLevel = levels[id] ?? 0;

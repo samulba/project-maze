@@ -6,6 +6,7 @@ import {
   UPGRADE_IDS,
   classAvailableAtLevel,
   isValidClassChoice,
+  upgradeAppliesTo,
   upgradePointsAtLevel,
   xpAtLevelStart,
   xpThresholdForLevel,
@@ -129,6 +130,19 @@ export function tuneCombatScaling<T extends MazeGame>(game: T): T {
   internals.applyUpgrade = (playerId: string, upgrade: UpgradeId): boolean => {
     const player = internals.players.get(playerId);
     if (!player || player.dead || player.availablePoints <= 0 || !UPGRADE_IDS.includes(upgrade) || player.upgrades[upgrade] >= GAME.maxUpgradeLevel) return false;
+    /*
+     * Kein Punkt fuer etwas, das bei dieser Klasse nichts tut.
+     *
+     * Dieselbe Pruefung steht in `MazeGame.applyUpgrade` mit dem Kommentar
+     * „steht hier in der Basis, damit jede Tuning-Schicht sie erbt". Das stimmt
+     * nur fuer Schichten, die die Basis AUFRUFEN. Diese hier ersetzt sie
+     * vollstaendig – und weil `tuneCombatScaling` fest in der Produktionskette
+     * haengt, war die Pruefung serverseitig wirkungslos: Ein Controller konnte
+     * Kugeltempo kaufen und den Punkt verlieren, obwohl es bei ihm kein Rohr
+     * gibt. Aufgefallen ist es erst, als dieselbe Regel fuer die
+     * Signature-Slots dazukam und der Test sie nicht durchsetzen konnte.
+     */
+    if (!upgradeAppliesTo(player.playerClass, upgrade)) return false;
     const previousMaximum = player.maxHealth;
     player.upgrades[upgrade] += 1;
     player.availablePoints -= 1;
