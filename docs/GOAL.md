@@ -51,7 +51,7 @@ ist, entscheidet, wer es spielt.
 | Kein Knopf ohne Server-Antwort | Alle 8 Familien-Signatures serverseitig verdrahtet | ✅ |
 | Keine Serverlags bei voller Arena | Tick p95 < 25 ms **und ≤ 160 KB/s pro Spieler** | ✅ 138,8 KB/s bei 80 Spielern, Tick p95 10,4 ms |
 | Die Leitung Server→Client ist heil | `npm run wire-probe` grün | ✅ |
-| Auf dem Handy lässt sich **spielen**, nicht nur gucken | `npm run touch-probe` grün | ✅ 844×390 |
+| Auf dem Handy lässt sich **spielen**, nicht nur gucken | `npm run touch-probe:all` grün | ✅ 5 Formate, 667×375 bis 932×430 |
 | Die Fortschrittsschleife trägt: farmen → aufsteigen → Klasse → Upgrade | `npm run progress-probe` grün | ✅ |
 | Mehrere Modi | Drei spielbare Modi, `npm run royale-probe` grün | ✅ Maze, FFA, Battle Royale |
 | Es fühlt sich groß an | 675.000 px² je Spieler, Dichte-Test grün | ✅ 9000 × 6000, 80 Spieler |
@@ -314,15 +314,25 @@ es Sam.
 3. **Handy richtig hinbekommen.** Kein Nachklapp, sondern gleichrangig mit der
    Karte – „muss natürlich mit dabei sein" (Sam, 11.08.).
 
-   Angefangen: `npm run touch-probe` beweist, dass sich auf 844 × 390 wirklich
-   spielen lässt – Bewegung über den Onboarding-Schritt, Feuern über echte XP.
+   `npm run touch-probe:all` beweist auf **allen fünf** Handy-Querformaten der
+   Matrix (667 × 375 bis 932 × 430), dass sich wirklich spielen lässt: beide
+   Sticks springen an, zwei Daumen gleichzeitig gehen, und der Tank bewegt sich.
    Bisher prüfte **nichts** das: Die Layout-Harness sagt nur, ob die Sticks
    sitzen. Mit lahmgelegten Sticks bleibt sie grün, während das Spiel
-   unspielbar ist – genau dieser Fall ist jetzt abgedeckt.
+   unspielbar ist – genau dieser Fall ist abgedeckt und per Sabotage
+   gegengeprüft (alle vier Befunde melden rot).
 
-   Was noch offen ist: die übrigen Formate (667 × 375 bis 932 × 430) durch
-   dieselbe Probe, und die Frage, ob sich das Zielen per Daumen auch *gut*
-   anfühlt – das ist keine Messung, das braucht Sams Daumen.
+   Ein Wort zur Verlässlichkeit, weil die Probe daran beinahe gescheitert wäre:
+   Der Onboarding-Schritt „Beweg dich" verschwindet nach 14 s **auch ohne**
+   Bewegung. Die Probe grenzte das anfangs über die Wanduhr ab – und meldete
+   unter Last zwei von fünf Formaten rot, die einzeln grün waren. Gemessen hat
+   sie die Rechenlast: Ein einziges Touch-Event kostet in diesem Container rund
+   500 ms. Gewertet wird deshalb die **Arena-Uhr** des Onboardings; die kennt
+   weder Ladezeit noch Ereignis-Latenz. Gemessene Werte liegen bei 6,0–7,8 s
+   gegen eine Grenze von 12 s.
+
+   Was noch offen ist: ob sich das Zielen per Daumen auch *gut* anfühlt – das
+   ist keine Messung, das braucht Sams Daumen.
 4. ~~**FFA als zweiter Modus**~~ ✅ **erledigt** – `ARENA_MODE=ffa`. Der Schnitt
    blieb klein, weil `WALLS` außerhalb von `world.ts` nirgends direkt gelesen
    wird: Kollision, Sichtlinie und Snapshot lesen alle `activeWalls`, und das
@@ -391,7 +401,8 @@ npm run loadtest -- --url ws://127.0.0.1:2567 --clients 80 --duration 110 --ramp
 npm run wire-probe
 
 # Laesst sich auf dem Handy wirklich spielen? (gleiche Voraussetzung)
-npm run touch-probe
+npm run touch-probe:all                     # alle fuenf Handy-Querformate
+npm run touch-probe                         # nur eines (Standard 844x390)
 BREITE=667 HOEHE=375 npm run touch-probe    # iPhone SE quer
 
 # Traegt die Fortschrittsschleife? Farmt bis Stufe 5, waehlt eine Klasse,

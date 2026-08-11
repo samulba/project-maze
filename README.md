@@ -33,6 +33,7 @@ npm run balance:live  # Live-Balance einer laufenden Instanz aus /metrics
 npm run loadtest  # N simulierte Clients gegen eine laufende Arena
 npm run check     # Typecheck + Tests + Build
 npm run royale-probe  # Battle Royale end-to-end im echten Browser (siehe Modi)
+npm run touch-probe:all  # Handy-Bedienung auf fuenf Querformaten, echter Touch
 npm start         # Produktion: ein Prozess liefert Client + Server (siehe docs/DEPLOY.md)
 ```
 

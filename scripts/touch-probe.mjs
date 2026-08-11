@@ -59,8 +59,27 @@ import { chromium } from 'playwright-core';
 const URL = process.env.URL ?? 'http://127.0.0.1:5199/';
 const BREITE = Number(process.env.BREITE ?? 844);
 const HOEHE = Number(process.env.HOEHE ?? 390);
-/** Ab hier wäre der Onboarding-Wechsel womöglich nur der Zeit-Notausgang. */
-const BEWEGUNG_FRIST_MS = 11_000;
+/**
+ * Der Bewegungs-Schritt des Onboardings hat einen Zeit-Notausgang: Nach
+ * 14 s **Arena-Zeit** verschwindet er, damit der Ablauf nie hängen bleibt
+ * (`onboarding.ts`, `isDone`). Wer den Schritt als Beweis nimmt, muss ihn
+ * deshalb gegen diese Uhr abgrenzen – sonst belegt ein grüner Lauf nur, dass
+ * die Zeit vergangen ist.
+ *
+ * Gemessen wird gegen die ARENA-Uhr, nicht gegen die Wanduhr, und das ist der
+ * Unterschied zwischen einer verlässlichen und einer würfelnden Probe: In
+ * diesem Container kostet **ein einziges** Touch-Event rund 500 ms und
+ * `boundingBox()` 1,5 s (nachgemessen). Ein Daumenzug ist damit nach Wanduhr
+ * gut vier Sekunden alt, bevor er überhaupt ankommt. Die alte Frist von 11 s
+ * Wanduhr hat deshalb unter Last zwei von fünf Formaten rot gemeldet, die
+ * einzeln grün waren – gemessen wurde die Rechenlast, nicht der Stick.
+ *
+ * Die Arena-Uhr steht im Fortschrittsbalken des Onboardings (`elapsedMs` als
+ * Anteil des 60-s-Fensters) und ist genau die Zahl, gegen die der Notausgang
+ * prüft.
+ */
+const ONBOARDING_FENSTER_MS = 60_000;
+const BEWEGUNG_ARENAZEIT_GRENZE_MS = 12_000;
 
 const browser = await chromium.launch({
   executablePath: process.env.PW_CHROMIUM ?? '/opt/pw-browsers/chromium',
@@ -84,8 +103,16 @@ page.on('response', (r) => {
   if (r.status() >= 400 && !/\/leaderboard|favicon/.test(r.url())) fehler.push(`HTTP ${r.status()}: ${r.url()}`);
 });
 
-/** Zieht einen Finger von der Mitte eines Elements aus und hält ihn dort. */
-async function stickZiehen(auswahl, dx, dy, haltenMs) {
+/**
+ * Zieht einen Finger von der Mitte eines Elements aus und hält ihn dort.
+ *
+ * `beobachten` wird während des Haltens wiederholt gefragt und beendet den Zug,
+ * sobald es `true` meldet. Das ist der Unterschied zwischen „nach dem Halten
+ * nachsehen" und „mitschreiben, wann es passiert ist": Der Onboarding-Schritt
+ * wechselt binnen eines Snapshots, und wer erst danach liest, schreibt die
+ * ganze Haltezeit dem Wechsel zu.
+ */
+async function stickZiehen(auswahl, dx, dy, haltenMs, beobachten = null) {
   const kasten = await page.locator(auswahl).boundingBox();
   if (!kasten) throw new Error(`${auswahl} hat keine Fläche – Stick nicht sichtbar?`);
   const x = kasten.x + kasten.width / 2;
@@ -110,10 +137,25 @@ async function stickZiehen(auswahl, dx, dy, haltenMs) {
     const el = document.querySelector(sel);
     return Boolean(el && (el.classList.contains('touching') || el.classList.contains('engaged')));
   }, auswahl);
-  await page.waitForTimeout(haltenMs);
+  const ende = Date.now() + haltenMs;
+  while (Date.now() < ende) {
+    if (beobachten && await beobachten()) break;
+    await page.waitForTimeout(120);
+  }
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   return angesprungen;
 }
+
+/**
+ * Arena-Zeit in Millisekunden, abgelesen am Fortschrittsbalken des Onboardings.
+ * Das ist dieselbe Uhr, gegen die der Zeit-Notausgang des Schritts prüft –
+ * anders als die Wanduhr enthält sie weder Startzeit noch Event-Latenz.
+ */
+const arenaZeitMs = () => page.evaluate((fenster) => {
+  const breite = document.querySelector('[data-onboarding-progress]')?.style?.width ?? '';
+  const prozent = Number.parseFloat(breite);
+  return Number.isFinite(prozent) ? (prozent / 100) * fenster : null;
+}, ONBOARDING_FENSTER_MS);
 
 const text = (auswahl) => page.evaluate(
   (sel) => document.querySelector(sel)?.textContent?.trim() ?? null,
@@ -125,6 +167,20 @@ await page.waitForSelector('#join-button', { timeout: 90_000 });
 await page.fill('#player-name', 'TouchProbe').catch(() => {});
 await page.tap('#join-button');
 await page.waitForSelector('#move-stick', { timeout: 60_000 });
+/*
+ * Erst ziehen, wenn wirklich Snapshots fließen.
+ *
+ * `#move-stick` steht von Anfang an im Markup – es beweist nur, dass die Seite
+ * da ist, nicht dass das Spiel läuft. `moving` wird dagegen ausschließlich beim
+ * Eintreffen eines Snapshots gelesen (`main.ts`), und die Arena-Uhr des
+ * Onboardings läuft erst ab dem ersten. Wer vorher zieht, misst die Ladezeit
+ * mit. Der Kartentext ist der ehrlichste Beleg dafür, dass ein Snapshot mit
+ * eigenem Spieler angekommen ist: Er wird erst dort gesetzt.
+ */
+await page.waitForFunction(
+  () => Boolean(document.querySelector('[data-onboarding-title]')?.textContent?.trim()),
+  { timeout: 60_000 }
+);
 const beginn = Date.now();
 
 const zaehlerVorher = await text('[data-onboarding-counter]');
@@ -139,11 +195,28 @@ const sticksSichtbar = await page.evaluate(() => {
   return { move: sichtbar('#move-stick'), aim: sichtbar('#aim-stick') };
 });
 
-// 1. Bewegung: Daumen nach rechts, gut vier Sekunden halten.
-const moveAngesprungen = await stickZiehen('#move-stick', 60, 0, 4_200);
+/*
+ * 1. Bewegung: Daumen nach rechts, gut vier Sekunden halten – und dabei
+ * mitschreiben, WANN der Onboarding-Schritt wechselt, gemessen an der Arena-Uhr.
+ * Erst diese Zahl trennt „der Stick bewegt den Tank" vom Zeit-Notausgang.
+ */
+let arenaZeitBeimWechsel = null;
+const moveAngesprungen = await stickZiehen('#move-stick', 60, 0, 4_200, async () => {
+  const stand = await page.evaluate(() => ({
+    titel: document.querySelector('[data-onboarding-title]')?.textContent?.trim() ?? null,
+    breite: document.querySelector('[data-onboarding-progress]')?.style?.width ?? ''
+  }));
+  if (stand.titel === schrittVorher) return false;
+  const prozent = Number.parseFloat(stand.breite);
+  arenaZeitBeimWechsel = Number.isFinite(prozent) ? (prozent / 100) * ONBOARDING_FENSTER_MS : null;
+  return true;
+});
 const zaehlerNachher = await text('[data-onboarding-counter]');
 const schrittNachher = await text('[data-onboarding-title]');
 const bewegungMs = Date.now() - beginn;
+// Der Wechsel kann auch zwischen zwei Blicken passiert sein – dann steht die
+// Arena-Uhr von jetzt da, und die ist nie kleiner als die zum Wechsel.
+if (arenaZeitBeimWechsel === null && schrittVorher !== schrittNachher) arenaZeitBeimWechsel = await arenaZeitMs();
 
 /*
  * 2. Feuern – mit BEIDEN Daumen gleichzeitig, und zwar aus zwei Gründen.
@@ -234,7 +307,8 @@ const befund = await page.evaluate(() => {
 if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
 await browser.close();
 
-const bewegt = schrittVorher !== schrittNachher && bewegungMs < BEWEGUNG_FRIST_MS;
+const bewegt = schrittVorher !== schrittNachher
+  && arenaZeitBeimWechsel !== null && arenaZeitBeimWechsel < BEWEGUNG_ARENAZEIT_GRENZE_MS;
 /*
  * Aufgestiegen zaehlt genauso wie XP auf der Uhr.
  *
@@ -259,7 +333,17 @@ console.log(JSON.stringify({
   sticksReagieren: { move: moveAngesprungen, aim: aimAngesprungen },
   multiTouch: beideGleichzeitig,
   tode,
-  bewegung: { vorher: schrittVorher, nachher: schrittNachher, zaehler: zaehlerVorher + ' -> ' + zaehlerNachher, nachMs: bewegungMs, gewertet: bewegt },
+  bewegung: {
+    vorher: schrittVorher,
+    nachher: schrittNachher,
+    zaehler: zaehlerVorher + ' -> ' + zaehlerNachher,
+    // Arena-Uhr entscheidet, Wanduhr steht nur zur Einordnung dabei: Sie
+    // enthaelt die Ereignis-Latenz des Containers (rund 500 ms je Touch-Event).
+    arenaMs: arenaZeitBeimWechsel === null ? null : Math.round(arenaZeitBeimWechsel),
+    notausgangBeiMs: 14_000,
+    wanduhrMs: bewegungMs,
+    gewertet: bewegt
+  },
   gefarmt: { xp: befund.xp, von: befund.xpZiel, level: befund.level, hinweis: gefeuert ? 'getroffen' : 'nichts getroffen (Spawn-Glueck, kein Fehler)' },
   spieler: befund.name,
   fehler
@@ -267,7 +351,12 @@ console.log(JSON.stringify({
 
 if (!okay) {
   console.error('\ntouch-probe: Befund.');
-  if (!bewegt) console.error('  Bewegung nicht nachgewiesen – der linke Stick schickt keine Eingabe.');
+  if (!bewegt) {
+    console.error(schrittVorher === schrittNachher
+      ? '  Bewegung nicht nachgewiesen – der linke Stick schickt keine Eingabe.'
+      : `  Schritt wechselte erst nach ${Math.round(arenaZeitBeimWechsel ?? 0)} ms Arena-Zeit –`
+        + ' das kann auch der Zeit-Notausgang (14 s) gewesen sein.');
+  }
   if (!beideGleichzeitig) console.error('  Zwei Daumen gleichzeitig gehen nicht – Multi-Touch streitet um denselben Zeiger.');
   if (!aimAngesprungen) console.error('  Der Ziel-Stick erreichte nie die Feuerschwelle – die Eingabe kommt nicht durch.');
   if (!moveAngesprungen) console.error('  Der Bewegungs-Stick sprang nie an.');

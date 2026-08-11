@@ -22,6 +22,7 @@
     "loadtest": "node scripts/loadtest.mjs",
     "wire-probe": "node scripts/wire-probe.mjs",
     "touch-probe": "node scripts/touch-probe.mjs",
+    "touch-probe:all": "node scripts/touch-probe-all.mjs",
     "progress-probe": "node scripts/progress-probe.mjs",
     "royale-probe": "node scripts/royale-probe.mjs",
     "build": "npm run build -w @project-maze/shared && npm run build -w @project-maze/server && npm run build -w @project-maze/client && npm run precompress",
