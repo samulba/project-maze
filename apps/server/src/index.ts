@@ -26,6 +26,7 @@ import {
 import { attachAchievementSnapshots, tuneAchievements } from './achievements.js';
 import { tuneArenaDirector } from './arena-director.js';
 import { tuneArenaEvents } from './arena-events.js';
+import { tuneRoyale } from './arena-royale.js';
 import { tuneArenaSystems } from './arena-systems.js';
 import { authStatus, initAuth, verifyAuthToken } from './auth.js';
 import {
@@ -365,6 +366,11 @@ const encodedGame = tuneSnapshotEncoding(
     tuneTelemetry(
       tuneDebugRules(
         tuneAchievements(
+          // Die Royale-Zone aussen um die Arena-Events: Sie liest nur Positionen
+          // und teilt Schaden aus, haengt aber ihren Zonenstand an den Snapshot.
+          // Weiter innen wuerde eine Schicht, die den Snapshot neu baut, das Feld
+          // wieder verlieren.
+          tuneRoyale(
           tuneArenaEvents(
             tuneArenaSystems(
               tuneLoadoutSystem(
@@ -466,6 +472,7 @@ const encodedGame = tuneSnapshotEncoding(
                 REPULSE_TRAVEL_ENABLED
               )
             )
+          )
           ),
           ACHIEVEMENTS_ENABLED
         )

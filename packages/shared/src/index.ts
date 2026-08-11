@@ -840,7 +840,7 @@ export const ACCELERATION_SCALE = 1.12;
  * und Tempo statt Ecken, SPECTER verliert seine Verstecke, SIEGE gewinnt freie
  * Schusslinien.
  */
-export const ARENA_MODE_IDS = ['maze', 'ffa'] as const;
+export const ARENA_MODE_IDS = ['maze', 'ffa', 'royale'] as const;
 export type ArenaMode = typeof ARENA_MODE_IDS[number];
 
 export interface ArenaModeDefinition {
@@ -864,6 +864,15 @@ export const ARENA_MODES: Record<ArenaMode, ArenaModeDefinition> = {
     label: 'Free for All',
     blurb: 'Offene Arena ohne Wände. Freie Sichtlinien – Reichweite und Tempo entscheiden.',
     walls: false
+  },
+  royale: {
+    id: 'royale',
+    label: 'Battle Royale',
+    blurb: 'Die Zone schrumpft. Wer draußen bleibt, verliert Leben – am Ende wird es eng.',
+    // Wände bleiben: Eine schrumpfende Zone auf freiem Feld ist am Schluss ein
+    // Kreis ohne Deckung, in dem nur noch zählt, wer zuerst schießt. Mit Ecken
+    // bleibt die Endphase eine Entscheidung.
+    walls: true
   }
 };
 

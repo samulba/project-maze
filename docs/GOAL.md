@@ -53,7 +53,7 @@ ist, entscheidet, wer es spielt.
 | Die Leitung Server→Client ist heil | `npm run wire-probe` grün | ✅ |
 | Auf dem Handy lässt sich **spielen**, nicht nur gucken | `npm run touch-probe` grün | ✅ 844×390 |
 | Die Fortschrittsschleife trägt: farmen → aufsteigen → Klasse → Upgrade | `npm run progress-probe` grün | ✅ |
-| Mehrere Modi | Drei spielbare Modi im Client wählbar | ❌ 1 von 3 (nur Maze) |
+| Mehrere Modi | Drei spielbare Modi | ⏳ **2 von 3** (Maze, FFA) – Battle Royale fehlt |
 | Es fühlt sich groß an | 675.000 px² je Spieler, Dichte-Test grün | ✅ 9000 × 6000, 80 Spieler |
 | **Fremde kommen wieder** | Admin-Portal: wiederkehrende `device_id` über 7 Tage | 🔍 misst ab jetzt |
 
@@ -95,6 +95,12 @@ Modi hat er anders entschieden als vorgeschlagen.
 Im Code gibt es **keine** Modi-Infrastruktur; `mode: 'maze-alpha'` ist ein
 hartkodiertes Etikett in `index.ts` und `telemetry.ts`. „Mehrere Modi" ist also
 Neuland, kein Feinschliff.
+
+**Stand 11.08.: Maze und FFA laufen**, umgeschaltet über `ARENA_MODE`. Der Modus
+ist eine Eigenschaft der Arena, nicht des Spielers – ein Prozess, eine Arena,
+derselbe Weg wie `BOT_COUNT`. Wer beide *gleichzeitig* anbieten will, startet
+zwei Dienste; mehrere Arenen in einem Prozess wären deutlich mehr Umbau, weil
+dann jede Regel wissen müsste, in welcher sie läuft.
 
 | Modus | Was ihn ausmacht | Aufwand |
 |---|---|---|
@@ -309,8 +315,11 @@ es Sam.
    Was noch offen ist: die übrigen Formate (667 × 375 bis 932 × 430) durch
    dieselbe Probe, und die Frage, ob sich das Zielen per Daumen auch *gut*
    anfühlt – das ist keine Messung, das braucht Sams Daumen.
-4. **FFA als zweiter Modus** – der heutige Modus ohne Wandgenerierung. Klein,
-   weil `world.ts` nur übersprungen wird; trotzdem ein anderes Spiel.
+4. ~~**FFA als zweiter Modus**~~ ✅ **erledigt** – `ARENA_MODE=ffa`. Der Schnitt
+   blieb klein, weil `WALLS` außerhalb von `world.ts` nirgends direkt gelesen
+   wird: Kollision, Sichtlinie und Snapshot lesen alle `activeWalls`, und das
+   ist in FFA leer. Fracture fliegt dort aus der Event-Rotation – ohne Wände
+   wäre es ein angekündigtes Ereignis, bei dem nichts passiert.
 5. **Battle Royale als dritter Modus** – schrumpfende Zone, Siegbedingung,
    verändertes Spawn-Verhalten. Der eigentliche Bau.
 

@@ -141,10 +141,37 @@ export interface ArenaEventSnapshot {
   radius: number;
 }
 
+/**
+ * Die schrumpfende Zone des Battle-Royale-Modus.
+ *
+ * Bewusst dieselbe Form wie `ArenaEventSnapshot` (Mittelpunkt plus Radius) –
+ * der Client zeichnet Event-Zonen bereits im Feld und auf der Minimap. Eine
+ * zweite Geometrie zu erfinden hieße, dieselbe Sache zweimal zu zeichnen und
+ * zweimal falsch machen zu können.
+ *
+ * Der Unterschied zum Event: Diese Zone schrumpft, und wer draußen steht,
+ * verliert Leben. `damagePerSecond` steht deshalb mit drin, damit die Anzeige
+ * sagen kann, wie dringend es ist, statt nur *dass* es dringend ist.
+ */
+export interface RoyaleZoneSnapshot {
+  center: Vector2;
+  /** Aktueller Radius – zwischen zwei Stufen linear unterwegs. */
+  radius: number;
+  /** Ziel der laufenden Verengung; gleich `radius`, solange die Zone hält. */
+  targetRadius: number;
+  phase: 'wartet' | 'schrumpft' | 'haelt';
+  /** Schaden je Sekunde außerhalb, steigt mit jeder Stufe. */
+  damagePerSecond: number;
+  /** Wie viele Stufen die Zone schon hinter sich hat. */
+  stage: number;
+}
+
 export interface GameplayWorldExtension {
   gameplay: Record<string, PlayerGameplaySnapshot>;
   eliteShapeIds: string[];
   arenaEvent: ArenaEventSnapshot | null;
+  /** Nur im Battle-Royale-Modus gesetzt, sonst null. */
+  royaleZone: RoyaleZoneSnapshot | null;
   bountyTargetId: string | null;
   bountyValue: number;
   /** Neutraler Elite-Guardian des Hunter-Signal-Events (Spieler-ID in snapshot.players), sonst null. */
