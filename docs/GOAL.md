@@ -53,7 +53,7 @@ ist, entscheidet, wer es spielt.
 | Die Leitung Server→Client ist heil | `npm run wire-probe` grün | ✅ |
 | Auf dem Handy lässt sich **spielen**, nicht nur gucken | `npm run touch-probe:all` grün | ✅ 5 Formate, 667×375 bis 932×430 |
 | Die Fortschrittsschleife trägt: farmen → aufsteigen → Klasse → Upgrade | `npm run progress-probe` grün | ✅ |
-| Mehrere Modi | Drei spielbare Modi, `npm run royale-probe` grün | ✅ Maze, FFA, Battle Royale |
+| Mehrere Modi | Drei spielbare Modi; `npm run mode-probe` je Modus grün, `npm run royale-probe` für die Runde | ✅ Maze, FFA, Battle Royale |
 | Es fühlt sich groß an | 675.000 px² je Spieler, Dichte-Test grün | ✅ 9000 × 6000, 80 Spieler |
 | **Fremde kommen wieder** | Admin-Portal: wiederkehrende `device_id` über 7 Tage | 🔍 misst ab jetzt |
 
@@ -457,6 +457,16 @@ BREITE=667 HOEHE=375 npm run touch-probe    # iPhone SE quer
 # Traegt die Fortschrittsschleife? Farmt bis Stufe 5, waehlt eine Klasse,
 # vergibt einen Punkt -- und prueft jedes Mal das sichtbare Ergebnis.
 npm run progress-probe
+
+# Bekommt man auf der Leitung den Modus, den man konfiguriert hat?
+# Haengt sich als echter Client an einen laufenden Server (kein Browser) und
+# prueft je Modus dessen Versprechen: maze Waende, ffa KEINE Wand, royale die
+# Zone in jedem Snapshot. Dazu: welcome und /health nennen denselben Modus.
+for MODUS in maze ffa royale; do
+  ARENA_MODE=$MODUS PORT=2630 node apps/server/dist/index.js &
+  sleep 5 && URL=http://127.0.0.1:2630 npm run mode-probe
+  kill %1
+done
 
 # Traegt eine ganze Royale-Runde? Zone sehen, draussen bluten, ausscheiden,
 # Sieger, neue Runde -- gewertet wird, was auf dem Schirm steht.

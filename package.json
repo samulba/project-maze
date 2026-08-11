@@ -25,6 +25,7 @@
     "touch-probe:all": "node scripts/touch-probe-all.mjs",
     "progress-probe": "node scripts/progress-probe.mjs",
     "royale-probe": "node scripts/royale-probe.mjs",
+    "mode-probe": "node scripts/mode-probe.mjs",
     "build": "npm run build -w @project-maze/shared && npm run build -w @project-maze/server && npm run build -w @project-maze/client && npm run precompress",
     "precompress": "node scripts/precompress.mjs apps/client/dist",
     "start": "node apps/server/dist/index.js",

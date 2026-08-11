@@ -33,6 +33,7 @@ npm run balance:live  # Live-Balance einer laufenden Instanz aus /metrics
 npm run loadtest  # N simulierte Clients gegen eine laufende Arena
 npm run check     # Typecheck + Tests + Build
 npm run royale-probe  # Battle Royale end-to-end im echten Browser (siehe Modi)
+npm run mode-probe    # liefert der Server wirklich den konfigurierten Modus?
 npm run touch-probe:all  # Handy-Bedienung auf fuenf Querformaten, echter Touch
 npm start         # Produktion: ein Prozess liefert Client + Server (siehe docs/DEPLOY.md)
 ```
@@ -48,6 +49,12 @@ zwei Modi gleichzeitig anbieten will, startet zwei Dienste.
 | `maze` (Standard) | Maze | Wände in Bahnen: Deckung, Ecken, Sichtlinien |
 | `ffa` | Free for All | Offene Arena ohne Wände – Reichweite und Tempo statt Deckung |
 | `royale` | Battle Royale | Die Zone schrumpft in Stufen; wer stirbt, ist bis zur nächsten Runde raus. Lebt nur noch einer, ist die Runde entschieden, und nach kurzer Pause fängt alles von vorne an |
+
+`npm run mode-probe` hängt sich als echter Client an einen laufenden Server und
+prüft, ob der konfigurierte Modus auch auf der Leitung ankommt: Wände im Maze,
+**keine** Wand in FFA, die Zone in jedem Snapshot im Royale – und dass die
+`welcome`-Nachricht denselben Modus nennt wie `/health`, damit das Etikett im
+Client nicht lügt.
 
 Im Client steht der Modus im Etikett der Statuspille (`MAZERS · BATTLE ROYALE`);
 im Royale nennt eine Leiste in der oberen Mitte, wie viele noch leben und was
