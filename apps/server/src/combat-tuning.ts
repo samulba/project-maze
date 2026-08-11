@@ -124,7 +124,39 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
   };
 }
 
-/** Replaces exponential snowball scaling while keeping the existing upgrade UI. */
+/**
+ * Replaces exponential snowball scaling while keeping the existing upgrade UI.
+ *
+ * ## Achtung: Diese Schicht ERSETZT, sie umschliesst nicht
+ *
+ * Von rund vierzig Methoden-Ersetzungen im Server ist das hier die einzige
+ * Stelle, die das Original weder bindet noch aufruft – `applyUpgrade`,
+ * `chooseClass`, `respawn` und `stepPlayer` werden komplett neu geschrieben.
+ * Alle anderen Schichten holen sich vorher eine Referenz auf die vorherige
+ * Fassung.
+ *
+ * Daraus folgt eine Pflicht, die zweimal verletzt wurde und beide Male
+ * monatelang unbemerkt blieb: **Jede Regel, die in `MazeGame` steht, muss hier
+ * mitgeschrieben werden.** Der Kommentar in der Basis („steht hier, damit jede
+ * Tuning-Schicht sie erbt") gilt fuer diese Schicht ausdruecklich nicht.
+ *
+ * Was verlorengegangen war:
+ *
+ * * `upgradeAppliesTo` – ein Controller konnte Kugeltempo kaufen und den Punkt
+ *   verlieren, obwohl er kein Rohr hat.
+ * * `respawnClassFrom` – nach dem Tod blieb die alte Klasse erhalten, also
+ *   genau das Verhalten, das Sam am 07.08. gemeldet hatte und das laut
+ *   Basis-Kommentar behoben war.
+ *
+ * Beide sind wieder da, und beide werden durch die echte Produktionskette
+ * getestet (`family-upgrades.test.ts`), nicht gegen die Basis. Geprueft und in
+ * Ordnung sind ausserdem `chooseClass` (getreue Spiegelung der Basis) und
+ * `stepPlayer` (getreue Obermenge: zusaetzlich Chill-Regeneration und
+ * Lebensverhaeltnis beim Maximalwechsel).
+ *
+ * Wer hier eine fuenfte Methode ersetzt, vergleicht sie vorher Zeile fuer Zeile
+ * mit der Basis – und schreibt einen Test, der durch die Kette geht.
+ */
 export function tuneCombatScaling<T extends MazeGame>(game: T): T {
   const internals = game as unknown as CombatInternals;
 

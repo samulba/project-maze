@@ -200,6 +200,21 @@ Produktionskette geprüft, nicht gegen die Basis, und beide sind per Sabotage
 gegengeprüft. Wer eine Regel nur an der Hilfsfunktion testet, misst nicht, ob
 sie jemand aufruft.
 
+**Und der Rest der Kette ist durchgesehen, nicht gehofft.** Von rund vierzig
+Methoden-Ersetzungen im Server ist `tuneCombatScaling` die **einzige**, die das
+Original weder bindet noch aufruft; alle anderen umschließen es sauber. Ihre
+vier Ersetzungen stehen jetzt einzeln geprüft da:
+
+| Methode | Ergebnis |
+|---|---|
+| `applyUpgrade` | Regel verloren → behoben |
+| `respawn` | Regel verloren → behoben |
+| `chooseClass` | getreue Spiegelung der Basis ✅ |
+| `stepPlayer` | getreue Obermenge (plus Chill-Regeneration) ✅ |
+
+Die Pflicht steht als Kopfkommentar an der Schicht selbst: Wer hier eine fünfte
+Methode ersetzt, vergleicht sie vorher Zeile für Zeile mit der Basis.
+
 Noch offen und bewusst nicht angefasst: Basis und Schicht behalten nach dem Tod
 unterschiedlich viel Punktestand (0,45 gegen 0,5). Gelaufen ist immer 0,5. Das
 zu ändern wäre eine Balance-Entscheidung, keine Fehlerbehebung – dafür braucht
