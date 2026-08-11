@@ -252,3 +252,204 @@ describe('Battle-Royale-Zone', () => {
     resetRoyale(game);
   });
 });
+
+/**
+ * Teil 2: Ausscheiden und Runden.
+ *
+ * Der Unterschied zwischen "Karte mit toedlichem Rand" und "Battle Royale" ist
+ * genau das hier -- wer stirbt, ist raus, und irgendwann steht ein Sieger fest.
+ */
+describe('Battle-Royale-Runden', () => {
+  interface Innereien {
+    players: Map<string, any>;
+    shapes: Map<string, any>;
+    killPlayer(target: any, attackerId: string | null, now: number, environmentName: string): void;
+  }
+
+  const SCHNELLE_RUNDE: typeof DEFAULT_ROYALE = {
+    ...DEFAULT_ROYALE,
+    graceMs: 1_000,
+    shrinkMs: 400,
+    holdMs: 400,
+    roundBreakMs: 2_000
+  };
+
+  /*
+   * DREI Spieler, nicht zwei. Bei zweien ist die Runde nach dem ersten Tod
+   * sofort entschieden und startet nach der Pause neu -- der Tote lebt dann zu
+   * Recht wieder, und der Test haette das faelschlich als Fehler gemeldet.
+   * Genau so ist der erste Anlauf gescheitert.
+   */
+  it('laesst Tote in der laufenden Runde NICHT zurueckkommen', () => {
+    setArenaMode('royale');
+    const game = ohneFormen(createGame(SCHNELLE_RUNDE));
+    const internals = game as unknown as Innereien;
+    const a = game.addPlayer('A');
+    const b = game.addPlayer('B');
+    game.addPlayer('C');
+    const spielerA = internals.players.get(a);
+
+    let now = Date.now();
+    game.step(1 / GAME.tickRate, now);
+    internals.killPlayer(spielerA, b, now, 'Arena');
+    expect(spielerA.dead).toBe(true);
+    expect(royaleZoneFor(game)!.roundOver).toBe(false);
+
+    /*
+     * Die beiden anderen bewusst am Leben halten -- sonst holt die Zone auch
+     * sie, die Runde endet, und der Test misst den Rundenneustart statt des
+     * Ausscheidens. (Zweiter Anlauf, zweiter Lerneffekt.)
+     */
+    const dt = 1 / GAME.tickRate;
+    for (let i = 0; i < 20 * GAME.tickRate; i += 1) {
+      for (const spieler of internals.players.values()) {
+        if (spieler.id === a) continue;
+        const zone = royaleZoneFor(game)!;
+        spieler.position = { ...zone.center };
+        spieler.health = spieler.maxHealth;
+      }
+      now += dt * 1000;
+      game.step(dt, now);
+    }
+    expect(royaleZoneFor(game)!.roundOver).toBe(false);
+    expect(spielerA.dead).toBe(true);
+    // Und auch der ausdrueckliche Wunsch bringt nichts, solange die Runde laeuft.
+    expect(game.requestRespawn(a, now)).toBe(false);
+    expect(spielerA.dead).toBe(true);
+  });
+
+  /**
+   * Der Auto-Respawn ist der eigentlich gefaehrliche Pfad, und ein Test mit
+   * MENSCHEN trifft ihn nicht: `killPlayer` gibt ihnen 600 Sekunden, Bots aber
+   * nur `autoRespawnDelayMs` (7 s). Ein Test, der die Sperre nur an Menschen
+   * prueft, bleibt gruen, auch wenn sie ganz fehlt -- genau das hat eine
+   * Sabotage-Probe gezeigt: `autoRespawnAt` entfernt, und trotzdem alles gruen.
+   */
+  it('laesst auch tote BOTS in der Runde draussen', () => {
+    setArenaMode('royale');
+    /*
+     * Zone, die NICHT schrumpft (`minRadius` = `startRadius`). Sonst faellt der
+     * Test auf einen Zufall herein: Der Bot respawnt zwar, steht dann aber
+     * ausserhalb der inzwischen winzigen Zone und stirbt binnen Sekunden wieder
+     * -- am Ende ist er tot, und der Test meldet gruen, ohne die Sperre je
+     * geprueft zu haben. Genau so ist eine Sabotage-Probe unbemerkt
+     * durchgekommen. Ohne Schrumpfen gibt es nur einen Grund, warum er tot
+     * bleiben kann: das Ausscheiden.
+     */
+    const OHNE_SCHRUMPFEN = { ...SCHNELLE_RUNDE, minRadius: DEFAULT_ROYALE.startRadius };
+    const game = ohneFormen(tuneRoyale(tuneCombatScaling(hardenSimulation(new MazeGame(3))), OHNE_SCHRUMPFEN));
+    const internals = game as unknown as Innereien;
+    const mensch = game.addPlayer('Mensch');
+    const bots = [...internals.players.values()].filter((p: any) => p.isBot);
+    expect(bots.length).toBeGreaterThanOrEqual(2);
+
+    let now = Date.now();
+    game.step(1 / GAME.tickRate, now);
+    const opfer = bots[0]!;
+    internals.killPlayer(opfer, mensch, now, 'Arena');
+    expect(opfer.dead).toBe(true);
+
+    // Deutlich laenger als `autoRespawnDelayMs` (7 s) laufen lassen.
+    const dt = 1 / GAME.tickRate;
+    for (let i = 0; i < 14 * GAME.tickRate; i += 1) {
+      for (const spieler of internals.players.values()) {
+        if (spieler.id === opfer.id) continue;
+        const zone = royaleZoneFor(game)!;
+        spieler.position = { ...zone.center };
+        spieler.health = spieler.maxHealth;
+      }
+      now += dt * 1000;
+      game.step(dt, now);
+    }
+    expect(royaleZoneFor(game)!.roundOver).toBe(false);
+    expect(opfer.dead).toBe(true);
+  });
+
+  it('erklaert den letzten Lebenden zum Sieger und startet neu', () => {
+    setArenaMode('royale');
+    const game = ohneFormen(createGame(SCHNELLE_RUNDE));
+    const internals = game as unknown as Innereien;
+    const a = game.addPlayer('Alpha');
+    const b = game.addPlayer('Beta');
+    const spielerA = internals.players.get(a);
+
+    let now = Date.now();
+    game.step(1 / GAME.tickRate, now);
+    internals.killPlayer(spielerA, b, now, 'Arena');
+    now += 25;
+    game.step(1 / GAME.tickRate, now);
+
+    const entschieden = royaleZoneFor(game)!;
+    expect(entschieden.roundOver).toBe(true);
+    expect(entschieden.winnerName).toBe('Beta');
+    expect(entschieden.alive).toBe(1);
+
+    /*
+     * Genau bis kurz nach der Pause laufen, nicht laenger: Mit graceMs 1000 und
+     * 400er Phasen ist die neue Runde nach vier Sekunden schon bei Stufe 2 --
+     * der erste Anlauf pruefte "Stufe 0" und fand 2.
+     */
+    while (royaleZoneFor(game)!.roundOver) { now += 25; game.step(1 / GAME.tickRate, now); }
+    const frisch = royaleZoneFor(game)!;
+    expect(frisch.roundOver).toBe(false);
+    expect(frisch.winnerName).toBeNull();
+    expect(frisch.stage).toBe(0);
+    expect(frisch.radius).toBe(SCHNELLE_RUNDE.startRadius);
+    expect(spielerA.dead).toBe(false);
+    expect(frisch.alive).toBe(2);
+  });
+
+  it('haelt die Zone in der Rundenpause an, statt den Sieger zu toeten', () => {
+    setArenaMode('royale');
+    const game = ohneFormen(createGame(SCHNELLE_RUNDE));
+    const internals = game as unknown as Innereien;
+    const a = game.addPlayer('Alpha');
+    const b = game.addPlayer('Beta');
+    const sieger = internals.players.get(b);
+
+    let now = Date.now();
+    // Erst die Zone in Gang bringen, dann entscheiden.
+    now = laufe(game, now, 4);
+    internals.killPlayer(internals.players.get(a), b, now, 'Arena');
+    now += 25;
+    game.step(1 / GAME.tickRate, now);
+    expect(royaleZoneFor(game)!.roundOver).toBe(true);
+
+    // Sieger in die Ecke, also weit ausserhalb – und trotzdem unversehrt.
+    for (let i = 0; i < GAME.tickRate; i += 1) {
+      sieger.position = { x: 140, y: 140 };
+      sieger.health = sieger.maxHealth;
+      sieger.invulnerable = false;
+      sieger.invulnerableUntil = 0;
+      now += (1 / GAME.tickRate) * 1000;
+      game.step(1 / GAME.tickRate, now);
+      expect(sieger.health).toBe(sieger.maxHealth);
+    }
+  });
+
+  it('erklaert eine Arena mit einem einzigen Spieler nicht zur entschiedenen Runde', () => {
+    setArenaMode('royale');
+    const game = ohneFormen(createGame(SCHNELLE_RUNDE));
+    game.addPlayer('Allein');
+    const now = laufe(game, Date.now(), 4);
+    expect(royaleZoneFor(game)!.roundOver).toBe(false);
+    expect(now).toBeGreaterThan(0);
+  });
+
+  it('laesst in anderen Modi jeden normal zurueckkommen', () => {
+    setArenaMode('maze');
+    const game = ohneFormen(createGame(SCHNELLE_RUNDE));
+    const internals = game as unknown as Innereien;
+    const a = game.addPlayer('A');
+    game.addPlayer('B');
+    const spielerA = internals.players.get(a);
+
+    let now = Date.now();
+    game.step(1 / GAME.tickRate, now);
+    internals.killPlayer(spielerA, null, now, 'Arena');
+    expect(spielerA.dead).toBe(true);
+    now = laufe(game, now, 12);
+    // Der normale Wiedereinstieg bleibt unangetastet.
+    expect(game.requestRespawn(a, now + 10_000)).toBe(true);
+  });
+});

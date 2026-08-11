@@ -164,6 +164,21 @@ export interface RoyaleZoneSnapshot {
   damagePerSecond: number;
   /** Wie viele Stufen die Zone schon hinter sich hat. */
   stage: number;
+  /**
+   * Runde und Zone stehen zusammen in einem Feld, obwohl es zwei Dinge sind.
+   *
+   * Grund: Sie treten nie getrennt auf – es gibt keine Zone ohne Runde und
+   * keine Runde ohne Zone. Ein zweites Wire-Feld hieße, an jeder Stelle beide
+   * auf `null` zu prüfen, ohne dass je nur eines gesetzt wäre.
+   */
+  /** Wie viele Spieler noch leben – die Zahl, die im Battle Royale zählt. */
+  alive: number;
+  /** Runde entschieden: Es lebt höchstens noch einer. */
+  roundOver: boolean;
+  /** Name des Überlebenden, sobald die Runde entschieden ist. */
+  winnerName: string | null;
+  /** Millisekunden bis zur nächsten Runde; 0, solange die aktuelle läuft. */
+  nextRoundInMs: number;
 }
 
 export interface GameplayWorldExtension {

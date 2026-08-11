@@ -4,15 +4,14 @@ import { MazeGame } from './game.js';
 import { currentArenaMode } from './world.js';
 
 /**
- * Battle Royale, Teil 1: die schrumpfende Zone.
+ * Battle Royale: schrumpfende Zone, Ausscheiden und Runden.
  *
- * ## Was diese Schicht tut – und was noch nicht
+ * ## Der Ablauf
  *
- * Sie zieht die Zone zusammen und lässt draußen Leben verlieren. Sie macht
- * **noch keine Runden**: Wer stirbt, kommt weiterhin zurück. Das ist bewusst so
- * geschnitten, weil beides unabhängig prüfbar ist und ein halbfertiges
- * Ausscheiden schlimmer wäre als keines – ein Spieler, der nicht respawnt und
- * auch nichts zuschauen darf, sitzt vor einem schwarzen Bild.
+ * Die Zone zieht sich in Stufen zusammen und lässt draußen Leben verlieren.
+ * Wer stirbt, ist **für diese Runde raus** – kein Respawn. Lebt nur noch einer,
+ * ist die Runde entschieden; nach einer kurzen Pause fängt alles von vorne an,
+ * und alle sind wieder dabei.
  *
  * ## Warum die Zone hält statt durchgehend zu schrumpfen
  *
@@ -55,6 +54,8 @@ export interface RoyaleConfig {
   readonly damagePerStage: number;
   /** Wie weit das neue Zentrum je Stufe höchstens wandert (Anteil des Radius). */
   readonly driftFactor: number;
+  /** Pause zwischen entschiedener Runde und Neustart. */
+  readonly roundBreakMs: number;
 }
 
 export const DEFAULT_ROYALE: RoyaleConfig = {
@@ -67,7 +68,8 @@ export const DEFAULT_ROYALE: RoyaleConfig = {
   graceMs: 40_000,
   baseDamagePerSecond: 4,
   damagePerStage: 3.5,
-  driftFactor: 0.22
+  driftFactor: 0.22,
+  roundBreakMs: 12_000
 };
 
 interface RoyalePlayer extends PlayerSnapshot {
@@ -77,6 +79,7 @@ interface RoyalePlayer extends PlayerSnapshot {
 interface RoyaleInternals {
   players: Map<string, RoyalePlayer>;
   damagePlayer(target: RoyalePlayer, damage: number, attackerId: string | null, now: number): void;
+  respawn(player: RoyalePlayer, now: number): void;
 }
 
 interface RoyaleState {
@@ -100,6 +103,11 @@ interface RoyaleState {
    * jemand eine eigene Konfiguration verwendet.
    */
   config: RoyaleConfig;
+  /** Runde entschieden – es lebt hoechstens noch einer. */
+  roundOver: boolean;
+  /** Wann die naechste Runde startet; 0, solange die aktuelle laeuft. */
+  nextRoundAt: number;
+  winnerName: string | null;
 }
 
 const states = new WeakMap<MazeGame, RoyaleState>();
@@ -122,7 +130,10 @@ function stateFor(game: MazeGame, config: RoyaleConfig, now: number): RoyaleStat
     phaseEndsAt: now + config.graceMs,
     startedAt: now,
     schuld: new Map(),
-    config
+    config,
+    roundOver: false,
+    nextRoundAt: 0,
+    winnerName: null
   };
   states.set(game, frisch);
   return frisch;
@@ -155,14 +166,50 @@ export function nextZoneCenter(
 export function royaleZoneFor(game: MazeGame): RoyaleZoneSnapshot | null {
   const state = states.get(game);
   if (!state) return null;
+  const internals = game as unknown as RoyaleInternals;
   return {
     center: { ...state.center },
     radius: state.radius,
     targetRadius: state.targetRadius,
     phase: state.phase,
     damagePerSecond: royaleDamagePerSecond(state.stage, state.config),
-    stage: state.stage
+    stage: state.stage,
+    alive: lebende(internals).length,
+    roundOver: state.roundOver,
+    winnerName: state.winnerName,
+    nextRoundInMs: state.roundOver ? Math.max(0, state.nextRoundAt - Date.now()) : 0
   };
+}
+
+const lebende = (internals: RoyaleInternals): RoyalePlayer[] =>
+  [...internals.players.values()].filter((player) => !player.dead);
+
+/**
+ * Startet eine neue Runde: Zone auf Anfang, alle wieder ins Spiel.
+ *
+ * Der Zonenzustand wird dabei **ersetzt statt zurückgesetzt** – jedes Feld
+ * einzeln zurückzudrehen ist die Sorte Arbeit, bei der beim nächsten neuen Feld
+ * genau eines vergessen wird.
+ */
+function neueRunde(internals: RoyaleInternals, state: RoyaleState, now: number): void {
+  const mitte = kartenMitte();
+  state.center = { ...mitte };
+  state.radius = state.config.startRadius;
+  state.fromRadius = state.config.startRadius;
+  state.targetRadius = state.config.startRadius;
+  state.fromCenter = { ...mitte };
+  state.targetCenter = { ...mitte };
+  state.stage = 0;
+  state.phase = 'wartet';
+  state.phaseEndsAt = now + state.config.graceMs;
+  state.startedAt = now;
+  state.schuld.clear();
+  state.roundOver = false;
+  state.nextRoundAt = 0;
+  state.winnerName = null;
+  for (const player of internals.players.values()) {
+    if (player.dead) internals.respawn(player, now);
+  }
 }
 
 export function tuneRoyale<T extends MazeGame>(game: T, config: RoyaleConfig = DEFAULT_ROYALE): T {
@@ -176,6 +223,44 @@ export function tuneRoyale<T extends MazeGame>(game: T, config: RoyaleConfig = D
     // So bleibt die Reihenfolge der Tuner unabhaengig von der Konfiguration.
     if (currentArenaMode() !== 'royale') return;
     const state = stateFor(game, config, now);
+
+    /*
+     * Ausscheiden statt Respawn – und zwar durch Zurückschieben der
+     * Wiedereinstiegszeiten, nicht durch Umbau der Basis.
+     *
+     * `MazeGame.step` respawnt Tote automatisch, sobald `autoRespawnAt`
+     * erreicht ist, und `requestRespawn` prüft `canRespawnAt`. Beide Zeiten auf
+     * Unendlich zu setzen hält den Spieler draußen, ohne dass eine zweite
+     * Schicht die Respawn-Regeln nachbauen müsste. Genau die Sorte Nachbau hat
+     * in diesem Server schon zweimal eine Regel verschluckt.
+     */
+    if (!state.roundOver) {
+      for (const player of internals.players.values()) {
+        if (!player.dead) continue;
+        player.autoRespawnAt = Number.POSITIVE_INFINITY;
+        player.canRespawnAt = Number.POSITIVE_INFINITY;
+      }
+    }
+
+    /*
+     * Rundenende: Es lebt höchstens noch einer.
+     *
+     * „Höchstens" statt „genau", weil die Zone auch den Letzten holen kann –
+     * eine Runde ohne Sieger ist selten, aber möglich, und sie darf den Server
+     * nicht hängen lassen.
+     */
+    if (!state.roundOver) {
+      const uebrig = lebende(internals);
+      // Eine leere Arena ist keine entschiedene Runde, sondern gar keine.
+      if (internals.players.size > 1 && uebrig.length <= 1) {
+        state.roundOver = true;
+        state.winnerName = uebrig[0]?.name ?? null;
+        state.nextRoundAt = now + config.roundBreakMs;
+      }
+    } else if (now >= state.nextRoundAt) {
+      neueRunde(internals, state, now);
+      return;
+    }
 
     if (now >= state.phaseEndsAt) {
       if (state.phase === 'schrumpft') {
@@ -210,7 +295,9 @@ export function tuneRoyale<T extends MazeGame>(game: T, config: RoyaleConfig = D
       };
     }
 
-    if (state.stage === 0) return;
+    // In der Rundenpause tut die Zone nichts mehr – der Sieger soll seinen
+    // Moment haben, nicht am Rand verbluten.
+    if (state.stage === 0 || state.roundOver) return;
     const proSekunde = royaleDamagePerSecond(state.stage, config);
     for (const player of internals.players.values()) {
       if (player.dead) continue;
