@@ -12,12 +12,34 @@ echten Rollen statt nur unterschiedlich schneller Kugeln, mehrere Modi, eine
 Karte, die sich groß anfühlt – und es fühlt sich an wie ein fertiges Spiel,
 nicht wie ein Prototyp.
 
-„Fertig" ist kein Gefühl, das wir uns selbst bescheinigen. Es ist die Liste
-unten, und die ist prüfbar.
+„Fertig" ist kein Gefühl, das wir uns selbst bescheinigen – aber es ist auch
+nicht die Liste unten. Die Liste schließt aus, dass es *kaputt* ist. Ob es *gut*
+ist, entscheidet, wer es spielt.
 
 ---
 
 ## Was „fertig" heißt
+
+> **Zuerst das Wichtigste an diesem Dokument: Die Liste unten entscheidet
+> nicht, ob MAZERS fertig ist.**
+>
+> Sie ist eine Liste von **Ausschlusskriterien**. Jede grüne Zeile schließt eine
+> Art aus, auf die sich ein Spiel wie ein Prototyp anfühlen kann – überlappende
+> UI, ruckelnder Server, ein Upgrade das nichts tut, ein Knopf ohne Wirkung.
+> Zusammen sagen sie: *Es ist nicht aus diesen Gründen kaputt.*
+>
+> Sie sagen **nicht**: *Es macht Spaß.* Kein Testlauf dieser Welt kann das
+> sagen. Elf grüne Zeilen sind ein Spiel, das nicht offensichtlich kaputt ist –
+> und ein Spiel, das nicht kaputt ist, kann trotzdem langweilig sein.
+>
+> Wer diese Liste als Fortschrittsbalken liest, verwechselt „läuft" mit „ist
+> gut". Das ist genau der Fehler, der Prototypen entstehen lässt, die technisch
+> tadellos sind und die niemand zweimal öffnet.
+>
+> Entscheiden können es zwei Dinge, und beide stehen nicht in meiner Macht:
+> **Sams Hände am Spiel** und **die letzte Zeile der Tabelle** – ob Fremde
+> wiederkommen. Alles darüber ist Vorarbeit dafür, dass diese beiden Urteile
+> überhaupt fair gefällt werden können.
 
 | Zeile | Womit geprüft | Stand heute |
 |---|---|---|
@@ -35,13 +57,24 @@ unten, und die ist prüfbar.
 | Es fühlt sich groß an | 675.000 px² je Spieler, Dichte-Test grün | ✅ 9000 × 6000, 80 Spieler |
 | **Fremde kommen wieder** | Admin-Portal: wiederkehrende `device_id` über 7 Tage | 🔍 misst ab jetzt |
 
-Die letzte Zeile ist die einzige, die wir nicht selbst bestehen können. Alles
-darüber kann grün sein und das Spiel trotzdem langweilig – deswegen steht sie
-drin.
+**Stand 11.08.: elf von zwölf technischen Zeilen grün, offen sind die Modi.**
+Das ist ausdrücklich **kein** „91 % fertig" – siehe den Kasten oben. Es heißt:
+Elf Wege, auf denen sich das Spiel wie ein Prototyp anfühlen könnte, sind
+ausgeschlossen und mit einem Befehl nachprüfbar.
 
-**Stand 11.08.: neun von elf Zeilen grün.** Offen sind genau zwei – die Modi
-(bewusst zurückgestellt, siehe Reihenfolge) und die Wiederkehr, für die Sam
-erst die Supabase-Migration und die Railway-Variablen setzen muss.
+**Der eigentliche Stand ist: unvalidiert.** Kein Mensch außer den Bots hat
+dieses Spiel in seinem heutigen Zustand gespielt. Die drei Dinge, die den
+Ausschlag geben, sind alle offen:
+
+1. Die **Supabase-Migration** und die Railway-Variablen sind nicht gesetzt –
+   also misst das Portal nicht, ob Fremde wiederkommen. Ohne diese Zahl bleibt
+   die wichtigste Zeile der Tabelle blind.
+2. Ob sich **SIEGE gegen RAPID** wirklich unterschiedlich anfühlt, ist eine
+   Behauptung aus acht Füllbedingungen im Code. Belegt ist, dass sie
+   verschieden *rechnen*. Ob daraus Spielgefühl wird, entscheiden Daumen und
+   Maus, kein Korridor.
+3. Ob die größere Karte sich groß anfühlt oder nur leer, hat niemand gespielt.
+   Gemessen ist die Dichte, nicht das Gefühl.
 
 Was zur Karte gehört, ist systematisch nachgeprüft und nicht nur angenommen:
 Bandbreite, Tick-Budget, Bot-Dichte, Wanddeckung, Arena-Events, Spawn-Verteilung
