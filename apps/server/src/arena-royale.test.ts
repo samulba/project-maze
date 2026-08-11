@@ -49,6 +49,25 @@ function laufe(game: MazeGame, start: number, sekunden: number): number {
 
 afterEach(() => setArenaMode('maze'));
 
+/**
+ * Zeitbudget fuer die Tests, die echte Minuten simulieren.
+ *
+ * Mehrere Faelle hier fahren die Zone mit der PRODUKTIVEN Konfiguration ab --
+ * 40 s Schonfrist, danach Stufen: bis zu 5200 volle Spielschritte mit Physik.
+ * Ruhig gemessen brauchen sie 0,6-1,9 s, unter Last laufen sie in Vitests
+ * 5-Sekunden-Grenze.
+ *
+ * Nachgestellt mit sechs Rechenlast-Prozessen auf vier Kernen: zwei von zwei
+ * Laeufen rot, beide Male mit "Test timed out in 5000ms" -- kein einziges Mal
+ * mit einer falschen Erwartung. Das ist die Unterscheidung, auf die es
+ * ankommt: Die Regeln stimmen, die Frist war zu knapp.
+ *
+ * Die schnelle Konfiguration (`SCHNELL`) waere die andere Loesung, aber sie
+ * beweist etwas anderes: dass die Mechanik stimmt, nicht dass sie mit den
+ * echten Zeiten stimmt. Deshalb mehr Zeit statt weniger Simulation.
+ */
+const LANGSAM = 30_000;
+
 describe('Battle-Royale-Zone', () => {
   it('bleibt in anderen Modi vollstaendig aus dem Weg', () => {
     setArenaMode('maze');
@@ -63,7 +82,7 @@ describe('Battle-Royale-Zone', () => {
     expect(royaleZoneFor(game)).toBeNull();
     expect(player.health).toBe(leben);
     expect((game.snapshot(id) as any).royaleZone ?? null).toBeNull();
-  });
+  }, LANGSAM);
 
   it('haelt die Zone waehrend der Schonfrist still und tut niemandem weh', () => {
     setArenaMode('royale');
@@ -83,7 +102,7 @@ describe('Battle-Royale-Zone', () => {
     expect(zone.radius).toBe(DEFAULT_ROYALE.startRadius);
     // Vor der ersten Stufe kostet Draussenstehen nichts – man soll ankommen duerfen.
     expect(player.health).toBe(leben);
-  });
+  }, LANGSAM);
 
   it('schrumpft nach der Schonfrist und zieht danach Leben ab', () => {
     setArenaMode('royale');
@@ -113,7 +132,7 @@ describe('Battle-Royale-Zone', () => {
     expect(zone.stage).toBeGreaterThanOrEqual(1);
     expect(zone.radius).toBeLessThan(DEFAULT_ROYALE.startRadius);
     expect(schadenGesehen).toBe(true);
-  });
+  }, LANGSAM);
 
   it('laesst niemanden bluten, der in der Zone steht', () => {
     setArenaMode('royale');
@@ -136,7 +155,7 @@ describe('Battle-Royale-Zone', () => {
       game.step(dt, now);
       expect(player.health).toBe(player.maxHealth);
     }
-  });
+  }, LANGSAM);
 
   /**
    * Der Schaden je Tick liegt bei 40 Hz und 4 Schaden/s bei 0,1. Wer das auf
@@ -201,7 +220,7 @@ describe('Battle-Royale-Zone', () => {
 
     expect(proSekunde).toBeGreaterThan(erwartet * 0.7);
     expect(proSekunde).toBeLessThan(erwartet * 1.3);
-  });
+  }, LANGSAM);
 
   it('macht das Draussenstehen mit jeder Stufe teurer', () => {
     expect(royaleDamagePerSecond(1)).toBe(DEFAULT_ROYALE.baseDamagePerSecond);

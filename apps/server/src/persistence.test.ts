@@ -537,8 +537,9 @@ describe('achievement persistence', () => {
     const now = Date.now();
     game.step(1 / 40, now);
     linkPlayerToUser(game, playerId, { userId: USER_ID, displayName: 'Ada' });
-    // Das Vorladen läuft asynchron; ein Tick später ist es eingespielt.
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    // Das Vorladen läuft asynchron – gewartet wird auf SEIN Ergebnis, nicht auf
+    // eine Frist. Eine feste Wartezeit misst die Auslastung der Maschine mit.
+    await settle(() => client.preloadCalls > 0);
     game.step(1 / 40, now + 25);
 
     earnStreak(game, playerId, now + 50);
@@ -558,7 +559,7 @@ describe('achievement persistence', () => {
     const now = Date.now();
     game.step(1 / 40, now);
     linkPlayerToUser(game, playerId, { userId: USER_ID, displayName: 'Ada' });
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await settle(() => client.preloadCalls > 0);
     game.step(1 / 40, now + 25);
 
     const progress = achievementProgressFor(game, playerId);
@@ -576,7 +577,7 @@ describe('achievement persistence', () => {
     const now = Date.now();
     game.step(1 / 40, now);
     linkPlayerToUser(game, playerId, { userId: USER_ID, displayName: 'Ada' });
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await settle(() => client.preloadCalls > 0);
 
     earnStreak(game, playerId, now + 25);
     await flushPersistence(game);
@@ -635,7 +636,8 @@ describe('achievement persistence', () => {
     game.step(1 / 40, now);
 
     expect(() => linkPlayerToUser(game, playerId, { userId: USER_ID, displayName: 'Ada' })).not.toThrow();
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    // Auch der gescheiterte Lesevorgang zaehlt als Versuch – darauf wird gewartet.
+    await settle(() => client.preloadCalls > 0);
     earnStreak(game, playerId, now + 25);
 
     // Ohne Vorladung wird der Unlock trotzdem geschrieben.
@@ -722,7 +724,7 @@ describe('profile route', () => {
     const gameA = withPersistence(missing);
     const a = respond();
     profileHandler(gameA)({ params: { userId: USER_ID }, query: {} } as never, a.response as never);
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await settle(beantwortet(a));
     expect(a.state.status).toBe(404);
     stopPersistence(gameA);
 
@@ -731,7 +733,7 @@ describe('profile route', () => {
     const gameB = withPersistence(broken);
     const b = respond();
     profileHandler(gameB)({ params: { userId: USER_ID }, query: {} } as never, b.response as never);
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await settle(beantwortet(b));
     expect(b.state.status).toBe(503);
     stopPersistence(gameB);
   });
@@ -749,7 +751,7 @@ describe('profile route', () => {
     const { response, state } = respond();
 
     profileHandler(game)({ params: { userId: USER_ID }, query: {} } as never, response as never);
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await settle(() => state.body !== null);
 
     expect(state.headers['Cache-Control']).toBe('public, max-age=30');
     expect((state.body as { cacheSeconds: number }).cacheSeconds).toBe(30);
@@ -968,6 +970,8 @@ describe('leaderboard route', () => {
     await leaderboard(game);
 
     client.failReads = true;
+    // Hier IST die Wartezeit der Gegenstand: Der Cache haelt 1 ms, es geht
+    // darum, dass er danach abgelaufen ist. Eine Bedingung gaebe es nicht.
     await new Promise((resolve) => setTimeout(resolve, 5));
     const stale = await leaderboard(game);
 
@@ -982,7 +986,7 @@ describe('leaderboard route', () => {
     const { response, state } = respond();
 
     leaderboardHandler(game)({ query: {} } as never, response as never);
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await settle(() => state.status !== 200);
 
     expect(state.status).toBe(503);
     stopPersistence(game);
@@ -995,7 +999,7 @@ describe('leaderboard route', () => {
     const { response, state } = respond();
 
     leaderboardHandler(game)({ query: { limit: '500' } } as never, response as never);
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await settle(() => state.body !== null);
 
     const body = state.body as { entries: LeaderboardEntry[]; cacheSeconds: number };
     expect(body.entries).toHaveLength(50);
