@@ -1,4 +1,5 @@
 import {
+  ARENA_MODES,
   CLASS_DEFINITIONS,
   GAME,
   type ChooseClassMessage,
@@ -375,7 +376,17 @@ function handleServerMessage(message: ServerMessage): void {
     ui.enterGame();
     gameplayUI.onWelcome();
     enteredGame = true;
-    ui.setConnection('online', 'MAZERS ALPHA');
+    /*
+     * Der Modus steht nur dann im Etikett, wenn er nicht der Standard ist.
+     *
+     * Solange nur Maze läuft, wäre „MAZERS · MAZE" eine Auskunft ohne
+     * Alternative – Platz, der nichts sagt. Sobald aber ein zweiter Modus
+     * existiert, muss ein Spieler ohne Nachdenken wissen, wo er gelandet ist:
+     * In FFA gibt es keine Deckung, und wer das erst nach dem ersten Tod
+     * merkt, hält das Spiel für kaputt statt für anders.
+     */
+    const modus = message.mode ?? 'maze';
+    ui.setConnection('online', modus === 'maze' ? 'MAZERS ALPHA' : `MAZERS · ${ARENA_MODES[modus].label.toUpperCase()}`);
     ui.toast('Arena betreten', 'Farme Formen und entwickle deinen Tank.', 'success');
     input?.setEnabled(true);
     return;

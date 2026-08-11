@@ -769,7 +769,13 @@ export interface WorldSnapshot { type:'snapshot'; selfId:string|null; tick:numbe
    */
   lastProcessedInput?: number;
 }
-export interface WelcomeMessage { type:'welcome'; selfId:string; }
+/**
+ * `mode` ist optional, weil ein Client, der die Nachricht schon kennt, nicht an
+ * einem neuen Pflichtfeld scheitern darf: Ein Spieler mit gepuffertem Bündel
+ * trifft nach einem Deploy auf einen neuen Server. Fehlt das Feld, gilt `maze` –
+ * derselbe Stand wie vor der Einführung der Modi.
+ */
+export interface WelcomeMessage { type:'welcome'; selfId:string; mode?:ArenaMode; }
 export interface ErrorMessage { type:'error'; message:string; }
 export interface PongMessage { type:'pong'; sentAt:number; serverTime:number; }
 export type ServerMessage = WorldSnapshot | WelcomeMessage | ErrorMessage | PongMessage;

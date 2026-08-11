@@ -589,7 +589,7 @@ wss.on('connection', (socket, request) => {
         playerId = game.addPlayer(parsed.data.name);
         socketPlayerIds.set(socket, playerId);
         beginSession(game, playerId, parsed.data.deviceId ?? null, parsed.data.name, now);
-        send(socket, { type: 'welcome', selfId: playerId });
+        send(socket, { type: 'welcome', selfId: playerId, mode: ARENA_MODE });
         // Login ist optional und darf den Join nie verzögern: Der Spieler ist schon
         // drin, das Konto wird ein paar Millisekunden später angeheftet.
         if (parsed.data.authToken) {
