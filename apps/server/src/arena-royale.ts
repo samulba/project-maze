@@ -186,7 +186,17 @@ export function royaleZoneFor(game: MazeGame, now = Date.now()): RoyaleZoneSnaps
     radius: state.radius,
     targetRadius: state.targetRadius,
     phase: state.phase,
-    nextShrinkInMs: nochEineVerengung ? Math.max(0, state.phaseEndsAt - now) : 0,
+    /*
+     * Mindestens 1 ms, solange ueberhaupt noch eine Verengung kommt.
+     *
+     * Die Phase wechselt in `step`, der Snapshot entsteht unabhaengig davon.
+     * Zwischen „Phase abgelaufen" und „Phase gewechselt" liegt bis zu ein Tick –
+     * und eine glatte 0 heisst fuer den Client „keine Verengung mehr", also
+     * „ENDPHASE". Fuer einen Frame stuende dort die Endphase, waehrend die Zone
+     * noch auf vollem Radius steht. Lieber „ENGER IN 1 S": Das ist in diesem
+     * Moment sogar wahr.
+     */
+    nextShrinkInMs: nochEineVerengung ? Math.max(1, state.phaseEndsAt - now) : 0,
     damagePerSecond: royaleDamagePerSecond(state.stage, state.config),
     stage: state.stage,
     alive: lebende(internals).length,

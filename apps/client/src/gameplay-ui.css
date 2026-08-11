@@ -99,6 +99,24 @@
  * er sichtbar ist (royale.css). Ohne Royale sind beide identisch.
  */
 :root { --top-stack-start:calc(var(--edge-y) + 42px); --top-stack:var(--top-stack-start); --top-step:44px; }
+/*
+ * Flache Fenster: Die Spalte beginnt UNTER der Spielerkarte.
+ *
+ * Grund ist derselbe wie bei der Onboarding-Karte: Spielerkarte und Bestenliste
+ * hängen am Spielfeld (`--edge-x` enthält den Letterbox-Rand), die mittige
+ * Spalte am Fenster. Auf 1280 × 430 wird das Feld 764 px breit, die
+ * Spielerkarte reicht dadurch bis x = 526 – und ein Ereignis-Banner, das bei
+ * 440 beginnt, liegt darauf (74 × 31 px gemessen). Gefunden hat das erst der
+ * neue flache Fall mit frischem Spieler; ohne laufendes Arena-Event ist die
+ * Stelle leer, mit Event kollidiert sie.
+ *
+ * 158 px ist die Höhe der Spielerkarte plus Abstand. Nur für Zeigergeräte: Auf
+ * dem Handy ist die Statuskarte eine schmale Zeile, und die Spalte hat dort
+ * ihre eigene Regel (mobile.css).
+ */
+@media (max-height: 560px) and (pointer: fine) {
+  :root { --top-stack-start:calc(var(--edge-y) + 158px); }
+}
 .arena-event-banner,.bounty-banner,.toasts { top:var(--top-stack); }
 :root:has(.arena-event-banner:not([hidden])) .bounty-banner,
 :root:has(.arena-event-banner:not([hidden])) .toasts,

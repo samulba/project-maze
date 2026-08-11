@@ -119,7 +119,14 @@ export class RoyaleBar {
     this.bar = document.createElement('div');
     this.bar.className = 'royale-bar';
     this.bar.hidden = true;
-    this.bar.setAttribute('role', 'status');
+    /*
+     * Ausdruecklich KEINE Live-Region. Der Text traegt einen Countdown, der
+     * sich jede Sekunde aendert – als `role="status"` liest ein Screenreader
+     * die ganze Leiste sekuendlich vor und uebertoent damit alles andere.
+     * Was wirklich angesagt gehoert (ausgeschieden, Sieger), steht auf der
+     * Todeskarte und in den Toasts; beide sind eigene Live-Regionen.
+     */
+    this.bar.setAttribute('aria-live', 'off');
     this.count = document.createElement('b');
     const label = document.createElement('span');
     label.className = 'royale-bar-label';

@@ -529,6 +529,26 @@ describe('Battle-Royale-Vorwarnung', () => {
     expect(zone.nextRoundInMs).toBeGreaterThan(4_000);
   });
 
+  /**
+   * Zwischen "Phase abgelaufen" und "Phase gewechselt" liegt bis zu ein Tick --
+   * die Phase wechselt in `step`, der Snapshot entsteht unabhaengig davon. Eine
+   * glatte 0 hiesse fuer den Client "keine Verengung mehr", er schriebe also
+   * ENDPHASE auf den Schirm, waehrend die Zone auf vollem Radius steht.
+   */
+  it('meldet nie 0, solange ueberhaupt noch eine Verengung kommt', () => {
+    setArenaMode('royale');
+    const game = ohneFormen(createGame());
+    game.addPlayer('Spieler');
+    const start = Date.now();
+    game.step(1 / GAME.tickRate, start);
+
+    // Ohne weiteren Schritt fragen, als waere die Schonfrist laengst vorbei.
+    const ueberfaellig = royaleZoneFor(game, start + DEFAULT_ROYALE.graceMs + 5_000)!;
+    expect(ueberfaellig.phase).toBe('wartet');
+    expect(ueberfaellig.radius).toBe(DEFAULT_ROYALE.startRadius);
+    expect(ueberfaellig.nextShrinkInMs).toBeGreaterThan(0);
+  });
+
   it('rechnet die Restzeiten gegen die Uhr des Snapshots, nicht gegen die eigene', () => {
     setArenaMode('royale');
     const game = ohneFormen(createGame());

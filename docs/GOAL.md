@@ -44,7 +44,7 @@ ist, entscheidet, wer es spielt.
 | Zeile | Womit geprüft | Stand heute |
 |---|---|---|
 | Regeln und Typen stimmen | `npm run check` grün | ✅ |
-| Keine UI, die sich überlappt oder aus dem Bild läuft | `scripts/ui-layout-check.mjs` 193/193 | ✅ |
+| Keine UI, die sich überlappt oder aus dem Bild läuft | `scripts/ui-layout-check.mjs` 196/196 | ✅ |
 | Kein Tank ist Müll, keiner ist Pflicht | Balance-Korridore in `packages/shared/src/balance.test.ts` | ✅ |
 | Das Labyrinth bleibt ein Labyrinth | Wanddeckung 3,8–5,2 % der Fläche (`world.test.ts`) | ✅ 4,53 % |
 | Kein Upgrade ohne Wirkung | `upgradeAppliesTo`, geprüft durch die **ganze** Tuning-Kette | ✅ |
@@ -86,6 +86,16 @@ geben, sind alle offen:
    Minuten. Belegt ist, dass die Runde läuft und ablesbar ist – nicht, dass sie
    sich richtig anfühlt. `ROYALE_SPEED=20` macht aus dem Ausprobieren eine
    Minute statt zehn; die Zahlen selbst gehören danach Sam.
+
+**Eine bekannte Grenze, bewusst offen gelassen:** Auf halbhohen Fenstern zeigt
+die Klassenwahl in der Ecke nicht alle acht Karten gleichzeitig – gemessen 6 von
+8 auf 1280 × 540 und 4 von 8 auf 1600 × 500. Erreichbar sind alle (der Kasten
+scrollt), und das Rad auf Taste C zeigt ohnehin den ganzen Baum. Das zu ändern
+hieße, den Höhendeckel (34 vh) gegen die Bestenliste zu verschieben – eine
+Layout-Runde, keine Fehlerbehebung. Aufgefallen ist es, weil die Layout-Matrix
+seit heute auch flache Fenster mit einem *frischen* Spieler prüft; genau diese
+Kombination fehlte, und durch dieselbe Lücke war die Onboarding-Karte in die
+Bestenliste gelaufen.
 
 Was zur Karte gehört, ist systematisch nachgeprüft und nicht nur angenommen:
 Bandbreite, Tick-Budget, Bot-Dichte, Wanddeckung, Arena-Events, Spawn-Verteilung

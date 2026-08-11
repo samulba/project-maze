@@ -35,8 +35,15 @@
 }
 .royale-bar[hidden] { display: none !important; }
 
-/* Solange der Rundenstand steht, beginnt die Bannerreihe eine Stufe tiefer. */
-:root:has(.royale-bar:not([hidden])) { --top-stack: calc(var(--top-stack-start) + var(--top-step)); }
+/*
+ * Solange der Rundenstand steht, beginnt die Bannerreihe eine Stufe tiefer –
+ * aber nur, solange er wirklich zu sehen ist. Auf dem Death-Screen weicht die
+ * Leiste (unten), und ein reservierter Platz ohne Inhalt schiebt die Toasts um
+ * eine leere Zeile nach unten.
+ */
+:root:has(.royale-bar:not([hidden])):not(:has(#death-screen:not([hidden]))) {
+  --top-stack: calc(var(--top-stack-start) + var(--top-step));
+}
 
 /*
  * Auf der Todeskarte steht der Rundenstand ohnehin (`.royale-death-note`) –
@@ -119,6 +126,16 @@
  * dabei sichtbar, statt zu weichen: Ohne ihn spielt man den Modus blind. Und
  * er springt nicht: links ist er immer, mit oder ohne Onboarding.
  */
+
+/*
+ * Auf flachen Fenstern braucht der Rundenstand keine eigene Regel mehr: Die
+ * ganze obere Spalte beginnt dort unter der Spielerkarte (gameplay-ui.css),
+ * und die Onboarding-Karte sitzt oben rechts. Zwei Versuche vorher lagen
+ * daneben – die Leiste nach links (dann liegt sie auf der 157 px hohen
+ * Spielerkarte) und die Karte eine Zeile tiefer (auf dem Handy landet sie
+ * damit auf dem Ziel-Stick). Die Spalte zu verschieben löst beides auf einmal.
+ */
+
 @media (pointer: coarse) {
   .royale-bar {
     left: max(10px, env(safe-area-inset-left));
@@ -131,7 +148,9 @@
    * Rundenstand kann sich da nicht einreihen, weil er dauerhaft steht: Er
    * bekommt den Slot, die Meldungen rücken um seine Höhe nach.
    */
-  :root:has(.royale-bar:not([hidden])) { --top-stack: calc(var(--top-stack-start) + 30px); }
+  :root:has(.royale-bar:not([hidden])):not(:has(#death-screen:not([hidden]))) {
+    --top-stack: calc(var(--top-stack-start) + 30px);
+  }
   .royale-bar {
     gap: 6px;
     padding: 5px 10px;

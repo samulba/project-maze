@@ -57,7 +57,11 @@ describe('Supabase-Vorabpruefung', () => {
 
     const meldung = preflightMeldung(ergebnis).join('\n');
     expect(meldung).toContain('sessions');
-    expect(meldung).toContain('supabase/migrations/0005_sessions.sql');
+    expect(meldung).toContain('0005_sessions.sql');
+    // Der Ordner steht EINMAL da, nicht je Datei: Eingespielte Migrationen
+    // wandern nach `applied/`, ein fester Pfad je Zeile zeigt sonst ins Leere.
+    expect(meldung).toContain('supabase/migrations/ (bereits eingespielte unter applied/)');
+    expect(meldung).not.toContain('supabase/migrations/0005');
     // Die Meldung muss sagen, dass das Spiel weiterlaeuft -- sonst liest sie
     // sich wie ein Ausfall und jemand rollt einen gesunden Deploy zurueck.
     expect(meldung).toContain('das Spiel laeuft weiter');
@@ -88,6 +92,22 @@ describe('Supabase-Vorabpruefung', () => {
     // Ungeprueft ist nicht in Ordnung: sonst meldet ein kaputter Schluessel gruen.
     expect(ergebnis.vollstaendig).toBe(false);
     expect(preflightMeldung(ergebnis).join('\n')).toContain('nicht pruefbar');
+  });
+
+  /**
+   * Ein Host, der auf jede Anfrage 404 antwortet (falsche SUPABASE_URL, ein
+   * Proxy davor), sieht von hier aus genauso aus wie eine leere Datenbank.
+   * Der Unterschied ist teuer: einmal ist eine ENV-Zeile falsch, einmal muss
+   * jemand vier Migrationen einspielen.
+   */
+  it('nennt bei ALLEN fehlenden Relationen zuerst die URL als Verdacht', async () => {
+    const alleWeg = Object.fromEntries(
+      ERWARTETE_RELATIONEN.map((r) => [r.name, { status: 404, koerper: 'Not Found' }])
+    );
+    const ergebnis = await supabasePreflight(CONFIG, holeMit(alleWeg));
+    const meldung = preflightMeldung(ergebnis).join('\n');
+    expect(meldung).toContain('ALLE Relationen fehlen');
+    expect(meldung).toContain('SUPABASE_URL');
   });
 
   it('ueberlebt einen Netzausfall, statt den Start zu sprengen', async () => {

@@ -32,12 +32,12 @@
  * passende Fälle ein (beim Reparieren will man nicht alle abwarten), `DBG=1`
  * gibt die Zwischenwerte der Leseansicht-Erkennung aus.
  *
- * ## Was geprüft wird (Stand 11.08., 193 Fälle)
+ * ## Was geprüft wird (Stand 11.08., 196 Fälle)
  *
  * | Bereich | Fälle | Frage |
  * | --- | --- | --- |
  * | Startscreen | 55 | Ist alles erreichbar, ohne die Seite zu scrollen? |
- * | Spiel-HUD | 130 | Überlappt sich etwas, ragt etwas heraus, nimmt zu viel keine Klicks? |
+ * | Spiel-HUD | 133 | Überlappt sich etwas, ragt etwas heraus, nimmt zu viel keine Klicks? |
  * | Admin-Portal | 8 | Läuft etwas über seinen Kasten, sind die Knöpfe treffbar? |
  *
  * Zwölf der HUD-Fälle sind Battle Royale (`zustand.royale`): Die Rundenleiste
@@ -487,7 +487,32 @@ const FAELLE = [
   // Battle Royale: die Leiste sitzt in der oberen Mitte, also dort, wo schon
   // Onboarding, Banner und Toasts stehen -- genau die Stelle, an der der erste
   // Anlauf auf der Onboarding-Karte lag.
+  /*
+   * Flache Fenster mit frischem Spieler -- die Luecke, durch die der
+   * Onboarding-Befund gefallen ist. Bei 420 px Hoehe frisst der Letterbox-Rand
+   * 568 px Breite; wer hier nur 1280x600 prueft, sieht das nie.
+   */
+  /*
+   * Ereignis und Kopfgeld stehen hier fest im Zustand, nicht dem Zufall
+   * ueberlassen: Die Kollision "Banner auf Spielerkarte" gibt es nur, WENN in
+   * der oberen Mitte etwas steht. Der erste Anlauf lief ohne laufendes Event
+   * durch und meldete gruen -- der volle Lauf, in dem gerade eines lief, dann
+   * rot. Ein Fall, der nur bei Spielglueck prueft, prueft nicht.
+   */
+  { name: 'frisch-sehr-flach', w: 1280, h: 430, zustand: { event: 'coreSurge', bounty: true } },
+  { name: 'frisch-flach-breit', w: 1600, h: 500, zustand: { event: 'coreSurge', bounty: true } },
+  /*
+   * Die Klassenwahl steht hier bewusst NICHT mit in der flachen Reihe.
+   * Nachgemessen: Auf 1280x540 sind 6 von 8 Karten sichtbar, auf 1600x500
+   * vier. Der Kasten ist auf 34vh gedeckelt (hud-layout.css) und scrollt --
+   * erreichbar sind alle, gleichzeitig sichtbar nicht. Das ist eine bekannte
+   * Grenze halbhoher Fenster, keine Regression dieser Runde: Wer dort alle
+   * Wege sehen will, oeffnet das Rad mit C. Es hier als Fall zu fuehren hiesse,
+   * die Matrix dauerhaft rot zu lassen -- und Rot, das immer da ist, liest
+   * irgendwann niemand mehr.
+   */
   { name: 'royale', w: 1280, h: 720, zustand: { royale: {} } },
+  { name: 'royale-sehr-flach', w: 1280, h: 430, zustand: { royale: {}, event: 'coreSurge', bounty: true } },
   { name: 'royale-flach', w: 1280, h: 600, zustand: { royale: {} } },
   { name: 'royale-sieg', w: 1280, h: 720, zustand: { royale: { sieg: true } } },
   { name: 'royale-wahl', w: 1280, h: 720, zustand: { level: 10, playerClass: 'core', punkte: 4, royale: {} } },

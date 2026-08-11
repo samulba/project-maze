@@ -162,9 +162,26 @@ export function preflightMeldung(ergebnis: PreflightErgebnis): string[] {
   if (fehlend.length > 0) {
     zeilen.push(`[supabase] ${fehlend.length} Relation(en) fehlen – diese Daten gehen VERLOREN, das Spiel laeuft weiter:`);
     for (const befund of fehlend) {
-      zeilen.push(`[supabase]   ${befund.relation.name} (${befund.relation.zweck}) -> supabase/migrations/${befund.relation.migration}`);
+      zeilen.push(`[supabase]   ${befund.relation.name} (${befund.relation.zweck}) -> ${befund.relation.migration}`);
     }
+    /*
+     * Kein fester Pfad je Datei: Eingespielte Migrationen wandern nach
+     * `applied/` (siehe supabase/migrations/README.md). Ein hart geschriebenes
+     * `supabase/migrations/0001_runs.sql` zeigt bei einer leeren Datenbank auf
+     * vier Dateien, die dort gar nicht mehr liegen.
+     */
+    zeilen.push('[supabase] Die Dateien liegen unter supabase/migrations/ (bereits eingespielte unter applied/).');
     zeilen.push(`[supabase] Einspielen: Supabase Studio -> SQL Editor -> Inhalt von ${ergebnis.offeneMigrationen.join(', ')} ausfuehren.`);
+    /*
+     * Wenn ALLES fehlt, ist die wahrscheinlichste Ursache nicht eine leere
+     * Datenbank, sondern eine falsche Adresse: Ein Host, der auf jede Anfrage
+     * 404 antwortet, sieht von hier aus genauso aus. Wer das nicht dazusagt,
+     * schickt jemanden viermal in den SQL-Editor, wo eine Zeile ENV falsch ist.
+     */
+    if (fehlend.length === ergebnis.befunde.length) {
+      zeilen.push('[supabase] ALLE Relationen fehlen – pruefe zuerst SUPABASE_URL: Ein Host, der auf'
+        + ' jede Anfrage 404 antwortet, sieht von hier genauso aus wie eine leere Datenbank.');
+    }
   }
   for (const befund of unklar) {
     zeilen.push(`[supabase] ${befund.relation.name} nicht pruefbar: ${befund.grund ?? 'unbekannt'}`);

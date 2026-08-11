@@ -33,13 +33,40 @@
  * Layout-Prüfung, weil er als einziger flacher Fall einen frischen Spieler
  * zeigt (die anderen tragen Level oder Tod – dann ist der Hinweis längst weg).
  *
- * Die Karte bekommt deshalb den Platz *zwischen* den beiden Panels, mit deren
- * eigenen Breiten gerechnet (style.css) plus einem sichtbaren Abstand.
+ * Die Karte bekommt deshalb den Platz *zwischen* den beiden Panels – gerechnet
+ * mit dem **breiteren** von beiden, zweimal. Die naheliegende Summe aus beiden
+ * Breiten wäre falsch: Die Karte steht mittig im Fenster, die Bestenliste ist
+ * aber 28–36 px breiter als die Spielerkarte. Mit der Summe bliebe rechts nur
+ * ein Rest von 6 px, während links 38 px frei stünden – symmetrisch gerechnet
+ * bekommen beide Seiten denselben Abstand.
  */
 @media (min-width: 901px) {
   .onboarding {
     width: min(520px, calc(100vw - 2 * var(--edge-x)
-      - clamp(250px, 13.02vw, 330px) - clamp(278px, 14.48vw, 366px) - 40px));
+      - 2 * clamp(278px, 14.48vw, 366px) - 40px));
+  }
+}
+
+/*
+ * Flache Fenster: Die Karte weicht nach rechts, die Bestenliste pausiert.
+ *
+ * Auf 1280 × 420 frisst der Letterbox-Rand 568 px – im Spielfeld bleiben 712,
+ * davon 250 für die Spielerkarte. Für eine *mittige* Karte hieße das: 212 px
+ * Restbreite, also ein Hinweis, den niemand lesen kann. Das ist kein besseres
+ * Ergebnis als die Überlappung, die vorher da war, sondern ein anderes.
+ *
+ * Deshalb dieselbe Antwort wie auf dem Handy (unten): Die Karte rückt an den
+ * rechten Rand, und die Bestenliste – für einen Spieler in seiner ersten Minute
+ * die entbehrlichste Anzeige – tritt so lange zur Seite.
+ */
+@media (min-width: 901px) and (max-height: 560px) {
+  :root.onboarding-active .leaderboard { display: none; }
+  .onboarding {
+    left: auto;
+    right: var(--edge-x);
+    translate: none;
+    width: min(440px, calc(100vw - 2 * var(--edge-x)
+      - clamp(250px, 13.02vw, 330px) - 40px));
   }
 }
 .onboarding.enter { animation: onboarding-in .26s ease-out; }
