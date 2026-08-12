@@ -1,4 +1,10 @@
-# Übergabe an einen neuen Chat 03 – Client/UX
+> **SOLO-BETRIEB seit 07.08.:** Sam hat die Arbeits-Chats 02/03/04 aufgelöst –
+> es gibt keine Rollenverteilung, keine Auftrag-Dateien und keine Übergabe an
+> Chat 01 mehr. Sams Nachricht ist der Auftrag. Alles unten zu Revier und
+> Statusblock-Runden ist historisch; die technischen Regeln und Fallenlisten
+> gelten weiter. Dieser Ordner ist Archiv.
+
+# Übergabe an einen neuen Chat 03 – Client/UX (historisch)
 
 Diese Datei ist dein Einstieg. Sie beschreibt Rolle, Regeln und die Fallen,
 die uns schon Zeit gekostet haben. **Der aktuelle Sachstand steht nicht hier**,

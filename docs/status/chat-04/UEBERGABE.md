@@ -1,4 +1,15 @@
-# Übergabe an einen neuen Chat 04 – Infra/Betrieb
+> **SOLO-BETRIEB seit 07.08.:** Sam hat die Arbeits-Chats 02/03/04 aufgelöst –
+> es gibt keine Rollenverteilung, keine Auftrag-Dateien und keine Übergabe an
+> Chat 01 mehr. Sams Nachricht ist der Auftrag, gearbeitet wird direkt mit ihm.
+> Alles unten zu Revier, Statusblock-Runden und „nur 01 pusht" ist damit
+> historisch. **Weiter gelten:** `npm run check` grün vor jedem Push, die
+> Migrations-Konvention (`supabase/migrations/README.md`), der Umgang mit dem
+> `service_role`-Key, neue ENV-Variablen sofort in `.env.example` +
+> `docs/DEPLOYMENT.md`, kein Zufall in Tests – und die Fallenliste unten, die
+> ist mit Blut geschrieben. Dieser Ordner bleibt als Berichtshistorie bestehen
+> (die Berichte 18–20 entstanden bereits im Solo-Betrieb).
+
+# Übergabe an einen neuen Chat 04 – Infra/Betrieb (historisch)
 
 Diese Datei ist dein Einstieg. Sie beschreibt Rolle, Regeln und die Fallen,
 die uns schon Zeit gekostet haben. **Der aktuelle Sachstand steht nicht hier**,
