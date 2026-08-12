@@ -547,6 +547,13 @@ npm run progress-probe
 # Aufstieg, kein Wiedereinstieg); Schwierigkeit ist Sams Entscheidung.
 MINUTEN=5 LAEUFE=3 npm run first-run-probe
 
+# Traegt der Weg zwischen ZWEI Menschen? Jede andere Probe spielt allein.
+# Leere FFA-Arena, damit die Messung den Spielern gilt und nicht den Bots:
+# sehen, treffen, sterben, richtig zugeordnet.
+ARENA_MODE=ffa BOT_COUNT=0 ARENA_DIRECTOR_ENABLED=false \
+  PORT=2652 HOST=127.0.0.1 node apps/server/dist/index.js &
+URL=http://127.0.0.1:2652 npm run duo-probe
+
 # Bekommt man auf der Leitung den Modus, den man konfiguriert hat?
 # Haengt sich als echter Client an einen laufenden Server (kein Browser) und
 # prueft je Modus dessen Versprechen: maze Waende, ffa KEINE Wand, royale die
