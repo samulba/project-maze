@@ -6,7 +6,7 @@
 | **Branch** | `claude/validate-bericht-19-findings-85aiaz` (Sitzungs-Vorgabe; main ist per Sams Freigabe „Ja, merge du" nachgezogen) |
 | **Basis** | `3834b52` |
 | **Tests** | `npm run check` grün – 77 Dateien, 1056 Tests |
-| **Status** | 51 Befunde gegengeprüft, **43 behoben** (plus 53 teilweise), 6 bestätigt-aber-offen, 20 ungeprüft |
+| **Status** | **Alle 79 Befunde geprüft**: 43 behoben, 2 verworfen (2, 74), Rest bestätigt-aber-offen – Bots/Balance/Content bei Sam |
 
 Dieses Dokument ist der Einstieg für die nächste Sitzung. Der volle Bericht
 mit allen Urteilen und Belegen ist
@@ -92,9 +92,14 @@ wieder durchgerutscht.
      **null** sichtbare Korrekturen. Default: Sam.
    * Dazu: Balance-Liste (18, 25, 26, 27, 30, 31, 32, 34, 59),
      Bestenlisten-Fenster/Dedup (51), Wortlaut der Login-Zeile (55).
-2. **Bot-Gruppe 71–79 nachmessen** – die 20 ungeprüften Befunde sind fast
-   alle hier; jede Prüfung braucht Laufzeitmessungen gegen den echten Server,
-   und die Hälfte der Fixes wäre zugleich Schwierigkeits-Balance.
+2. **Sams Bot-Entscheidungen** – die Gruppe 71–79 ist nachgemessen
+   (Bericht 21, Abschnitt 5): 7 bestätigt, 77 teilweise, **74 verworfen**
+   (die V2-Vorhalt-Kompensation macht Elite auf jeder Distanz
+   unterscheidbar – der Sucher hatte die Schicht übersehen). Die zwei
+   defektartigen zuerst: 75 (SIEGE/AEGIS nie im Bot-Bestand, gegen den
+   dokumentierten Rotations-Willen) und 79 (Farmer-Reparatur startet nie,
+   der Code-Kommentar behauptet das Gegenteil). Der Rest ist
+   Schwierigkeits-Design und gehört als Paket entschieden.
 3. **Rest der Retention-Runde:** nur noch die Login-Zeile auf dem
    Death-Screen (55, Wortlaut mit Sam) – die restlichen 53er-Zeilen sind
    gebaut (Erfolge des Laufs + Bestenlisten-Messlatte auf der Death-Karte).

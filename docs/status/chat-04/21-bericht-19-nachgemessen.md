@@ -1,4 +1,4 @@
-# 21 – Bericht 19 nachgemessen: 51 Befunde geprüft, 43 behoben
+# 21 – Bericht 19 nachgemessen: alle 79 Befunde geprüft, 43 behoben
 
 | | |
 | --- | --- |
@@ -6,7 +6,7 @@
 | **Branch** | `claude/validate-bericht-19-findings-85aiaz` (Vorgabe dieser Sitzung; main ist per Sams Freigabe „Ja, merge du" nachgezogen) |
 | **Basis** | `3834b52` |
 | **Tests** | `npm run check` grün – 77 Dateien, 1056 Tests |
-| **Status** | 51 gegengeprüft: 43 behoben, 53 teilweise, 6 bestätigt-aber-offen, Befund 2 verworfen · 20 ungeprüft |
+| **Status** | Alle 79 geprüft: 43 behoben, 2 verworfen (2, 74), Rest bestätigt-aber-offen – Bots/Balance/Content bei Sam (Abschnitte 3–5) |
 
 ## 1. Wie gemessen wurde
 
@@ -232,16 +232,89 @@ Alleinsein (18), Ziel-Leiter zwischen Level 19 und 60 (59 – der
 Erfolgs-Teil wäre Content, die Kurve Balance). Dazu weiter offen: 0,45 gegen
 0,5 Punktestand (die tote 0,45-Fassung liegt unverändert in game.ts).
 
-## 5. Ungeprüft geblieben (20)
+## 5. Bot-Gruppe (71–79) und Content-Befunde (16, 50) – nachgemessen
 
-Befunde 16 und 50 (Onboarding-Kill-Schritt, Anfänger-Erfolge – beides
-Content-Entscheidungen nahe an Sams Liste) und die komplette Bot-Gruppe
-**71–79**. Letztere ist das größte offene Stück: Die Behauptungen sind
-messbar formuliert (Ziel-Haltedauern, Trefferquoten je Tier,
-Signature-Füllstände je Familie), aber jede Prüfung braucht eigene
-Laufzeitmessungen gegen den echten Server – das ist eine eigene Sitzung, und
-mehrere Fixes daran (Aggression je Gefecht, Tier nach Level) wären zugleich
-Schwierigkeits-Entscheidungen, also mindestens zur Hälfte Sams.
+Nachtrag am späten Abend: Drei Prüf-Agenten haben die neun Bot-Behauptungen
+mit Laufzeitmessungen gegen den gebauten Server geprüft (Tuning-Kette exakt
+in index.ts-Reihenfolge mit Produktions-Defaults nachgestellt, feste Uhr,
+Messskripte im Sitzungs-Scratchpad; Methodik je Skript im Kopfkommentar).
+Ergebnis: **7 bestätigt, 77 teilweise, 74 verworfen.** Damit ist kein
+Befund aus Bericht 19 mehr ungeprüft. Fixes daran sind bewusst NICHT
+passiert – Bot-Verhalten ist Schwierigkeits-Balance, die Entscheidung
+liegt bei Sam (GOAL.md erklärt Schwierigkeit ausdrücklich zu seiner).
+
+* **71 (Aggressionswurf je Entscheidung) – bestätigt.** Mechanik exakt wie
+  behauptet, Zahlen repliziert: farmer hält ein Ziel im Median 375 ms
+  (96 % der Episoden unter 1 s), hunter/brawler exakt 8 025 ms =
+  huntTimeoutMs; in der vollen Arena visiert 80,8 % der Zeit kein Bot den
+  Menschen an. Die Kampfpausen selbst sind kommentiert gewollt (Sams
+  „Dauerbeschuss"-Feedback), aber der Kommentar beschreibt styleAggression
+  als „einen Gegner überhaupt angehen" – implementiert ist ein Neuwurf
+  alle 195–538 ms. Vorbehalt: gemessen mit passivem Menschen; wer
+  zurückschießt, löst Vergeltung aus und sieht mehr Angreiferzeit.
+* **72 (Bots kaufen nie maxHealth) – bestätigt, eine Ecke zu absolut.**
+  13 von 18 Plätzen brauchen rechnerisch Level 72 (Deckel: 60) – exakt
+  repliziert, ebenso alle HP-Paare (vortex 224 gegen 118 usw.). Aber
+  „ausnahmslos jeder" kippt: brawler kauft ab Level 22 (im Messlauf einer
+  mit maxHealth = 8). Und die Gegenprobe verschiebt die Ursache: Ohne die
+  beiden Familien-Slots im Bot-Pfad läge der HP-Punkt bei Level 52 –
+  erst der Slot-Einschub (Position 2 und 4) macht ihn unerreichbar.
+* **73 (Tier bei Geburt gewürfelt, nie neu) – bestätigt.** Über 71
+  Bot-Tode und 39 Level Spanne: 0 Tier-Wechsel, 0 Profil-Wechsel.
+  Nebenbefund: Weil der Zähler bei 1 beginnt, ist die reale Mischung
+  7 rookie / 8 veteran / 3 elite – nicht die kommentierten 40/40/20.
+* **74 (Skill-Stufen ab 300 px ununterscheidbar) – VERWORFEN.** Der Befund
+  zitiert die Mechanik unvollständig: In Produktion ist PROJECTILE_SPEED_V2
+  an, und `compensatedLeadFactor` hebt den Vorhalt bei langen Flugzeiten
+  genau so an, dass der Fehler konstant bleibt (rookie 0,3 → effektiv 0,83
+  auf 880 px). Gemessen mit echter Fahr-Physik: Elite ist auf JEDER Distanz
+  klar unterscheidbar (200 px: 41/70/98 %; 420 px: 32/40/50 %; 880 px:
+  16/20/26 %); die behauptete Inversion tritt nie auf und reproduziert
+  sich nur mit einem teleportierten statt gefahrenen Ziel – ein
+  Messartefakt des Suchers. Teilrest: rookie und veteran rücken auf
+  880 px eng zusammen – wegen der V2-Kompensation, nicht trotz ihr.
+* **75 (Bestand bit-identisch, SIEGE/AEGIS fehlen) – bestätigt,
+  vollständig.** 12 Archetypen auf 18 Plätzen, 6 exakte Doppelpaare,
+  zweiter Arena-Bau bit-identisch; die vier vorhandenen Siege-/Aegis-Pfade
+  werden durch die Modulo-Kopplung nie gezogen – gegen den ausdrücklichen
+  Codekommentar, der beide Familien in der Controller-Rotation haben will.
+  Das ist der eine Bot-Befund, der eher Defekt als Balance ist.
+* **76 (SPECTER-Bots zünden ihre Familie nie) – bestätigt.** 6 Minuten,
+  949 Proben: Median-Tarnung 0,0, 90. Perzentil 0,0, Maximum 51 – die
+  Hinterhaltsschwelle 95 fällt nie; Bots feuern in 83,2 % der Ticks.
+  Keine Schicht gated das Feuern.
+* **77 (Ecke löscht Bot-Kontakt, Bot kommt nie herum) – teilweise.** Der
+  Kern hält: Zielverlust nach der Ecke im Median 275 ms, kein letzter
+  bekannter Ort, keine Umrundung als Taktik. Aber „findet ihn nie wieder"
+  war ein Einzellauf-Artefakt: In 5 von 10 geseedeten Läufen stolpert der
+  Bot beim Formen-Farmen binnen 60 s zufällig zurück in die Sichtlinie.
+* **78 (alle kämpfen auf 430 px) – bestätigt.** Alle Reichweiten exakt
+  repliziert (eclipse 4 446 px, Kampf auf 9,7 % der Reichweite); mit dem
+  Stabilizer-Frame der Hunter sogar 4 891 px → 8,8 %. Feuerdeckel bindet
+  überall bei 900/1150.
+* **79 (Farmer können ihre Reparatur nicht starten) – bestätigt.** Der
+  Kausalpfad ist lückenlos: think stoppt für die Reparatur, tuneRapidBots
+  überschreibt den Stopp, Tempo fällt nie unter 40. Gemittelt über drei
+  Läufe: 3,2 % reparaturfähige Ticks / 34 % der Zeit unter 68 % HP mit
+  der Schicht gegen 11,6 % / 19 % ohne; 0–1 Reparaturzyklen in 4 min
+  gegen 1–5. Der Kommentar „die Reparatur bricht dadurch nicht ab"
+  (signature-rapid.ts) ist sachlich falsch – sie beginnt nie. Auch das
+  eher Defekt als Balance. Vorsicht: Einzelläufe streuen stark, nur
+  gemittelt bewerten.
+
+Dazu die letzten zwei Content-Befunde, von Hand gegengeprüft:
+
+* **16 (nichts sagt, dass Kills der Fortschritt sind) – bestätigt.** Die
+  sechs Onboarding-Schritte erwähnen keine Spieler; die XP-Rechnung stimmt
+  exakt (ein Kill ≈ zehn Formen: 1 550 gegen Ø 153 XP). Ein Teil des
+  Vorschlags ist seit Befund 4 gebaut (Kill-Belohnung als Zahl im
+  Spielfeld); der siebte Onboarding-Schritt ist Content – Sam.
+* **50 (Anfänger erreicht praktisch keinen Erfolg) – bestätigt.**
+  Schwellen halten (score10k = Level ~19–20 bei 10 289 XP; nur
+  threeFamilies ist anfängerrealistisch). Detailkorrekturen: maxLevel
+  kostet 168 595 XP (nicht 176 280), und der Katalog hat inzwischen acht
+  Erfolge – der neue (royaleWinner) ist im Maze ebenso unerreichbar.
+  Katalog-Erweiterung ist Content – Sam.
 
 ## 6. Proben- und Testlage
 
@@ -349,10 +422,14 @@ rekonstruierbar – Aufbau steht oben vollständig).
    Menü-Text (63) und Prediction-Default (64) – die Zahlen zu beidem stehen
    in Abschnitt 7. Dazu die Balance-Liste aus Abschnitt 4, Zeitfenster/
    Dedup der Bestenliste (51), Wortlaut der Login-Zeile (55).
-2. **Die Bot-Gruppe (71–79) nachmessen** – eigene Sitzung, Messskripte nach
-   den Gegenproben im Bericht 19.
-3. **Rest der Retention-Runde:** die Login-Zeile auf dem Death-Screen (55,
-   Wortlaut mit Sam) und die restlichen 53er-Zeilen.
+2. **Sams Bot-Entscheidungen** (Abschnitt 5): Die zwei defektartigen
+   zuerst – 75 (Modulo-Kopplung gegen den dokumentierten Rotations-Willen,
+   SIEGE/AEGIS nie im Bestand) und 79 (Reparatur startet nie, der
+   Kommentar behauptet das Gegenteil). Der Rest (71, 72, 73, 76, 77, 78)
+   ist Schwierigkeits-Design: Haltedauern, HP-Pfad, Tier-Kurve,
+   Familien-Feuerregeln, Ecken-Gedächtnis, Kampfdistanz.
+3. **Rest der Retention-Runde:** nur noch die Login-Zeile auf dem
+   Death-Screen (55, Wortlaut mit Sam).
 4. Der einzige echte Blocker bleibt unverändert Sams: Migration
    `0005_sessions.sql` und die Railway-Variablen – ohne sie misst die
    dreizehnte Zeile nicht.
