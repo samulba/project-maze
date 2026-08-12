@@ -139,6 +139,14 @@ Als das entschieden wurde, gab es im Code **keine** Modi-Infrastruktur:
 `ARENA_MODE` der Schalter, und der Modus steht in `/health`, in der Telemetrie
 und im Etikett des Clients.
 
+(Der Halbsatz „in der Telemetrie" stand hier schon einmal und war falsch:
+`telemetry.ts` trug das alte Etikett bis zum 12.08. weiter – zwei Dienste
+waren in Prometheus nicht auseinanderzuhalten, und genau diese Zusicherung
+hat den Befund gedeckt statt ihn zu verhindern (Befund 65, dieselbe Klasse
+wie die zwei falschen Zusicherungen vom 12.08.). Seitdem prüft die
+mode-probe auch `/metrics?format=json` – der Satz ist wieder wahr und
+diesmal von einer Probe gehalten, nicht von sich selbst.)
+
 **Stand 11.08.: alle drei laufen**, umgeschaltet über `ARENA_MODE`. Der Modus
 ist eine Eigenschaft der Arena, nicht des Spielers – ein Prozess, eine Arena,
 derselbe Weg wie `BOT_COUNT`. Wer mehrere *gleichzeitig* anbieten will, startet
