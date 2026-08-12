@@ -168,6 +168,9 @@
    */
   :root.onboarding-active .leaderboard,
   :root.onboarding-active .bounty-banner { display: none; }
+  /* Auch die Abruf-Minimap pausiert: Sie teilt sich den Platz oben rechts
+     mit der Hinweiskarte (ID-Selektor nötig, sonst gewinnt #app.minimap-open). */
+  :root.onboarding-active #app.minimap-open .minimap { display: none; }
   /* Toasts bleiben – sie melden Dinge, die auch Anfänger sehen müssen –,
      rücken aber unter die Karte. */
   :root.onboarding-active { --top-stack-start: calc(var(--edge-y) + 130px); }

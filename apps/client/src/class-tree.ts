@@ -50,6 +50,12 @@ export interface FamilyInfo {
   signature: string;
   /** Wie die Signature aufgeladen wird. */
   builds: string;
+  /**
+   * Dasselbe in einer Kartenzeile (Befund 12): Die Eck-Wahl hat Platz für
+   * rund 30 Zeichen – der volle `builds`-Satz sprengte dort die Karte
+   * (gemessen: 5–20 px Überlauf und nur noch 4/8 Karten sichtbar).
+   */
+  buildsKurz: string;
   /** Was sie bringt, wenn sie voll ist. */
   pays: string;
 }
@@ -60,6 +66,7 @@ export const FAMILIES: readonly FamilyInfo[] = [
     label: 'Dauerfeuer',
     style: 'Druck über Zeit: viele Läufe, kurze Nachladezeit, immer in Bewegung.',
     signature: 'Momentum',
+    buildsKurz: 'lädt im Fahren + Feuern',
     builds: 'Feuern in Fahrt baut Momentum auf. Wer stehen bleibt, verliert es schnell wieder.',
     pays: 'Bei vollem Momentum lädst du deutlich schneller nach – der Unterschied zwischen Druck und Dauerdruck.'
   },
@@ -68,6 +75,7 @@ export const FAMILIES: readonly FamilyInfo[] = [
     label: 'Präzision',
     style: 'Ein Treffer statt zehn: Reichweite, Durchschlag und wenig Fehlertoleranz.',
     signature: 'Ladung',
+    buildsKurz: 'Halten lädt den Schuss',
     builds: 'Feuertaste halten lädt den Schuss. Ein Sofortklick bleibt ein schwacher Schuss.',
     pays: 'Der geladene Schuss trifft härter und größer. Aus Klickgeschwindigkeit wird Timing.'
   },
@@ -76,6 +84,7 @@ export const FAMILIES: readonly FamilyInfo[] = [
     label: 'Kontrolle',
     style: 'Du kämpfst nicht selbst, deine Einheiten tun es. Raum halten statt zielen.',
     signature: 'Einheiten',
+    buildsKurz: 'Konto füllt stetig nach',
     builds: 'Ein Nachschub-Konto füllt sich stetig; jede neue Einheit bezahlt daraus.',
     pays: 'Volles Konto heißt vollständige Flotte. Verluste kosten Budget, nicht Zeit.'
   },
@@ -84,6 +93,7 @@ export const FAMILIES: readonly FamilyInfo[] = [
     label: 'Panzerung',
     style: 'Der Tank ist die Waffe: Leben, Tempo und Körperschaden statt Kugeln.',
     signature: 'Wucht',
+    buildsKurz: 'lädt beim Fahren',
     builds: 'Wucht lädt allein durch Fahren – die Feuertaste spielt keine Rolle.',
     pays: 'Ein Anlauf mit voller Wucht macht ein Vielfaches an Körperschaden und ist danach leer.'
   },
@@ -92,6 +102,7 @@ export const FAMILIES: readonly FamilyInfo[] = [
     label: 'Tarnung',
     style: 'Hinterhalt und Winkel: Wer nicht schießt, verschwindet vom Feld.',
     signature: 'Tarnung',
+    buildsKurz: 'lädt ungesehen',
     builds: 'Kurz nicht schießen und keinen Kontakt nehmen – dann baut sich die Tarnung auf.',
     pays: 'Aus voller Tarnung trägt der Erstschlag deutlichen Bonusschaden. Danach bist du sichtbar.'
   },
@@ -100,6 +111,7 @@ export const FAMILIES: readonly FamilyInfo[] = [
     label: 'Hitze',
     style: 'Burst-Fenster statt Dauerfeuer: Der Reaktor belohnt Mut und bestraft Gier.',
     signature: 'Hitze',
+    buildsKurz: 'Salven heizen auf',
     builds: 'Jede Salve heizt auf. Feuerpausen kühlen – wer durchzieht, riskiert die Sicherung.',
     pays: 'Heiße Schüsse tragen bis zu 40 % mehr Schaden. Bei 100 überhitzt du für gut eine Sekunde.'
   },
@@ -108,6 +120,7 @@ export const FAMILIES: readonly FamilyInfo[] = [
     label: 'Stellung',
     style: 'Das Gegenteil von Dauerfeuer: Wer steht, wird zur Kanone.',
     signature: 'Stellung',
+    buildsKurz: 'lädt im Stillstand',
     builds: 'Stillstand baut Stellung auf. Losfahren baut sie doppelt so schnell wieder ab.',
     pays: 'In voller Stellung schlagen deine Schüsse härter und fliegen deutlich weiter.'
   },
@@ -116,6 +129,7 @@ export const FAMILIES: readonly FamilyInfo[] = [
     label: 'Schild',
     style: 'Treffer einstecken und zurückgeben: Wer auf dich hält, lädt dich auf.',
     signature: 'Schild',
+    buildsKurz: 'lädt bei Treffern',
     builds: 'Jeder erlittene Schaden lädt den Schild. Ab der Hälfte panzert er dich zusätzlich.',
     pays: 'Bei voller Ladung entlädt er sich von selbst: Schaden und Rückstoß für alle in der Nähe.'
   }

@@ -472,7 +472,10 @@ function messenImBrowser() {
     && !window.matchMedia('(orientation: portrait)').matches
     && !imTod) {
     const wahlOffen = wahl && !wahl.hidden && wahl.dataset.collapsed !== 'true';
-    if (!wahlOffen) {
+    // Das offene Rad (Taste C) ist ein Vollbild-Overlay und legt die Sticks
+    // absichtlich still – dort ist Lesen der Zustand, nicht Fahren.
+    const radOffen = Boolean(rad && !rad.hidden);
+    if (!wahlOffen && !radOffen) {
       const lahm = [];
       for (const sel of ['#move-stick', '#aim-stick']) {
         const el = document.querySelector(sel);

@@ -71,17 +71,18 @@ function enhanceButton(button: HTMLButtonElement): void {
   button.prepend(preview);
   button.append(bars);
 
-  // Die eine Zeile, die den Unterschied macht (Befund 12): die Füllbedingung
-  // der Signature. GOAL.md nennt sie das Entscheidende an den Familien – auf
-  // der Karte stand sie nie, nur im Rad auf Taste C. Erster Satz von
-  // `builds`, mehr Platz hat die Ecke nicht (auf flachen Fenstern blendet
-  // class-choice.css sie aus, damit alle acht Karten sichtbar bleiben).
+  // Die Füllbedingung der Signature auf der Karte (Befund 12): GOAL.md nennt
+  // sie das Entscheidende an den Familien, und sie stand nur im Rad auf
+  // Taste C. Sie hängt IN der Rollenzeile (absolut positioniert), weil jede
+  // zusätzliche Kartenzeile den 34-vh-Deckel sprengt – gemessen: nur noch 4/8
+  // Karten sichtbar auf 1280×720. Deshalb auch die Kurzform statt des vollen
+  // builds-Satzes.
   const info = familyInfo(definition.branch);
   if (info) {
     const fill = document.createElement('i');
     fill.className = 'class-choice-fill';
-    fill.textContent = `${info.signature}: ${(info.builds.split('.')[0] ?? info.builds).trim()}.`;
-    button.append(fill);
+    fill.textContent = ` · ${info.buildsKurz}`;
+    role.append(fill);
   }
 
   // Perk-Zeile (Welle B): das Merkmal, das nur diese Klasse hat. Starter

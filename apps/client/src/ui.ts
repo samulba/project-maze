@@ -15,6 +15,7 @@ import { classPreviewSvg } from './class-preview';
 import { deathToastText, respawnFacts, respawnTileLabel, respawnTileValue } from './death-summary';
 import {
   FAMILY_LOCK_HINT,
+  FAMILY_UNLOCK_LEVEL,
   UPGRADE_SLOT_IDS,
   familyUpgradeLabel,
   familyUpgradeLocked,
@@ -643,8 +644,10 @@ export class GameUI {
       if (family) {
         const label = this.root.querySelector<HTMLElement>(`[data-upgrade-label="${id}"]`);
         // Sperrgrund als sichtbarer Text: `title` ist auf Touch kein Text,
-        // sondern nichts (Befund 17).
-        if (label) label.textContent = locked ? `${slotLabel(id, self.playerClass)} · ${FAMILY_LOCK_HINT}` : slotLabel(id, self.playerClass);
+        // sondern nichts (Befund 17). Kompakt – der volle Satz lief auf den
+        // Handy-Formaten 84 px über die Panelbreite (Layout-Matrix); die
+        // Langfassung bleibt im title für die Maus.
+        if (label) label.textContent = locked ? `${slotLabel(id, self.playerClass)} · ab Lv ${FAMILY_UNLOCK_LEVEL}` : slotLabel(id, self.playerClass);
         button.classList.toggle('locked', familyLocked);
       }
       const maxed = currentLevel >= GAME.maxUpgradeLevel;

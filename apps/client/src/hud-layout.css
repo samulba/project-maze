@@ -783,6 +783,10 @@
   grid-template-columns: 18px minmax(0, 1fr);
   grid-template-areas: 'taste name' 'taste balken';
   align-items: center;
+  /* stretch statt center (mobile.css §3c erbt sonst herein): Nur ein
+     gestreckter Name-Span hält seine Spur – zentriert wird er max-content
+     breit, läuft über den Kasten, und die Ellipse unten greift nie. */
+  justify-items: stretch;
   gap: 1px 7px;
   min-height: 30px;
   padding: 5px 7px;
