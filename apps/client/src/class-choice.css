@@ -12,6 +12,10 @@
 .class-choices button[data-branch="tempest"] .class-choice-role { color:#e0954e; }
 .class-choices button[data-branch="siege"] .class-choice-role { color:#b0a24e; }
 .class-choices button[data-branch="aegis"] .class-choice-role { color:#4ea9a4; }
+/* Die Füllbedingung der Signature (Befund 12) – sichtbar, wo Platz ist; auf
+   flachen Fenstern und Touch geht das Spielfeld vor, dort trägt das Rad (C). */
+.class-choice-fill { display:block; margin-top:5px; font-style:normal; font-size:9px; line-height:1.35; color:#8d96aa; }
+@media (max-height: 640px), (pointer: coarse) { .class-choice-fill { display:none; } }
 .class-choice-bars { display:grid; gap:6px; width:100%; margin-top:13px; }
 .class-choice-bars > div { display:grid; grid-template-columns:54px 1fr; align-items:center; gap:8px; }
 .class-choice-bars span { font-size:9px !important; color:#8d96aa !important; line-height:1 !important; }

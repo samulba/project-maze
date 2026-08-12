@@ -8,6 +8,7 @@ import {
   type PlayerClass,
   type PlayerSnapshot,
   type ProjectileSnapshot,
+  type ShapeKind,
   type ShapeSnapshot,
   type Vector2,
   type Wall,
@@ -178,6 +179,16 @@ export class GameRenderer {
   private knownEliteIds=new Set<string>();
   private hadArenaEvent=false;
   private suppressShapeRewardsUntil=0;
+  /** Einschlagsorte eigener Projektile der letzten ~300 ms (Befund 1). */
+  private ownImpacts:Array<{position:Vector2;at:number}>=[];
+  /** Gegner-Gesundheitsabfälle, die noch auf ihre Urheber-Prüfung warten. */
+  private pendingEnemyHits:Array<{position:Vector2;at:number}>=[];
+  /** Rückmeldungen für main (Audio) – je Snapshot abgeholt. */
+  private feedback:{hits:number;shapeBreaks:ShapeKind[];droneSpawns:number;droneLosses:number}={hits:0,shapeBreaks:[],droneSpawns:0,droneLosses:0};
+  /** Hitmarker im Fadenkreuz, kurz nach einem bestätigten Treffer. */
+  private hitmarkerUntil=0;
+  /** Erst nach dem ersten Drohnen-Sync zählen – der Join liefert alle auf einmal. */
+  private dronesSynced=false;
   private initialized=false;
   /**
    * Welcher der drei Grafikwege tatsächlich hochgekommen ist. Die Perf-
@@ -336,9 +347,54 @@ export class GameRenderer {
     this.syncProjectiles(snapshot,now);
     this.syncDrones(snapshot,now);
     this.syncShapeEffects(snapshot);
+    this.correlateOwnHits(now);
     if(guardianChanged&&guardianId)this.announceGuardian(guardianId,snapshot);
     const self=snapshot.players.find(player=>player.id===snapshot.selfId);
     this.lastSelfPosition=self?{...self.position}:null;
+  }
+
+  /**
+   * Treffer-Bestätigung (Befund 1): Ein Gegner-Gesundheitsabfall zählt nur
+   * dann als EIGENER Treffer, wenn in denselben ~300 ms ein eigenes Projektil
+   * in seiner Nähe verschwunden ist oder eine eigene Drohne Kontakt hat –
+   * sonst quittiert der Client fremde Duelle. Läuft NACH allen Syncs, weil
+   * syncPlayers vor syncProjectiles dran ist und den Einschlag desselben
+   * Snapshots sonst nicht sähe.
+   */
+  private correlateOwnHits(now:number):void{
+    this.ownImpacts=this.ownImpacts.filter(impact=>now-impact.at<=320);
+    const open:Array<{position:Vector2;at:number}>=[];
+    for(const hit of this.pendingEnemyHits){
+      if(now-hit.at>320)continue;
+      const byProjectile=this.ownImpacts.some(impact=>Math.hypot(impact.position.x-hit.position.x,impact.position.y-hit.position.y)<=90);
+      const byDrone=!byProjectile&&[...this.droneViews.values()].some(view=>view.snapshot.ownerId===this.selfId&&Math.hypot(view.current.x-hit.position.x,view.current.y-hit.position.y)<=44);
+      if(byProjectile||byDrone){
+        this.feedback.hits+=1;
+        this.hitmarkerUntil=now+90;
+        this.particles.burst(hit.position,0xffffff,3,120,.2);
+      }else open.push(hit);
+    }
+    this.pendingEnemyHits=open;
+  }
+
+  /**
+   * Von main je Snapshot abgeholt – der Renderer kennt die Ereignisse, das
+   * Audio wohnt in main. Zurückgesetzt beim Lesen.
+   */
+  consumeFeedback():{hits:number;shapeBreaks:ShapeKind[];droneSpawns:number;droneLosses:number}{
+    const out=this.feedback;
+    this.feedback={hits:0,shapeBreaks:[],droneSpawns:0,droneLosses:0};
+    return out;
+  }
+
+  /** Klassenwahl sichtbar machen (Befund 10): Ring, Funken und ein Ruck am eigenen Tank. */
+  celebrateClassChange():void{
+    const view=this.selfId?this.playerViews.get(this.selfId):null;
+    if(!view)return;
+    const color=this.palette.self;
+    this.particles.burst(view.current,color,18,260,.5);
+    this.rings.push({position:{...view.current},life:.6,maxLife:.6,maxRadius:120,color,width:4});
+    this.shake(4);
   }
 
   /**
@@ -462,11 +518,22 @@ export class GameRenderer {
         view.flashUntil=now+130;
         const amount=Math.round(previous.health-player.health);
         if(amount>=1)this.numbers.spawn({x:view.current.x,y:view.current.y-26},`-${amount}`,isSelf?0xff8091:0xffe9b0,isSelf?14:12);
+        // Kandidat für die Treffer-Bestätigung – ob es ein EIGENER Treffer
+        // war, entscheidet correlateOwnHits nach den Projektil-Syncs.
+        if(!isSelf)this.pendingEnemyHits.push({position:{...view.current},at:now});
       }
       if(player.dead&&!previous.dead){
         const color=this.ownerColor(player.id);
         this.particles.burst(view.current,color,24,320,.55);
         this.rings.push({position:{...view.current},life:.5,maxLife:.5,maxRadius:86,color,width:4});
+        // Der eigene Kill bekommt seine Zahl (Befund 4): Ein Abschuss bringt
+        // 130 + Level·18 Score – das 7- bis 35-Fache einer Form, und auf dem
+        // Schirm stand davon bisher nichts, während jedes fremde Quadrat ein
+        // goldenes '+18' bekam. killerName liegt nach dem Tod im Snapshot.
+        const selfName=snapshot.players.find(p=>p.id===snapshot.selfId)?.name;
+        if(!isSelf&&selfName&&player.killerName===selfName){
+          this.numbers.spawn({x:view.current.x,y:view.current.y-8},`+${130+player.level*18}`,this.palette.self,17);
+        }
       }
       const displacement=Math.hypot(player.position.x-view.target.x,player.position.y-view.target.y);
       if(displacement>320||(!player.dead&&view.snapshot.dead))view.current={...player.position};
@@ -509,7 +576,17 @@ export class GameRenderer {
       existing.snapshot=projectile;
       existing.snapshotAt=now;
     }
-    for(const id of this.projectileViews.keys())if(!active.has(id))this.projectileViews.delete(id);
+    for(const[id,view]of this.projectileViews){
+      if(active.has(id))continue;
+      // Eigene Einschläge merken (Befund 1): Der letzte bekannte Ort eines
+      // verschwundenen eigenen Projektils ist die Urheber-Spur für die
+      // Treffer-Bestätigung.
+      if(view.snapshot.ownerId===this.selfId){
+        this.ownImpacts.push({position:{...view.current},at:now});
+        if(this.ownImpacts.length>24)this.ownImpacts.shift();
+      }
+      this.projectileViews.delete(id);
+    }
   }
 
   private syncDrones(snapshot:WorldSnapshot,now:number):void{
@@ -519,7 +596,15 @@ export class GameRenderer {
       const existing=this.droneViews.get(drone.id);
       if(!existing){
         this.droneViews.set(drone.id,{current:{...drone.position},target:{...drone.position},velocity:{...drone.velocity},snapshot:drone,snapshotAt:now});
+        // Nachschub der eigenen Flotte hörbar machen (Befund 8) – aber nicht
+        // beim Join, wo alle auf einmal auftauchen.
+        if(this.dronesSynced&&drone.ownerId===this.selfId)this.feedback.droneSpawns+=1;
         continue;
+      }
+      // Drohnen-Treffer sichtbar machen (Befund 8): health/maxHealth liegen in
+      // jedem Snapshot – der Renderer hat sie bisher nie gelesen.
+      if(drone.health<existing.snapshot.health-.01){
+        this.particles.burst(existing.current,this.ownerColor(drone.ownerId),2,80,.16);
       }
       const displacement=Math.hypot(drone.position.x-existing.target.x,drone.position.y-existing.target.y);
       if(displacement>240)existing.current={...drone.position};
@@ -528,7 +613,18 @@ export class GameRenderer {
       existing.snapshot=drone;
       existing.snapshotAt=now;
     }
-    for(const id of this.droneViews.keys())if(!active.has(id))this.droneViews.delete(id);
+    for(const[id,view]of this.droneViews){
+      if(active.has(id))continue;
+      // Bisher war eine Drohne im nächsten Bild einfach nicht mehr da – kein
+      // Splitter, kein Ton. Für einen Overseer ist das die halbe Feuerkraft.
+      const self=this.snapshot?.players.find(p=>p.id===this.selfId);
+      if(self&&this.wellInsideView(view.current,self.position)){
+        this.particles.burst(view.current,this.ownerColor(view.snapshot.ownerId),6,140,.3);
+      }
+      if(this.dronesSynced&&view.snapshot.ownerId===this.selfId)this.feedback.droneLosses+=1;
+      this.droneViews.delete(id);
+    }
+    this.dronesSynced=true;
   }
 
   private syncShapeEffects(snapshot:WorldSnapshot):void{
@@ -549,6 +645,11 @@ export class GameRenderer {
         if(elite)this.rings.push({position:{...previous.position},life:.55,maxLife:.55,maxRadius:110,color:0xf4c866,width:4});
         const reward=SHAPE_REWARDS[previous.kind]??0;
         if(reward>0)this.numbers.spawn(previous.position,`+${elite?reward+260:reward}`,0xf3c45f,elite?15:12);
+        // Ton nur für EIGENE Abschüsse (Befund 9): Ein eigener Einschlag in
+        // Reichweite der Form ist die Urheber-Spur – fremde Farmer sollen
+        // nicht die eigene Tonspur füllen.
+        const own=this.ownImpacts.some(impact=>Math.hypot(impact.position.x-previous.position.x,impact.position.y-previous.position.y)<=previous.radius+70);
+        if(own)this.feedback.shapeBreaks.push(previous.kind);
       }
     }
     this.knownShapes=shapes;
@@ -918,6 +1019,12 @@ export class GameRenderer {
       const speed=Math.hypot(view.velocity.x,view.velocity.y);
       if(speed>90)this.drones.moveTo(view.current.x-view.velocity.x/speed*16,view.current.y-view.velocity.y/speed*16).lineTo(view.current.x,view.current.y).stroke({color,alpha:.2,width:3});
       this.drones.poly(translated(polygon(3,13,angle),view.current)).fill(color).stroke({color:0xffffff,alpha:.3,width:2});
+      // Lebensbogen ab 60 % Schaden (Befund 8): Eine Drohne bei 5 % Leben sah
+      // exakt aus wie eine frische, obwohl beide Zahlen im Snapshot liegen.
+      const ratio=view.snapshot.health/Math.max(1,view.snapshot.maxHealth);
+      if(ratio<.6){
+        this.drones.arc(view.current.x,view.current.y,17,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.max(.05,ratio)).stroke({color:ratio>.3?0x65d39a:0xf05e72,alpha:.7,width:2});
+      }
     }
   }
 
@@ -1052,6 +1159,14 @@ export class GameRenderer {
     const y=clamp(this.pointer.y,this.viewport.y+8,this.viewport.y+this.viewport.height-8);
     this.crosshair.circle(x,y,2).fill({color,alpha:.9});
     this.crosshair.circle(x,y,radius).stroke({color,alpha:.55,width:1.5});
+    // Hitmarker (Befund 1): vier kurze helle Striche für 90 ms nach einem
+    // bestätigten eigenen Treffer – die Antwort auf „treffe ich überhaupt?"
+    // direkt dort, wo der Blick liegt.
+    if(performance.now()<this.hitmarkerUntil){
+      for(const[dx,dy]of[[1,1],[1,-1],[-1,1],[-1,-1]] as const){
+        this.crosshair.moveTo(x+dx*(radius+2),y+dy*(radius+2)).lineTo(x+dx*(radius+7),y+dy*(radius+7)).stroke({color:0xffffff,alpha:.9,width:2});
+      }
+    }
   }
 
   private ownerColor(ownerId:string):number{return ownerId===this.guardianId?GUARDIAN_COLOR:ownerId===this.selfId?this.palette.self:this.palette.enemy}

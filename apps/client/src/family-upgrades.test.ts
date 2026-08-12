@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLASS_DEFINITIONS, PLAYER_CLASS_IDS, UPGRADE_IDS } from '@project-maze/shared';
+import { CLASS_DEFINITIONS, PLAYER_CLASS_IDS, UPGRADE_IDS, upgradeAppliesTo } from '@project-maze/shared';
 import {
   FAMILY_LOCK_HINT,
   FAMILY_UNLOCK_LEVEL,
@@ -7,8 +7,10 @@ import {
   UPGRADE_SLOT_IDS,
   familyUpgradeLabel,
   familyUpgradeLocked,
+  hotkeyLabelFor,
   isFamilyUpgrade,
-  upgradeHotkeyLabel
+  upgradeHotkeyLabel,
+  upgradeHotkeySlots
 } from './family-upgrades';
 import { DEFAULT_PREDICTION, readPredictionChoice } from './prediction-panel';
 
@@ -35,6 +37,39 @@ describe('Familien-Upgrade-Plätze (KL4)', () => {
     expect(upgradeHotkeyLabel(11)).toBe('');
     // Und es sind wirklich mehr Plaetze als Tasten -- sonst ist der Test blind.
     expect(UPGRADE_SLOT_IDS.length).toBeGreaterThan(10);
+  });
+
+  // Befund 17: Die Belegung wandert mit der Klasse. Bei core liefen 9 und 0
+  // auf die gesperrten Familien-Slots -- der Neuling las im Onboarding
+  // "1-9 und 0", drueckte durch, und bei 9/0 passierte nichts, waehrend die
+  // zwei nutzbaren Plaetze dahinter keine Taste hatten.
+  it('legt bei core die 9 und 0 auf nutzbare Plätze statt auf gesperrte Familien-Slots', () => {
+    const slots = upgradeHotkeySlots('core');
+    expect(slots).toHaveLength(10);
+    expect(slots).not.toContain('signatureRate');
+    expect(slots).not.toContain('signaturePower');
+    expect(hotkeyLabelFor(slots, 'projectileRange')).toBe('9');
+    expect(hotkeyLabelFor(slots, 'moduleCooldown')).toBe('0');
+  });
+
+  it('gibt die 9 und 0 nach der Familienwahl an die Signature-Slots zurück', () => {
+    const slots = upgradeHotkeySlots('rapid');
+    expect(hotkeyLabelFor(slots, 'signatureRate')).toBe('9');
+    expect(hotkeyLabelFor(slots, 'signaturePower')).toBe('0');
+    // Die Plätze elf und zwölf haben dann wieder keine Taste.
+    expect(hotkeyLabelFor(slots, 'projectileRange')).toBe('');
+    expect(hotkeyLabelFor(slots, 'moduleCooldown')).toBe('');
+  });
+
+  it('vergibt nie eine Taste an einen Platz, der für die Klasse nichts tut', () => {
+    for (const playerClass of PLAYER_CLASS_IDS) {
+      const slots = upgradeHotkeySlots(playerClass);
+      expect(slots.length).toBeLessThanOrEqual(10);
+      for (const id of slots) {
+        if (isFamilyUpgrade(id)) expect(familyUpgradeLocked(playerClass)).toBe(false);
+        else expect(upgradeAppliesTo(playerClass, id)).toBe(true);
+      }
+    }
   });
 
   it('erkennt die beiden Familien-Slots', () => {

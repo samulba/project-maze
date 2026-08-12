@@ -3,7 +3,7 @@ import {
   type InputMessage,
   type Vector2
 } from '@project-maze/shared';
-import { UPGRADE_SLOT_IDS, type UpgradeSlotId } from './family-upgrades';
+import { UPGRADE_SLOT_IDS, upgradeHotkeySlots, type UpgradeSlotId } from './family-upgrades';
 import {
   AIM_TUNING,
   MOVE_TUNING,
@@ -62,6 +62,8 @@ export class InputController {
   private secondaryDown = false;
   private autoFire = false;
   private enabled = false;
+  /** Aktuelle Zifferntasten-Belegung – wandert mit der Klasse (Befund 17). */
+  private hotkeySlots: readonly UpgradeSlotId[] = upgradeHotkeySlots('core');
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -91,7 +93,10 @@ export class InputController {
         // -1, und die Taste bliebe tot. Solange es weniger als zehn Werte gibt,
         // greift der Zugriff ins Leere und es passiert schlicht nichts.
         const index = event.code === 'Digit0' ? 9 : Number(event.code.slice(5)) - 1;
-        const upgrade = UPGRADE_SLOT_IDS[index];
+        // Klassenabhängige Belegung (Befund 17): dieselbe Zuordnung, die das
+        // Panel als kbd-Marken zeigt – bei core liegen 9/0 auf Reichweite und
+        // Fähigkeit statt auf den gesperrten Familien-Slots.
+        const upgrade = this.hotkeySlots[index] ?? UPGRADE_SLOT_IDS[index];
         if (upgrade) onUpgrade(upgrade);
       }
     });
@@ -204,6 +209,11 @@ export class InputController {
     if (!this.enabled) return this.autoFire;
     this.autoFire = !this.autoFire;
     return this.autoFire;
+  }
+
+  /** Von main je Snapshot gesetzt, wenn sich die Klasse ändert. */
+  setHotkeySlots(slots: readonly UpgradeSlotId[]): void {
+    this.hotkeySlots = slots;
   }
 
   /**

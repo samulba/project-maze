@@ -1,8 +1,36 @@
-import type { PlayerClass } from '@project-maze/shared';
+import { CLASS_DEFINITIONS, type PlayerClass, type ShapeKind } from '@project-maze/shared';
 import type { ActiveModuleId } from '@project-maze/shared/gameplay';
 
-const HEAVY_CLASSES = new Set<PlayerClass>(['sniper', 'railgun', 'lancer', 'phantom', 'bulwark', 'fortress', 'arbalest', 'deadeye']);
-const RAPID_CLASSES = new Set<PlayerClass>(['rapid', 'twin', 'repeater', 'storm', 'gatling', 'flanker', 'octo']);
+/**
+ * Klangprofil je Familie statt zweier handgepflegter Namenslisten.
+ *
+ * Die Listen (8 „schwere", 7 „schnelle" IDs) sind mit dem Klassenbaum nicht
+ * mitgewachsen: 40 der 55 schießenden Klassen fielen auf denselben
+ * Standardton zurück – SIEGE, TEMPEST, AEGIS und SPECTER komplett, und drei
+ * RAPID-Klassen (vortex, vanguard, hailstorm) klangen wie ein Core statt wie
+ * ihre Familie (Befund 42/67). `branch` steht an jeder Definition und kann
+ * nicht veralten, wenn Klassen dazukommen.
+ */
+interface ShotProfile {
+  frequency: number;
+  duration: number;
+  gain: number;
+  type: OscillatorType;
+  /** Tiefpass-Rauschen für die wuchtigen Familien; null = keins. */
+  noise: { duration: number; gain: number; filter: number } | null;
+}
+
+const SHOT_PROFILES: Record<string, ShotProfile> = {
+  core: { frequency: 175, duration: 0.06, gain: 0.026, type: 'triangle', noise: null },
+  rapid: { frequency: 215, duration: 0.04, gain: 0.018, type: 'triangle', noise: null },
+  precision: { frequency: 105, duration: 0.11, gain: 0.055, type: 'square', noise: { duration: 0.07, gain: 0.02, filter: 900 } },
+  siege: { frequency: 88, duration: 0.13, gain: 0.05, type: 'square', noise: { duration: 0.09, gain: 0.022, filter: 620 } },
+  impact: { frequency: 150, duration: 0.07, gain: 0.03, type: 'sawtooth', noise: null },
+  specter: { frequency: 245, duration: 0.05, gain: 0.016, type: 'sine', noise: null },
+  tempest: { frequency: 195, duration: 0.05, gain: 0.024, type: 'sawtooth', noise: null },
+  aegis: { frequency: 135, duration: 0.08, gain: 0.03, type: 'triangle', noise: null },
+  control: { frequency: 175, duration: 0.06, gain: 0.026, type: 'triangle', noise: null }
+};
 
 const VOLUME_KEY = 'project-maze-volume';
 
@@ -48,11 +76,52 @@ export class GameAudio {
   }
 
   shot(playerClass: PlayerClass): void {
-    const heavy = HEAVY_CLASSES.has(playerClass);
-    const rapid = RAPID_CLASSES.has(playerClass);
+    const branch = CLASS_DEFINITIONS[playerClass]?.branch ?? 'core';
+    const profile = SHOT_PROFILES[branch] ?? SHOT_PROFILES.core!;
     const jitter = 1 + (Math.random() - 0.5) * 0.08;
-    this.tone((heavy ? 105 : rapid ? 215 : 175) * jitter, heavy ? 0.11 : rapid ? 0.04 : 0.06, heavy ? 0.055 : rapid ? 0.018 : 0.026, heavy ? 'square' : 'triangle');
-    if (heavy) this.noise(0.07, 0.02, 900);
+    this.tone(profile.frequency * jitter, profile.duration, profile.gain, profile.type);
+    if (profile.noise) this.noise(profile.noise.duration, profile.noise.gain, profile.noise.filter);
+  }
+
+  /**
+   * Treffer-Bestätigung: kurz, hoch, bewusst leiser als `damage` – Dauerfeuer
+   * soll nicht ermüden. Vorher gab es im ganzen Client keinen Kanal für „ich
+   * habe getroffen" (Befund 1).
+   */
+  hit(): void {
+    this.tone(1180, 0.03, 0.014, 'triangle');
+  }
+
+  /**
+   * Formen-Abschuss, nach Art gestaffelt: Quadrat hoch und kurz, Dreieck
+   * mittig, Fünfeck tief mit Rauschanteil – hörbar dieselbe Rangfolge, die
+   * die Belohnung (18/45/120) ohnehin macht. Der häufigste Vorgang des Spiels
+   * war vorher komplett stumm (Befund 9).
+   */
+  shapeBreak(kind: ShapeKind): void {
+    if (kind === 'pentagon') {
+      this.tone(190, 0.09, 0.018, 'triangle');
+      this.noise(0.08, 0.01, 500);
+    } else if (kind === 'triangle') this.tone(330, 0.05, 0.013, 'triangle');
+    else this.tone(470, 0.035, 0.011, 'triangle');
+  }
+
+  /** Klassenwahl – die größte Entscheidung eines Laufs bekommt einen Moment (Befund 10). */
+  classChosen(): void {
+    this.sequence([300, 450, 640], 0.08, 0.03);
+  }
+
+  /**
+   * CONTROL spielt ohne Rohr und war damit komplett ohne Offensiv-Ton
+   * (Befund 8): ein Klick beim Nachschub, ein kurzer Bruch beim Verlust.
+   */
+  droneSpawn(): void {
+    this.tone(520, 0.03, 0.012, 'sine');
+  }
+
+  droneLost(): void {
+    this.tone(160, 0.07, 0.02, 'sawtooth');
+    this.noise(0.05, 0.01, 700);
   }
 
   module(module: ActiveModuleId): void {
@@ -79,7 +148,8 @@ export class GameAudio {
     this.noise(0.4, 0.05, 300);
   }
 
-  level(): void { this.sequence([420, 560, 760], 0.06, 0.022); }
+  // Kill-Lautstärke statt zweitleisester Klang im Spiel (Befund 10).
+  level(): void { this.sequence([420, 560, 760], 0.06, 0.028); }
 
   eventHorn(): void {
     this.sequence([160, 160, 240], 0.16, 0.03, 'square');

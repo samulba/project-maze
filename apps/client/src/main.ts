@@ -12,7 +12,7 @@ import {
   type WorldSnapshot
 } from '@project-maze/shared';
 import type { GameplayWorldExtension } from '@project-maze/shared/gameplay';
-import type { UpgradeSlotId } from './family-upgrades';
+import { upgradeHotkeySlots, type UpgradeSlotId } from './family-upgrades';
 import { GameAudio } from './audio';
 import { AuthClient, AUTH_TIMEOUT_MS, withTimeout } from './auth';
 import { AuthPanel } from './auth-panel';
@@ -496,6 +496,10 @@ function updateWorld(snapshot: WorldSnapshot): void {
 
   const wasDead = previousSelf?.dead ?? false;
   currentSelfDead = updatedSelf.dead;
+  // Zifferntasten-Belegung wandert mit der Klasse (Befund 17).
+  if (!previousSelf || updatedSelf.playerClass !== previousSelf.playerClass) {
+    input?.setHotkeySlots(upgradeHotkeySlots(updatedSelf.playerClass));
+  }
   // Der Tod raeumt nur Fluechtiges: `resetAll()` wuerde Autofire abschalten
   // (Befund 68) und liegende Daumen entwaffnen (Befund 61) -- beides
   // Einstellungen bzw. physischer Zustand, die den Respawn ueberleben sollen.
@@ -537,7 +541,22 @@ function playSnapshotAudio(snapshot: WorldSnapshot, self: PlayerSnapshot): void 
       renderer.shake(9);
     }
     if (self.level > previousSelf.level) audio.level();
+    // Die Klassenwahl bekommt einen Moment (Befund 10): Ring, Funken, Ruck
+    // und ein aufsteigender Dreiklang. Der Respawn wechselt die Klasse auch
+    // (zurück auf Core) – der ist über den deaths-Vergleich ausgenommen.
+    if (self.playerClass !== previousSelf.playerClass && !self.dead && self.deaths === previousSelf.deaths) {
+      audio.classChosen();
+      renderer.celebrateClassChange();
+    }
   }
+  // Rückmeldungen aus dem Renderer (Befunde 1, 8, 9): Er erkennt die
+  // Ereignisse, das Audio wohnt hier. Je Snapshot höchstens ein Klang je
+  // Sorte, damit Dauerfeuer nicht ermüdet.
+  const feedback = renderer.consumeFeedback();
+  if (feedback.hits > 0) audio.hit();
+  if (feedback.shapeBreaks.length > 0) audio.shapeBreak(feedback.shapeBreaks[0]!);
+  if (feedback.droneLosses > 0) audio.droneLost();
+  else if (feedback.droneSpawns > 0) audio.droneSpawn();
   if (CLASS_DEFINITIONS[self.playerClass].barrelCount > 0) {
     const fired = snapshot.projectiles.some(
       (projectile) => projectile.ownerId === self.id && !previousProjectileIds.has(projectile.id)

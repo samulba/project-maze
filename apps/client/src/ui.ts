@@ -18,8 +18,9 @@ import {
   UPGRADE_SLOT_IDS,
   familyUpgradeLabel,
   familyUpgradeLocked,
+  hotkeyLabelFor,
   isFamilyUpgrade,
-  upgradeHotkeyLabel,
+  upgradeHotkeySlots,
   type UpgradeSlotId
 } from './family-upgrades';
 import { royaleDeathText, royaleZoneOf } from './royale-hud';
@@ -182,7 +183,7 @@ export class GameUI {
 
               <div class="start-primary">
                 <label class="field-label" for="player-name">DEIN NAME</label>
-                <input id="player-name" maxlength="18" autocomplete="off" value="Player" />
+                <input id="player-name" maxlength="18" autocomplete="off" placeholder="Player" />
                 <button class="play-button" id="join-button" type="submit"><span>ARENA BETRETEN</span><b>→</b></button>
               </div>
 
@@ -280,7 +281,7 @@ export class GameUI {
           <div class="upgrade-panel" id="upgrades" hidden>
             <div class="upgrade-header"><span>UPGRADES</span><b><span id="upgrade-points">0</span> PUNKTE</b><button class="sheet-close" id="upgrades-close" type="button" aria-label="Upgrades schließen">✕</button></div>
             <div class="upgrade-list">
-              ${UPGRADE_SLOT_IDS.map((id, index) => `<button data-upgrade="${id}"${isFamilyUpgrade(id) ? ' hidden' : ''}>${upgradeHotkeyLabel(index) ? `<kbd>${upgradeHotkeyLabel(index)}</kbd>` : ''}<span data-upgrade-label="${id}">${slotLabel(id, 'core')}</span><div class="upgrade-pips" data-pips="${id}">${Array.from({ length: GAME.maxUpgradeLevel }, () => '<i></i>').join('')}</div></button>`).join('')}
+              ${UPGRADE_SLOT_IDS.map((id) => `<button data-upgrade="${id}"${isFamilyUpgrade(id) ? ' hidden' : ''}><kbd${hotkeyLabelFor(upgradeHotkeySlots('core'), id) ? '' : ' hidden'}>${hotkeyLabelFor(upgradeHotkeySlots('core'), id)}</kbd><span data-upgrade-label="${id}">${slotLabel(id, 'core')}</span><div class="upgrade-pips" data-pips="${id}">${Array.from({ length: GAME.maxUpgradeLevel }, () => '<i></i>').join('')}</div></button>`).join('')}
             </div>
           </div>
 
@@ -401,6 +402,14 @@ export class GameUI {
     this.vignette = this.require('#damage-vignette');
 
     this.require<HTMLInputElement>('#player-name').addEventListener('input', () => { this.nameTouched = true; });
+    // Der Name überlebt den Reload (Befund 54): Vorher hieß jeder Wiederkehrer
+    // wieder „Player" und konnte seine eigene Bestenlisten-Zeile von der eines
+    // Fremden nicht unterscheiden. Login-Prefill (prefillPlayerName) gewinnt
+    // weiterhin – es kommt später und respektiert nameTouched genauso.
+    try {
+      const stored = window.localStorage.getItem('mazers-name');
+      if (stored?.trim()) this.require<HTMLInputElement>('#player-name').value = stored.trim().slice(0, 18);
+    } catch { /* Ohne Storage bleibt das Feld leer – der Platzhalter trägt. */ }
 
     this.require<HTMLFormElement>('#join-form').addEventListener('submit', (event) => {
       event.preventDefault();
@@ -412,6 +421,9 @@ export class GameUI {
       }
       if (this.joinButton.disabled) return;
       const name = this.require<HTMLInputElement>('#player-name').value.trim() || 'Player';
+      try {
+        window.localStorage.setItem('mazers-name', name);
+      } catch { /* Merken ist Komfort, kein Muss. */ }
       // Vorerst genau ein neutrales Theme – die Auswahl kommt zurück, wenn das
       // Spiel steht und die Varianten wirklich gepflegt sind.
       const theme = DEFAULT_THEME;
@@ -585,6 +597,10 @@ export class GameUI {
     // (Muster wie bei `spectatorTargetId`). Danach fällt er ersatzlos weg.
     const levels = self.upgrades as unknown as Partial<Record<UpgradeSlotId, number>>;
     const familyLocked = familyUpgradeLocked(self.playerClass);
+    // Die Zifferntasten wandern mit der Klasse: Bei core liegen 9/0 auf
+    // Reichweite und Fähigkeit, mit Familie auf den Signature-Slots
+    // (Befund 17). Dieselbe Zuordnung liest input.ts.
+    const hotkeySlots = upgradeHotkeySlots(self.playerClass);
     for (const id of UPGRADE_SLOT_IDS) {
       const family = isFamilyUpgrade(id);
       // Ein Familien-Slot erscheint erst, wenn der Server ihn selbst mitschickt.
@@ -617,12 +633,20 @@ export class GameUI {
       if (!button) continue;
       button.hidden = !known;
       if (!known) continue;
-      if (family) {
-        const label = this.root.querySelector<HTMLElement>(`[data-upgrade-label="${id}"]`);
-        if (label) label.textContent = slotLabel(id, self.playerClass);
-        button.classList.toggle('locked', familyLocked);
+      const keyLabel = hotkeyLabelFor(hotkeySlots, id);
+      const kbd = button.querySelector<HTMLElement>('kbd');
+      if (kbd && kbd.textContent !== keyLabel) {
+        kbd.textContent = keyLabel;
+        kbd.hidden = keyLabel === '';
       }
       const locked = family && familyLocked;
+      if (family) {
+        const label = this.root.querySelector<HTMLElement>(`[data-upgrade-label="${id}"]`);
+        // Sperrgrund als sichtbarer Text: `title` ist auf Touch kein Text,
+        // sondern nichts (Befund 17).
+        if (label) label.textContent = locked ? `${slotLabel(id, self.playerClass)} · ${FAMILY_LOCK_HINT}` : slotLabel(id, self.playerClass);
+        button.classList.toggle('locked', familyLocked);
+      }
       const maxed = currentLevel >= GAME.maxUpgradeLevel;
       button.disabled = self.dead || self.availablePoints <= 0 || maxed || locked;
       button.title = locked ? FAMILY_LOCK_HINT : maxed ? 'Maximum erreicht' : '';
@@ -813,9 +837,14 @@ export class GameUI {
     const key = events.map((event) => event.id).join('|');
     if (key === this.lastKillfeedKey) return;
     this.lastKillfeedKey = key;
+    const selfName = snapshot.players.find((player) => player.id === snapshot.selfId)?.name ?? null;
     const fragment = document.createDocumentFragment();
     for (const event of events) {
       const row = document.createElement('div');
+      // Die eigene Zeile hervorheben, wie es die Bestenliste längst tut –
+      // der eigene Kill war vorher nicht von einem fremden Duell zu
+      // unterscheiden (Befund 4).
+      if (selfName && (event.killer === selfName || event.victim === selfName)) row.className = 'self';
       const killer = document.createElement('strong');
       const action = document.createElement('span');
       const victim = document.createElement('b');

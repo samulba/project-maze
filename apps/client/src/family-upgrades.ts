@@ -1,4 +1,4 @@
-import { CLASS_DEFINITIONS, PLAYER_CLASS_IDS, UPGRADE_IDS, type PlayerClass, type UpgradeId } from '@project-maze/shared';
+import { CLASS_DEFINITIONS, PLAYER_CLASS_IDS, UPGRADE_IDS, upgradeAppliesTo, type PlayerClass, type UpgradeId } from '@project-maze/shared';
 
 /**
  * Die beiden Familien-Upgrade-Slots (Klassen 3.0/KL4).
@@ -119,4 +119,29 @@ export function upgradeHotkeyLabel(index: number): string {
    */
   if (index === 9) return '0';
   return index < 9 ? String(index + 1) : '';
+}
+
+/**
+ * Die zehn Zifferntasten gehören den Plätzen, die für DIESE Klasse gerade
+ * nutzbar sind – nicht dem festen Index.
+ *
+ * Bei `core` liefen 9 und 0 auf die gesperrten Familien-Slots: Der Neuling
+ * las im Onboarding „Die Zifferntasten 1–9 und 0 vergeben deine Punkte",
+ * drückte durch, und bei 9/0 passierte nichts – während die zwei Plätze, die
+ * für ihn funktionierten (Reichweite, Fähigkeit), gar keine Taste hatten
+ * (Befund 17). Eine Quelle für ui.ts (kbd-Marken) und input.ts (Digit-Tasten),
+ * damit Anzeige und Wirkung nicht auseinanderlaufen können.
+ */
+export function upgradeHotkeySlots(playerClass: PlayerClass): UpgradeSlotId[] {
+  const locked = familyUpgradeLocked(playerClass);
+  return UPGRADE_SLOT_IDS
+    .filter((id) => (isFamilyUpgrade(id) ? !locked : upgradeAppliesTo(playerClass, id as UpgradeId)))
+    .slice(0, 10);
+}
+
+/** Marke eines Slots innerhalb einer Belegung; leer = keine Taste. */
+export function hotkeyLabelFor(slots: readonly UpgradeSlotId[], id: UpgradeSlotId): string {
+  const index = slots.indexOf(id);
+  if (index < 0 || index > 9) return '';
+  return index === 9 ? '0' : String(index + 1);
 }
