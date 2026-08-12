@@ -81,8 +81,8 @@ describe('Battle-Royale-Zone', () => {
      * treiben aber zufaellig durch die Karte, und eine, die den Spieler in der
      * Ecke streift, kostet Leben -- gemessen 110 -> 26 in einem von zehn
      * vollen Suite-Laeufen. Das ist kein Zonenschaden und war nie einer; der
-     * Test misst dann eine Form. Alle anderen Tests dieser Datei raeumen die
-     * Formen deshalb weg, dieser eine nicht -- die Luecke war der Flake.
+     * Test misst dann eine Form. Alle Tests dieser Datei, die Leben messen,
+     * raeumen die Formen deshalb weg -- jede Luecke davon war schon ein Flake.
      */
     const game = ohneFormen(createGame());
     const id = game.addPlayer('Spieler');
@@ -99,7 +99,7 @@ describe('Battle-Royale-Zone', () => {
 
   it('haelt die Zone waehrend der Schonfrist still und tut niemandem weh', () => {
     setArenaMode('royale');
-    const game = createGame();
+    const game = ohneFormen(createGame());
     const id = game.addPlayer('Spieler');
     const player = (game as unknown as Internals).players.get(id);
     // Weit ausserhalb jeder spaeteren Zone, aber innerhalb der Karte.
@@ -119,7 +119,7 @@ describe('Battle-Royale-Zone', () => {
 
   it('schrumpft nach der Schonfrist und zieht danach Leben ab', () => {
     setArenaMode('royale');
-    const game = createGame();
+    const game = ohneFormen(createGame());
     const id = game.addPlayer('Randlaeufer');
     const player = (game as unknown as Internals).players.get(id);
     const start = Date.now();
@@ -178,7 +178,7 @@ describe('Battle-Royale-Zone', () => {
    */
   it('teilt ueber eine Sekunde ungefaehr den Sekundenschaden aus', () => {
     setArenaMode('royale');
-    const game = createGame();
+    const game = ohneFormen(createGame());
     const id = game.addPlayer('Randlaeufer');
     const player = (game as unknown as Internals).players.get(id);
     const start = Date.now();
