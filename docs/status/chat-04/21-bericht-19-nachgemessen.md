@@ -236,8 +236,9 @@ Erfolgs-Teil wäre Content, die Kurve Balance). Dazu weiter offen: 0,45 gegen
 
 Nachtrag am späten Abend: Drei Prüf-Agenten haben die neun Bot-Behauptungen
 mit Laufzeitmessungen gegen den gebauten Server geprüft (Tuning-Kette exakt
-in index.ts-Reihenfolge mit Produktions-Defaults nachgestellt, feste Uhr,
-Messskripte im Sitzungs-Scratchpad; Methodik je Skript im Kopfkommentar).
+in index.ts-Reihenfolge mit Produktions-Defaults nachgestellt, feste Uhr;
+die Messskripte liegen als Gegenproben in **`scripts/messungen/`**, Methodik
+je Skript im Kopfkommentar, Überblick in der README dort).
 Ergebnis: **7 bestätigt, 77 teilweise, 74 verworfen.** Damit ist kein
 Befund aus Bericht 19 mehr ungeprüft. Fixes daran sind bewusst NICHT
 passiert – Bot-Verhalten ist Schwierigkeits-Balance, die Entscheidung
@@ -412,9 +413,8 @@ nicht vorher und zieht dann hart nach; das ist dokumentiertes Design und
 der Fall, den man beim Spielen prüfen müsste. **Der Default bleibt Sams
 Entscheidung.**
 
-Messwerkzeuge: `repulse-messrunde.mjs` und `prediction-messlauf-entry.ts`
-(Sitzungs-Scratchpad; bei Bedarf jederzeit aus diesem Abschnitt
-rekonstruierbar – Aufbau steht oben vollständig).
+Messwerkzeuge: `scripts/messungen/messung-63-repulse.mjs` und
+`scripts/messungen/messung-64-prediction.ts` (Aufruf: README dort).
 
 ## 8. Womit anzufangen ist
 
