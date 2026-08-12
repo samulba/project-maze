@@ -18,8 +18,9 @@ den gewollten Reparatur-Halt; im A/B-Mittel jetzt 7 Reparaturzyklen je
 Repulse-Text** (63): „Stößt Nahe kurz zurück und lenkt Projektile ab –
 verschafft einen Moment Luft." Der Schalter blieb unangetastet.
 **Prediction (64) bleibt aus** – Sam spielt erst selbst. Das
-**Vorschlagspapier** zum restlichen Bot-Schwierigkeits-Paket (71, 72, 73,
-76, 77, 78) hat Sam bestellt; es ist der nächste Schritt.
+**Vorschlagspapier** zum restlichen Bot-Schwierigkeits-Paket liegt vor:
+[`22-vorschlag-bot-schwierigkeit.md`](22-vorschlag-bot-schwierigkeit.md) –
+sechs Vorschläge mit Gegenproben, in drei spielbaren Schnitten.
 | **Status** | **Alle 79 Befunde geprüft**: 43 behoben, 2 verworfen (2, 74), Rest bestätigt-aber-offen – Bots/Balance/Content bei Sam |
 
 Dieses Dokument ist der Einstieg für die nächste Sitzung. Der volle Bericht
