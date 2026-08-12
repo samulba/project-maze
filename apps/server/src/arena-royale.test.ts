@@ -8,6 +8,9 @@ import {
   royaleZoneFor,
   tuneRoyale
 } from './arena-royale';
+import { arenaGuardianIdFor, tuneArenaEvents } from './arena-events';
+import { arenaDirectorStatus, tuneArenaDirector } from './arena-director';
+import { tuneArenaSystems } from './arena-systems';
 import { tuneCombatScaling } from './combat-tuning';
 import { MazeGame } from './game';
 import { hardenSimulation } from './simulation-hardening';
@@ -454,6 +457,133 @@ describe('Battle-Royale-Runden', () => {
     expect(royaleZoneFor(game)!.roundOver).toBe(false);
     expect(now).toBeGreaterThan(0);
   });
+
+  /**
+   * Der Guardian des Hunter-Signal-Events ist ein echter Eintrag in `players`
+   * (`game.addPlayer(GUARDIAN_NAME)`), damit man ihn treffen kann wie jeden
+   * Tank. Fuer die RUNDE ist er aber kein Teilnehmer, sondern Inventar der
+   * Arena. Zaehlte man ihn mit, gaebe es drei sichtbare Folgen: eine zu hohe
+   * Zahl in der Leiste, ein Rundenende, das nie kommt -- und im schlimmsten
+   * Fall "SIEGER: GUARDIAN".
+   *
+   * Der Guardian wird hier nicht nachgebaut, sondern von der ECHTEN
+   * Event-Schicht erzeugt: Genau der Weg, auf dem er im Betrieb entsteht.
+   */
+  it('zaehlt den neutralen Guardian nicht als Ueberlebenden', () => {
+    setArenaMode('royale');
+    const game = ohneFormen(
+      // Dieselbe Reihenfolge wie im Betrieb: Royale aussen, Events darunter,
+      // und die Arena-Systeme erzeugen die Ereignisse ueberhaupt erst.
+      tuneRoyale(
+        tuneArenaEvents(tuneArenaSystems(tuneCombatScaling(hardenSimulation(new MazeGame(0))))),
+        SCHNELLE_RUNDE
+      )
+    );
+    const internals = game as unknown as Innereien;
+    const a = game.addPlayer('Alpha');
+    const b = game.addPlayer('Beta');
+
+    /*
+     * Bis zum Hunter-Signal laufen. Die Uhr springt je Schritt eine Sekunde
+     * vor (dieselbe Abkuerzung wie in arena-systems.test.ts) -- sonst braeuchte
+     * das Event 180 Sekunden echter Ticks.
+     */
+    let now = Date.now();
+    let schutz = 0;
+    while (arenaGuardianIdFor(game) === null && schutz < 900) {
+      now += 1_000;
+      // Die beiden am Leben halten: Sonst entscheidet die Zone die Runde,
+      // bevor der Guardian ueberhaupt da ist.
+      for (const spieler of internals.players.values()) {
+        const zone = royaleZoneFor(game, now);
+        if (zone) spieler.position = { ...zone.center };
+        spieler.health = spieler.maxHealth;
+        spieler.dead = false;
+      }
+      game.step(1 / GAME.tickRate, now);
+      schutz += 1;
+    }
+    const wachId = arenaGuardianIdFor(game);
+    expect(wachId).not.toBeNull();
+    expect(internals.players.has(wachId!)).toBe(true);
+
+    // Drei Eintraege in `players`, aber nur zwei Teilnehmer.
+    expect(royaleZoneFor(game, now)!.alive).toBe(2);
+
+    // Und der letzte Mensch gewinnt, obwohl das Monster noch lebt.
+    internals.killPlayer(internals.players.get(a), b, now, 'Arena');
+    now += 25;
+    game.step(1 / GAME.tickRate, now);
+    const entschieden = royaleZoneFor(game, now)!;
+    expect(entschieden.roundOver).toBe(true);
+    expect(entschieden.winnerName).toBe('Beta');
+  }, LANGSAM);
+
+  /**
+   * Der Arena-Direktor haelt die Bot-Population auf Sollstaerke und steigt
+   * dafuer ueber `internals.respawn` ein -- denselben Weg, den die
+   * Royale-Schicht mit `autoRespawnAt = Infinity` gerade versperrt. Ein
+   * direkter Aufruf laeuft an der Sperre vorbei.
+   */
+  it('laesst den Direktor mitten in der Runde keine Bots nachschieben', () => {
+    setArenaMode('royale');
+    /*
+     * Wieder die nicht schrumpfende Zone -- aus demselben Grund wie oben. Mit
+     * Schrumpfen entscheidet sich die Runde waehrend der zwanzig Sekunden von
+     * selbst, und ab `roundOver` DARF der Direktor nachschieben. Der erste
+     * Anlauf ist genau daran gescheitert: Er hat nicht die Sperre gemessen,
+     * sondern das Rundenende.
+     */
+    const OHNE_SCHRUMPFEN = { ...SCHNELLE_RUNDE, minRadius: DEFAULT_ROYALE.startRadius };
+    const game = ohneFormen(
+      tuneRoyale(tuneArenaDirector(tuneCombatScaling(hardenSimulation(new MazeGame(4)))), OHNE_SCHRUMPFEN)
+    );
+    const internals = game as unknown as Innereien;
+    const mensch = game.addPlayer('Mensch');
+    let now = Date.now();
+    game.step(1 / GAME.tickRate, now);
+
+    const bots = [...internals.players.values()].filter((p: any) => p.isBot);
+    expect(bots.length).toBeGreaterThanOrEqual(3);
+    // Vier Bots gegen eine Sollstaerke von 18: Der Direktor WILL hier spawnen.
+    expect(arenaDirectorStatus(game).target).toBeGreaterThan(bots.length);
+    const besetzungVorher = internals.players.size;
+
+    // Zwei Bots ausscheiden lassen.
+    internals.killPlayer(bots[0], mensch, now, 'Arena');
+    internals.killPlayer(bots[1], mensch, now, 'Arena');
+    const lebendVorher = [...internals.players.values()].filter((p: any) => !p.dead).length;
+
+    /*
+     * Deutlich laenger laufen als das Aenderungsfenster des Direktors (5 s) --
+     * ohne Sperre waeren das vier Gelegenheiten zum Nachschub. Alle noch
+     * Lebenden bleiben dabei in der Zonenmitte bei voller Gesundheit, damit
+     * die Runde nicht vorzeitig entschieden ist.
+     */
+    const ueberlebende = new Set(
+      [...internals.players.values()].filter((p: any) => !p.dead).map((p: any) => p.id)
+    );
+    for (let i = 0; i < 20 * GAME.tickRate; i += 1) {
+      const zone = royaleZoneFor(game, now);
+      for (const spieler of internals.players.values()) {
+        if (!ueberlebende.has(spieler.id)) continue;
+        if (zone) spieler.position = { ...zone.center };
+        spieler.health = spieler.maxHealth;
+      }
+      now += (1 / GAME.tickRate) * 1000;
+      game.step(1 / GAME.tickRate, now);
+    }
+
+    // Die Runde laeuft noch -- nur dann sagt der Rest ueberhaupt etwas aus.
+    expect(royaleZoneFor(game, now)!.roundOver).toBe(false);
+    // Kein einziger Nachschub: dieselbe Besetzung wie vor dem Ausscheiden.
+    expect(internals.players.size).toBe(besetzungVorher);
+    expect(bots[0].dead).toBe(true);
+    expect(bots[1].dead).toBe(true);
+    const lebendNachher = [...internals.players.values()].filter((p: any) => !p.dead).length;
+    expect(lebendNachher).toBe(lebendVorher);
+    expect(royaleZoneFor(game, now)!.alive).toBe(lebendVorher);
+  }, LANGSAM);
 
   it('laesst in anderen Modi jeden normal zurueckkommen', () => {
     setArenaMode('maze');

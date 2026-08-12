@@ -1,4 +1,5 @@
 import { GAME, type PlayerSnapshot, type Vector2 } from '@project-maze/shared';
+import { royaleZoneFor } from './arena-royale.js';
 import { BOT_NAMES, MazeGame, botState, type BotState } from './game.js';
 import { distanceSquared } from './physics.js';
 
@@ -210,6 +211,22 @@ export function tuneArenaDirector<T extends MazeGame>(
     if (bots.length === target) return;
 
     if (bots.length < target) {
+      /*
+       * Kein Nachschub mitten in einer Royale-Runde.
+       *
+       * `spawnBot` steigt über `internals.respawn` ein -- denselben Weg, den
+       * die Royale-Schicht mit `autoRespawnAt = Infinity` gerade versperrt.
+       * Ein direkter Aufruf laeuft an dieser Sperre vorbei: Der Direktor holte
+       * ausgeschiedene Bots zurueck ins Spiel, waehrend die Zone die Arena
+       * leerte. Zwei Folgen, beide sichtbar -- die Leiste zaehlt Ueberlebende,
+       * die gerade eliminiert wurden, und die Runde kann nicht enden, weil
+       * immer wieder jemand nachrueckt.
+       *
+       * In der Rundenpause ist Nachschub dagegen richtig: `neueRunde` weckt
+       * ohnehin alle, und danach soll die Arena wieder auf Sollstaerke sein.
+       */
+      const zone = royaleZoneFor(game, now);
+      if (zone && !zone.roundOver) return;
       spawnBot(now);
       state.nextChangeAt = now + config.phaseIntervalMs;
       return;

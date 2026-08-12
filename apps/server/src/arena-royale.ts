@@ -1,5 +1,6 @@
 import { ARENA_MODES, GAME, type PlayerSnapshot, type WorldSnapshot } from '@project-maze/shared';
 import type { GameplayWorldExtension, RoyaleZoneSnapshot } from '@project-maze/shared/gameplay';
+import { arenaGuardianIdFor } from './arena-events.js';
 import { MazeGame } from './game.js';
 import { currentArenaMode } from './world.js';
 
@@ -199,15 +200,34 @@ export function royaleZoneFor(game: MazeGame, now = Date.now()): RoyaleZoneSnaps
     nextShrinkInMs: nochEineVerengung ? Math.max(1, state.phaseEndsAt - now) : 0,
     damagePerSecond: royaleDamagePerSecond(state.stage, state.config),
     stage: state.stage,
-    alive: lebende(internals).length,
+    alive: lebende(internals, arenaGuardianIdFor(game)).length,
     roundOver: state.roundOver,
     winnerName: state.winnerName,
     nextRoundInMs: state.roundOver ? Math.max(0, state.nextRoundAt - now) : 0
   };
 }
 
-const lebende = (internals: RoyaleInternals): RoyalePlayer[] =>
-  [...internals.players.values()].filter((player) => !player.dead);
+/**
+ * Wer zaehlt als Ueberlebender – und wer ausdruecklich nicht.
+ *
+ * Der Guardian des Hunter-Signal-Events ist ein **echter Eintrag in
+ * `players`** (`arena-events.ts`: `game.addPlayer(GUARDIAN_NAME)`), damit er
+ * getroffen werden kann wie jeder Tank. Fuer die Runde ist er trotzdem kein
+ * Teilnehmer, sondern Inventar der Arena – ein neutrales Monster, das mit dem
+ * Event kommt und geht.
+ *
+ * Zaehlt man ihn mit, geht dreierlei schief, und alles drei ist sichtbar:
+ *
+ * 1. Die Leiste sagt „NOCH 12", obwohl nur elf Leute spielen.
+ * 2. Der letzte lebende Mensch bekommt seinen Sieg nicht: `<= 1` wird nicht
+ *    erreicht, solange das Monster lebt – die Runde haengt, bis das Event
+ *    ausläuft.
+ * 3. Und im schlimmsten Fall gewinnt der Guardian: Sterben die letzten
+ *    Menschen, waehrend er lebt, bleibt genau einer uebrig – er. Auf dem
+ *    Bildschirm stuende dann „SIEGER: GUARDIAN".
+ */
+const lebende = (internals: RoyaleInternals, guardianId: string | null): RoyalePlayer[] =>
+  [...internals.players.values()].filter((player) => !player.dead && player.id !== guardianId);
 
 /**
  * Startet eine neue Runde: Zone auf Anfang, alle wieder ins Spiel.
@@ -275,9 +295,13 @@ export function tuneRoyale<T extends MazeGame>(game: T, config: RoyaleConfig = D
      * nicht hängen lassen.
      */
     if (!state.roundOver) {
-      const uebrig = lebende(internals);
+      const uebrig = lebende(internals, arenaGuardianIdFor(game));
       // Eine leere Arena ist keine entschiedene Runde, sondern gar keine.
-      if (internals.players.size > 1 && uebrig.length <= 1) {
+      // `players.size` enthaelt den Guardian genauso – auch hier zaehlt nur,
+      // wer wirklich mitspielt, sonst gilt eine Arena mit einem Menschen und
+      // einem Monster faelschlich als besetzt.
+      const teilnehmer = [...internals.players.values()].filter((p) => p.id !== arenaGuardianIdFor(game)).length;
+      if (teilnehmer > 1 && uebrig.length <= 1) {
         state.roundOver = true;
         state.winnerName = uebrig[0]?.name ?? null;
         state.nextRoundAt = now + config.roundBreakMs;
