@@ -118,9 +118,13 @@ const staticSignature = (player: PlayerSnapshot): string => {
   return signature;
 };
 
-/** Die Bestenliste ist für alle Clients identisch – die Signatur genügt einmal pro Tick. */
+/**
+ * Seit Befund 19 ist die Bestenliste je Betrachter verschieden (die eigene
+ * Zeile mit echtem Rang hängt hinten dran) – die Signatur wird deshalb je
+ * Viewer gerechnet, nicht einmal pro Tick. Neun kurze Strings, kein Gewicht.
+ */
 const leaderboardSignature = (leaderboard: readonly LeaderboardEntry[]): string =>
-  leaderboard.map((entry) => `${entry.id} ${entry.score} ${entry.level} ${entry.playerClass}`).join('|');
+  leaderboard.map((entry) => `${entry.id} ${entry.score} ${entry.level} ${entry.playerClass} ${entry.rank ?? 0}`).join('|');
 
 /** `KillEvent.id` wächst monoton – erste und letzte ID beschreiben den Ausschnitt eindeutig. */
 const killfeedSignature = (killfeed: readonly KillEvent[]): string =>
@@ -156,9 +160,6 @@ interface ShortIdState {
 
 interface EncodingState {
   viewers: Map<string, ViewerState>;
-  /** Tick, für den die Bestenlisten-Signatur zuletzt berechnet wurde. */
-  tick: number;
-  leaderboard: string;
   shortIds: ShortIdState;
 }
 
@@ -168,8 +169,6 @@ const stateFor = (game: MazeGame): EncodingState => {
   if (existing) return existing;
   const created: EncodingState = {
     viewers: new Map(),
-    tick: -1,
-    leaderboard: '',
     shortIds: { next: 1, byUuid: new Map(), nextSweepAt: 0 }
   };
   states.set(game, created);
@@ -336,12 +335,9 @@ export function tuneSnapshotEncoding<T extends MazeGame>(game: T, deltas = false
     stripShapeStatics(viewer, snapshot);
     stripWalls(viewer, snapshot);
 
-    if (state.tick !== snapshot.tick) {
-      state.tick = snapshot.tick;
-      state.leaderboard = leaderboardSignature(snapshot.leaderboard);
-    }
-    if (viewer.leaderboard === state.leaderboard) delete (snapshot as Partial<WorldSnapshot>).leaderboard;
-    else viewer.leaderboard = state.leaderboard;
+    const leaderboardSig = leaderboardSignature(snapshot.leaderboard);
+    if (viewer.leaderboard === leaderboardSig) delete (snapshot as Partial<WorldSnapshot>).leaderboard;
+    else viewer.leaderboard = leaderboardSig;
 
     const killfeed = killfeedSignature(snapshot.killfeed);
     if (viewer.killfeed === killfeed) delete (snapshot as Partial<WorldSnapshot>).killfeed;

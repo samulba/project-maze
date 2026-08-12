@@ -326,7 +326,19 @@ export class MazeGame {
     const projectiles = [...this.projectiles.values()].filter((projectile) => distanceSquared(projectile.position, center) <= radiusSquared).map(({ damage: _damage, life: _life, ...projectile }) => ({ ...projectile, position: { ...projectile.position }, velocity: { ...projectile.velocity } }));
     const drones = [...this.drones.values()].filter((drone) => distanceSquared(drone.position, center) <= radiusSquared).map(({ slot: _slot, contactCooldown: _contactCooldown, ...drone }) => ({ ...drone, position: { ...drone.position }, velocity: { ...drone.velocity } }));
     const shapes = [...this.shapes.values()].filter((shape) => distanceSquared(shape.position, center) <= radiusSquared).map((shape) => ({ ...shape, position: { ...shape.position }, velocity: { ...shape.velocity } }));
-    const leaderboard = [...this.players.values()].sort((a, b) => b.score - a.score).slice(0, 8).map(({ id, name, score, level, playerClass, isBot }) => ({ id, name, score, level, playerClass, isBot }));
+    // Befund 19: Die Liste trägt Ränge, und der Betrachter steht immer drin –
+    // acht Plätze, die ein Neuling nie erreicht, sagten ihm zehn Minuten lang
+    // nur „du kommst hier nicht vor". Ist er nicht unter den Top 8, hängt
+    // seine Zeile mit echtem Rang als neunte an (der Arras.io-Trick).
+    const sorted = [...this.players.values()].sort((a, b) => b.score - a.score);
+    const leaderboard = sorted.slice(0, 8).map(({ id, name, score, level, playerClass, isBot }, index) => ({ id, name, score, level, playerClass, isBot, rank: index + 1 }));
+    if (self && !leaderboard.some((entry) => entry.id === selfId)) {
+      const rank = sorted.findIndex((player) => player.id === selfId);
+      if (rank >= 0) {
+        const { id, name, score, level, playerClass, isBot } = self;
+        leaderboard.push({ id, name, score, level, playerClass, isBot, rank: rank + 1 });
+      }
+    }
     return { type: 'snapshot', selfId, tick: this.tick, serverTime: now, players, projectiles, drones, shapes, walls: wallsInView(center), leaderboard, killfeed: this.killfeed.slice(-6) };
   }
 

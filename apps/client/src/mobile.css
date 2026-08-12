@@ -377,9 +377,10 @@
 }
 
 /* Auf kleinen Screens zählt nur die Spitze der Rangliste. Der Titel ist das
-   erste div – n+6 zeigt also die Plätze 1 bis 4. */
+   erste div – n+6 zeigt also die Plätze 1 bis 4. Die eigene Zeile (Befund 19)
+   bleibt immer stehen: „wo stehe ich" ist auf dem Handy die ganze Auskunft. */
 @media (pointer: coarse) and (max-height: 560px) {
-  .leaderboard .leader-row:nth-of-type(n + 6) { display: none; }
+  .leaderboard .leader-row:nth-of-type(n + 6):not(.self) { display: none; }
 }
 
 /* Schmale Handys: Der zentrierte Meldungs-Slot (max. 360 px) und die Liste

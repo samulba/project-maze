@@ -840,7 +840,7 @@ export class GameUI {
   }
 
   private renderLeaderboard(snapshot: WorldSnapshot): void {
-    const key = snapshot.leaderboard.map((entry) => `${entry.id}:${entry.score}:${entry.level}:${entry.playerClass}`).join('|');
+    const key = snapshot.leaderboard.map((entry) => `${entry.id}:${entry.score}:${entry.level}:${entry.playerClass}:${entry.rank ?? 0}`).join('|');
     if (key === this.lastLeaderboardKey) return;
     this.lastLeaderboardKey = key;
     const title = document.createElement('div');
@@ -850,14 +850,20 @@ export class GameUI {
     title.textContent = 'BESTENLISTE';
     const fragment = document.createDocumentFragment();
     fragment.append(title);
+    let vorigerRang = 0;
     snapshot.leaderboard.forEach((entry, index) => {
+      // Befund 19: Die eigene Zeile hängt mit echtem Rang hinten an, wenn man
+      // nicht unter den Top-Plätzen ist. Der Sprung in der Rangfolge bekommt
+      // eine Trennlinie, damit „Platz 19" nicht wie „Platz 9" liest.
+      const rangZahl = entry.rank ?? index + 1;
       const row = document.createElement('div');
-      row.className = `leader-row ${entry.id === snapshot.selfId ? 'self' : ''}`;
+      row.className = `leader-row ${entry.id === snapshot.selfId ? 'self' : ''}${vorigerRang > 0 && rangZahl > vorigerRang + 1 ? ' gap' : ''}`;
+      vorigerRang = rangZahl;
       const rank = document.createElement('b');
       const name = document.createElement('span');
       const details = document.createElement('small');
       const score = document.createElement('strong');
-      rank.textContent = String(index + 1);
+      rank.textContent = String(rangZahl);
       name.textContent = entry.name;
       if (entry.isBot) { const bot = document.createElement('em'); bot.textContent = 'BOT'; name.append(bot); }
       details.textContent = `${CLASS_DEFINITIONS[entry.playerClass].label} · L${entry.level}`;

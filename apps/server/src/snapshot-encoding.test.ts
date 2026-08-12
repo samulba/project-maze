@@ -86,6 +86,35 @@ describe('snapshot rounding', () => {
   });
 });
 
+describe('leaderboard ranks (Befund 19)', () => {
+  it('haengt den Betrachter mit echtem Rang an, wenn er nicht in den Top 8 steht', () => {
+    const game = createGame(false);
+    const internals = game as unknown as Internals;
+    const viewerId = game.addPlayer('Elfter');
+    for (let index = 0; index < 9; index += 1) {
+      const id = game.addPlayer(`Spitze${index}`);
+      internals.players.get(id).score = 10_000 - index * 100;
+    }
+    const snapshot = game.snapshot(viewerId);
+    expect(snapshot.leaderboard).toHaveLength(9);
+    expect(snapshot.leaderboard.slice(0, 8).map((entry) => entry.rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    const eigene = snapshot.leaderboard[8]!;
+    expect(eigene.id).toBe(viewerId);
+    expect(eigene.rank).toBe(10);
+  });
+
+  it('haengt keine Doppelzeile an, wenn der Betrachter ohnehin oben steht', () => {
+    const game = createGame(false);
+    const internals = game as unknown as Internals;
+    const viewerId = game.addPlayer('Spitzenreiter');
+    internals.players.get(viewerId).score = 99_999;
+    game.addPlayer('Zweiter');
+    const snapshot = game.snapshot(viewerId);
+    expect(snapshot.leaderboard.filter((entry) => entry.id === viewerId)).toHaveLength(1);
+    expect(snapshot.leaderboard[0]?.rank).toBe(1);
+  });
+});
+
 describe('snapshot deltas', () => {
   const seatedGame = (): { game: MazeGame; viewerId: string; otherId: string; internals: Internals } => {
     const game = createGame(true);
@@ -178,6 +207,21 @@ describe('snapshot deltas', () => {
     internals.killPlayer(target, viewerId, Date.now(), 'Arena');
     expect(Object.hasOwn(game.snapshot(viewerId), 'killfeed')).toBe(true);
     expect(Object.hasOwn(game.snapshot(viewerId), 'killfeed')).toBe(false);
+  });
+
+  // Befund 19: Die Bestenliste ist seither je Betrachter verschieden (die
+  // eigene Zeile mit echtem Rang haengt hinten an). Die Delta-Logik darf
+  // deshalb nicht mehr mit einer geteilten Signatur je Tick arbeiten --
+  // sonst bekaeme jeder zweite Viewer seine Liste in jedem Snapshot neu.
+  it('haelt die Bestenlisten-Deltas auch bei je-Betrachter-Listen', () => {
+    const { game, viewerId, otherId, internals } = seatedGame();
+    internals.players.get(otherId).score = 5_000;
+    game.step(1 / 40);
+    expect(Object.hasOwn(game.snapshot(viewerId), 'leaderboard')).toBe(true);
+    expect(Object.hasOwn(game.snapshot(otherId), 'leaderboard')).toBe(true);
+    // Unveraendert: beide Viewer bekommen ihre Liste NICHT erneut.
+    expect(Object.hasOwn(game.snapshot(viewerId), 'leaderboard')).toBe(false);
+    expect(Object.hasOwn(game.snapshot(otherId), 'leaderboard')).toBe(false);
   });
 
   it('sendet Formstatik einmal und für neue Formen erneut', () => {

@@ -758,7 +758,14 @@ export interface DroneSnapshot { id:string; ownerId:string; position:Vector2; ve
 export interface Wall { id:string; x:number; y:number; width:number; height:number; }
 export interface ShapeSnapshot { id:string; kind:ShapeKind; position:Vector2; velocity:Vector2; radius:number; rotation:number; health:number; maxHealth:number; }
 export interface KillEvent { id:number; killer:string; victim:string; at:number; streak:number; }
-export interface LeaderboardEntry { id:string; name:string; score:number; level:number; playerClass:PlayerClass; isBot:boolean; }
+/**
+ * `rank` kam mit Befund 19: Die Liste trägt die Top-Plätze plus – falls der
+ * Betrachter nicht darunter ist – seine eigene Zeile mit echtem Rang. Aus
+ * einer Top-8 allein lässt sich der eigene Platz nicht rechnen. Optional,
+ * damit alte Server ohne das Feld weiter verstanden werden (Anzeige fällt
+ * dann auf die Listenposition zurück).
+ */
+export interface LeaderboardEntry { id:string; name:string; score:number; level:number; playerClass:PlayerClass; isBot:boolean; rank?:number; }
 export interface WorldSnapshot { type:'snapshot'; selfId:string|null; tick:number; serverTime:number; players:PlayerSnapshot[]; projectiles:ProjectileSnapshot[]; drones:DroneSnapshot[]; shapes:ShapeSnapshot[]; walls:Wall[]; leaderboard:LeaderboardEntry[]; killfeed:KillEvent[];
   /**
    * Sequenznummer der zuletzt in einen Tick eingeflossenen Eingabe dieses

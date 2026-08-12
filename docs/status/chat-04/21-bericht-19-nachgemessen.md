@@ -1,12 +1,12 @@
-# 21 – Bericht 19 nachgemessen: 51 Befunde geprüft, 36 behoben
+# 21 – Bericht 19 nachgemessen: 51 Befunde geprüft, 37 behoben
 
 | | |
 | --- | --- |
 | **Auftrag** | Sam: „erst nachmessen, dann anfassen" – die 79 Rohbefunde aus [Bericht 19](19-rohbefunde-spielgefuehl.md) |
 | **Branch** | `claude/validate-bericht-19-findings-85aiaz` (Vorgabe dieser Sitzung – **nicht** main; Merge ist Sams Handgriff) |
 | **Basis** | `3834b52` |
-| **Tests** | `npm run check` grün – 76 Dateien, 1034 Tests |
-| **Status** | 51 gegengeprüft: 36 behoben, 53 teilweise, 13 bestätigt-aber-offen, Befund 2 verworfen · 20 ungeprüft |
+| **Tests** | `npm run check` grün – 76 Dateien, 1037 Tests |
+| **Status** | 51 gegengeprüft: 37 behoben, 53 teilweise, 12 bestätigt-aber-offen, Befund 2 verworfen · 20 ungeprüft |
 
 ## 1. Wie gemessen wurde
 
@@ -36,7 +36,7 @@ behoben. Das Rohmaterial war vorsortiert – die Gegenprüfung hat trotzdem
 Titel, Schweren und Zahlen in großem Stil korrigiert, und ohne sie wären
 mindestens drei falsche Behebungen passiert (2, 63, 64 – siehe unten).
 
-## 2. Behoben (36 Befunde)
+## 2. Behoben (37 Befunde)
 
 **Server, jede Behebung mit Test:**
 
@@ -134,6 +134,17 @@ alles mit Tests (`run-record.test.ts`, `local-achievements.test.ts`,
 `start-leaderboard.test.ts`). Nebenbei: DEPLOYMENT.md nannte für
 `ACHIEVEMENTS_ENABLED` noch den Stand vor der 29er-Behebung – korrigiert.
 
+**Der eigene Rang in der HUD-Bestenliste (19):** Acht Plätze, die ein Neuling
+nie erreicht, sagten ihm zehn Minuten lang nur „du kommst hier nicht vor".
+Die Liste trägt jetzt Ränge, und wer nicht unter den Top 8 ist, steht mit
+seiner eigenen Zeile und echtem Rang als neunte darunter (mit Trennlinie –
+der Arras.io-Trick). Auf dem Handy bleibt die eigene Zeile auch dann stehen,
+wenn die Liste auf die Top 4 gekürzt ist. Dafür musste die Delta-Kodierung
+umlernen: Die Bestenliste war „für alle Clients identisch" und ihre Signatur
+wurde einmal pro Tick geteilt – jetzt rechnet sie je Betrachter (getestet,
+inklusive des Falls, der sonst jedem zweiten Viewer die Liste in jedem
+Snapshot neu geschickt hätte).
+
 **Kleinere bestätigte Befunde:** kein „ALPHA" mehr mitten im HUD (37), Level
 im Namensschild jedes Tanks (11 – der Level-30-Rückkehrer im Core sah aus wie
 ein Anfänger, bei 242 statt 110 Leben), eine Familienfarbe je Familie mit den
@@ -145,7 +156,7 @@ REPEL-Knopf heißt DROHNEN und existiert nur für Drohnenklassen – vorher war
 seine einzige Wirkung für 55 Klassen, still den Spawnschutz zu beenden (40),
 und der Name überlebt den Reload (54, `mazers-name`).
 
-## 3. Bestätigt, aber bewusst nicht angefasst (13: 3, 5, 6, 7, 19, 20-Text, 41, 43, 51, 55, 57, 63, 64)
+## 3. Bestätigt, aber bewusst nicht angefasst (12: 3, 5, 6, 7, 20-Text, 41, 43, 51, 55, 57, 63, 64)
 
 * **Befund 63 (Repulse wirkungslos) – der wichtigste Nicht-Fix.** Der
   Schalter ist kein vergessener wie beim Dash-Präzedenzfall: In index.ts steht
@@ -172,9 +183,6 @@ und der Name überlebt den Reload (54, `mazers-name`).
   die Je-Punkt-Faktoren leben in combat-tuning, nicht in shared – dieselbe
   Voraussetzung wie beim Text-Teil von Befund 20. Erst Konstanten nach shared
   heben, sonst entsteht exakt die abgetippte-Zahl-Fehlerklasse aus GOAL.md.
-* **Befund 19 (eigener Rang in der Bestenliste).** Braucht ein `rank`-Feld im
-  Wire-Format (aus Top-8 lässt sich der eigene Rang nicht rechnen);
-  `snapshot(selfId)` ist ohnehin je Spieler – kleine Runde, wenn gewollt.
 * **Befund 41 (Drohnen-Radius).** Braucht ein `radius`-Feld nach dem
   Formen-Muster (einmal je ID senden) – Wire-Runde.
 * **Befund 43 (Pinch-Zoom im Rad).** Bestätigt inkl. `zentriereAuf` ohne
@@ -226,10 +234,8 @@ royale-probe       gruen
 duo-probe          gruen
 touch-probe:all    5/5 Formate gruen -- NEU: Daumen bleiben ueber den Tod
                    liegen, Autofire wird nach jedem Respawn geprueft
-ui-layout-check    198/199 im letzten Volllauf; der eine Fall (Klassen-
-                   Spalte der schmalen Top-4-Liste) behoben und unter der
-                   verschaerften Bedingung (25 min Serverlaufzeit) einzeln
-                   gruen -- drei neue Mobil-Faelle, Stick-Schaerfe-Schicht
+ui-layout-check    199/199 im zertifizierenden Volllauf -- drei neue
+                   Mobil-Faelle, Stick-Schaerfe-Messschicht
 ```
 
 Die Matrix hat dabei ihren Zweck erfüllt und **fünf Folgefehler der eigenen
@@ -259,8 +265,8 @@ mit, sonst wäre Befund 65 beim nächsten Mal wieder durchgerutscht.
    den Gegenproben im Bericht 19.
 3. **Rest der Retention-Runde:** die Login-Zeile auf dem Death-Screen (55,
    Wortlaut mit Sam) und die restlichen 53er-Zeilen; dazu die kleinen
-   Wire-Runden 19 (eigener Rang), 41 (Drohnen-Radius), 7 (AEGIS-Ereignis)
-   und 5 (Trefferrichtung), wenn Sam nickt.
+   Wire-Runden 41 (Drohnen-Radius), 7 (AEGIS-Ereignis) und 5
+   (Trefferrichtung), wenn Sam nickt, sowie der Pinch-Zoom im Rad (43).
 4. **Prediction-Messlauf (64)** in beiden Stellungen, dann den Default
    entscheiden.
 5. Der einzige echte Blocker bleibt unverändert Sams: Migration

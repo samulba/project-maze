@@ -5,8 +5,8 @@
 | **Auftrag** | Sam: „erst nachmessen, dann anfassen" – die 79 Rohbefunde aus Bericht 19 |
 | **Branch** | `claude/validate-bericht-19-findings-85aiaz` (Sitzungs-Vorgabe; der Merge nach main ist Sams Handgriff) |
 | **Basis** | `3834b52` |
-| **Tests** | `npm run check` grün – 76 Dateien, 1034 Tests |
-| **Status** | 51 Befunde gegengeprüft, **36 behoben** (plus 53 teilweise), 13 bestätigt-aber-offen, 20 ungeprüft |
+| **Tests** | `npm run check` grün – 76 Dateien, 1037 Tests |
+| **Status** | 51 Befunde gegengeprüft, **37 behoben** (plus 53 teilweise), 12 bestätigt-aber-offen, 20 ungeprüft |
 
 Dieses Dokument ist der Einstieg für die nächste Sitzung. Der volle Bericht
 mit allen Urteilen und Belegen ist
@@ -21,7 +21,7 @@ Befund 60 war durch die 29er-Behebung überholt, und quer durch alle gab es
 Zeilendrifts, falsche Zählungen und eine falsche Matrix-Behauptung (13: die
 Fälle existierten, es fehlte die Messschicht).
 
-**36 Befunde sind behoben und gepusht**, jeder Server-Fix mit Test:
+**37 Befunde sind behoben und gepusht**, jeder Server-Fix mit Test:
 
 * **Server:** Dash-Abschlag nur noch auf Körperkontakt (62), Telemetrie nennt
   den echten Modus (65), Ladebalken der Fähigkeit springt nicht mehr (66),
@@ -53,15 +53,15 @@ Fälle existierten, es fehlte die Messschicht).
 * **Retention-Runde:** Ein Gast nimmt etwas mit – lokaler Rekord auf Start-
   und Death-Screen (48 + erste 53er-Zeile), Freischaltungen überleben den
   Reload und zählen in der Galerie (49), die Start-Bestenliste markiert die
-  eigenen Zeilen und nennt den Abstand zum letzten Platz (56), und welcome
+  eigenen Zeilen und nennt den Abstand zum letzten Platz (56), welcome
   trägt `achievements`, damit die Galerie nicht verspricht, was der Server
-  nicht vergibt (60).
+  nicht vergibt (60), und die HUD-Bestenliste zeigt den eigenen Platz mit
+  echtem Rang – auch jenseits der Top 8 (19, mit je-Betrachter-Deltas).
 
 **Alle Proben sind gefahren und grün:** wire, progress, mode ×3, royale, duo,
-touch ×5 (mit den neuen Kriterien) und die Layout-Matrix (198/199 im letzten
-Volllauf, der eine Fall behoben und einzeln verifiziert). Die Matrix hat dabei
-fünf Folgefehler der eigenen Fixes gefunden – alle behoben, Details in
-Bericht 21 Abschnitt 6.
+touch ×5 (mit den neuen Kriterien) und die Layout-Matrix **199/199** im
+zertifizierenden Volllauf. Die Matrix hat unterwegs fünf Folgefehler der
+eigenen Fixes gefunden – alle behoben, Details in Bericht 21 Abschnitt 6.
 
 **Zwei Infrastruktur-Funde:** `playwright-core` stand in keiner package.json
 (alle Browser-Proben hingen am Zufall des Containers – jetzt devDependency),
@@ -84,8 +84,8 @@ wieder durchgerutscht.
    und die Hälfte der Fixes wäre zugleich Schwierigkeits-Balance.
 3. **Rest der Retention-Runde:** Login-Zeile auf dem Death-Screen (55,
    Wortlaut mit Sam) und die restlichen 53er-Zeilen. Dazu die kleinen
-   Wire-Runden 19 (eigener Rang), 41 (Drohnen-Radius), 7 (AEGIS-Ereignis)
-   und 5 (Trefferrichtung), wenn Sam nickt.
+   Wire-Runden 41 (Drohnen-Radius), 7 (AEGIS-Ereignis) und 5
+   (Trefferrichtung), wenn Sam nickt, sowie der Pinch-Zoom im Rad (43).
 4. **Prediction-Messlauf (64):** Proben in beiden Stellungen, dann den
    Default entscheiden – die Hausregel verlangt die Absicherung vor dem
    Umlegen, und Prediction-Fehler sind Gummiband, kein roter Test.
