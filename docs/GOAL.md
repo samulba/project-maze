@@ -1,6 +1,6 @@
 # MAZERS – das Ziel
 
-Stand: 11.08.2026. Dieses Dokument ist der Nordstern. Wenn eine Aufgabe nicht
+Stand: 12.08.2026. Dieses Dokument ist der Nordstern. Wenn eine Aufgabe nicht
 auf eine der Zeilen hier einzahlt, ist sie nicht dran.
 
 ---
@@ -57,11 +57,31 @@ ist, entscheidet, wer es spielt.
 | Es fühlt sich groß an | 675.000 px² je Spieler, Dichte-Test grün | ✅ 9000 × 6000, 80 Spieler |
 | **Fremde kommen wieder** | Admin-Portal: wiederkehrende `device_id` über 7 Tage | 🔍 misst ab jetzt |
 
-**Stand 11.08.: alle zwölf technischen Zeilen grün.**
+**Stand 12.08.: alle zwölf technischen Zeilen grün.**
 Das ist ausdrücklich **kein** „fertig" – siehe den Kasten oben. Es heißt: Zwölf
 Wege, auf denen sich das Spiel wie ein Prototyp anfühlen könnte, sind
 ausgeschlossen und mit einem Befehl nachprüfbar. Die Zeile, die zählt, ist die
 dreizehnte, und die misst gerade erst an.
+
+**Am 12.08. lief eine vollständige Codeanalyse.** Sie hat siebzehn Befunde
+behoben, und zwei davon sagen mehr über den Stand aus als jede grüne Zeile:
+
+* **Der Beitritt war zwei Stunden lang kaputt.** Eine Layout-Reparatur vom
+  Vortag hatte den Respawn-Knopf in eine neue Leiste gesetzt; ein
+  `insertBefore` dagegen warf mitten im Welcome-Zweig, und `setEnabled(true)`
+  für die Eingabe wurde nie erreicht. Der Startscreen ging weg, das HUD stand
+  da, der Tank ließ sich nicht bewegen. **Alle 996 Tests waren grün, und alle
+  196 Layout-Fälle auch.** Gefunden hat es `npm run wire-probe` – die einzige
+  Prüfung, die tatsächlich beitritt.
+* **Zwei Zusicherungen in diesem Dokument waren falsch** (die Kettenanalyse und
+  die Familientabelle), und beide haben Befunde gedeckt statt sie zu
+  verhindern. Der Maßstab selbst braucht Sabotageproben.
+
+Die Lehre ist dieselbe wie in „Eine Fehlerklasse, die zweimal zugeschlagen
+hat": Eine Prüfung, die neben dem Weg misst, den ein Spieler nimmt, ist keine
+Prüfung. Die Proben (`wire-probe`, `touch-probe`, `mode-probe`,
+`royale-probe`, `progress-probe`) sind deshalb kein Beiwerk, sondern die
+einzige Stelle, an der das Spiel als Spiel geprüft wird.
 
 **Der eigentliche Stand ist: unvalidiert.** Kein Mensch außer den Bots hat
 dieses Spiel in seinem heutigen Zustand gespielt. Die Dinge, die den Ausschlag
