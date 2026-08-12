@@ -421,6 +421,90 @@ describe('Battle-Royale-Runden', () => {
     expect(frisch.alive).toBe(2);
   });
 
+  /**
+   * Der Sieger nahm alles mit in die naechste Runde: Level, Klasse, Upgrades,
+   * Score. Runde 2 war damit ein voll ausgebauter Tank gegen ein Feld auf
+   * halber Stufe -- und das verstaerkte sich mit jedem Sieg. GOAL.md sagt
+   * "Pause, dann alles auf Anfang".
+   */
+  it('setzt in der neuen Runde auch den Sieger zurueck, nicht nur die Toten', () => {
+    setArenaMode('royale');
+    const game = ohneFormen(createGame(SCHNELLE_RUNDE));
+    const internals = game as unknown as Innereien;
+    const a = game.addPlayer('Alpha');
+    const b = game.addPlayer('Beta');
+    const verlierer = internals.players.get(a);
+    const sieger = internals.players.get(b);
+
+    let now = Date.now();
+    game.step(1 / GAME.tickRate, now);
+    // Beide auf denselben Stand bringen: Level 40, ausgebaut, mit Punktestand.
+    for (const spieler of [verlierer, sieger]) {
+      spieler.level = 40;
+      spieler.playerClass = 'gatling';
+      spieler.upgrades.damage = 7;
+      spieler.score = 12_000;
+      spieler.availablePoints = 3;
+    }
+
+    internals.killPlayer(verlierer, b, now, 'Arena');
+    now += 25;
+    game.step(1 / GAME.tickRate, now);
+    expect(royaleZoneFor(game, now)!.winnerName).toBe('Beta');
+
+    while (royaleZoneFor(game, now)!.roundOver) { now += 25; game.step(1 / GAME.tickRate, now); }
+
+    // Dieselbe Regel fuer beide: halbes Level, Klasse zurueck, Upgrades leer.
+    expect(sieger.level).toBe(verlierer.level);
+    expect(sieger.upgrades.damage).toBe(0);
+    expect(verlierer.upgrades.damage).toBe(0);
+    expect(sieger.playerClass).toBe(verlierer.playerClass);
+    expect(sieger.playerClass).not.toBe('gatling');
+    expect(sieger.score).toBeLessThan(12_000);
+    // Und die Runde laeuft wirklich, sonst misst der Test die Pause.
+    expect(royaleZoneFor(game, now)!.roundOver).toBe(false);
+  });
+
+  /**
+   * Wer mitten in einer laufenden Runde dazukommt, stand vorher weit ausserhalb
+   * der Zone: `randomSpawn` nimmt zehn feste Punkte an Rand und Ecken, die Zone
+   * steht ab Stufe 5 in der Mitte. Das war ein Todesurteil ohne Gegenwehr.
+   */
+  it('setzt einen Neuzugang mitten in der Runde IN die Zone', () => {
+    setArenaMode('royale');
+    const game = ohneFormen(createGame(SCHNELL));
+    const internals = game as unknown as Innereien;
+    /*
+     * EIN Spieler waehrend der Anlaufzeit, nicht zwei: Bei zweien holt die
+     * Zone binnen Sekunden einen von beiden, die Runde ist entschieden, und
+     * nach der Pause faengt sie von vorn an -- der Test stuende dann bei
+     * Stufe 0 und pruefte nichts. Genau so ist der erste Anlauf gescheitert.
+     */
+    const allein = game.addPlayer('Alpha');
+
+    // Weit in die Runde laufen, bis die Zone klein und der Rand toedlich ist.
+    let now = laufe(game, Date.now(), 20);
+    const zone = royaleZoneFor(game, now)!;
+    expect(zone.roundOver).toBe(false);
+    expect(zone.stage).toBeGreaterThanOrEqual(5);
+
+    const neu = game.addPlayer('Spaetzuender');
+    const spieler = internals.players.get(neu);
+    const abstand = Math.hypot(spieler.position.x - zone.center.x, spieler.position.y - zone.center.y);
+    expect(abstand).toBeLessThanOrEqual(zone.radius);
+    // Und er lebt das auch: eine Sekunde ohne einen einzigen Zonentreffer.
+    // Alpha bleibt dabei in der Mitte, sonst entscheidet sich die Runde.
+    const vorher = spieler.health;
+    const dt = 1 / GAME.tickRate;
+    for (let i = 0; i < GAME.tickRate; i += 1) {
+      internals.players.get(allein).position = { ...zone.center };
+      now += dt * 1000;
+      game.step(dt, now);
+    }
+    expect(spieler.health).toBe(vorher);
+    expect(spieler.dead).toBe(false);
+  });
+
   it('haelt die Zone in der Rundenpause an, statt den Sieger zu toeten', () => {
     setArenaMode('royale');
     const game = ohneFormen(createGame(SCHNELLE_RUNDE));

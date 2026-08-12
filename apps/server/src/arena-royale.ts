@@ -1,8 +1,8 @@
-import { ARENA_MODES, GAME, type PlayerSnapshot, type WorldSnapshot } from '@project-maze/shared';
+import { ARENA_MODES, GAME, respawnLevelFrom, type PlayerSnapshot, type WorldSnapshot } from '@project-maze/shared';
 import type { GameplayWorldExtension, RoyaleZoneSnapshot } from '@project-maze/shared/gameplay';
 import { arenaGuardianIdFor } from './arena-events.js';
 import { MazeGame } from './game.js';
-import { currentArenaMode } from './world.js';
+import { currentArenaMode, isFree } from './world.js';
 
 /**
  * Battle Royale: schrumpfende Zone, Ausscheiden und Runden.
@@ -236,6 +236,49 @@ const lebende = (internals: RoyaleInternals, guardianId: string | null): RoyaleP
  * einzeln zurückzudrehen ist die Sorte Arbeit, bei der beim nächsten neuen Feld
  * genau eines vergessen wird.
  */
+/**
+ * Ein Platz **in** der Zone, für alle, die mitten in einer laufenden Runde
+ * dazukommen.
+ *
+ * Ohne diese Regel war ein Beitritt in Stufe 5 oder später ein Todesurteil
+ * ohne Gegenwehr: `randomSpawn` wählt aus zehn festen Punkten an Rand und
+ * Ecken, die Zone steht da längst in der Mitte. Nachgemessen im Zeitraffer –
+ * Stufe 5: 4263 Einheiten draußen, tot nach 5,7 s; Stufe 7: 5302 draußen, tot
+ * nach 4,3 s; Stufe 8: selbst der günstigste der zehn Punkte liegt 911
+ * draußen. Ein frischer Tank fährt 300 Einheiten/s und hat 110 Leben – die
+ * Strecke ist ab Stufe 5 rechnerisch nicht mehr zu schaffen, mit Wänden erst
+ * recht nicht. Danach greift korrekt das Ausscheiden, und der Neuling sieht
+ * bis zur nächsten Runde zu, ohne einen Schuss abgegeben zu haben.
+ *
+ * Gewählt wird nicht die Mitte, sondern der innere Rand (55–90 % des Radius):
+ * Wer neu kommt, soll im Spiel sein, aber nicht mitten in die Entscheidung
+ * fallen. Der Abstand zu Lebenden ist derselbe wie in `safeSpawn` (250).
+ */
+function platzInDerZone(state: RoyaleState, lebendige: readonly RoyalePlayer[]): { x: number; y: number } | null {
+  const frei = (kandidat: { x: number; y: number }): boolean => isFree(kandidat, GAME.playerRadius);
+  const punkt = (anteil: number, winkel: number) => ({
+    x: state.center.x + Math.cos(winkel) * state.radius * anteil,
+    y: state.center.y + Math.sin(winkel) * state.radius * anteil
+  });
+  for (let versuch = 0; versuch < 80; versuch += 1) {
+    const kandidat = punkt(0.55 + Math.random() * 0.35, Math.random() * Math.PI * 2);
+    if (!frei(kandidat)) continue;
+    const eng = lebendige.some((spieler) => {
+      const dx = spieler.position.x - kandidat.x;
+      const dy = spieler.position.y - kandidat.y;
+      return dx * dx + dy * dy < 250 * 250;
+    });
+    if (!eng) return kandidat;
+  }
+  // Zweiter Anlauf ohne Abstandsregel: eng neben jemandem stehen ist immer
+  // noch besser, als draußen zu stehen und beim Laufen zu sterben.
+  for (let versuch = 0; versuch < 120; versuch += 1) {
+    const kandidat = punkt(Math.random() * 0.9, Math.random() * Math.PI * 2);
+    if (frei(kandidat)) return kandidat;
+  }
+  return null;
+}
+
 function neueRunde(internals: RoyaleInternals, state: RoyaleState, now: number): void {
   const mitte = kartenMitte();
   state.center = { ...mitte };
@@ -252,8 +295,24 @@ function neueRunde(internals: RoyaleInternals, state: RoyaleState, now: number):
   state.roundOver = false;
   state.nextRoundAt = 0;
   state.winnerName = null;
+  /*
+   * ALLE gehen durch den Wiedereinstieg, nicht nur die Toten.
+   *
+   * Vorher lief der Überlebende durch keinen Reset – und nahm damit alles mit:
+   * Nachgestellt mit zwei Spielern auf Level 40 (gatling, damage-Upgrade 7,
+   * Score 12000) stand in Runde 2 ein Level-41-Gatling mit vollem Ausbau gegen
+   * ein Feld aus Level-20-Core-Tanks. Mit jeder gewonnenen Runde verstärkt
+   * sich das. docs/GOAL.md sagt „Pause, dann alles auf Anfang", und genau das
+   * ist hier gemeint.
+   *
+   * `respawnLevel` wird vorher für jeden neu gesetzt: Der Tod tut das ohnehin
+   * (`respawnLevelFrom(level)`), für die Lebenden fehlte es. Damit gilt für
+   * alle dieselbe Regel – halbes Level, Klasse zurück auf den Familienanfang,
+   * Upgrades leer –, statt einer Sonderbehandlung für den Sieger.
+   */
   for (const player of internals.players.values()) {
-    if (player.dead) internals.respawn(player, now);
+    player.respawnLevel = respawnLevelFrom(player.level);
+    internals.respawn(player, now);
   }
 }
 
@@ -261,6 +320,32 @@ export function tuneRoyale<T extends MazeGame>(game: T, config: RoyaleConfig = D
   const internals = game as unknown as RoyaleInternals;
   const originalStep = game.step.bind(game);
   const originalSnapshot = game.snapshot.bind(game);
+  const originalAddPlayer = game.addPlayer.bind(game);
+
+  /*
+   * Wer mitten in einer laufenden Runde dazukommt, startet drinnen.
+   *
+   * Umschliessend, nicht ersetzend: Die Basis legt den Spieler an wie immer –
+   * inklusive Spawnschutz und Abstandsregel –, danach wird nur die Position
+   * korrigiert. Findet sich in der Zone kein freier Platz, bleibt der
+   * ursprüngliche Spawn stehen; ein Tank in einer Wand wäre schlimmer als ein
+   * Tank am Rand.
+   */
+  game.addPlayer = ((name: string): string => {
+    const id = originalAddPlayer(name);
+    if (currentArenaMode() !== 'royale') return id;
+    const state = states.get(game);
+    // Kein Zustand heisst: Es hat noch kein Tick stattgefunden, also laeuft
+    // auch keine Runde. In der Rundenpause ist der normale Spawn richtig --
+    // `neueRunde` setzt gleich ohnehin alle neu.
+    if (!state || state.roundOver) return id;
+    const spieler = internals.players.get(id);
+    if (!spieler) return id;
+    const lebendige = [...internals.players.values()].filter((p) => !p.dead && p.id !== id);
+    const platz = platzInDerZone(state, lebendige);
+    if (platz) spieler.position = platz;
+    return id;
+  }) as T['addPlayer'];
 
   game.step = ((dt: number, now = Date.now()): void => {
     originalStep(dt, now);

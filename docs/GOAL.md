@@ -397,6 +397,20 @@ es Sam.
    Nachprüfbar mit `npm run royale-probe`: eine ganze Runde im echten Browser,
    gewertet wird das Sichtbare, nicht der Serverzustand.
 
+   **Zwei Regeln kamen aus der Codeanalyse dazu, beide über Fairness:**
+
+   * *„Alles auf Anfang" galt für alle außer dem Sieger.* `neueRunde` hat nur
+     die Toten durch den Wiedereinstieg geschickt; der Überlebende lief durch
+     keinen Reset. Nachgestellt mit zwei Level-40-Tanks: In Runde 2 stand ein
+     voll ausgebauter Level-41-Gatling gegen ein Feld aus Level-20-Core-Tanks
+     – und mit jedem Sieg verstärkt sich das. Jetzt geht jeder denselben Weg,
+     halbes Level und Klasse zurück, wie nach einem Tod.
+   * *Wer mitten in der Runde dazukam, war chancenlos tot.* Die zehn festen
+     Spawnpunkte liegen an Rand und Ecken, die Zone steht ab Stufe 5 in der
+     Mitte: gemessen 4263 Einheiten draußen und tot nach 5,7 s, ab Stufe 7
+     rechnerisch nicht mehr zu schaffen. Neuzugänge starten jetzt am inneren
+     Zonenrand – im Spiel, aber nicht mitten in der Entscheidung.
+
    Offen und ausdrücklich Sams Entscheidung, keine Fehlerbehebung: In der
    Rundenpause hält die **Zone** an, damit der Sieger seinen Moment hat – Formen
    und Bots tun das nicht. Ein angeschlagener Sieger kann in der Pause noch an
