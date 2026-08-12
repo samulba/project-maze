@@ -237,8 +237,21 @@ export function leadsTo(id: PlayerClass): string[] | null {
  * Ist die Klasse für diesen Spieler erreichbar? Erreichbar heißt: Sie liegt auf
  * einem Pfad, der über die aktuelle Klasse führt – oder die aktuelle liegt auf
  * ihrem Pfad.
+ *
+ * Dazu kommt die Apex-Regel, und ohne sie log das Rad. Der Server lässt den
+ * Familien-Apex aus JEDER Klasse der Familie zu (`availableClassChoices` in
+ * `packages/shared`: „wer bei Gatling steht, soll den Rapid-Apex nicht
+ * verpassen"). Der reine Pfad-Vergleich kennt diese Abkürzung nicht – gemessen
+ * über alle Klassen meldeten **48 von 65** mindestens ein Ziel als
+ * unerreichbar, das der Server sehr wohl anbietet. Auf dem Schirm hiess das:
+ * Wer auf Storm steht und Taste C drückt, findet den Vortex-Knoten
+ * heruntergedimmt und darunter „Von deinem aktuellen Pfad aus nicht mehr
+ * erreichbar" – eine Zeile unter dem „Führt zu → Vortex" derselben Karte. Auf
+ * Level 42 stand der Knoten dann doch zur Wahl.
  */
 export function reachableFrom(current: PlayerClass, target: PlayerClass): boolean {
   if (current === target) return true;
-  return pathTo(target).includes(current);
+  if (pathTo(target).includes(current)) return true;
+  const ziel = CLASS_DEFINITIONS[target];
+  return ziel.apexOf !== undefined && ziel.apexOf === CLASS_DEFINITIONS[current].branch;
 }

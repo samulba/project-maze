@@ -25,6 +25,12 @@ import { AchievementPopups } from './achievement-popups';
 import { GameplayEffects } from './gameplay-effects';
 import { GameplayUI } from './gameplay-ui';
 import { InputController } from './input';
+import {
+  JOIN_BACKOFF_START_MS,
+  joinRejectionAction,
+  joinRejectionLabel,
+  nextJoinBackoff
+} from './join-flow';
 import { OnboardingCoach } from './onboarding-view';
 import { startPerfReporting } from './perf-metrics';
 import { PredictionEngine } from './prediction';
@@ -63,7 +69,9 @@ import './hud-layout.css';
 let socket: WebSocket | null = null;
 let joinOptions: JoinOptions | null = null;
 let reconnectTimer: number | null = null;
-let reconnectDelay = 1200;
+let reconnectDelay = JOIN_BACKOFF_START_MS;
+/** Grund der letzten Beitritts-Ablehnung, solange wir es weiter versuchen. */
+let ablehnung: string | null = null;
 let joined = false;
 let enteredGame = false;
 let currentSelfDead = true;
@@ -318,7 +326,11 @@ function connect(): void {
   socket = currentSocket;
 
   currentSocket.addEventListener('open', () => {
-    reconnectDelay = 1200;
+    // Der Backoff wird bewusst NICHT hier zurückgesetzt, sondern erst beim
+    // `welcome`. Ein offener Socket heisst noch nicht, dass wir drin sind:
+    // Bei voller Arena öffnet jeder Versuch erfolgreich und wird danach
+    // abgelehnt – ein Reset an dieser Stelle machte daraus eine
+    // Endlosschleife im 1,2-Sekunden-Takt gegen ein Limit von 20 Joins/min.
     void sendJoin(currentSocket);
   });
 
@@ -350,7 +362,7 @@ function connect(): void {
     onboarding.pause();
     if (input?.resetAll()) ui.setAutoFire(false);
     input?.setEnabled(false);
-    ui.setConnection('offline', 'VERBINDUNG VERLOREN');
+    ui.setConnection('offline', ablehnung ?? 'VERBINDUNG VERLOREN');
 
     if (!enteredGame) {
       ui.setJoinPending(false, 'Server nicht erreichbar. Prüfe, ob npm run dev noch läuft.');
@@ -358,7 +370,7 @@ function connect(): void {
     }
     if (joinOptions) {
       reconnectTimer = window.setTimeout(connect, reconnectDelay);
-      reconnectDelay = Math.min(8000, Math.round(reconnectDelay * 1.65));
+      reconnectDelay = nextJoinBackoff(reconnectDelay);
     }
   });
 
@@ -371,6 +383,9 @@ function handleServerMessage(message: ServerMessage): void {
   if (message.type === 'welcome') {
     joined = true;
     currentSelfDead = false;
+    // Erst jetzt sind wir wirklich drin – also erst jetzt zurück auf Anfang.
+    reconnectDelay = JOIN_BACKOFF_START_MS;
+    ablehnung = null;
     // Deckt auch den Rejoin über einen bereits offenen Socket ab: Der Server
     // vergibt dabei eine neue Spieler-ID und sendet wieder volle Snapshots.
     hydrator.reset();
@@ -400,7 +415,22 @@ function handleServerMessage(message: ServerMessage): void {
 
   if (message.type === 'error') {
     ui.toast('Beitritt fehlgeschlagen', message.message, 'danger');
-    if (!enteredGame) ui.setJoinPending(false, message.message);
+    const aktion = joinRejectionAction({ enteredGame, joined });
+    if (aktion === 'startscreen') {
+      ui.setJoinPending(false, message.message);
+      return;
+    }
+    if (aktion === 'ignorieren') return;
+    /*
+     * Sackgasse aufgebrochen: Der Server hält den Socket nach einer Ablehnung
+     * offen, also feuert der `close`-Handler nie – und nur dort wird ein
+     * neuer Versuch geplant. Wir schliessen deshalb selbst; damit läuft die
+     * Ablehnung durch denselben Weg wie ein echter Verbindungsabbruch,
+     * inklusive Backoff. `ablehnung` sorgt dafür, dass oben der Grund steht
+     * und nicht die falsche Diagnose „VERBINDUNG VERLOREN".
+     */
+    ablehnung = joinRejectionLabel(message.message);
+    socket?.close(4001, 'join rejected');
     return;
   }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLASS_DEFINITIONS, PLAYER_CLASS_IDS } from '@project-maze/shared';
+import { CLASS_DEFINITIONS, GAME, PLAYER_CLASS_IDS, availableClassChoices } from '@project-maze/shared';
 import { FAMILIES, buildWheel, familyInfo, leadsTo, pathTo, reachableFrom, ringOf } from './class-tree';
 
 /**
@@ -109,5 +109,28 @@ describe('Pfade', () => {
     expect(reachableFrom('twin', 'gatling')).toBe(false);
     expect(reachableFrom('sniper', 'storm')).toBe(false);
     expect(reachableFrom('storm', 'core')).toBe(false);
+    // Der Familien-Apex ist aus jeder Klasse der Familie erreichbar, auch
+    // seitlich vom eigenen Pfad -- Gatling liegt nicht auf dem Weg zu Vortex.
+    expect(pathTo('vortex')).not.toContain('gatling');
+    expect(reachableFrom('gatling', 'vortex')).toBe(true);
+    // Der Apex einer FREMDEN Familie bleibt gesperrt.
+    expect(reachableFrom('gatling', 'eclipse')).toBe(false);
+  });
+
+  /**
+   * Die Wahrheit über Erreichbarkeit steht im Server (`availableClassChoices`).
+   * Das Rad hatte seine eigene Fassung, und die war an 48 von 65 Klassen
+   * strenger. Deshalb hier keine Handvoll Fälle mehr, sondern die vollständige
+   * Gegenüberstellung: Was der Server auf Maximallevel zur Wahl stellt, muss
+   * das Rad als erreichbar zeigen.
+   */
+  it('zeigt nichts als unerreichbar, was der Server zur Wahl stellt', () => {
+    const abweichungen: string[] = [];
+    for (const current of PLAYER_CLASS_IDS) {
+      for (const ziel of availableClassChoices(current, GAME.maxLevel)) {
+        if (!reachableFrom(current, ziel)) abweichungen.push(`${current} -> ${ziel}`);
+      }
+    }
+    expect(abweichungen).toEqual([]);
   });
 });
