@@ -25,8 +25,19 @@ describe('class balance metrics', () => {
     }
   });
 
+  /*
+   * Nicht mehr sieben Namen von Hand, sondern jede Klasse mit Drohnen.
+   *
+   * Die eingefrorene Liste stammte aus der Zeit vor Klassen 4.0 und stand
+   * seither still, waehrend drei Drohnenklassen dazukamen -- dieselbe Luecke,
+   * durch die `sentinel`, `aviary` und `sovereign` mit fremden Drohnenkoerpern
+   * liefen. Eine Liste, die nicht mitwaechst, prueft mit jeder neuen Klasse
+   * einen kleineren Anteil des Spiels.
+   */
   it('keeps drone pressure below the hard safety ceiling', () => {
-    for (const id of ['drone', 'warden', 'factory', 'overseer', 'carrier', 'guardian', 'hive'] as const) {
+    const drohnenklassen = PLAYER_CLASS_IDS.filter((id) => CLASS_DEFINITIONS[id].droneCount > 0);
+    expect(drohnenklassen.length).toBeGreaterThanOrEqual(10);
+    for (const id of drohnenklassen) {
       expect(classBalanceMetrics(id).dronePressure).toBeLessThanOrEqual(170);
     }
   });
@@ -35,6 +46,56 @@ describe('class balance metrics', () => {
     expect(classBalanceMetrics('flanker').forwardProjectileDps).toBeLessThan(classBalanceMetrics('flanker').projectileDps);
     expect(classBalanceMetrics('octo').forwardProjectileDps).toBeLessThan(classBalanceMetrics('octo').projectileDps);
     expect(classBalanceMetrics('twin').forwardProjectileDps).toBe(classBalanceMetrics('twin').projectileDps);
+  });
+
+  /**
+   * Der weite Korridor fuer alles unterhalb von Stufe 3.
+   *
+   * Der Korridor darunter gilt ausdruecklich nur fuer spezialisierte Klassen
+   * (`tier >= 3`) -- und das ist richtig: Eine Startklasse SOLL schwaecher
+   * sein als ihre Endstufen. Nur hiess „gilt nicht" bisher „wird gar nicht
+   * geprueft", und das betrifft **33 der 65 Klassen**, also die halbe
+   * Aufstellung. Von der Zeile „Kein Tank ist Muell, keiner ist Pflicht"
+   * blieb fuer sie genau eine Pruefung uebrig: das Tempo.
+   *
+   * Deshalb hier derselbe Korridor, 40 % nach unten und 25 % nach oben
+   * geoeffnet. Er faengt keine Feinheit -- er faengt den Ausrutscher: eine
+   * neue Klasse, die versehentlich das Doppelte oder ein Drittel dessen
+   * austeilt, was ihre Familie vertraegt. Heute liegt die ganze Aufstellung
+   * darin (knappster Fall: `drone` mit 47,2 Drohnendruck gegen die
+   * Untergrenze 42).
+   */
+  it('haelt auch die unspezialisierten Klassen im weiten Korridor', () => {
+    const UNTEN = 0.6;
+    const OBEN = 1.25;
+    const draussen: string[] = [];
+    for (const id of PLAYER_CLASS_IDS) {
+      const tank = CLASS_DEFINITIONS[id];
+      const metrics = classBalanceMetrics(id);
+      if (metrics.tier >= 3) continue;
+      const pruefe = (achse: string, wert: number, unten: number, oben: number): void => {
+        if (wert < unten * UNTEN || wert > oben * OBEN) draussen.push(`${id}.${achse}=${wert.toFixed(1)}`);
+      };
+      if (tank.branch === 'rapid' || tank.branch === 'precision') pruefe('dps', metrics.forwardProjectileDps, 40, 100);
+      if (tank.branch === 'control') pruefe('dronePressure', metrics.dronePressure, 70, 170);
+      if (tank.branch === 'impact') {
+        pruefe('bodyThreat', metrics.bodyThreat, 80, 160);
+        pruefe('effectiveDurability', metrics.effectiveDurability, 150, 310);
+      }
+      if (tank.branch !== 'precision' && tank.barrelCount > 0) pruefe('projectileRange', metrics.projectileRange, 0, 1300);
+    }
+    expect(draussen).toEqual([]);
+  });
+
+  it('laesst keine Klasse voellig ungeprueft', () => {
+    // Zusammen decken der enge und der weite Korridor jede Klasse mit einer
+    // Rolle ab. Waechst die Aufstellung um eine Familie ohne Korridor, faellt
+    // es hier auf und nicht im Spiel.
+    const ohneAchse = PLAYER_CLASS_IDS.filter((id) => {
+      const tank = CLASS_DEFINITIONS[id];
+      return !['rapid', 'precision', 'control', 'impact'].includes(tank.branch) && tank.barrelCount === 0;
+    });
+    expect(ohneAchse).toEqual([]);
   });
 
   it('keeps every specialised class inside its role corridor', () => {
