@@ -539,6 +539,14 @@ BREITE=667 HOEHE=375 npm run touch-probe    # iPhone SE quer
 # vergibt einen Punkt -- und prueft jedes Mal das sichtbare Ergebnis.
 npm run progress-probe
 
+# Wie fuehlen sich die ersten Minuten an? Spielt wie jemand, der nichts weiss
+# (Dauerfeuer, alle 2,5 s eine andere Richtung, RESPAWN sofort, erste
+# Klassenkarte nehmen) und berichtet, was ein Mensch danach erzaehlen wuerde:
+# hoechstes Level, Tode, Zeit bis Level 5 -- und ob ueberhaupt etwas getroffen
+# wurde. Durchgefallen ist nur ein KAPUTTER Anfang (kein Beitritt, kein
+# Aufstieg, kein Wiedereinstieg); Schwierigkeit ist Sams Entscheidung.
+MINUTEN=5 LAEUFE=3 npm run first-run-probe
+
 # Bekommt man auf der Leitung den Modus, den man konfiguriert hat?
 # Haengt sich als echter Client an einen laufenden Server (kein Browser) und
 # prueft je Modus dessen Versprechen: maze Waende, ffa KEINE Wand, royale die
