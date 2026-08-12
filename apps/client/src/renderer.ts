@@ -1018,12 +1018,17 @@ export class GameRenderer {
       const angle=Math.atan2(view.velocity.y,view.velocity.x)||view.snapshot.angle;
       const speed=Math.hypot(view.velocity.x,view.velocity.y);
       if(speed>90)this.drones.moveTo(view.current.x-view.velocity.x/speed*16,view.current.y-view.velocity.y/speed*16).lineTo(view.current.x,view.current.y).stroke({color,alpha:.2,width:3});
-      this.drones.poly(translated(polygon(3,13,angle),view.current)).fill(color).stroke({color:0xffffff,alpha:.3,width:2});
+      // Echte Größe statt Einheitsdreieck (Befund 41): Der Server rechnet mit
+      // Radien von 7,5 (Hive) bis 15,5 (Carrier) – gezeichnet wurde immer 13.
+      // Eine Hive-Drohne erschien mit dreifacher Fläche, eine Carrier-Drohne
+      // traf durch sichtbare „Luft".
+      const radius=view.snapshot.gameplayRadius??13;
+      this.drones.poly(translated(polygon(3,radius,angle),view.current)).fill(color).stroke({color:0xffffff,alpha:.3,width:2});
       // Lebensbogen ab 60 % Schaden (Befund 8): Eine Drohne bei 5 % Leben sah
       // exakt aus wie eine frische, obwohl beide Zahlen im Snapshot liegen.
       const ratio=view.snapshot.health/Math.max(1,view.snapshot.maxHealth);
       if(ratio<.6){
-        this.drones.arc(view.current.x,view.current.y,17,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.max(.05,ratio)).stroke({color:ratio>.3?0x65d39a:0xf05e72,alpha:.7,width:2});
+        this.drones.arc(view.current.x,view.current.y,radius+4,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.max(.05,ratio)).stroke({color:ratio>.3?0x65d39a:0xf05e72,alpha:.7,width:2});
       }
     }
   }

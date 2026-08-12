@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { CLASS_DEFINITIONS, PLAYER_CLASS_IDS } from '@project-maze/shared';
-import { droneArchetypes } from './drone-tuning';
+import { tuneCombatScaling } from './combat-tuning';
+import { droneArchetypes, tuneDrones } from './drone-tuning';
+import { MazeGame } from './game';
 
 /**
  * Drei der zehn Drohnenklassen hatten keinen eigenen Eintrag und fielen still
@@ -50,5 +52,26 @@ describe('Drohnen-Koerper', () => {
       .filter((id) => id !== 'drone' && CLASS_DEFINITIONS[id].unlockLevel > CLASS_DEFINITIONS.drone.unlockLevel)
       .filter((id) => flotte(id) < start);
     expect(schwaecher).toEqual([]);
+  });
+
+  /**
+   * Befund 41: Der Client zeichnete jede Drohne als 13er-Dreieck, obwohl der
+   * Server mit 7,5 bis 15,5 rechnet -- eine Hive-Drohne erschien mit
+   * dreifacher Flaeche, eine Carrier-Drohne traf durch sichtbare Luft. Der
+   * Radius muss deshalb in jedem Drohnen-Snapshot liegen.
+   */
+  it('schickt den Kollisionsradius jeder Drohne im Snapshot mit', () => {
+    const game = tuneDrones(tuneCombatScaling(new MazeGame(0)));
+    const playerId = game.addPlayer('Overseer');
+    const internals = game as unknown as { players: Map<string, { level: number }> };
+    internals.players.get(playerId)!.level = 26;
+    expect(game.chooseClass(playerId, 'drone')).toBe(true);
+    game.step(1 / 40);
+
+    const snapshot = game.snapshot(playerId);
+    expect(snapshot.drones.length).toBeGreaterThan(0);
+    for (const drone of snapshot.drones) {
+      expect(drone.gameplayRadius).toBe(droneArchetypes().drone?.radius);
+    }
   });
 });

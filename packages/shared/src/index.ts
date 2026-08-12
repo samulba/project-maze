@@ -754,7 +754,15 @@ export interface PlayerSnapshot { id:string; name:string; playerClass:PlayerClas
   signature?: number;
 }
 export interface ProjectileSnapshot { id:string; ownerId:string; position:Vector2; velocity:Vector2; radius:number; integrity:number; maxIntegrity:number; }
-export interface DroneSnapshot { id:string; ownerId:string; position:Vector2; velocity:Vector2; angle:number; health:number; maxHealth:number; }
+/**
+ * `gameplayRadius` ist der Kollisionsradius aus der Drohnen-Schicht des
+ * Servers (7,5 bei Hive bis 15,5 bei Carrier – Faktor 2 in der Fläche). Er
+ * lag schon immer ungenutzt auf der Leitung; seit Befund 41 zeichnet der
+ * Client damit, statt jede Drohne als 13er-Dreieck zu zeigen und Treffer
+ * durch „Luft" bzw. großzügiges Ausweichen vor kleinen Drohnen zu erzeugen.
+ * Optional, weil die Basisklasse ohne Tuning-Schicht ihn nicht setzt.
+ */
+export interface DroneSnapshot { id:string; ownerId:string; position:Vector2; velocity:Vector2; angle:number; health:number; maxHealth:number; gameplayRadius?:number; }
 export interface Wall { id:string; x:number; y:number; width:number; height:number; }
 export interface ShapeSnapshot { id:string; kind:ShapeKind; position:Vector2; velocity:Vector2; radius:number; rotation:number; health:number; maxHealth:number; }
 export interface KillEvent { id:number; killer:string; victim:string; at:number; streak:number; }

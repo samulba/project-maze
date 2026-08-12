@@ -103,7 +103,11 @@ export class ClassWheel {
     this.element.append(this.svg);
     const hinweis = document.createElement('p');
     hinweis.className = 'wheel-hint';
-    hinweis.textContent = 'Mausrad zoomt · Ziehen verschiebt · Doppelklick zeigt alles';
+    // Der Hinweis passt zur Hand, die ihn liest (Befund 43): Auf Touch stand
+    // hier eine Anleitung für eine Maus, die es dort nicht gibt.
+    hinweis.textContent = window.matchMedia('(pointer: coarse)').matches
+      ? 'Pinch zoomt · Ziehen verschiebt · Doppeltipp zeigt alles'
+      : 'Mausrad zoomt · Ziehen verschiebt · Doppelklick zeigt alles';
     this.element.append(hinweis);
     this.installiereZoom();
     this.waehle('core');
@@ -150,17 +154,57 @@ export class ClassWheel {
       anwenden();
     }, { passive: false });
 
+    // Zeiger-Buchführung: EIN Finger verschiebt, ZWEI zoomen (Pinch,
+    // Befund 43). Vorher kannte das Rad nur Mausrad, Ein-Zeiger-Ziehen und
+    // Doppelklick – auf dem Handy blieb der Zoom auf 1, und 48 der 65
+    // Klassen waren namenlose Punkte, unter einer Anleitung für eine Maus,
+    // die es dort nicht gibt.
+    const zeiger = new Map<number, { x: number; y: number }>();
     let ziehtVon: { x: number; y: number } | null = null;
     let startMitte = this.mitte;
+    let pinchBasis: { distanz: number; zoom: number } | null = null;
+
+    const pinchDistanz = (): number => {
+      const [a, b] = [...zeiger.values()];
+      return a && b ? Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)) : 1;
+    };
+    const pinchMitte = (): { x: number; y: number } => {
+      const punkte = [...zeiger.values()];
+      const summe = punkte.reduce((acc, punkt) => ({ x: acc.x + punkt.x, y: acc.y + punkt.y }), { x: 0, y: 0 });
+      const anzahl = Math.max(1, punkte.length);
+      return { x: summe.x / anzahl, y: summe.y / anzahl };
+    };
+
     this.svg.addEventListener('pointerdown', (ereignis) => {
       // Knoten fangen ihre Klicks selbst ab; hier landet nur die freie Flaeche.
       if ((ereignis.target as Element).closest('.wheel-node')) return;
-      ziehtVon = { x: ereignis.clientX, y: ereignis.clientY };
-      startMitte = this.mitte;
+      zeiger.set(ereignis.pointerId, { x: ereignis.clientX, y: ereignis.clientY });
       this.svg.setPointerCapture(ereignis.pointerId);
       this.element.classList.add('is-panning');
+      if (zeiger.size === 2) {
+        // Pinch beginnt: Der Pan endet, die Basis (Abstand, Zoomstand) steht.
+        ziehtVon = null;
+        pinchBasis = { distanz: pinchDistanz(), zoom: this.zoom };
+        return;
+      }
+      ziehtVon = { x: ereignis.clientX, y: ereignis.clientY };
+      startMitte = this.mitte;
     });
     this.svg.addEventListener('pointermove', (ereignis) => {
+      if (zeiger.has(ereignis.pointerId)) zeiger.set(ereignis.pointerId, { x: ereignis.clientX, y: ereignis.clientY });
+      if (pinchBasis && zeiger.size >= 2) {
+        // Auf den Fingerschwerpunkt zoomen – dieselbe Regel wie beim Mausrad:
+        // Was man ansieht, bleibt unter den Fingern stehen.
+        const box = this.svg.getBoundingClientRect();
+        const punkt = pinchMitte();
+        const vorher = this.nachViewBox(punkt.x, punkt.y, box);
+        this.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, pinchBasis.zoom * (pinchDistanz() / pinchBasis.distanz)));
+        anwenden();
+        const nachher = this.nachViewBox(punkt.x, punkt.y, box);
+        this.mitte = { x: this.mitte.x + (vorher.x - nachher.x), y: this.mitte.y + (vorher.y - nachher.y) };
+        anwenden();
+        return;
+      }
       if (!ziehtVon) return;
       const box = this.svg.getBoundingClientRect();
       const proPixel = BASIS_VIEW / this.zoom / Math.max(1, box.width);
@@ -170,7 +214,21 @@ export class ClassWheel {
       };
       anwenden();
     });
-    const loslassen = (): void => { ziehtVon = null; this.element.classList.remove('is-panning'); };
+    const loslassen = (ereignis: PointerEvent): void => {
+      zeiger.delete(ereignis.pointerId);
+      if (zeiger.size < 2) pinchBasis = null;
+      if (zeiger.size === 1) {
+        // Der verbliebene Finger übernimmt das Verschieben nahtlos.
+        const rest = [...zeiger.values()][0]!;
+        ziehtVon = { ...rest };
+        startMitte = this.mitte;
+        return;
+      }
+      if (zeiger.size === 0) {
+        ziehtVon = null;
+        this.element.classList.remove('is-panning');
+      }
+    };
     this.svg.addEventListener('pointerup', loslassen);
     this.svg.addEventListener('pointercancel', loslassen);
     // Doppelklick auf die freie Flaeche stellt die Uebersicht wieder her.

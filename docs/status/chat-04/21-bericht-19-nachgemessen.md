@@ -1,12 +1,12 @@
-# 21 – Bericht 19 nachgemessen: 51 Befunde geprüft, 37 behoben
+# 21 – Bericht 19 nachgemessen: 51 Befunde geprüft, 39 behoben
 
 | | |
 | --- | --- |
 | **Auftrag** | Sam: „erst nachmessen, dann anfassen" – die 79 Rohbefunde aus [Bericht 19](19-rohbefunde-spielgefuehl.md) |
 | **Branch** | `claude/validate-bericht-19-findings-85aiaz` (Vorgabe dieser Sitzung – **nicht** main; Merge ist Sams Handgriff) |
 | **Basis** | `3834b52` |
-| **Tests** | `npm run check` grün – 76 Dateien, 1037 Tests |
-| **Status** | 51 gegengeprüft: 37 behoben, 53 teilweise, 12 bestätigt-aber-offen, Befund 2 verworfen · 20 ungeprüft |
+| **Tests** | `npm run check` grün – 76 Dateien, 1038 Tests |
+| **Status** | 51 gegengeprüft: 39 behoben, 53 teilweise, 10 bestätigt-aber-offen, Befund 2 verworfen · 20 ungeprüft |
 
 ## 1. Wie gemessen wurde
 
@@ -36,7 +36,7 @@ behoben. Das Rohmaterial war vorsortiert – die Gegenprüfung hat trotzdem
 Titel, Schweren und Zahlen in großem Stil korrigiert, und ohne sie wären
 mindestens drei falsche Behebungen passiert (2, 63, 64 – siehe unten).
 
-## 2. Behoben (37 Befunde)
+## 2. Behoben (39 Befunde)
 
 **Server, jede Behebung mit Test:**
 
@@ -145,6 +145,18 @@ wurde einmal pro Tick geteilt – jetzt rechnet sie je Betrachter (getestet,
 inklusive des Falls, der sonst jedem zweiten Viewer die Liste in jedem
 Snapshot neu geschickt hätte).
 
+**Zwei Nachzügler ohne Sam-Abhängigkeit:** Das Klassenrad kann Pinch-Zoom
+(43) – vorher blieb der Zoom auf Touch auf 1, 48 der 65 Klassen waren
+namenlose Punkte, und darunter stand eine Anleitung für eine Maus, die es
+dort nicht gibt (der Hinweistext passt jetzt zur Hand; ein verbliebener
+Finger übernimmt nach dem Pinch nahtlos das Verschieben). Und Drohnen werden
+in echter Größe gezeichnet (41): Der Kollisionsradius (7,5 bei Hive bis 15,5
+bei Carrier – Faktor 2) lag als `gameplayRadius` schon immer ungenutzt auf
+der Leitung; der Renderer liest ihn jetzt, statt jede Drohne als 13er-Dreieck
+zu zeigen – eine Hive-Drohne erschien mit dreifacher Fläche, eine
+Carrier-Drohne traf durch sichtbare „Luft" (getestet: jeder Drohnen-Snapshot
+trägt den Radius).
+
 **Kleinere bestätigte Befunde:** kein „ALPHA" mehr mitten im HUD (37), Level
 im Namensschild jedes Tanks (11 – der Level-30-Rückkehrer im Core sah aus wie
 ein Anfänger, bei 242 statt 110 Leben), eine Familienfarbe je Familie mit den
@@ -156,7 +168,7 @@ REPEL-Knopf heißt DROHNEN und existiert nur für Drohnenklassen – vorher war
 seine einzige Wirkung für 55 Klassen, still den Spawnschutz zu beenden (40),
 und der Name überlebt den Reload (54, `mazers-name`).
 
-## 3. Bestätigt, aber bewusst nicht angefasst (12: 3, 5, 6, 7, 20-Text, 41, 43, 51, 55, 57, 63, 64)
+## 3. Bestätigt, aber bewusst nicht angefasst (10: 3, 5, 6, 7, 20-Text, 51, 55, 57, 63, 64)
 
 * **Befund 63 (Repulse wirkungslos) – der wichtigste Nicht-Fix.** Der
   Schalter ist kein vergessener wie beim Dash-Präzedenzfall: In index.ts steht
@@ -183,10 +195,6 @@ und der Name überlebt den Reload (54, `mazers-name`).
   die Je-Punkt-Faktoren leben in combat-tuning, nicht in shared – dieselbe
   Voraussetzung wie beim Text-Teil von Befund 20. Erst Konstanten nach shared
   heben, sonst entsteht exakt die abgetippte-Zahl-Fehlerklasse aus GOAL.md.
-* **Befund 41 (Drohnen-Radius).** Braucht ein `radius`-Feld nach dem
-  Formen-Muster (einmal je ID senden) – Wire-Runde.
-* **Befund 43 (Pinch-Zoom im Rad).** Bestätigt inkl. `zentriereAuf` ohne
-  einzigen Aufrufer; eigenständige Client-Runde.
 * **Rest des Retention-Pakets (53-Rest, 55).** 48, 49, 54, 56 und die erste
   53er-Zeile sind erledigt (Abschnitt 2). Offen: die Login-Zeile mit Preis
   auf dem Death-Screen (55 – der Wortlaut ist Produktton, den sollte Sam
@@ -265,8 +273,7 @@ mit, sonst wäre Befund 65 beim nächsten Mal wieder durchgerutscht.
    den Gegenproben im Bericht 19.
 3. **Rest der Retention-Runde:** die Login-Zeile auf dem Death-Screen (55,
    Wortlaut mit Sam) und die restlichen 53er-Zeilen; dazu die kleinen
-   Wire-Runden 41 (Drohnen-Radius), 7 (AEGIS-Ereignis) und 5
-   (Trefferrichtung), wenn Sam nickt, sowie der Pinch-Zoom im Rad (43).
+   Wire-Runden 7 (AEGIS-Ereignis) und 5 (Trefferrichtung), wenn Sam nickt.
 4. **Prediction-Messlauf (64)** in beiden Stellungen, dann den Default
    entscheiden.
 5. Der einzige echte Blocker bleibt unverändert Sams: Migration
