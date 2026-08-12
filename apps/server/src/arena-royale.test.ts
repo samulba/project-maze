@@ -74,7 +74,17 @@ const LANGSAM = 30_000;
 describe('Battle-Royale-Zone', () => {
   it('bleibt in anderen Modi vollstaendig aus dem Weg', () => {
     setArenaMode('maze');
-    const game = createGame();
+    /*
+     * `ohneFormen`, und zwar aus genau dem Grund, der oben schon einmal steht.
+     *
+     * Der Test behauptet „kein Leben verloren" ueber neunzig Sekunden. Formen
+     * treiben aber zufaellig durch die Karte, und eine, die den Spieler in der
+     * Ecke streift, kostet Leben -- gemessen 110 -> 26 in einem von zehn
+     * vollen Suite-Laeufen. Das ist kein Zonenschaden und war nie einer; der
+     * Test misst dann eine Form. Alle anderen Tests dieser Datei raeumen die
+     * Formen deshalb weg, dieser eine nicht -- die Luecke war der Flake.
+     */
+    const game = ohneFormen(createGame());
     const id = game.addPlayer('Spieler');
     const player = (game as unknown as Internals).players.get(id);
     player.position = { x: 60, y: 60 };
