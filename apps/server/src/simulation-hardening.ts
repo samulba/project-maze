@@ -67,6 +67,25 @@ const inFixedView = (position: Vector2, center: Vector2, padding = 0): boolean =
 /**
  * Isolates final physics/network hardening from the gameplay class while the
  * simulation is still being split into smaller systems for the next alpha.
+ *
+ * ## Achtung: Diese Schicht ERSETZT, sie umschliesst nicht
+ *
+ * `resolvePlayerCollisions`, `resolveShapeBodyCollisions`, `stepProjectiles`
+ * und `resolveProjectileCollisions` werden komplett neu geschrieben, ohne das
+ * Original zu binden. Damit gilt hier dieselbe Pflicht wie in
+ * `combat-tuning.ts`: **Jede Regel, die in `MazeGame` steht, muss hier
+ * mitgeschrieben werden** – und wer eine weitere Methode ersetzt, vergleicht
+ * sie vorher Zeile fuer Zeile mit der Basis und schreibt einen Test, der durch
+ * die Kette geht.
+ *
+ * Stand 12.08., einzeln nachgesehen:
+ *
+ * * `resolvePlayerCollisions` – getreue Uebersetzung; `dt * 3.2` ist bei 40 Hz
+ *   exakt die 0,08 der Basis. Der Koerperschaden kommt seit dem 12.08. ueber
+ *   die Naht `bodyDamageOf` statt aus einer eigenen Kopie der Kurve.
+ * * `resolveShapeBodyCollisions` – dieselbe Uebersetzung, dieselbe Konstante.
+ * * `stepProjectiles` / `resolveProjectileCollisions` – Obermenge der Basis
+ *   (Integritaet, Durchschlag, Sichtfenster-Cull).
  */
 export function hardenSimulation<T extends MazeGame>(game: T): T {
   const internals = game as unknown as GameInternals;

@@ -102,7 +102,16 @@ const reloadFor = (player: RuntimePlayer): number => Math.max(
 );
 const bodyDamageFor = (player: RuntimePlayer): number => CLASS_DEFINITIONS[player.playerClass].bodyDamage * (1 + player.upgrades.bodyDamage * 0.1);
 
-/** Gives each control-class branch its own physical drone identity. */
+/**
+ * Gives each control-class branch its own physical drone identity.
+ *
+ * **Achtung: `spawnDrone` und `stepDrones` werden ERSETZT, nicht umschlossen.**
+ * Damit gilt hier dieselbe Pflicht wie in `combat-tuning.ts`: Jede Regel der
+ * Basis muss mitgeschrieben werden, und wer eine weitere Methode ersetzt,
+ * vergleicht sie vorher Zeile fuer Zeile. Der stille Rueckfall in
+ * `archetypeFor` ist genau diese Fehlerklasse in klein -- drei Klassen liefen
+ * darueber mit fremden Werten.
+ */
 export function tuneDrones<T extends MazeGame>(game: T): T {
   const internals = game as unknown as DroneInternals;
 

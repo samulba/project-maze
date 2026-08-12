@@ -322,6 +322,11 @@ export function tuneFamilyUpgrades<T extends MazeGame>(game: T, families: readon
 
   // Auch ohne offene Familie ersetzt: Der Abbruch bei Ablehnung ist die
   // Absicherung gegen eine Endlosschleife, nicht Teil des Features.
+  //
+  // ERSETZT, nicht umschlossen -- eine der fuenf Stellen im Server, die das
+  // Original weder binden noch aufrufen. Dieselbe Pflicht wie in
+  // `combat-tuning.ts`: jede Regel der Basis mitschreiben, bei einer weiteren
+  // Ersetzung vorher Zeile fuer Zeile vergleichen.
   internals.spendBotPoints = (player: RuntimePlayer): void => {
     const bot = player.bot;
     if (!bot) return;

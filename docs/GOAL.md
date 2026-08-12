@@ -236,16 +236,28 @@ Szenario überhaupt. **Die Schalter sind die Voraussetzung, nicht die Kür.**
   ein Statfaktor. Entscheidend ist die **Bedingung, unter der sich die Leiste
   füllt** – denn die bestimmt, wie man spielt:
 
-  | Familie | Leiste füllt sich durch | erzwingt | Wirkung bei voll |
-  |---|---|---|---|
-  | RAPID | fahren **und** feuern | ständig in Bewegung | Nachladen −25 % |
-  | SIEGE | **stillstehen** | Position beziehen | Schaden +45 %, Reichweite +50 % |
-  | PRECISION | Feuertaste **halten** | Timing statt Klickrate | Schaden ×2,2, Größe +40 % |
-  | IMPACT | schnell fahren | rammen | Rammschaden +150 % |
-  | SPECTER | ungesehen bleiben | flankieren | ab 95: Hinterhalt +35 % |
-  | TEMPEST | jede Salve heizt | Dauerfeuer aushalten | Schaden +40 % |
-  | CONTROL | Nachschub-Konto | Flotte verwalten | Drohnen-Leben +45 % |
-  | AEGIS | **erlittener** Schaden | Treffer einstecken *wollen* | Entladung 34 auf Radius 240, Rüstung 18 % |
+  | Familie | Leiste füllt sich durch | erzwingt | Sockel (0 Punkte) | Vollausbau (10 Punkte) |
+  |---|---|---|---|---|
+  | RAPID | fahren **und** feuern | ständig in Bewegung | Nachladen −8 % | −35,2 % |
+  | SIEGE | **stillstehen** | Position beziehen | Schaden +16 % | +59 % (Reichweite im selben Verhältnis) |
+  | PRECISION | Feuertaste **halten** | Timing statt Klickrate | 40 % des Ladebonus | voller Ladebonus (Schaden ×2,2, Größe +40 %) |
+  | IMPACT | schnell fahren | rammen | Rammschaden +50 % | +202 % |
+  | SPECTER | ungesehen bleiben | flankieren | Hinterhalt +12 % | +45,5 % |
+  | TEMPEST | jede Salve heizt | Dauerfeuer aushalten | Schaden +14 % | +52 % |
+  | CONTROL | Nachschub-Konto | Flotte verwalten | Drohnen-Leben +45 % | (Statfaktor, ohne Punktepfad) |
+  | AEGIS | **erlittener** Schaden | Treffer einstecken *wollen* | Entladung 12 | 44 (Radius 240, Rüstung 18 %) |
+
+  **Wichtig, und bis zum 12.08. stand hier das Falsche:** Seit KL4 wird die
+  Signature *bezahlt*. `FAMILY_UPGRADES_ENABLED` ist Opt-out, läuft also – und
+  damit rechnen die Schichten nicht mehr mit einem Festwert, sondern mit
+  Sockel + Punkten aus `signaturePower`. In dieser Tabelle standen bis dahin
+  die alten Festwerte vor KL4 (RAPID −25 %, SIEGE +45 %/+50 %, IMPACT +150 %,
+  SPECTER +35 %, TEMPEST +40 %, AEGIS 34) – Werte, die ein Tank ohne Punkte
+  **nicht** erreicht; sie liegen bei rund 6 bis 7 von 10 Punkten. Wer die
+  Familien mit der alten Tabelle in der Hand ausprobiert, misst etwas anderes,
+  als das Dokument verspricht, und schreibt das Ergebnis der Balance zu statt
+  den Punkten. Die Zahlen hier stammen aus `FAMILY_SCALING`
+  (`apps/server/src/family-upgrades.ts`), nicht aus der Erinnerung.
 
   RAPID und SIEGE sind im Code ausdrücklich als Gegenteile gebaut – „wer steht,
   wird zur Kanone" gegen „wer fährt, lädt nach". Zwei Familien, die sich auf
@@ -286,10 +298,35 @@ Produktionskette geprüft, nicht gegen die Basis, und beide sind per Sabotage
 gegengeprüft. Wer eine Regel nur an der Hilfsfunktion testet, misst nicht, ob
 sie jemand aufruft.
 
-**Und der Rest der Kette ist durchgesehen, nicht gehofft.** Von rund vierzig
-Methoden-Ersetzungen im Server ist `tuneCombatScaling` die **einzige**, die das
-Original weder bindet noch aufruft; alle anderen umschließen es sauber. Ihre
-vier Ersetzungen stehen jetzt einzeln geprüft da:
+**Und der Rest der Kette ist durchgesehen – diesmal gezählt statt geschätzt.**
+
+Hier stand bis zum 12.08. eine Entwarnung, die falsch war: „Von rund vierzig
+Methoden-Ersetzungen ist `tuneCombatScaling` die einzige, die das Original
+weder bindet noch aufruft." Nachgezählt über alle Nicht-Test-Dateien in
+`apps/server/src` sind es **113 Zuweisungen an Methoden der Basis, davon 13
+echte Ersetzungen ohne jede Bindung ans Original**, verteilt auf **fünf**
+Schichten:
+
+| Schicht | Ersetzt ohne Original |
+|---|---|
+| `combat-tuning.ts` | `applyUpgrade`, `respawn`, `chooseClass`, `stepPlayer`, `bodyDamageOf` |
+| `simulation-hardening.ts` | `resolvePlayerCollisions`, `resolveShapeBodyCollisions`, `stepProjectiles`, `resolveProjectileCollisions` |
+| `drone-tuning.ts` | `spawnDrone`, `stepDrones` |
+| `bot-brain.ts` | `updateBot` |
+| `family-upgrades.ts` | `spendBotPoints` |
+
+(`signature-precision.ts` sieht in derselben Zählung aus wie eine sechste,
+ist aber keine: Es tauscht `fire` nur für die Dauer eines Schritts aus und
+setzt es im `finally` zurück – ein Abfangen, keine Ersetzung.)
+
+Die falsche Entwarnung war teurer als der Fehler, den sie deckte: Weil die
+Pflichtzeile nur an der einen bekannten Schicht hing, blieben zwei weitere
+Befunde derselben Klasse liegen – der Rammschaden rechnete in `game.ts` mit
+einer zweiten Kurve (`+13 %` statt `+10 %`; unerreichbar, weil hardening die
+Methode ersetzt, aber eben unbemerkt auseinandergelaufen), und drei
+Drohnenklassen liefen über einen stillen Rückfall mit fremden Werten.
+
+`tuneCombatScaling` bleibt einzeln geprüft:
 
 | Methode | Ergebnis |
 |---|---|
@@ -297,9 +334,19 @@ vier Ersetzungen stehen jetzt einzeln geprüft da:
 | `respawn` | Regel verloren → behoben |
 | `chooseClass` | getreue Spiegelung der Basis ✅ |
 | `stepPlayer` | getreue Obermenge (plus Chill-Regeneration) ✅ |
+| `bodyDamageOf` | neue Naht: eine Kurve statt drei ✅ |
 
-Die Pflicht steht als Kopfkommentar an der Schicht selbst: Wer hier eine fünfte
-Methode ersetzt, vergleicht sie vorher Zeile für Zeile mit der Basis.
+Und `hardenSimulation` genauso:
+
+| Methode | Ergebnis |
+|---|---|
+| `resolvePlayerCollisions` | getreue Übersetzung; `dt × 3,2` ist bei 40 Hz exakt die 0,08 der Basis ✅ |
+| `resolveShapeBodyCollisions` | dieselbe Übersetzung, dieselbe Konstante ✅ |
+| `stepProjectiles` / `resolveProjectileCollisions` | Obermenge (Integrität, Durchschlag) ✅ |
+
+Die Pflicht steht als Kopfkommentar an der Schicht selbst: Wer eine weitere
+Methode ersetzt, vergleicht sie vorher Zeile für Zeile mit der Basis. Sie gilt
+für alle sechs, nicht nur für die, die man schon kennt.
 
 Noch offen und bewusst nicht angefasst: Basis und Schicht behalten nach dem Tod
 unterschiedlich viel Punktestand (0,45 gegen 0,5). Gelaufen ist immer 0,5. Das

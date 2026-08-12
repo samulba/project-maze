@@ -537,6 +537,12 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
     player.primary = distance < range && reactionReady;
   };
 
+  /*
+   * ERSETZT, nicht umschlossen: `updateBot` der Basis wird hier komplett neu
+   * geschrieben. Damit gilt dieselbe Pflicht wie in `combat-tuning.ts` -- jede
+   * Regel der Basis muss mitgeschrieben werden, und wer eine weitere Methode
+   * ersetzt, vergleicht sie vorher Zeile fuer Zeile.
+   */
   internals.updateBot = (player: RuntimePlayer, now: number): void => {
     if (!player.bot) return;
     think(player, now);

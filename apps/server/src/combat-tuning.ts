@@ -133,11 +133,17 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
  *
  * ## Achtung: Diese Schicht ERSETZT, sie umschliesst nicht
  *
- * Von rund vierzig Methoden-Ersetzungen im Server ist das hier die einzige
- * Stelle, die das Original weder bindet noch aufruft – `applyUpgrade`,
- * `chooseClass`, `respawn` und `stepPlayer` werden komplett neu geschrieben.
- * Alle anderen Schichten holen sich vorher eine Referenz auf die vorherige
- * Fassung.
+ * `applyUpgrade`, `chooseClass`, `respawn`, `stepPlayer` und `bodyDamageOf`
+ * werden komplett neu geschrieben, ohne das Original zu binden oder
+ * aufzurufen.
+ *
+ * Hier stand lange, das sei „die einzige Stelle im Server". Nachgezaehlt am
+ * 12.08. ueber alle Nicht-Test-Dateien: 113 Zuweisungen an Methoden der Basis,
+ * davon 13 echte Ersetzungen ohne jede Bindung ans Original, verteilt auf
+ * FUENF Schichten – neben dieser noch `simulation-hardening`, `drone-tuning`,
+ * `bot-brain` und `family-upgrades`. Die Entwarnung war teurer als der Fehler,
+ * den sie deckte: Weil die Pflicht unten nur hier stand, liefen in `game.ts`
+ * und in `drone-tuning.ts` zwei weitere Regeln unbemerkt auseinander.
  *
  * Daraus folgt eine Pflicht, die zweimal verletzt wurde und beide Male
  * monatelang unbemerkt blieb: **Jede Regel, die in `MazeGame` steht, muss hier
@@ -158,8 +164,9 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
  * `stepPlayer` (getreue Obermenge: zusaetzlich Chill-Regeneration und
  * Lebensverhaeltnis beim Maximalwechsel).
  *
- * Wer hier eine fuenfte Methode ersetzt, vergleicht sie vorher Zeile fuer Zeile
- * mit der Basis – und schreibt einen Test, der durch die Kette geht.
+ * Wer hier eine weitere Methode ersetzt, vergleicht sie vorher Zeile fuer Zeile
+ * mit der Basis – und schreibt einen Test, der durch die Kette geht. Dieselbe
+ * Pflicht gilt fuer die anderen vier Schichten oben.
  */
 export function tuneCombatScaling<T extends MazeGame>(game: T): T {
   const internals = game as unknown as CombatInternals;
