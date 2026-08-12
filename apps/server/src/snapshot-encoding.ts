@@ -86,6 +86,15 @@ function roundSnapshot(snapshot: EncodedSnapshot): void {
     shape.maxHealth = round1(shape.maxHealth);
   }
   if (snapshot.arenaEvent) roundVector(snapshot.arenaEvent.center);
+  if (snapshot.dischargeBursts) {
+    for (const burst of snapshot.dischargeBursts) {
+      burst.x = round1(burst.x);
+      burst.y = round1(burst.y);
+    }
+  }
+  if (snapshot.damageDirections) {
+    for (const hit of snapshot.damageDirections) hit.angle = round3(hit.angle);
+  }
   if (snapshot.gameplay) {
     for (const key of Object.keys(snapshot.gameplay)) {
       const entry = snapshot.gameplay[key];
@@ -309,6 +318,12 @@ function applyShortIds(state: ShortIdState, snapshot: EncodedSnapshot): void {
   if (snapshot.bountyTargetId) wire.bountyTargetId = short(snapshot.bountyTargetId);
   if (snapshot.arenaGuardianId) wire.arenaGuardianId = short(snapshot.arenaGuardianId);
   if (snapshot.spectatorTargetId) wire.spectatorTargetId = short(snapshot.spectatorTargetId);
+  // Entladungen sind frische Kopien je Viewer – der Umbau berührt keinen Zustand.
+  if (snapshot.dischargeBursts) {
+    for (const burst of snapshot.dischargeBursts) {
+      if (burst.ownerId) (burst as unknown as { ownerId: number }).ownerId = short(burst.ownerId);
+    }
+  }
 }
 
 /**

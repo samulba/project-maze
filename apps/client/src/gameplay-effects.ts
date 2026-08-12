@@ -23,6 +23,10 @@ export class GameplayEffects {
   private snapshot: ExtendedSnapshot | null = null;
   private receivedAt = performance.now();
   private time = 0;
+  /** Höchste bereits gezeigte Treffer-Id (Befund 5) – Ids wachsen monoton. */
+  private lastHitId = 0;
+  /** Aktive Trefferkeile am Sichtfeldrand, mit Ablaufzeit für den Zerfall. */
+  private hitWedges: Array<{ angle: number; until: number }> = [];
 
   /**
    * Woher der Sichtfeld-Modus kommt. Die Effekte rechnen Weltpunkte auf den
@@ -40,6 +44,15 @@ export class GameplayEffects {
   update(snapshot: WorldSnapshot): void {
     this.snapshot = snapshot as ExtendedSnapshot;
     this.receivedAt = performance.now();
+    // Trefferrichtung (Befund 5): Jeder neue Treffer wird ein Keil am
+    // Sichtfeldrand. Die Liste wiederholt sich über mehrere Snapshots
+    // (Vorhaltezeit auf dem Server) – die Id entscheidet, was neu ist.
+    for (const hit of this.snapshot.damageDirections ?? []) {
+      if (hit.id <= this.lastHitId) continue;
+      this.lastHitId = hit.id;
+      this.hitWedges.push({ angle: hit.angle, until: performance.now() + 600 });
+      if (this.hitWedges.length > 8) this.hitWedges.shift();
+    }
   }
 
   private viewport(): Viewport {
@@ -221,6 +234,28 @@ export class GameplayEffects {
         this.graphics.circle(position.x, position.y, radius)
           .stroke({ color, alpha: 0.58, width: 3 });
       }
+    }
+
+    this.drawHitWedges(viewport);
+  }
+
+  /**
+   * Trefferrichtung (Befund 5): ein roter Bogen zwischen Tank und Sichtfeld-
+   * rand, dort, wo der Angreifer steht – das Muster, das Shooter seit
+   * Jahrzehnten für „Schaden von da" benutzen. Kein Pfeil wie bei der
+   * Royale-Zone: Der zeigt, wohin man WILL; der Bogen zeigt, was einen
+   * gerade trifft. 600 ms Zerfall, damit Dauerbeschuss als stehender Bogen
+   * lesbar bleibt, ein Einzeltreffer aber nicht nachleuchtet.
+   */
+  private drawHitWedges(viewport: Viewport): void {
+    const now = performance.now();
+    this.hitWedges = this.hitWedges.filter((wedge) => wedge.until > now);
+    if (this.hitWedges.length === 0) return;
+    const center = { x: viewport.x + viewport.width / 2, y: viewport.y + viewport.height / 2 };
+    const radius = Math.min(viewport.width, viewport.height) * 0.42;
+    for (const wedge of this.hitWedges) {
+      const alpha = 0.72 * clamp((wedge.until - now) / 600, 0, 1);
+      this.drawArc(center, radius, wedge.angle - 0.38, wedge.angle + 0.38, { color: 0xef5f6f, alpha, width: 7 });
     }
   }
 

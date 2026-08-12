@@ -532,7 +532,12 @@ function playSnapshotAudio(snapshot: WorldSnapshot, self: PlayerSnapshot): void 
   if (previousSelf) {
     const healthDrop = previousSelf.health - self.health;
     if (healthDrop > 0.01 && self.deaths === previousSelf.deaths) {
-      audio.damage(healthDrop / 10);
+      // Trefferrichtung (Befund 5) ins Stereobild: Der jüngste Treffer legt
+      // den Schadens-Ton nach links oder rechts. 0,8 statt 1,0, damit auch
+      // ein Treffer exakt von der Seite auf beiden Ohren hörbar bleibt.
+      const richtungen = (snapshot as WorldSnapshot & Partial<GameplayWorldExtension>).damageDirections ?? [];
+      const letzter = richtungen[richtungen.length - 1];
+      audio.damage(healthDrop / 10, letzter ? Math.cos(letzter.angle) * 0.8 : 0);
       renderer.shake(Math.min(6, 1.5 + healthDrop * 0.12));
     }
     if (self.kills > previousSelf.kills) {
@@ -560,6 +565,7 @@ function playSnapshotAudio(snapshot: WorldSnapshot, self: PlayerSnapshot): void 
   if (feedback.shapeBreaks.length > 0) audio.shapeBreak(feedback.shapeBreaks[0]!);
   if (feedback.droneLosses > 0) audio.droneLost();
   else if (feedback.droneSpawns > 0) audio.droneSpawn();
+  if (feedback.discharges > 0) audio.discharge();
   if (CLASS_DEFINITIONS[self.playerClass].barrelCount > 0) {
     const fired = snapshot.projectiles.some(
       (projectile) => projectile.ownerId === self.id && !previousProjectileIds.has(projectile.id)

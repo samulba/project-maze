@@ -3,10 +3,10 @@
 | | |
 | --- | --- |
 | **Auftrag** | Sam: „erst nachmessen, dann anfassen" – die 79 Rohbefunde aus Bericht 19 |
-| **Branch** | `claude/validate-bericht-19-findings-85aiaz` (Sitzungs-Vorgabe; der Merge nach main ist Sams Handgriff) |
+| **Branch** | `claude/validate-bericht-19-findings-85aiaz` (Sitzungs-Vorgabe; main ist per Sams Freigabe „Ja, merge du" nachgezogen) |
 | **Basis** | `3834b52` |
-| **Tests** | `npm run check` grün – 76 Dateien, 1038 Tests |
-| **Status** | 51 Befunde gegengeprüft, **39 behoben** (plus 53 teilweise), 10 bestätigt-aber-offen, 20 ungeprüft |
+| **Tests** | `npm run check` grün – 77 Dateien, 1050 Tests |
+| **Status** | 51 Befunde gegengeprüft, **43 behoben** (plus 53 teilweise), 6 bestätigt-aber-offen, 20 ungeprüft |
 
 Dieses Dokument ist der Einstieg für die nächste Sitzung. Der volle Bericht
 mit allen Urteilen und Belegen ist
@@ -60,6 +60,14 @@ Fälle existierten, es fehlte die Messschicht).
 * **Zwei Nachzügler:** Pinch-Zoom im Klassenrad mit passendem Hinweistext
   (43) und Drohnen in echter Größe – der Kollisionsradius lag ungenutzt auf
   der Leitung (41).
+* **Sichtbarkeits-Paket (abends, nach Sams Freigabe per Rückfrage):**
+  Gegner tragen ihren Signature-Füllstand in Familienfarbe (6), die
+  AEGIS-Entladung hat Schockring, Funken, Kamera-Stoß und Tiefton über ein
+  neues Einmal-Ereignis im Snapshot (7), erlittene Treffer zeigen die
+  Richtung – roter Bogen am Sichtfeldrand plus Stereo auf dem Schadens-Ton,
+  über die neue Schicht `hit-direction.ts` (5), und der Royale-Sieg zählt
+  als Achievement „Letzter Überlebender" (57). Details in Bericht 21,
+  Abschnitt 2 (Nachtrag).
 
 **Alle Proben sind gefahren und grün:** wire, progress, mode ×3, royale, duo,
 touch ×5 (mit den neuen Kriterien) und die Layout-Matrix **199/199** im
@@ -73,24 +81,19 @@ wieder durchgerutscht.
 
 ## 2. Womit anzufangen ist
 
-1. **Sams Entscheidungen abholen** (Abschnitte 3–4 in Bericht 21):
-   * **Repulse (63):** Im Code steht eine bewusst geparkte Entscheidung
-     („bleibt aus bis zur Messrunde von Welle C") gegen eine Menü-Beschreibung,
-     die etwas verspricht, das nicht eintritt. Messrunde oder ehrlicher Text –
-     nicht eigenmächtig drehen.
-   * **Gegner-Füllstand sichtbar (6):** eine Zeile Code, aber eine
-     Design-Entscheidung über sichtbare Information.
-   * **Balance-Liste:** 18, 25, 26, 27, 30, 31, 32, 34, 59 – gemessen und
-     benannt, Entscheidung offen.
-2. **Bot-Gruppe 71–79 nachmessen** – die 20 ungeprüften Befunde sind fast
+1. **Die zwei von Sam bestellten Messrunden fahren:** Repulse (63, beide
+   `REPULSE_TRAVEL_ENABLED`-Stellungen, Verschiebung nach 200 ms/500 ms/1 s)
+   und Prediction (64, beide Stellungen). Zahlen zu Sam – kein Schalter wird
+   dabei umgelegt.
+2. **Sams Entscheidungen abholen** (Abschnitte 3–4 in Bericht 21):
+   Balance-Liste (18, 25, 26, 27, 30, 31, 32, 34, 59), Bestenlisten-Fenster/
+   Dedup (51), Wortlaut der Login-Zeile (55), Repulse-Text oder -Schalter
+   nach der Messrunde.
+3. **Bot-Gruppe 71–79 nachmessen** – die 20 ungeprüften Befunde sind fast
    alle hier; jede Prüfung braucht Laufzeitmessungen gegen den echten Server,
    und die Hälfte der Fixes wäre zugleich Schwierigkeits-Balance.
-3. **Rest der Retention-Runde:** Login-Zeile auf dem Death-Screen (55,
-   Wortlaut mit Sam) und die restlichen 53er-Zeilen. Dazu die kleinen
-   Wire-Runden 7 (AEGIS-Ereignis) und 5 (Trefferrichtung), wenn Sam nickt.
-4. **Prediction-Messlauf (64):** Proben in beiden Stellungen, dann den
-   Default entscheiden – die Hausregel verlangt die Absicherung vor dem
-   Umlegen, und Prediction-Fehler sind Gummiband, kein roter Test.
+4. **Rest der Retention-Runde:** Login-Zeile auf dem Death-Screen (55,
+   Wortlaut mit Sam) und die restlichen 53er-Zeilen.
 5. **Der einzige echte Blocker bleibt Sams:** Migration `0005_sessions.sql`
    und die Railway-Variablen – ohne sie misst die dreizehnte Zeile nicht.
 

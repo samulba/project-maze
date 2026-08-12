@@ -21,7 +21,7 @@ import { QUALITY_TIERS, type QualitySettings, type QualityTier } from './quality
 import { type RecoilState, startRecoil, stepRecoil } from './recoil';
 import type { RenderQuality } from './perf-metrics';
 import { hullGeometry } from '@project-maze/shared/appearance';
-import { signatureLabel, signatureRatio } from './signature';
+import { branchColor, signatureColor, signatureLabel, signatureRatio } from './signature';
 import { DEFAULT_VIEW_MODE, computeViewport, type ViewMode, type WorldView } from './viewport';
 import type { ClientThemeId } from './themes';
 
@@ -184,7 +184,9 @@ export class GameRenderer {
   /** Gegner-Gesundheitsabfälle, die noch auf ihre Urheber-Prüfung warten. */
   private pendingEnemyHits:Array<{position:Vector2;at:number}>=[];
   /** Rückmeldungen für main (Audio) – je Snapshot abgeholt. */
-  private feedback:{hits:number;shapeBreaks:ShapeKind[];droneSpawns:number;droneLosses:number}={hits:0,shapeBreaks:[],droneSpawns:0,droneLosses:0};
+  private feedback:{hits:number;shapeBreaks:ShapeKind[];droneSpawns:number;droneLosses:number;discharges:number}={hits:0,shapeBreaks:[],droneSpawns:0,droneLosses:0,discharges:0};
+  /** Höchste bereits abgespielte Entladungs-Id (Befund 7) – Ids wachsen monoton. */
+  private lastDischargeId=0;
   /** Hitmarker im Fadenkreuz, kurz nach einem bestätigten Treffer. */
   private hitmarkerUntil=0;
   /** Erst nach dem ersten Drohnen-Sync zählen – der Join liefert alle auf einmal. */
@@ -337,9 +339,14 @@ export class GameRenderer {
     this.selfId=snapshot.selfId;
     const signature=snapshot.walls.map(wall=>`${wall.id}:${wall.x}:${wall.y}:${wall.width}:${wall.height}`).join('|');
     if(signature!==this.wallsSignature){this.wallsSignature=signature;this.syncWallChanges(snapshot);this.drawWalls(snapshot)}
-    const extended=snapshot as WorldSnapshot&{arenaEvent?:ArenaEventSnapshot|null;arenaGuardianId?:string|null;spectatorTargetId?:string|null};
+    const extended=snapshot as WorldSnapshot&{arenaEvent?:ArenaEventSnapshot|null;arenaGuardianId?:string|null;spectatorTargetId?:string|null;dischargeBursts?:Array<{id:number;x:number;y:number;radius:number;ownerId:string|null}>};
     this.arenaEvent=extended.arenaEvent??null;
     this.spectatorId=extended.spectatorTargetId??null;
+    for(const burst of extended.dischargeBursts??[]){
+      if(burst.id<=this.lastDischargeId)continue;
+      this.lastDischargeId=burst.id;
+      this.playDischarge(burst);
+    }
     const guardianId=extended.arenaGuardianId??null;
     const guardianChanged=guardianId!==this.guardianId;
     this.guardianId=guardianId;
@@ -381,10 +388,28 @@ export class GameRenderer {
    * Von main je Snapshot abgeholt – der Renderer kennt die Ereignisse, das
    * Audio wohnt in main. Zurückgesetzt beim Lesen.
    */
-  consumeFeedback():{hits:number;shapeBreaks:ShapeKind[];droneSpawns:number;droneLosses:number}{
+  consumeFeedback():{hits:number;shapeBreaks:ShapeKind[];droneSpawns:number;droneLosses:number;discharges:number}{
     const out=this.feedback;
-    this.feedback={hits:0,shapeBreaks:[],droneSpawns:0,droneLosses:0};
+    this.feedback={hits:0,shapeBreaks:[],droneSpawns:0,droneLosses:0,discharges:0};
     return out;
+  }
+
+  /**
+   * AEGIS-Entladung (Befund 7): Der Server verrechnet sie in einem Tick –
+   * Getroffene flogen bisher „grundlos" weg, und der Träger bekam für den
+   * halben Lebensbalken Aufladung keinen einzigen Frame Auftritt. Jetzt: ein
+   * Schockring über den vollen Wirkradius (die 240 kommen vom Server mit, keine
+   * zweite Zahlenquelle), Funken in Familienfarbe, ein Kamera-Stoß für den
+   * Träger. Der Ton wohnt in main und kommt über `feedback.discharges`.
+   */
+  private playDischarge(burst:{x:number;y:number;radius:number;ownerId:string|null}):void{
+    const position={x:burst.x,y:burst.y};
+    const color=branchColor('aegis')??0x4ea9a4;
+    this.rings.push({position:{...position},life:.55,maxLife:.55,maxRadius:burst.radius,color,width:5});
+    this.rings.push({position:{...position},life:.8,maxLife:.8,maxRadius:burst.radius*.55,color:0xdff5f2,width:2});
+    this.particles.burst(position,color,20,300,.5);
+    if(burst.ownerId!==null&&burst.ownerId===this.selfId)this.shake(4);
+    this.feedback.discharges+=1;
   }
 
   /** Klassenwahl sichtbar machen (Befund 10): Ring, Funken und ein Ruck am eigenen Tank. */
@@ -1055,22 +1080,26 @@ export class GameRenderer {
     }
     view.healthBack.clear().roundRect(-25,31,50,5,3).fill({color:0x000000,alpha:.48});
     view.healthFill.clear().roundRect(-25,31,50*clamp(player.health/Math.max(1,player.maxHealth),0,1),5,3).fill(player.health/player.maxHealth>.35?0x65d39a:0xf05e72);
-    // Signature (Klassen 3.0): eine dünne Linie unter dem Lebensbalken – nur
-    // beim eigenen Tank, und nur wenn der Server die Mechanik überhaupt
-    // meldet. Sie liegt dort, wohin man im Gefecht ohnehin schaut; wie sie
-    // heißt, steht im HUD.
+    // Signature (Klassen 3.0): eine dünne Linie unter dem Lebensbalken – bei
+    // JEDEM Tank mit Familienmechanik, nicht nur beim eigenen (Befund 6: der
+    // Wert lag für alle längst im Snapshot, die Specter-Tarnung las ihn schon –
+    // nur gezeichnet wurde er beim Gegner nie. Dabei ist er dort Information:
+    // ein AEGIS kurz vor der Entladung, ein SIEGE in Stellung). Gegner tragen
+    // ihre Familienfarbe, der eigene Balken bleibt in der Eigenfarbe.
     // Dieselbe Regel wie im HUD: ohne Familienwort kein Balken – ein namenloser
     // Füllstand am Tank wäre ein Rätsel statt einer Information.
     // Tarnung (SPECTER): Der Fuellstand IST die Sichtbarkeit. Gegner werden bis
     // 85 % ausgeblendet; der eigene Tank bleibt als Schemen (55 %) sichtbar,
     // sonst weiss man nicht, wo man steht. Alle anderen Familien: voll sichtbar.
+    // Der Balken hängt am selben Root und verblasst mit – ein getarnter SPECTER
+    // verrät sich nicht über seinen eigenen Füllstand.
     const stealth=CLASS_DEFINITIONS[player.playerClass]?.branch==='specter'?(signatureRatio(player.signature)??0):0;
     view.root.alpha=view.isSelf?1-0.55*stealth:1-0.85*stealth;
-    const ratio=view.isSelf&&signatureLabel(player.playerClass)!==null?signatureRatio(player.signature):null;
+    const ratio=signatureLabel(player.playerClass)!==null?signatureRatio(player.signature):null;
     view.signatureBar.clear();
     if(ratio!==null){
       view.signatureBar.roundRect(-25,38,50,2,1).fill({color:0x000000,alpha:.42});
-      if(ratio>0)view.signatureBar.roundRect(-25,38,50*ratio,2,1).fill(this.palette.self);
+      if(ratio>0)view.signatureBar.roundRect(-25,38,50*ratio,2,1).fill(view.isSelf?this.palette.self:signatureColor(player.playerClass)??this.palette.enemy);
     }
     // Level im Schild (Befund 11): Ein Level-30-Rückkehrer im Core sieht sonst
     // aus wie ein Anfänger – 242 statt 110 Leben bei identischer Silhouette,

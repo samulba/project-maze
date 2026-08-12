@@ -1,5 +1,6 @@
 import { ARENA_MODES, GAME, respawnLevelFrom, type PlayerSnapshot, type WorldSnapshot } from '@project-maze/shared';
 import type { GameplayWorldExtension, RoyaleZoneSnapshot } from '@project-maze/shared/gameplay';
+import { recordRoyaleWin } from './achievements.js';
 import { arenaGuardianIdFor } from './arena-events.js';
 import { MazeGame } from './game.js';
 import { currentArenaMode, isFree } from './world.js';
@@ -390,6 +391,11 @@ export function tuneRoyale<T extends MazeGame>(game: T, config: RoyaleConfig = D
         state.roundOver = true;
         state.winnerName = uebrig[0]?.name ?? null;
         state.nextRoundAt = now + config.roundBreakMs;
+        // Befund 57: Der Sieg hinterlässt eine Spur -- vorher stand der Name
+        // nur für die Dauer der Rundenpause auf dem Bildschirm und danach
+        // nirgends mehr.
+        const sieger = uebrig[0];
+        if (sieger && !sieger.isBot) recordRoyaleWin(game, sieger.id);
       }
     } else if (now >= state.nextRoundAt) {
       neueRunde(internals, state, now);

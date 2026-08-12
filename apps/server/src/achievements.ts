@@ -47,6 +47,8 @@ export interface AchievementProgress {
   guardianKills: number;
   overchargeZoneKills: number;
   fractureWallKills: number;
+  /** Gewonnene Battle-Royale-Runden dieser Verbindung (Befund 57). */
+  royaleWins: number;
 }
 
 export interface AchievementContext {
@@ -104,6 +106,12 @@ export const ACHIEVEMENTS: readonly AchievementDefinition[] = [
     name: 'Fünfstellig',
     description: 'Erreiche 10.000 Punkte in einem Lauf.',
     condition: ({ player }) => player.score >= 10_000
+  },
+  {
+    id: 'royaleWinner',
+    name: 'Letzter Überlebender',
+    description: 'Gewinne eine Battle-Royale-Runde.',
+    condition: ({ progress }) => progress.royaleWins > 0
   }
 ];
 
@@ -137,7 +145,8 @@ const progressFor = (game: MazeGame, playerId: string): AchievementProgress => {
     families: new Set(),
     guardianKills: 0,
     overchargeZoneKills: 0,
-    fractureWallKills: 0
+    fractureWallKills: 0,
+    royaleWins: 0
   };
   state.set(playerId, created);
   return created;
@@ -244,6 +253,16 @@ export function tuneAchievements<T extends MazeGame>(game: T, enabled = false): 
 }
 
 /** Alle bisher freigeschalteten Achievements eines Spielers. */
+/**
+ * Von der Royale-Schicht beim Rundenende gerufen (Befund 57): Der Sieg wandert
+ * in den Fortschritt, die Engine schaltet beim nächsten Tick frei -- derselbe
+ * Weg wie bei den Event-Erfolgen. Ohne angehängte Engine ist der Aufruf ein
+ * stiller Zähler und kostet nichts.
+ */
+export function recordRoyaleWin(game: MazeGame, playerId: string): void {
+  progressFor(game, playerId).royaleWins += 1;
+}
+
 export function unlockedAchievementsFor(game: MazeGame, playerId: string): AchievementId[] {
   return [...(states.get(game)?.get(playerId)?.unlocked ?? [])];
 }

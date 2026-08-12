@@ -5,6 +5,7 @@ import {
   ACHIEVEMENT_IDS,
   achievementProgressFor,
   drainUnlockedAchievements,
+  recordRoyaleWin,
   tuneAchievements,
   unlockedAchievementsFor,
   type AchievementId
@@ -112,6 +113,20 @@ describe('achievement conditions', () => {
     expect(unlockedAchievementsFor(game, hunterId)).toContain('firstStreak5');
     // Das Opfer bekommt selbstverständlich nichts.
     expect(unlockedAchievementsFor(game, preyId)).toHaveLength(0);
+  });
+
+  // Befund 57: Der Sieg einer Royale-Runde hinterlässt eine Spur -- die
+  // Royale-Schicht meldet ihn über recordRoyaleWin, die Engine schaltet beim
+  // nächsten Tick frei.
+  it('Royale-Sieg', () => {
+    const game = createGame();
+    const winnerId = game.addPlayer('Letzter');
+    game.step(1 / 40);
+    expect(unlockedAchievementsFor(game, winnerId)).not.toContain('royaleWinner');
+
+    recordRoyaleWin(game, winnerId);
+    game.step(1 / 40);
+    expect(unlockedAchievementsFor(game, winnerId)).toContain('royaleWinner');
   });
 
   it('Guardian-Kill', () => {
@@ -421,7 +436,8 @@ describe('achievement ids', () => {
       'threeFamilies',
       'overchargeDuelist',
       'fractureFlanker',
-      'score10k'
+      'score10k',
+      'royaleWinner'
     ];
     expect([...ACHIEVEMENT_IDS]).toEqual(expected);
   });

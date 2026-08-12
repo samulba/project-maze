@@ -1,4 +1,5 @@
-import { type PlayerClass } from '@project-maze/shared';
+import { GAME, type PlayerClass, type WorldSnapshot } from '@project-maze/shared';
+import type { DischargeBurst, GameplayWorldExtension } from '@project-maze/shared/gameplay';
 import { schildConfigFor } from './family-upgrades.js';
 import { MazeGame } from './game.js';
 import { distanceSquared, normalize } from './physics.js';
@@ -82,6 +83,13 @@ export const DEFAULT_SCHILD: SchildConfig = {
 
 export const isAegisClass = (playerClass: PlayerClass): boolean => classBranch(playerClass) === 'aegis';
 
+/**
+ * Wie lange eine gezündete Entladung Snapshots beiliegt (Befund 7). Deutlich
+ * länger als jedes Snapshot-Intervall, damit kein Betrachter sie verpasst;
+ * doppelt spielt sie trotzdem niemand, die `id` dedupliziert.
+ */
+const BURST_TTL_MS = 1000;
+
 type RuntimePlayer = SignatureRuntimePlayer;
 
 interface AegisInternals {
@@ -119,6 +127,16 @@ export function tuneAegisSignature<T extends MazeGame>(
    */
   let discharging = false;
 
+  /**
+   * Gezündete Entladungen der letzten Sekunde (Befund 7). Die Entladung selbst
+   * ist in einem Tick vorbei – damit jeder Client sie mitbekommt, bleibt sie
+   * hier so lange liegen, dass sicher mindestens ein Snapshot je Betrachter
+   * sie trägt. Der Client dedupliziert über die monoton wachsende `id`.
+   * Muster wie beim Killfeed: kurze Liste im Snapshot statt Ereigniskanal.
+   */
+  const bursts: Array<DischargeBurst & { at: number }> = [];
+  let nextBurstId = 1;
+
   /** Schreibt einen Füllstand samt gerundetem Snapshot-Wert. */
   const setSchild = (player: RuntimePlayer, value: number): void => {
     schild.set(player.id, value);
@@ -133,6 +151,10 @@ export function tuneAegisSignature<T extends MazeGame>(
     // ein leerer Schild kann nicht noch einmal auslösen, selbst wenn das Flag
     // durch einen künftigen Umbau einmal danebengreifen sollte.
     setSchild(owner, 0);
+    // Radius aus der Basiskonfiguration, wie die Schadensschleife unten –
+    // Familien-Upgrades ändern ihn bewusst nicht.
+    bursts.push({ id: nextBurstId++, x: owner.position.x, y: owner.position.y, radius: config.dischargeRadius, ownerId: owner.id, at: now });
+    if (bursts.length > 32) bursts.shift();
     discharging = true;
     try {
       const radiusSquared = config.dischargeRadius * config.dischargeRadius;
@@ -236,6 +258,26 @@ export function tuneAegisSignature<T extends MazeGame>(
     // ein voller Schild bleibt nie dauerhaft stehen.
     if (inFamily && !player.dead && (schild.get(player.id) ?? 0) >= SIGNATURE_MAX) discharge(player, now);
   };
+
+  const originalSnapshot = game.snapshot.bind(game);
+  game.snapshot = ((selfId: string, now = Date.now()): WorldSnapshot => {
+    const snapshot = originalSnapshot(selfId, now) as WorldSnapshot & Partial<GameplayWorldExtension>;
+    // Verfallene zuerst raus – `at` wächst monoton, vorne liegt das Älteste.
+    while (bursts[0] && now - bursts[0].at > BURST_TTL_MS) bursts.shift();
+    if (bursts.length === 0) return snapshot;
+    // Sichtfeld-Filter wie bei den Entitäten, plus Wirkradius als Rand: Eine
+    // Entladung knapp außerhalb ragt noch ins Bild. Ohne eigenen Spieler
+    // (Beobachter vor dem Join) gehen alle raus – wie im Basis-Snapshot, der
+    // dann um die Arenamitte zentriert.
+    const center = internals.players.get(selfId)?.position;
+    const sichtbar = bursts.filter((burst) => {
+      if (!center) return true;
+      const reach = GAME.viewRadius + burst.radius;
+      return distanceSquared({ x: burst.x, y: burst.y }, center) <= reach * reach;
+    }).map(({ at: _at, ...burst }) => burst);
+    if (sichtbar.length > 0) snapshot.dischargeBursts = sichtbar;
+    return snapshot;
+  }) as T['snapshot'];
 
   const originalRemovePlayer = game.removePlayer.bind(game);
   game.removePlayer = ((id: string): void => {

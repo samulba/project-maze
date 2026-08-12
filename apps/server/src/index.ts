@@ -51,6 +51,7 @@ import {
 import { DEFAULT_BOT_PACING, tuneBotBrain } from './bot-brain.js';
 import { tuneDrones } from './drone-tuning.js';
 import { tuneFamilyUpgrades, type SignatureFamily } from './family-upgrades.js';
+import { tuneHitDirection } from './hit-direction.js';
 import { MazeGame } from './game.js';
 import { tuneInputAck } from './input-ack.js';
 import { tuneInputIdle } from './input-idle.js';
@@ -448,6 +449,12 @@ const encodedGame = tuneSnapshotEncoding(
                                 // sofort feuert – genau die setzt er aus.
                                 tunePrecisionSignature(
                                 tuneFamilyUpgrades(
+                                  // Trefferrichtung direkt ueber dem Kampf-
+                                  // Tuning (Befund 5): Hier laeuft JEDER
+                                  // Schaden durch, auch gebundene Innenaufrufe
+                                  // wie die AEGIS-Entladung, die aussen nicht
+                                  // vorbeikommen.
+                                  tuneHitDirection(
                                   tuneCombatScaling(
                                     // Projektiltempo vor allem anderen: Es
                                     // aendert die Statik, aus der jede weitere
@@ -456,6 +463,7 @@ const encodedGame = tuneSnapshotEncoding(
                                       tuneSpectator(hardenSimulation(new MazeGame(BOT_COUNT)), SPECTATOR_ENABLED),
                                       PROJECTILE_SPEED_V2
                                     )
+                                  )
                                   ),
                                   FAMILY_UPGRADE_BRANCHES
                                 ),

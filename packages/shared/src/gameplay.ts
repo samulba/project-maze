@@ -153,6 +153,44 @@ export interface ArenaEventSnapshot {
 }
 
 /**
+ * Eine AEGIS-Entladung als Einmal-Ereignis (Befund 7).
+ *
+ * Die Entladung passiert serverseitig in einem Tick: 34 Schaden und ein Stoß
+ * an alle im Radius, Schild auf null. Auf der Leitung war davon nichts zu
+ * sehen – Getroffene flogen „grundlos" weg, und der Träger bekam für seinen
+ * halben Lebensbalken Aufladung keinen einzigen Frame Auftritt. Der Server
+ * hält gezündete Entladungen deshalb kurz vor (~1 s) und legt sie jedem
+ * Snapshot bei, dessen Betrachter sie sehen kann; der Client spielt jede `id`
+ * genau einmal ab.
+ */
+export interface DischargeBurst {
+  /** Monoton wachsend über die Arena – der Client dedupliziert darüber. */
+  id: number;
+  x: number;
+  y: number;
+  /** Wirkradius der Entladung in Weltpixeln (`dischargeRadius` des Trägers). */
+  radius: number;
+  /** Träger des Schilds – für Kamera-Stoß und Ton beim eigenen Zünden. */
+  ownerId: string | null;
+}
+
+/**
+ * Ein erlittener Treffer mit Richtung (Befund 5).
+ *
+ * Wer aus dem Off beschossen wird, wusste bisher nur DASS es weh tut – der
+ * Bildschirm ruckte, das Leben fiel, aber die Richtung stand nirgends. Der
+ * Server kennt den Angreifer; dieser Eintrag trägt die Richtung vom
+ * Getroffenen zu ihm. Er liegt **nur im eigenen Snapshot** – fremde Treffer
+ * gehen niemanden etwas an und wären Bytes für nichts.
+ */
+export interface DamageDirection {
+  /** Monoton über die Arena – der Client spielt jede Id genau einmal. */
+  id: number;
+  /** Richtung vom Getroffenen ZUM Angreifer, Radiant in Weltkoordinaten. */
+  angle: number;
+}
+
+/**
  * Die schrumpfende Zone des Battle-Royale-Modus.
  *
  * Bewusst dieselbe Form wie `ArenaEventSnapshot` (Mittelpunkt plus Radius) –
@@ -222,6 +260,10 @@ export interface GameplayWorldExtension {
   arenaGuardianId: string | null;
   /** Seit dem letzten Snapshot dieses Clients freigeschaltet. Leer = nichts Neues. */
   freshAchievements: AchievementId[];
+  /** AEGIS-Entladungen der letzten ~1 s im Sichtfeld (Befund 7). Leer = keine. */
+  dischargeBursts: DischargeBurst[];
+  /** Eigene erlittene Treffer der letzten ~1 s, mit Richtung (Befund 5). Nur Self. */
+  damageDirections: DamageDirection[];
   /**
    * Tank, aus dessen Perspektive dieser Snapshot gebaut wurde – gesetzt, solange
    * der eigene Spieler tot ist und seinem Killer zusieht (SPECTATOR_ENABLED).
@@ -232,13 +274,14 @@ export interface GameplayWorldExtension {
 
 /** Wire-Variante der Gameplay-Erweiterung: IDs können kurze Zahlen sein. */
 export interface WireGameplayWorldExtension
-  extends Omit<GameplayWorldExtension, 'gameplay' | 'eliteShapeIds' | 'bountyTargetId' | 'arenaGuardianId' | 'spectatorTargetId'> {
+  extends Omit<GameplayWorldExtension, 'gameplay' | 'eliteShapeIds' | 'bountyTargetId' | 'arenaGuardianId' | 'spectatorTargetId' | 'dischargeBursts'> {
   /** Schlüssel sind die NetIds aus `players` – als String, wie in JSON üblich. */
   gameplay: Record<string, PlayerGameplaySnapshot>;
   eliteShapeIds: NetId[];
   bountyTargetId: NetId | null;
   arenaGuardianId: NetId | null;
   spectatorTargetId: NetId | null;
+  dischargeBursts: Array<Omit<DischargeBurst, 'ownerId'> & { ownerId: NetId | null }>;
 }
 
 export const DEFAULT_ACTIVE_MODULE: ActiveModuleId = 'dash';
@@ -265,7 +308,10 @@ export const ACHIEVEMENT_IDS = [
   'threeFamilies',
   'overchargeDuelist',
   'fractureFlanker',
-  'score10k'
+  'score10k',
+  // Befund 57: Der einzige teilbare Moment des Spiels -- letzter von allen in
+  // einer Royale-Runde -- hinterliess vorher nirgends eine Spur.
+  'royaleWinner'
 ] as const;
 export type AchievementId = (typeof ACHIEVEMENT_IDS)[number];
 
@@ -287,5 +333,6 @@ export const ACHIEVEMENT_CATALOG: Record<AchievementId, AchievementInfo> = {
   threeFamilies: { id: 'threeFamilies', name: 'Allrounder', description: 'Spiele drei verschiedene Klassenfamilien in einer Verbindung.' },
   overchargeDuelist: { id: 'overchargeDuelist', name: 'Überladen', description: 'Besiege einen Gegner während Overcharge innerhalb der Eventzone.' },
   fractureFlanker: { id: 'fractureFlanker', name: 'Durch die Bresche', description: 'Besiege einen Gegner durch ein von Fracture aufgebrochenes Wandsegment.' },
-  score10k: { id: 'score10k', name: 'Fünfstellig', description: 'Erreiche 10.000 Punkte in einem Lauf.' }
+  score10k: { id: 'score10k', name: 'Fünfstellig', description: 'Erreiche 10.000 Punkte in einem Lauf.' },
+  royaleWinner: { id: 'royaleWinner', name: 'Letzter Überlebender', description: 'Gewinne eine Battle-Royale-Runde.' }
 };

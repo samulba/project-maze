@@ -426,3 +426,51 @@ describe('aegis signature – Ladung gegen den Rammstoss', () => {
     expect(voll.geladen / voll.verloren).toBeCloseTo(ohne.geladen / ohne.verloren, 4);
   });
 });
+
+describe('aegis signature – Entladung im Snapshot (Befund 7)', () => {
+  it('legt jede Entladung mit Ort, Radius und Träger dem Snapshot bei', () => {
+    const { game, internals, id, player } = setup();
+    const { id: nearId } = addOther(game, internals, 'Zeuge', 'storm', NEAR);
+
+    internals.damagePlayer(player, FULL_CHARGE_DAMAGE, null, 100_000);
+    const bursts = (game.snapshot(nearId, 100_100) as any).dischargeBursts;
+    expect(bursts).toHaveLength(1);
+    expect(bursts[0]).toMatchObject({
+      x: OPEN_GROUND.x,
+      y: OPEN_GROUND.y,
+      radius: DEFAULT_SCHILD.dischargeRadius,
+      ownerId: id
+    });
+    expect(bursts[0].id).toBeGreaterThan(0);
+  });
+
+  it('liegt binnen der Sekunde jedem Snapshot bei und verfällt danach', () => {
+    const { game, internals, player } = setup();
+    const { id: nearId } = addOther(game, internals, 'Zeuge', 'storm', NEAR);
+
+    internals.damagePlayer(player, FULL_CHARGE_DAMAGE, null, 100_000);
+    const erster = (game.snapshot(nearId, 100_100) as any).dischargeBursts;
+    const zweiter = (game.snapshot(nearId, 100_900) as any).dischargeBursts;
+    // Gleiche Id in beiden Lieferungen – der Client spielt sie genau einmal.
+    expect(zweiter).toEqual(erster);
+    expect((game.snapshot(nearId, 101_100) as any).dischargeBursts).toBeUndefined();
+  });
+
+  it('erreicht nur Betrachter, in deren Sichtfeld die Entladung ragt', () => {
+    const { game, internals, player } = setup();
+    // Jenseits von Sichtradius + Wirkradius: kein Pixel der Entladung im Bild.
+    const fern = { x: OPEN_GROUND.x + GAME.viewRadius + DEFAULT_SCHILD.dischargeRadius + 60, y: OPEN_GROUND.y };
+    const { id: nearId } = addOther(game, internals, 'Nah', 'storm', NEAR);
+    const { id: fernId } = addOther(game, internals, 'Fern', 'storm', fern);
+
+    internals.damagePlayer(player, FULL_CHARGE_DAMAGE, null, 100_000);
+    expect((game.snapshot(nearId, 100_100) as any).dischargeBursts).toHaveLength(1);
+    expect((game.snapshot(fernId, 100_100) as any).dischargeBursts).toBeUndefined();
+  });
+
+  it('lässt den Snapshot ohne Flag unangetastet', () => {
+    const { game, internals, id, player } = setup('aegis', false);
+    internals.damagePlayer(player, FULL_CHARGE_DAMAGE, null, 100_000);
+    expect((game.snapshot(id, 100_100) as any).dischargeBursts).toBeUndefined();
+  });
+});

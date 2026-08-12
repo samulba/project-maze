@@ -124,6 +124,16 @@ export class GameAudio {
     this.noise(0.05, 0.01, 700);
   }
 
+  /**
+   * AEGIS-Entladung (Befund 7): tief und mit Rauschanteil – eine Druckwelle,
+   * kein Schuss. Hörbar unter allem Dauerfeuer, weil sonst kein Kanal so tief
+   * liegt; bewusst kurz, damit zwei Tanks im Schlagabtausch nicht dröhnen.
+   */
+  discharge(): void {
+    this.tone(95, 0.16, 0.032, 'sine');
+    this.noise(0.12, 0.014, 320);
+  }
+
   module(module: ActiveModuleId): void {
     if (module === 'dash') this.sequence([230, 410], 0.045, 0.022, 'sawtooth');
     else if (module === 'repulse') this.sequence([190, 125], 0.07, 0.03, 'sine');
@@ -131,9 +141,14 @@ export class GameAudio {
     else this.sequence([320, 410, 520], 0.07, 0.018, 'sine');
   }
 
-  damage(intensity = 1): void {
-    this.tone(78, 0.12, 0.03 + Math.min(0.035, intensity * 0.012), 'sawtooth');
-    this.noise(0.08, 0.02, 420);
+  /**
+   * `pan` (−1 … 1) legt den Treffer ins Stereobild (Befund 5): links getroffen,
+   * links gehört. Kommt aus der Trefferrichtung im Snapshot; 0 = mittig, wie
+   * bisher – etwa bei Zonenschaden ohne Angreifer.
+   */
+  damage(intensity = 1, pan = 0): void {
+    this.tone(78, 0.12, 0.03 + Math.min(0.035, intensity * 0.012), 'sawtooth', pan);
+    this.noise(0.08, 0.02, 420, pan);
   }
 
   kill(streak = 1): void {
@@ -163,10 +178,10 @@ export class GameAudio {
     frequencies.forEach((frequency, index) => window.setTimeout(() => this.tone(frequency, duration, gain, type), index * duration * 700));
   }
 
-  private tone(frequency: number, duration: number, gainValue: number, type: OscillatorType): void {
+  private tone(frequency: number, duration: number, gainValue: number, type: OscillatorType, pan = 0): void {
     const context = this.context;
-    const master = this.master;
-    if (!context || !master) return;
+    const target = this.destination(pan);
+    if (!context || !target) return;
     try {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
@@ -174,16 +189,16 @@ export class GameAudio {
       oscillator.frequency.setValueAtTime(frequency, context.currentTime);
       gain.gain.setValueAtTime(gainValue, context.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + duration);
-      oscillator.connect(gain).connect(master);
+      oscillator.connect(gain).connect(target);
       oscillator.start();
       oscillator.stop(context.currentTime + duration);
     } catch {}
   }
 
-  private noise(duration: number, gainValue: number, filterFrequency: number): void {
+  private noise(duration: number, gainValue: number, filterFrequency: number, pan = 0): void {
     const context = this.context;
-    const master = this.master;
-    if (!context || !master || !this.noiseBuffer) return;
+    const target = this.destination(pan);
+    if (!context || !target || !this.noiseBuffer) return;
     try {
       const source = context.createBufferSource();
       source.buffer = this.noiseBuffer;
@@ -193,9 +208,30 @@ export class GameAudio {
       const gain = context.createGain();
       gain.gain.setValueAtTime(gainValue, context.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + duration);
-      source.connect(filter).connect(gain).connect(master);
+      source.connect(filter).connect(gain).connect(target);
       source.start();
       source.stop(context.currentTime + duration);
     } catch {}
+  }
+
+  /**
+   * Ziel-Knoten für einen Klang: mittig direkt der Master, seitlich ein
+   * StereoPanner davor. Der Panner ist ein Wegwerf-Knoten je Klang – Web-Audio-
+   * Knoten sind genau dafür gebaut, und der Garbage Collector räumt sie nach
+   * dem Ausklingen ab. Fehlt die API (alte WebViews), bleibt es beim Master.
+   */
+  private destination(pan: number): AudioNode | null {
+    const context = this.context;
+    const master = this.master;
+    if (!context || !master) return null;
+    if (!pan || typeof context.createStereoPanner !== 'function') return master;
+    try {
+      const panner = context.createStereoPanner();
+      panner.pan.value = Math.max(-1, Math.min(1, pan));
+      panner.connect(master);
+      return panner;
+    } catch {
+      return master;
+    }
   }
 }

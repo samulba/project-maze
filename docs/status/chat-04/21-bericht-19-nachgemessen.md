@@ -1,12 +1,12 @@
-# 21 – Bericht 19 nachgemessen: 51 Befunde geprüft, 39 behoben
+# 21 – Bericht 19 nachgemessen: 51 Befunde geprüft, 43 behoben
 
 | | |
 | --- | --- |
 | **Auftrag** | Sam: „erst nachmessen, dann anfassen" – die 79 Rohbefunde aus [Bericht 19](19-rohbefunde-spielgefuehl.md) |
-| **Branch** | `claude/validate-bericht-19-findings-85aiaz` (Vorgabe dieser Sitzung – **nicht** main; Merge ist Sams Handgriff) |
+| **Branch** | `claude/validate-bericht-19-findings-85aiaz` (Vorgabe dieser Sitzung; main ist per Sams Freigabe „Ja, merge du" nachgezogen) |
 | **Basis** | `3834b52` |
-| **Tests** | `npm run check` grün – 76 Dateien, 1038 Tests |
-| **Status** | 51 gegengeprüft: 39 behoben, 53 teilweise, 10 bestätigt-aber-offen, Befund 2 verworfen · 20 ungeprüft |
+| **Tests** | `npm run check` grün – 77 Dateien, 1050 Tests |
+| **Status** | 51 gegengeprüft: 43 behoben, 53 teilweise, 6 bestätigt-aber-offen, Befund 2 verworfen · 20 ungeprüft |
 
 ## 1. Wie gemessen wurde
 
@@ -36,7 +36,7 @@ behoben. Das Rohmaterial war vorsortiert – die Gegenprüfung hat trotzdem
 Titel, Schweren und Zahlen in großem Stil korrigiert, und ohne sie wären
 mindestens drei falsche Behebungen passiert (2, 63, 64 – siehe unten).
 
-## 2. Behoben (39 Befunde)
+## 2. Behoben (43 Befunde)
 
 **Server, jede Behebung mit Test:**
 
@@ -168,7 +168,18 @@ REPEL-Knopf heißt DROHNEN und existiert nur für Drohnenklassen – vorher war
 seine einzige Wirkung für 55 Klassen, still den Spawnschutz zu beenden (40),
 und der Name überlebt den Reload (54, `mazers-name`).
 
-## 3. Bestätigt, aber bewusst nicht angefasst (10: 3, 5, 6, 7, 20-Text, 51, 55, 57, 63, 64)
+**Nachtrag am Abend – das Sichtbarkeits-Paket (5, 6, 7, 57), nach Sams
+Freigabe:** Die vier zunächst geparkten Sichtbarkeits-Befunde hat Sam per
+Rückfrage alle bestellt, sie sind gebaut und getestet:
+
+| Befund | Was lief | Was jetzt gilt |
+|---|---|---|
+| 6 | Der Signature-Füllstand lag für **jeden** Spieler auf der Leitung (die Specter-Tarnung las ihn längst), gezeichnet wurde er nur beim eigenen Tank | Das `isSelf`-Gate ist raus: Jeder Tank mit Familienmechanik trägt den Balken – Gegner in ihrer Familienfarbe (dieselbe Palette wie Rad und Wahlkarten, jetzt als `signatureColor()` in `signature.ts`), der eigene weiter in Eigenfarbe. Ein getarnter SPECTER verrät sich nicht: Der Balken verblasst mit dem Tank |
+| 7 | Die AEGIS-Entladung (34 Schaden, 240 Radius, 520 Stoß) passierte in einem Server-Tick – Getroffene flogen „grundlos" weg, der Träger bekam für den halben Lebensbalken Aufladung keinen Frame Auftritt | `dischargeBursts` im Snapshot (Killfeed-Muster: ~1 s Vorhaltezeit, monotone Id, Sichtfeld-Filter je Betrachter, kurze IDs auf der Leitung); der Client spielt je Id einmal Schockring über den vollen Radius, Funken, Kamera-Stoß für den Träger und einen Tiefton – 4 neue Servertests |
+| 5 | Wer aus dem Off beschossen wurde, wusste *dass*, nie *woher* | Neue Schicht `hit-direction.ts` direkt über dem Kampf-Tuning (sieht damit auch gebundene Innenaufrufe wie die Entladung): bucht bei echtem Lebensverlust die Richtung zum Angreifer, nur in den eigenen Snapshot (`damageDirections`). Client: roter Bogen am Sichtfeldrand (600 ms Zerfall) plus StereoPanner am Schadens-Ton – links getroffen, links gehört. 5 neue Servertests |
+| 57 | Der Royale-Sieg verpuffte ohne Spur | Achievement `royaleWinner` („Letzter Überlebender"): `arena-royale` meldet den menschlichen Rundensieger an die Achievements-Engine; migrationsfrei, Katalog + Server + Test |
+
+## 3. Bestätigt, aber bewusst nicht angefasst (6: 3, 20-Text, 51, 55, 63, 64)
 
 * **Befund 63 (Repulse wirkungslos) – der wichtigste Nicht-Fix.** Der
   Schalter ist kein vergessener wie beim Dash-Präzedenzfall: In index.ts steht
@@ -177,19 +188,14 @@ und der Name überlebt den Reload (54, `mazers-name`).
   hieße, eine getroffene Entscheidung zu übergehen. **Aber:** Die
   Menü-Beschreibung verspricht „Verdrängt Gegner …", und gemessen wackelt der
   Gegner einen halben Tank und ist eine halbe Sekunde später näher als vorher.
-  Der Widerspruch (geparkte Entscheidung gegen ein Versprechen, das der
-  Spieler liest) gehört Sam/01 vorgelegt.
+  Sam hat die **Messrunde bestellt** (beide Schalterstellungen, Zahlen zu ihm –
+  der Schalter selbst bleibt unangetastet).
 * **Befund 64 (Prediction-Default aus).** Kein Sam-Punkt (GOAL.md reserviert
   es nicht), aber die Hausregel verlangt Absicherung vor dem Umlegen – und
   anders als bei SNAPSHOT_DELTAS gibt es keine Probe, die Prediction-Gefühl
   misst. Prediction-Fehler äußern sich als Gummiband, nicht als roter Test.
-  Nötige Reihenfolge: Proben-/Messlauf in beiden Stellungen, dann drehen.
-* **Befunde 5, 6, 7 (Trefferrichtung, Gegner-Füllstand, AEGIS-Entladung).**
-  Alle drei bestätigt; 5 und 7 brauchen Wire-Format-Erweiterungen (Muster
-  `arenaEvent` liegt bereit), 6 ist eine Ein-Zeilen-Änderung mit
-  Design-Gewicht: Sie macht Gegner-Information sichtbar, die bisher nur
-  technisch auf der Leitung liegt. Sam entscheidet, dann ist jede davon eine
-  kleine Runde.
+  Sam hat den **Messlauf bestellt** (beide Stellungen, Zahlen zu ihm, Default
+  entscheidet er).
 * **Befund 3 (Schussfeedback an der Serverantwort).** Bestätigt (Ø 110 ms bei
   60 ms Ping), aber die lokale Auslösung braucht eine Client-Nachladeuhr, und
   die Je-Punkt-Faktoren leben in combat-tuning, nicht in shared – dieselbe
@@ -203,9 +209,6 @@ und der Name überlebt den Reload (54, `mazers-name`).
 * **Befund 51 (Bestenliste ewig/ohne Dedup).** Kein Bug – der Code tut, was er
   soll. Zeitfenster-Reiter und Dedup sind Produktentscheidungen, und sauberer
   Dedup geht nur über `user_id` (Gäste heißen alle „Player"). Sam.
-* **Befund 57 (Royale-Sieg ohne Spur).** Ein `royaleWinner`-Achievement wäre
-  migrationsfrei (die Tabelle ist darauf gebaut), aber welche Momente eine
-  Belohnung verdienen, ist Content – Sam.
 * **Rest von Befund 2:** Der Kill-Ruck ist fest 3 und skaliert als einziger
   Reiz nie (Streak, Opferlevel). Kosmetik, notiert.
 
@@ -233,12 +236,14 @@ Schwierigkeits-Entscheidungen, also mindestens zur Hälfte Sams.
 ## 6. Proben- und Testlage
 
 ```
-npm run check      1034 Tests gruen (76 Dateien; +33 neue)
-wire-probe         gruen
+npm run check      1050 Tests gruen (77 Dateien; zuletzt inkl.
+                   Sichtbarkeits-Paket 5/6/7/57)
+wire-probe         gruen (nach dem Sichtbarkeits-Paket erneut gefahren --
+                   die neuen Snapshot-Felder gehen sauber ueber die Leitung)
+royale-probe       gruen (nach dem Paket erneut, wegen 57)
 progress-probe     gruen (im Suite-Lauf einmal an der Container-Last
                    gescheitert, einzeln reproduzierbar gruen)
 mode-probe x3      maze / ffa / royale gruen -- NEU: inkl. Telemetrie-Modus
-royale-probe       gruen
 duo-probe          gruen
 touch-probe:all    5/5 Formate gruen -- NEU: Daumen bleiben ueber den Tod
                    liegen, Autofire wird nach jedem Respawn geprueft
@@ -266,16 +271,16 @@ mit, sonst wäre Befund 65 beim nächsten Mal wieder durchgerutscht.
 
 ## 7. Womit anzufangen ist
 
-1. **Sams drei Entscheidungen abholen:** Repulse (63 – Messrunde oder
-   ehrlicher Text), Gegner-Füllstand sichtbar (6), Balance-Liste aus
-   Abschnitt 4. Alles andere hängt nicht daran.
-2. **Die Bot-Gruppe (71–79) nachmessen** – eigene Sitzung, Messskripte nach
+1. **Die zwei bestellten Messrunden fahren:** Repulse (63) und Prediction
+   (64), jeweils beide Schalterstellungen, Zahlen zu Sam – kein Schalter wird
+   dabei umgelegt.
+2. **Sams Entscheidungen abholen:** Balance-Liste aus Abschnitt 4, Zeitfenster/
+   Dedup der Bestenliste (51), Wortlaut der Login-Zeile (55), Repulse-Text
+   oder -Schalter nach der Messrunde.
+3. **Die Bot-Gruppe (71–79) nachmessen** – eigene Sitzung, Messskripte nach
    den Gegenproben im Bericht 19.
-3. **Rest der Retention-Runde:** die Login-Zeile auf dem Death-Screen (55,
-   Wortlaut mit Sam) und die restlichen 53er-Zeilen; dazu die kleinen
-   Wire-Runden 7 (AEGIS-Ereignis) und 5 (Trefferrichtung), wenn Sam nickt.
-4. **Prediction-Messlauf (64)** in beiden Stellungen, dann den Default
-   entscheiden.
+4. **Rest der Retention-Runde:** die Login-Zeile auf dem Death-Screen (55,
+   Wortlaut mit Sam) und die restlichen 53er-Zeilen.
 5. Der einzige echte Blocker bleibt unverändert Sams: Migration
    `0005_sessions.sql` und die Railway-Variablen – ohne sie misst die
    dreizehnte Zeile nicht.

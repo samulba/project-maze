@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CLASS_DEFINITIONS, type PlayerClass } from '@project-maze/shared';
-import { signatureLabel, signatureRatio } from './signature';
+import { signatureColor, signatureLabel, signatureRatio } from './signature';
 
 describe('Signature-Beschriftung', () => {
   it('gibt je Familie dasselbe Wort, egal welche Klasse', () => {
@@ -34,6 +34,33 @@ describe('Signature-Beschriftung', () => {
     // Wenn 02 eine fünfte Familie einführt, schlägt dieser Test fehl – genau
     // dann muss auch die Beschriftung dazukommen.
     expect([...familien].sort()).toEqual(['aegis', 'control', 'core', 'impact', 'precision', 'rapid', 'siege', 'specter', 'tempest']);
+  });
+});
+
+describe('Signature-Familienfarbe (Befund 6)', () => {
+  it('hat genau dort eine Farbe, wo es auch ein Familienwort gibt', () => {
+    // Balken ohne Wort wäre ein Rätsel, Wort ohne Farbe ein grauer Balken –
+    // beide Tabellen müssen dieselben Familien abdecken.
+    for (const id of Object.keys(CLASS_DEFINITIONS) as PlayerClass[]) {
+      expect(signatureColor(id) !== null, `${id}: Farbe und Wort laufen auseinander`)
+        .toBe(signatureLabel(id) !== null);
+    }
+  });
+
+  it('gibt je Familie dieselbe Farbe, egal welche Klasse', () => {
+    const farben = new Map<string, Set<number | null>>();
+    for (const id of Object.keys(CLASS_DEFINITIONS) as PlayerClass[]) {
+      const familie = CLASS_DEFINITIONS[id].branch;
+      const gesammelt = farben.get(familie) ?? new Set<number | null>();
+      gesammelt.add(signatureColor(id));
+      farben.set(familie, gesammelt);
+    }
+    for (const [familie, gesammelt] of farben) {
+      expect(gesammelt.size, `Familie ${familie} hat mehrere Farben`).toBe(1);
+    }
+    // Stichprobe gegen die Palette aus class-tree.css.
+    expect([...(farben.get('rapid') ?? [])][0]).toBe(0x5b8cff);
+    expect([...(farben.get('aegis') ?? [])][0]).toBe(0x4ea9a4);
   });
 });
 
