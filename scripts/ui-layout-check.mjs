@@ -47,7 +47,7 @@
  * Bei flachen Seitenverhältnissen ragte die Bestenliste in die
  * Onboarding-Karte, weil das Spielfeld schmaler wird als das Fenster.
  *
- * Gemessen wird in vier Schichten:
+ * Gemessen wird in fünf Schichten:
  *
  * 1. **Panel gegen Panel** – Überlappung, Verdeckung, Rand des Bildes.
  * 2. **Innerhalb eines Panels** – Inhalt über dem Kasten, sich deckende
@@ -55,6 +55,11 @@
  *    Lücke, durch die Sams Befunde fielen.)
  * 3. **Tote Fläche** – wie viel des Bildes keine Klicks mehr annimmt.
  * 4. **Trefferflächen auf Touch** – alles unter 40 px. (Seit 09.08.)
+ * 5. **Der Weg zurück** – ist der RESPAWN-Knopf im Bild und trifft ein Klick
+ *    auf seine Mitte auch ihn? (Seit 11.08.) Die vier Schichten davor waren
+ *    grün, während auf 1280 × 720 kein toter Spieler zurück in die Arena kam:
+ *    Die Karte passte ins Bild, nur ihr wichtigster Knopf lag im abgeschnittenen
+ *    Teil. Wer nur Flächen misst, findet das nie – gemessen wird die Handlung.
  *
  * Zwei Dinge sind bewusst **nicht** Befunde: Inhalt in einem Kasten, der
  * absichtlich waagerecht scrollt, und die Knoten des Klassenrades (eine
@@ -281,6 +286,37 @@ function messenImBrowser() {
     .filter((f) => f.x < -1 || f.y < -1 || f.x + f.w > window.innerWidth + 1 || f.y + f.h > window.innerHeight + 1)
     .map((f) => ({ name: f.name, unter: Math.max(0, f.y + f.h - window.innerHeight), rechts: Math.max(0, f.x + f.w - window.innerWidth), ueber: Math.max(0, -f.y), links: Math.max(0, -f.x) }));
 
+  /*
+   * Der Weg ZURUECK ins Spiel. Fuenfte Schicht, und sie kam aus einem echten
+   * Befund: Die Todeskarte deckelt sich auf hohen Karten und scrollt innen.
+   * Auf 1280 x 720 lag der RESPAWN-Knopf dadurch komplett ausserhalb des
+   * sichtbaren Kastens -- ein toter Spieler sah eine vollstaendig aussehende
+   * Karte und hatte keinen sichtbaren Weg zurueck in die Arena.
+   *
+   * Die vier bestehenden Schichten konnten das NICHT finden: Panel gegen Panel
+   * stimmte, aus dem Bild ragte nichts (die Karte selbst passt), und ein
+   * scrollender Kasten ist hier absichtlich kein Befund. Gemessen wird deshalb
+   * die HANDLUNG: Ist der Knopf im Bild, und trifft ein Klick auf seine Mitte
+   * auch wirklich ihn?
+   *
+   * `null` heisst "gibt es hier nicht" und ist kein Fehler -- im Battle Royale
+   * verschwindet der Respawn-Knopf mit Absicht, dort zaehlt nur der Ausgang.
+   */
+  const totenschirmOffen = document.querySelector('#death-screen');
+  let rueckweg = null;
+  if (totenschirmOffen && !totenschirmOffen.hidden) {
+    const erreichbar = (sel) => {
+      const el = document.querySelector(sel);
+      if (!el || el.hidden) return null;
+      const r = el.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) return null;
+      if (r.top < -1 || r.bottom > window.innerHeight + 1) return false;
+      const oben = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return Boolean(oben && (oben === el || el.contains(oben)));
+    };
+    rueckweg = { respawn: erreichbar('#respawn-button'), start: erreichbar('#exit-to-start') };
+  }
+
   // Eine Klassenwahl, von der man die Hälfte nicht sieht, ist keine Wahl.
   const wahl = document.querySelector('#class-selection');
   let wahlKarten = null;
@@ -423,7 +459,7 @@ function messenImBrowser() {
     }
   }
 
-  return { flaechen, ueberlappungen, verdeckt, ausserhalb, wahlKarten, imTod, innen,
+  return { flaechen, ueberlappungen, verdeckt, ausserhalb, wahlKarten, rueckweg, imTod, innen,
     _dbg: { radDa: Boolean(rad), radHidden: rad ? rad.hidden : null, kartenOpazitaet: spielerkarte ? getComputedStyle(spielerkarte).opacity : null, leseansicht },
     kompakterTod: Boolean(totenschirm && totenschirm.classList.contains('spectating')),
     totAnteil: raster > 0 ? +(tot / raster * 100).toFixed(1) : null };
@@ -964,6 +1000,13 @@ async function main() {
     for (const [text, anzahl] of gezaehlt) zeile.push(anzahl > 1 ? `${text} — ${anzahl}×` : text);
     if (messung.wahlKarten && messung.wahlKarten.sichtbar < messung.wahlKarten.gesamt) {
       zeile.push(`Klassenwahl nur ${messung.wahlKarten.sichtbar}/${messung.wahlKarten.gesamt} Karten sichtbar`);
+    }
+    if (messung.rueckweg) {
+      if (messung.rueckweg.respawn === false) zeile.push('Weg zurueck: RESPAWN nicht ohne Scrollen erreichbar');
+      if (messung.rueckweg.start === false) zeile.push('Weg zurueck: ZUM STARTSCREEN nicht ohne Scrollen erreichbar');
+      if (messung.rueckweg.respawn === null && messung.rueckweg.start === null) {
+        zeile.push('Weg zurueck: GAR KEIN Knopf auf der Todeskarte');
+      }
     }
     if (!fall.touch && messung.totAnteil !== null && messung.totAnteil > TOT_GRENZE) {
       zeile.push(`${messung.totAnteil} % der Bildfläche nimmt keine Klicks an (Grenze ${TOT_GRENZE} %)`);

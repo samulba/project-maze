@@ -265,7 +265,7 @@ export class GameUI {
           <div class="upgrade-panel" id="upgrades" hidden>
             <div class="upgrade-header"><span>UPGRADES</span><b><span id="upgrade-points">0</span> PUNKTE</b><button class="sheet-close" id="upgrades-close" type="button" aria-label="Upgrades schließen">✕</button></div>
             <div class="upgrade-list">
-              ${UPGRADE_SLOT_IDS.map((id, index) => `<button data-upgrade="${id}"${isFamilyUpgrade(id) ? ' hidden' : ''}><kbd>${upgradeHotkeyLabel(index)}</kbd><span data-upgrade-label="${id}">${slotLabel(id, 'core')}</span><div class="upgrade-pips" data-pips="${id}">${Array.from({ length: GAME.maxUpgradeLevel }, () => '<i></i>').join('')}</div></button>`).join('')}
+              ${UPGRADE_SLOT_IDS.map((id, index) => `<button data-upgrade="${id}"${isFamilyUpgrade(id) ? ' hidden' : ''}>${upgradeHotkeyLabel(index) ? `<kbd>${upgradeHotkeyLabel(index)}</kbd>` : ''}<span data-upgrade-label="${id}">${slotLabel(id, 'core')}</span><div class="upgrade-pips" data-pips="${id}">${Array.from({ length: GAME.maxUpgradeLevel }, () => '<i></i>').join('')}</div></button>`).join('')}
             </div>
           </div>
 
@@ -304,9 +304,24 @@ export class GameUI {
               <p id="death-killer">Eliminiert von Arena</p>
               <div class="death-stats" id="death-stats"></div>
               <p class="death-summary" id="death-summary"></p>
-              <button id="respawn-button" type="button" disabled>RESPAWN</button>
-              <span id="respawn-countdown">Respawn verfügbar in 2.5s</span>
-              <button id="exit-to-start" type="button">ZUM STARTSCREEN</button>
+              <!--
+                Der Weg zurück ins Spiel steht in einem eigenen Kasten, der am
+                unteren Rand der Karte klebt (hud-layout.css, position sticky).
+
+                Der Grund ist gemessen, nicht gestaltet: Die Karte ist mit
+                Loadout-Panel 564 px hoch und wird oben gedeckelt. Auf
+                1280 x 720 lag der RESPAWN-Knopf damit komplett außerhalb des
+                sichtbaren Kastens (Karte endet bei 661, Knopf beginnt bei
+                685), auf 1366 x 768 ragte er 26 px heraus - ein Klick auf
+                seine Mitte traf den Hintergrund. Der einzige Weg zurück ins
+                Spiel war, in der Karte zu scrollen, ohne dass etwas darauf
+                hinwies.
+              -->
+              <div class="death-actions">
+                <button id="respawn-button" type="button" disabled>RESPAWN</button>
+                <span id="respawn-countdown">Respawn verfügbar in 2.5s</span>
+                <button id="exit-to-start" type="button">ZUM STARTSCREEN</button>
+              </div>
             </div>
           </section>
 

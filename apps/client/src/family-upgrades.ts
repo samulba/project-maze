@@ -90,5 +90,17 @@ export const FAMILY_LOCK_HINT = 'Erst mit einer Familie ab Level 10';
  * auf einer Taste „10" – `Digit0` bildet im Client auf Index 9 ab.
  */
 export function upgradeHotkeyLabel(index: number): string {
-  return index === 9 ? '0' : String(index + 1);
+  /*
+   * Nur die zehn Plaetze, die wirklich eine Taste haben.
+   *
+   * Die Tastatur bedient `Digit1`-`Digit9` und `Digit0` (input.ts) -- also
+   * genau zehn. Der elfte und zwoelfte Platz trugen trotzdem die Marken „11"
+   * und „12": eine Abkuerzung, die es auf keiner Tastatur gibt. Wer sie sucht,
+   * drueckt zweimal die 1 und vergibt zwei Punkte auf den ersten Platz.
+   *
+   * Ein leerer Text heisst „diesen Platz gibt es nur zum Klicken"; die Marke
+   * faellt dann ganz weg (ui.ts).
+   */
+  if (index === 9) return '0';
+  return index < 9 ? String(index + 1) : '';
 }

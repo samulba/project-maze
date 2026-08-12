@@ -85,7 +85,9 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     hint: (touch) =>
       touch
         ? 'Level-up! Tippe im Upgrade-Panel auf die Eigenschaft, die du stärken willst.'
-        : 'Level-up! Die Tasten 1–8 vergeben deine Upgrade-Punkte.',
+        // Zehn Plaetze haben eine Taste (1-9 und 0), zwoelf gibt es insgesamt --
+        // „1-8" stammt aus der Zeit mit acht Werten und stimmte seit Klassen 4.0 nicht mehr.
+        : 'Level-up! Die Zifferntasten 1–9 und 0 vergeben deine Upgrade-Punkte.',
     focus: () => '#upgrades',
     isRelevant: (context) => context.availablePoints > 0,
     isDone: (context) => context.spentPoint

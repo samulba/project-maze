@@ -181,6 +181,37 @@
   scrollbar-width: thin;
 }
 
+/*
+ * Der Weg zurück ins Spiel klebt am unteren Rand der Karte.
+ *
+ * Gemessen an einem echten Tod (nicht am untergeschobenen Zustand): Die Karte
+ * ist mit Loadout-Panel 564 px hoch, der Deckel oben schneidet sie ab, und der
+ * RESPAWN-Knopf landete dadurch **außerhalb** des sichtbaren Kastens:
+ *
+ *   1280 × 720  Karte 97–661, Knopf 685–735  -> unsichtbar, Klick traf nichts
+ *   1366 × 768  Karte 97–709, Knopf 685–735  -> 26 px heraus, Mitte tot
+ *   1920 × 1080 Karte 190–929, Knopf 778–828 -> in Ordnung
+ *
+ * Die Karte scrollt zwar (`overflow-y: auto`), aber nichts sagt das – und die
+ * Layout-Prüfung meldete grün, weil ein scrollender Kasten dort absichtlich
+ * kein Befund ist. Ein Spieler auf einem 720p-Laptop sah eine Karte, die
+ * vollständig aussah, und keinen Weg zurück in die Arena.
+ *
+ * `sticky` statt „Inhalt kürzen": Die Zahlen darüber darf man wegscrollen, die
+ * Handlung nie. Der Verlauf nach oben verhindert, dass durchscrollender Text
+ * unter dem Knopf hervorblitzt.
+ */
+.death-screen:not(.spectating) .death-actions {
+  position: sticky;
+  /* -1 px: Bei gebrochenen Zoomstufen bleibt sonst eine Haarlinie offen. */
+  bottom: -1px;
+  z-index: 1;
+  margin: 16px -28px -28px;
+  padding: 14px 28px 28px;
+  background: linear-gradient(to top,
+    var(--strong) 0%, var(--strong) 72%, color-mix(in srgb, var(--strong) 0%, transparent) 100%);
+}
+
 /* ------------------------------------------------------------------ *
  * F6 – Das Upgrade-Panel schob sich über den Killfeed
  * ------------------------------------------------------------------ */

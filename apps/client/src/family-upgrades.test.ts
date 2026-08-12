@@ -24,6 +24,15 @@ describe('Familien-Upgrade-Plätze (KL4)', () => {
     expect(upgradeHotkeyLabel(0)).toBe('1');
     expect(upgradeHotkeyLabel(8)).toBe('9');
     expect(upgradeHotkeyLabel(9)).toBe('0');
+    /*
+     * Ab dem elften Platz gibt es KEINE Taste mehr -- input.ts kennt nur
+     * Digit1-Digit9 und Digit0. Vorher stand dort „11" und „12": eine
+     * Abkuerzung, die keine Tastatur hat.
+     */
+    expect(upgradeHotkeyLabel(10)).toBe('');
+    expect(upgradeHotkeyLabel(11)).toBe('');
+    // Und es sind wirklich mehr Plaetze als Tasten -- sonst ist der Test blind.
+    expect(UPGRADE_SLOT_IDS.length).toBeGreaterThan(10);
   });
 
   it('erkennt die beiden Familien-Slots', () => {
