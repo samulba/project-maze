@@ -388,7 +388,11 @@
    raus, sonst sprengt der min-content der Zeile die 150 px um 5 px. */
 @media (pointer: coarse) and (max-width: 720px) {
   .leaderboard { width: 150px; }
-  .leader-row em { display: none; }
+  /* Rang, Name, Score – mehr traegt die Breite nicht. Die Klassen-Spalte
+     (small) waechst mit dem Serverleben (Gatling · L39) und sprengte die
+     Zeile abhaengig davon, wie lange die Arena schon lief. */
+  .leader-row em,
+  .leader-row small { display: none; }
   .arena-event-banner,
   .bounty-banner,
   .toasts,
