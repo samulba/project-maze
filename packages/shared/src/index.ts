@@ -775,7 +775,14 @@ export interface WorldSnapshot { type:'snapshot'; selfId:string|null; tick:numbe
  * trifft nach einem Deploy auf einen neuen Server. Fehlt das Feld, gilt `maze` –
  * derselbe Stand wie vor der Einführung der Modi.
  */
-export interface WelcomeMessage { type:'welcome'; selfId:string; mode?:ArenaMode; }
+/**
+ * `achievements` sagt, ob der Server die Erfolgs-Engine angehängt hat
+ * (Befund 60): Die Galerie verspricht sonst sieben Erfolge, die auf einem
+ * Server mit `ACHIEVEMENTS_ENABLED=false` nie fallen können. Optional aus
+ * demselben Grund wie `mode` – ein alter Server lässt es weg, dann bleibt
+ * die Galerie kommentarlos wie bisher.
+ */
+export interface WelcomeMessage { type:'welcome'; selfId:string; mode?:ArenaMode; achievements?:boolean; }
 export interface ErrorMessage { type:'error'; message:string; }
 export interface PongMessage { type:'pong'; sentAt:number; serverTime:number; }
 export type ServerMessage = WorldSnapshot | WelcomeMessage | ErrorMessage | PongMessage;

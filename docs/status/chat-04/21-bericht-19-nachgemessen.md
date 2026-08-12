@@ -1,12 +1,12 @@
-# 21 – Bericht 19 nachgemessen: 51 Befunde geprüft, 32 behoben
+# 21 – Bericht 19 nachgemessen: 51 Befunde geprüft, 36 behoben
 
 | | |
 | --- | --- |
 | **Auftrag** | Sam: „erst nachmessen, dann anfassen" – die 79 Rohbefunde aus [Bericht 19](19-rohbefunde-spielgefuehl.md) |
 | **Branch** | `claude/validate-bericht-19-findings-85aiaz` (Vorgabe dieser Sitzung – **nicht** main; Merge ist Sams Handgriff) |
 | **Basis** | `3834b52` |
-| **Tests** | `npm run check` grün – 74 Dateien, 1023 Tests |
-| **Status** | 51 Befunde gegengeprüft, 32 behoben, 13 bestätigt-aber-offen, 20 ungeprüft |
+| **Tests** | `npm run check` grün – 76 Dateien, 1034 Tests |
+| **Status** | 51 gegengeprüft: 36 behoben, 53 teilweise, 13 bestätigt-aber-offen, Befund 2 verworfen · 20 ungeprüft |
 
 ## 1. Wie gemessen wurde
 
@@ -36,7 +36,7 @@ behoben. Das Rohmaterial war vorsortiert – die Gegenprüfung hat trotzdem
 Titel, Schweren und Zahlen in großem Stil korrigiert, und ohne sie wären
 mindestens drei falsche Behebungen passiert (2, 63, 64 – siehe unten).
 
-## 2. Behoben (32 Befunde, drei Commits)
+## 2. Behoben (36 Befunde)
 
 **Server, jede Behebung mit Test:**
 
@@ -116,6 +116,24 @@ einen Moment (Ring, Funken, Ruck, Dreiklang), und ihre Karte trägt jetzt die
 Füllbedingung der Signature (12) – laut GOAL.md das Entscheidende an den
 Familien, und sie stand nur im Rad auf Taste C.
 
+**Retention-Runde (im zweiten Teil der Sitzung nachgezogen):** Ein Gast nimmt
+jetzt etwas mit. Der lokale Rekord (48, `mazers-run`: Bestscore, bestes Level,
+meiste Kills, längster Lauf, Läufe) steht als Zeile auf dem Startscreen
+(„Dein Rekord: 9.041 · Level 31 · 3 Läufe") und vergleicht auf dem
+Death-Screen ab dem zweiten Lauf („Neuer Bestwert!" / „Dein Bestwert: …" –
+die erste der drei Zeilen aus Befund 53). Freischaltungen überleben den
+Reload (49, `mazers-achievements`): Die Galerie eines Gasts zählt seine lokal
+gemerkten Erfolge, statt eine Sekunde nach dem Gratulations-Popup wieder 0/7
+zu behaupten. Die Start-Bestenliste markiert die eigenen Zeilen über den
+gemerkten Namen und nennt den Abstand zum letzten Platz (56, „Dein Bestwert:
+6.200 – Platz 50 liegt bei 8.100."); der Standardname „Player" zählt bewusst
+nicht als Identität. Und die welcome-Nachricht trägt `achievements` (60):
+Vergibt ein Server keine Erfolge, sagt die Galerie das ehrlich, statt sieben
+Bedingungen zu zeigen, auf die niemand hinspielen kann. Alles ohne Migration,
+alles mit Tests (`run-record.test.ts`, `local-achievements.test.ts`,
+`start-leaderboard.test.ts`). Nebenbei: DEPLOYMENT.md nannte für
+`ACHIEVEMENTS_ENABLED` noch den Stand vor der 29er-Behebung – korrigiert.
+
 **Kleinere bestätigte Befunde:** kein „ALPHA" mehr mitten im HUD (37), Level
 im Namensschild jedes Tanks (11 – der Level-30-Rückkehrer im Core sah aus wie
 ein Anfänger, bei 242 statt 110 Leben), eine Familienfarbe je Familie mit den
@@ -127,7 +145,7 @@ REPEL-Knopf heißt DROHNEN und existiert nur für Drohnenklassen – vorher war
 seine einzige Wirkung für 55 Klassen, still den Spawnschutz zu beenden (40),
 und der Name überlebt den Reload (54, `mazers-name`).
 
-## 3. Bestätigt, aber bewusst nicht angefasst (13)
+## 3. Bestätigt, aber bewusst nicht angefasst (13: 3, 5, 6, 7, 19, 20-Text, 41, 43, 51, 55, 57, 63, 64)
 
 * **Befund 63 (Repulse wirkungslos) – der wichtigste Nicht-Fix.** Der
   Schalter ist kein vergessener wie beim Dash-Präzedenzfall: In index.ts steht
@@ -161,21 +179,17 @@ und der Name überlebt den Reload (54, `mazers-name`).
   Formen-Muster (einmal je ID senden) – Wire-Runde.
 * **Befund 43 (Pinch-Zoom im Rad).** Bestätigt inkl. `zentriereAuf` ohne
   einzigen Aufrufer; eigenständige Client-Runde.
-* **Retention-Paket (48, 49, 53, 55, 56).** Alle bestätigt, mit
-  Reihenfolge-Abhängigkeit: erst der lokale Rekord (48) und der gemerkte Name
-  (54 – erledigt), dann tragen Death-Screen-Vergleich (53), Login-Zeile mit
-  Preis (55) und Selbstmarkierung der Start-Bestenliste (56). Das ist die
-  nächste zusammenhängende Client-Runde.
+* **Rest des Retention-Pakets (53-Rest, 55).** 48, 49, 54, 56 und die erste
+  53er-Zeile sind erledigt (Abschnitt 2). Offen: die Login-Zeile mit Preis
+  auf dem Death-Screen (55 – der Wortlaut ist Produktton, den sollte Sam
+  absegnen) und die restlichen 53er-Zeilen (Abstand zur Bestenliste auf der
+  Death-Karte, frisch freigeschaltete Erfolge dort nennen).
 * **Befund 51 (Bestenliste ewig/ohne Dedup).** Kein Bug – der Code tut, was er
   soll. Zeitfenster-Reiter und Dedup sind Produktentscheidungen, und sauberer
   Dedup geht nur über `user_id` (Gäste heißen alle „Player"). Sam.
 * **Befund 57 (Royale-Sieg ohne Spur).** Ein `royaleWinner`-Achievement wäre
   migrationsfrei (die Tabelle ist darauf gebaut), aber welche Momente eine
   Belohnung verdienen, ist Content – Sam.
-* **Befund 60 (Client weiß nicht, ob Achievements an sind).** Durch die
-  29er-Behebung von „jede Standard-Installation" auf „Robustheitslücke"
-  geschrumpft; `achievements: boolean` in der welcome-Nachricht bleibt richtig
-  und billig. DEPLOYMENT.md:70 war noch auf dem alten Stand – korrigiert.
 * **Rest von Befund 2:** Der Kill-Ruck ist fest 3 und skaliert als einziger
   Reiz nie (Streak, Opferlevel). Kosmetik, notiert.
 
@@ -203,7 +217,7 @@ Schwierigkeits-Entscheidungen, also mindestens zur Hälfte Sams.
 ## 6. Proben- und Testlage
 
 ```
-npm run check      1023 Tests gruen (74 Dateien; +22 neue)
+npm run check      1034 Tests gruen (76 Dateien; +33 neue)
 wire-probe         gruen
 progress-probe     gruen (im Suite-Lauf einmal an der Container-Last
                    gescheitert, einzeln reproduzierbar gruen)
@@ -243,8 +257,10 @@ mit, sonst wäre Befund 65 beim nächsten Mal wieder durchgerutscht.
    Abschnitt 4. Alles andere hängt nicht daran.
 2. **Die Bot-Gruppe (71–79) nachmessen** – eigene Sitzung, Messskripte nach
    den Gegenproben im Bericht 19.
-3. **Retention-Runde:** 48 → 53/55/56 in dieser Reihenfolge, plus 19/41
-   (Wire-Felder) und 7 (AEGIS-Ereignis), wenn Sam nickt.
+3. **Rest der Retention-Runde:** die Login-Zeile auf dem Death-Screen (55,
+   Wortlaut mit Sam) und die restlichen 53er-Zeilen; dazu die kleinen
+   Wire-Runden 19 (eigener Rang), 41 (Drohnen-Radius), 7 (AEGIS-Ereignis)
+   und 5 (Trefferrichtung), wenn Sam nickt.
 4. **Prediction-Messlauf (64)** in beiden Stellungen, dann den Default
    entscheiden.
 5. Der einzige echte Blocker bleibt unverändert Sams: Migration

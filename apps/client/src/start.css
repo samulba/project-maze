@@ -351,6 +351,17 @@
   letter-spacing: .08em;
 }
 
+/* Der lokale Rekord (Befund 48) – eine Zeile, kein Kasten: Auf 1366×768 ist
+   die Karte knapp, jede zusätzliche Höhe kostet den scrollfreien Start. */
+.start-record {
+  margin: 8px 0 0;
+  color: var(--muted);
+  text-align: center;
+  font-size: 10px;
+  font-weight: 650;
+}
+.start-record[hidden] { display: none; }
+
 /* ------------------------------------------------------------------ *
  * Bestenliste (A4) – nur sichtbar, wenn der Server sie liefert
  * ------------------------------------------------------------------ */
@@ -373,6 +384,14 @@
   border-radius: 9px;
 }
 .start-board-list li:nth-child(odd) { background: rgba(255, 255, 255, .022); }
+/* Die eigene Zeile (Befund 56) – dieselbe Sprache wie .leader-row.self im HUD. */
+.start-board-list li.self {
+  outline: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+/* Der Abstandssatz über der Liste (Befund 56). */
+.start-board-distance { margin: 0 0 8px; color: var(--muted); font-size: 11px; font-weight: 650; }
+.start-board-distance[hidden] { display: none; }
 .start-board-list b { color: #6d748a; font-size: 11px; font-weight: 800; text-align: center; }
 .start-board-list span {
   overflow: hidden;
@@ -414,6 +433,7 @@
   .start-logo-wrap { width: 58px; height: 58px; }
   .start-tagline { display: none; }
   .start-note { display: none; }
+  .start-record { display: none; }
   .start-status { margin-top: 8px; }
 }
 /*

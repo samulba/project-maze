@@ -1,6 +1,7 @@
 import type { WorldSnapshot } from '@project-maze/shared';
 import type { GameplayWorldExtension } from '@project-maze/shared/gameplay';
 import { AchievementQueue, achievementInfo } from './achievements';
+import { rememberUnlock } from './local-achievements';
 
 type ExtendedSnapshot = WorldSnapshot & Partial<GameplayWorldExtension>;
 
@@ -38,7 +39,11 @@ export class AchievementPopups {
   }
 
   update(snapshot: WorldSnapshot, now = performance.now()): void {
-    this.queue.push((snapshot as ExtendedSnapshot).freshAchievements);
+    const fresh = (snapshot as ExtendedSnapshot).freshAchievements;
+    this.queue.push(fresh);
+    // Lokal mitschreiben (Befund 49): Ohne Konto lebte eine Freischaltung
+    // genau 4,6 Sekunden – danach behauptete die Galerie wieder 0/7.
+    if (fresh) for (const id of fresh) rememberUnlock(id);
     this.render(now);
   }
 

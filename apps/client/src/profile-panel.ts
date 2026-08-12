@@ -11,6 +11,7 @@ import {
   usableProfile,
   type PublicProfile
 } from './profile';
+import { readLocalUnlocks } from './local-achievements';
 
 export type ToastFn = (title: string, message: string, tone: 'normal' | 'danger' | 'success') => void;
 
@@ -36,6 +37,10 @@ export class ProfilePanel {
   private user: AuthUser | null = null;
   /** Verhindert, dass eine langsame Antwort ein neueres Konto überschreibt. */
   private ladelauf = 0;
+  /** Vergibt der verbundene Server Erfolge? Bis zum welcome: optimistisch ja. */
+  private serverAchievements = true;
+  /** Zuletzt gezeigtes Profil – für den Neuaufbau der Galerie. */
+  private letztesProfil: PublicProfile | null = null;
 
   constructor(
     root: HTMLElement,
@@ -102,6 +107,17 @@ export class ProfilePanel {
     this.zeigeGalerie(null);
   }
 
+  /**
+   * Vom welcome der Verbindung (Befund 60): Vergibt dieser Server überhaupt
+   * Erfolge? Bei `false` bekommt die Galerie einen ehrlichen Satz, statt
+   * sieben Bedingungen zu zeigen, auf die niemand hinspielen kann.
+   */
+  setServerAchievements(enabled: boolean): void {
+    if (this.serverAchievements === enabled) return;
+    this.serverAchievements = enabled;
+    this.zeigeGalerie(this.letztesProfil);
+  }
+
   private renderSignedIn(user: AuthUser, profil: PublicProfile | null): void {
     if (this.summaryHint) this.summaryHint.textContent = profil?.stats.runs ? `${profil.stats.runs} LÄUFE` : 'ANGEMELDET';
     const name = profil?.displayName ?? user.name ?? '';
@@ -118,10 +134,23 @@ export class ProfilePanel {
    * holen gibt, ist für einen Gast wertvoller als eine leere Seite.
    */
   private zeigeGalerie(profil: PublicProfile | null): void {
-    const eintraege = achievementGallery(profil?.achievements ?? []);
+    this.letztesProfil = profil;
+    // Gäste sehen ihre lokal gemerkten Freischaltungen (Befund 49): Vorher
+    // stand die Galerie eine Sekunde nach dem Gratulations-Popup wieder auf
+    // 0/7. Mit Konto ist der Server die Autorität.
+    const eintraege = achievementGallery(profil?.achievements ?? readLocalUnlocks());
     const offen = eintraege.filter((eintrag) => eintrag.unlockedAt !== null).length;
     if (this.galerieHint) this.galerieHint.textContent = `${offen} / ${eintraege.length}`;
-    if (this.galerieHost) this.galerieHost.replaceChildren(this.galerie(profil));
+    if (this.galerieHost) {
+      const teile: HTMLElement[] = [];
+      if (!this.serverAchievements) {
+        // Befund 60: Ein Versprechen, das dieser Server nicht einlösen kann,
+        // steht nicht kommentarlos auf der Seite.
+        teile.push(this.absatz('profile-note', 'Dieser Server vergibt keine Achievements – die Galerie zeigt nur den Katalog.'));
+      }
+      teile.push(this.galerie(profil));
+      this.galerieHost.replaceChildren(...teile);
+    }
   }
 
   /** Kopf der Karte: Anzeigename (änderbar), Mitglied seit, Lieblingsklasse. */
@@ -184,7 +213,8 @@ export class ProfilePanel {
   }
 
   private galerie(profil: PublicProfile | null): HTMLElement {
-    const eintraege = achievementGallery(profil?.achievements ?? []);
+    // Dieselbe Quelle wie zeigeGalerie: Gäste zählen ihre lokalen Unlocks.
+    const eintraege = achievementGallery(profil?.achievements ?? readLocalUnlocks());
     const offen = eintraege.filter((eintrag) => eintrag.unlockedAt !== null).length;
     const block = document.createElement('div');
     block.className = 'profile-achievements';

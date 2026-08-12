@@ -422,6 +422,9 @@ function handleServerMessage(message: ServerMessage): void {
     // (PLAYABLE ALPHA, balance-lab.css), nicht dauerhaft mitten im HUD
     // (Befund 37).
     ui.setConnection('online', modus === 'maze' ? 'MAZERS' : `MAZERS · ${ARENA_MODES[modus].label.toUpperCase()}`);
+    // Befund 60: Die Galerie soll wissen, ob dieser Server Erfolge vergibt.
+    // Alte Server lassen das Feld weg – dann bleibt es beim optimistischen Ja.
+    profilePanel.setServerAchievements(message.achievements ?? true);
     ui.toast('Arena betreten', 'Farme Formen und entwickle deinen Tank.', 'success');
     input?.setEnabled(true);
     return;

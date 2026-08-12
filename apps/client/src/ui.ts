@@ -26,6 +26,7 @@ import {
 } from './family-upgrades';
 import { royaleDeathText, royaleZoneOf } from './royale-hud';
 import { runDurationText, runSeconds } from './run-clock';
+import { deathRecordLine, readRunRecord, recordLine, rememberRun } from './run-record';
 import { signatureLabel, signatureRatio } from './signature';
 import { START_NAV } from './start-nav';
 import { spectatedName, spectatedPlayer } from './spectator';
@@ -124,6 +125,9 @@ export class GameUI {
   private readonly deathPortrait: HTMLElement;
   /** Kurzfassung derselben Zahlen – ersetzt die Kachelwand beim Zuschauen. */
   private readonly deathSummary: HTMLElement;
+  private readonly deathRecord: HTMLElement;
+  /** Vergleich des gerade beendeten Laufs mit dem lokalen Rekord (Befund 48/53). */
+  private lastRunVerdict: string | null = null;
   private readonly respawnButton: HTMLButtonElement;
   private readonly respawnCountdown: HTMLElement;
   /** Rundenstand auf der Todeskarte – nur im Battle Royale sichtbar. */
@@ -195,6 +199,7 @@ export class GameUI {
               </nav>
 
               <p class="start-note"><span>WASD</span><span>LINKS FEUER</span><span>E AUTO</span><span>SPACE MODUL</span><span>C KLASSEN</span></p>
+              <p class="start-record" id="start-record" hidden></p>
             </form>
 
             <section class="start-page start-page-wide" data-view="klassen" hidden>
@@ -221,6 +226,7 @@ export class GameUI {
               ${seitenkopf('Bestenliste')}
               <div class="start-page-body">
                 <div class="start-board" id="start-board">
+                  <p class="start-board-distance" data-board-distance hidden></p>
                   <ol class="start-board-list" data-board-list></ol>
                   <p class="start-page-empty" data-board-empty>Die Bestenliste ist auf diesem Server noch nicht eingerichtet.</p>
                 </div>
@@ -321,6 +327,7 @@ export class GameUI {
               <p id="death-killer">Eliminiert von Arena</p>
               <div class="death-stats" id="death-stats"></div>
               <p class="death-summary" id="death-summary"></p>
+              <p class="death-record" id="death-record" hidden></p>
               <!--
                 Der Weg zurück ins Spiel steht in einem eigenen Kasten, der am
                 unteren Rand der Karte klebt (hud-layout.css, position sticky).
@@ -397,12 +404,22 @@ export class GameUI {
     this.deathStats = this.require('#death-stats');
     this.deathPortrait = this.require('#death-portrait');
     this.deathSummary = this.require('#death-summary');
+    this.deathRecord = this.require('#death-record');
     this.respawnButton = this.require<HTMLButtonElement>('#respawn-button');
     this.respawnCountdown = this.require('#respawn-countdown');
     this.royaleDeathNote = this.require('#royale-death-note');
     this.vignette = this.require('#damage-vignette');
 
     this.require<HTMLInputElement>('#player-name').addEventListener('input', () => { this.nameTouched = true; });
+    // Der lokale Rekord auf dem Startscreen (Befund 48): Wer wiederkommt,
+    // findet etwas vor, das er fortsetzen kann – vorher war die Seite von
+    // seinem ersten Besuch nicht zu unterscheiden.
+    const rekordZeile = recordLine(readRunRecord());
+    if (rekordZeile !== null) {
+      const rekord = this.require('#start-record');
+      rekord.textContent = rekordZeile;
+      rekord.hidden = false;
+    }
     // Der Name überlebt den Reload (Befund 54): Vorher hieß jeder Wiederkehrer
     // wieder „Player" und konnte seine eigene Bestenlisten-Zeile von der eines
     // Fremden nicht unterscheiden. Login-Prefill (prefillPlayerName) gewinnt
@@ -673,7 +690,19 @@ export class GameUI {
       this.runEndedAt = null;
       this.killsAtLifeStart = self.kills;
     }
-    if (!this.wasDead && self.dead) this.runEndedAt = Date.now();
+    if (!this.wasDead && self.dead) {
+      this.runEndedAt = Date.now();
+      // Der Lauf wandert in den lokalen Rekord (Befund 48) – Score vor der
+      // Halbierung, Kills dieses Lebens, Dauer aus der Lebensuhr. Der
+      // Vergleichssatz steht gleich auf der Death-Karte (Befund 53).
+      const ergebnis = rememberRun({
+        score: self.score,
+        level: self.deathLevel,
+        kills: Math.max(0, self.kills - this.killsAtLifeStart),
+        seconds: runSeconds(this.runStartedAt, this.runEndedAt, Date.now())
+      });
+      this.lastRunVerdict = deathRecordLine(ergebnis, self.score);
+    }
     this.wasDead = self.dead;
 
     if (self.streak > this.lastStreak && [3, 5, 8, 12].includes(self.streak)) {
@@ -779,6 +808,10 @@ export class GameUI {
     this.deathKiller.textContent = `Eliminiert von ${self.killerName || 'Arena'}`;
     // Dieselben Zahlen in einer Zeile statt in sechs Kacheln.
     this.deathSummary.textContent = `LEVEL ${self.deathLevel} · ${lifeKills} KILLS · ${self.score.toLocaleString('de-DE')} SCORE · ${aliveText}`;
+    // Der Haken nach vorn (Befund 53): War das gut? Ab dem zweiten Lauf
+    // steht hier die Antwort – Neuer Bestwert oder der Abstand zum eigenen.
+    this.deathRecord.hidden = this.lastRunVerdict === null;
+    if (this.lastRunVerdict !== null) this.deathRecord.textContent = this.lastRunVerdict;
     this.deathStats.innerHTML = `<div><span>Erreicht</span><b>Level ${self.deathLevel}</b></div><div><span>${respawnTileLabel(facts)}</span><b>${respawnTileValue(facts)}</b></div><div><span>Score</span><b>${self.score.toLocaleString('de-DE')}</b></div><div><span>Kills</span><b>${lifeKills}</b></div><div><span>Überlebt</span><b>${aliveText}</b></div><div><span>Beste Streak</span><b>${self.bestStreak}</b></div>`;
     /*
      * Im Battle Royale gibt es keinen Wiedereinstieg in die laufende Runde –

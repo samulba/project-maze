@@ -1,4 +1,5 @@
 import { CLASS_DEFINITIONS, type PlayerClass } from '@project-maze/shared';
+import { readRunRecord } from './run-record';
 
 /**
  * Bestenliste auf dem Startscreen (`GET /leaderboard`).
@@ -77,6 +78,39 @@ export function usableEntries(payload: unknown): LeaderboardEntry[] {
     && Number.isFinite(entry.rank));
 }
 
+/**
+ * Der gemerkte Name als einzige Gast-Identität (Befunde 54/56). Der
+ * Standardname zählt nicht: Zwanzig „Player"-Zeilen als „deine" zu markieren
+ * wäre die falsche Auskunft.
+ */
+export function ownPlayerName(read: (key: string) => string | null = (key) => {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}): string | null {
+  try {
+    const name = read('mazers-name')?.trim() ?? '';
+    return name && name !== 'Player' ? name : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * „Dein Bestwert: X · Platz N liegt bei Y" – der Abstand zum Ziel, gerechnet
+ * aus der ohnehin geholten Antwort (Befund 56). Ohne lokalen Bestand (erster
+ * Besuch) gibt es nichts zu vergleichen.
+ */
+export function distanceLine(entries: readonly LeaderboardEntry[], bestScore: number | null): string | null {
+  if (bestScore === null || entries.length === 0) return null;
+  const letzte = entries[Math.min(entries.length, LEADERBOARD_LIMIT) - 1];
+  if (!letzte) return null;
+  if (bestScore >= letzte.score) return `Dein Bestwert: ${formatScore(bestScore)} – du spielst in dieser Liga.`;
+  return `Dein Bestwert: ${formatScore(bestScore)} – Platz ${letzte.rank} liegt bei ${formatScore(letzte.score)}.`;
+}
+
 export class StartLeaderboard {
   private readonly panel: HTMLElement;
   private readonly list: HTMLElement;
@@ -84,12 +118,15 @@ export class StartLeaderboard {
   private readonly meta: HTMLElement | null;
   /** Erklärt die leere Seite, statt sie leer zu lassen. */
   private readonly empty: HTMLElement | null;
+  /** Der Abstandssatz über der Liste (Befund 56). */
+  private readonly distance: HTMLElement | null;
 
   constructor(root: HTMLElement) {
     this.panel = root.querySelector<HTMLElement>('#start-board')!;
     this.list = this.panel.querySelector<HTMLElement>('[data-board-list]')!;
     this.meta = root.querySelector<HTMLElement>('[data-board-meta]');
     this.empty = this.panel.querySelector<HTMLElement>('[data-board-empty]');
+    this.distance = this.panel.querySelector<HTMLElement>('[data-board-distance]');
   }
 
   /**
@@ -132,9 +169,14 @@ export class StartLeaderboard {
 
   private render(entries: LeaderboardEntry[]): void {
     if (entries.length === 0) return;
+    // Die eigenen Zeilen (Befund 56): Der gemerkte Name (Befund 54) ist die
+    // einzige Identität eines Gasts – dieselbe Heuristik, mit der er sich
+    // selbst in der Liste suchen würde, nur ohne das Suchen.
+    const eigenerName = ownPlayerName();
     this.list.replaceChildren();
     for (const entry of entries.slice(0, LEADERBOARD_LIMIT)) {
       const row = document.createElement('li');
+      if (eigenerName !== null && entry.playerName === eigenerName) row.className = 'self';
       const rank = document.createElement('b');
       const name = document.createElement('span');
       const detail = document.createElement('small');
@@ -148,6 +190,13 @@ export class StartLeaderboard {
     }
     const anzahl = Math.min(entries.length, LEADERBOARD_LIMIT);
     if (this.meta) this.meta.textContent = `TOP ${anzahl}`;
+    // Der Abstandssatz (Befund 56): Ein Ziel, dessen Abstand man nicht kennt,
+    // ist keines. Beides ist aus der schon geholten Antwort rechenbar.
+    const abstand = distanceLine(entries, readRunRecord()?.bestScore ?? null);
+    if (this.distance) {
+      this.distance.hidden = abstand === null;
+      if (abstand !== null) this.distance.textContent = abstand;
+    }
     if (this.empty) this.empty.hidden = true;
     this.panel.hidden = false;
     this.markScrollable();

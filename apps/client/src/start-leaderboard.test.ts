@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   LEADERBOARD_LIMIT,
   classLabel,
+  distanceLine,
   formatDuration,
   formatScore,
   leaderboardUrl,
+  ownPlayerName,
   usableEntries,
   type LeaderboardEntry
 } from './start-leaderboard';
@@ -93,5 +95,27 @@ describe('usableEntries', () => {
     expect(usableEntries({ entries: 'nope' })).toEqual([]);
     // Das ist die Antwort ohne konfigurierte Persistenz.
     expect(usableEntries({ error: 'Leaderboard ist nicht konfiguriert.' })).toEqual([]);
+  });
+});
+
+describe('eigene Zeile und Abstand (Befund 56)', () => {
+  it('kennt den eigenen Namen nur, wenn er nicht der Standard ist', () => {
+    expect(ownPlayerName(() => 'Sam')).toBe('Sam');
+    expect(ownPlayerName(() => '  Sam  ')).toBe('Sam');
+    // Zwanzig „Player"-Zeilen als „deine" zu markieren wäre die falsche Auskunft.
+    expect(ownPlayerName(() => 'Player')).toBeNull();
+    expect(ownPlayerName(() => null)).toBeNull();
+    expect(ownPlayerName(() => { throw new Error('kein Storage'); })).toBeNull();
+  });
+
+  it('nennt den Abstand zum letzten Platz der Liste', () => {
+    const entries = [entry({ rank: 1, score: 12_000 }), entry({ rank: 2, score: 8_100, playerName: 'Orbit' })];
+    expect(distanceLine(entries, 6_200)).toBe('Dein Bestwert: 6.200 – Platz 2 liegt bei 8.100.');
+    expect(distanceLine(entries, 9_000)).toBe('Dein Bestwert: 9.000 – du spielst in dieser Liga.');
+  });
+
+  it('schweigt ohne lokalen Bestand oder ohne Liste', () => {
+    expect(distanceLine([], 5_000)).toBeNull();
+    expect(distanceLine([entry()], null)).toBeNull();
   });
 });
