@@ -491,7 +491,19 @@ export function tuneSessions<T extends MazeGame>(game: T, options: SessionsOptio
     const session = target.dead ? undefined : state.open.get(target.id);
     if (session) {
       session.runs += 1;
-      session.kills += Math.max(0, Math.round(target.kills));
+      /*
+       * HOECHSTSTAND, nicht Summe: `player.kills` zaehlt ueber die ganze
+       * Sitzung weiter -- `respawn()` setzt Score, Streak und Level zurueck,
+       * die Abschuesse aber nicht. Wer bei jedem Tod addiert, summiert
+       * dieselben Abschuesse erneut:
+       *
+       *   Leben mit 2, 3, 2 Abschuessen -> addiert 2 + 5 + 7 = 14 statt 7.
+       *
+       * Der Fehler waechst dreieckig mit der Zahl der Leben und landete
+       * ungebremst in `sessions.kills` -- also in der Kennzahl, an der man
+       * abliest, wie viel in einer Sitzung passiert ist.
+       */
+      session.kills = Math.max(session.kills, Math.max(0, Math.round(target.kills)));
       session.bestScore = Math.max(session.bestScore, Math.max(0, Math.round(target.score)));
       session.bestLevel = Math.max(session.bestLevel, Math.max(1, Math.round(target.level)));
     }
@@ -505,6 +517,9 @@ export function tuneSessions<T extends MazeGame>(game: T, options: SessionsOptio
     const session = state.open.get(id);
     const player = internals.players.get(id);
     if (session && player && !player.dead) {
+      // Auch die Abschuesse: Wer geht, ohne je zu sterben, haette sonst 0 --
+      // und das ist ausgerechnet der Spieler, der gut war.
+      session.kills = Math.max(session.kills, Math.max(0, Math.round(player.kills)));
       session.bestScore = Math.max(session.bestScore, Math.max(0, Math.round(player.score)));
       session.bestLevel = Math.max(session.bestLevel, Math.max(1, Math.round(player.level)));
     }

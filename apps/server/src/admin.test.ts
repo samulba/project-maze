@@ -22,6 +22,7 @@ import {
   foldClassUsage,
   identify,
   sinceIso,
+  zeilenAb,
   summarize,
   unusedClasses
 } from './admin.js';
@@ -188,6 +189,37 @@ describe('foldClassUsage', () => {
     const ungenutzt = unusedClasses(usage);
     expect(ungenutzt.length).toBeGreaterThan(60);
     expect(ungenutzt).not.toContain('Rapid');
+  });
+});
+
+/**
+ * Der Filter fuer die "Heute"-Kacheln. Er sah harmlos aus (`row.day >= abIso`)
+ * und war der Grund, warum das Portal jeden Tag "0 Spieler heute" zeigte --
+ * direkt neben einem Zeitraum-Wert, der denselben Tag mitzaehlt.
+ */
+describe('zeilenAb', () => {
+  const zeile = (day: string): { day: string } => ({ day });
+
+  it('nimmt den heutigen Tag mit, obwohl die Formate verschieden aussehen', () => {
+    // Links das Format von PostgREST (timestamptz), rechts das von toISOString.
+    const heute = zeilenAb([zeile('2026-08-11T00:00:00+00:00')], '2026-08-11T00:00:00.000Z');
+    expect(heute).toHaveLength(1);
+    // Der Zeichenvergleich, der hier frueher stand, sagt das Gegenteil:
+    expect('2026-08-11T00:00:00+00:00' >= '2026-08-11T00:00:00.000Z').toBe(false);
+  });
+
+  it('laesst aeltere Tage draussen', () => {
+    const zeilen = [zeile('2026-08-09T00:00:00+00:00'), zeile('2026-08-10T00:00:00+00:00'), zeile('2026-08-11T00:00:00+00:00')];
+    expect(zeilenAb(zeilen, '2026-08-10T00:00:00.000Z').map((z) => z.day.slice(8, 10))).toEqual(['10', '11']);
+  });
+
+  it('wirft unlesbare Zeitstempel heraus, statt sie mitzuzaehlen', () => {
+    // Lieber eine Zeile zu wenig als eine Kachel, die Muell addiert.
+    expect(zeilenAb([zeile('kein Datum'), zeile('2026-08-11T00:00:00+00:00')], '2026-08-11T00:00:00.000Z')).toHaveLength(1);
+  });
+
+  it('gibt alles zurueck, wenn die Grenze selbst unlesbar ist', () => {
+    expect(zeilenAb([zeile('2026-08-11T00:00:00+00:00')], 'kaputt')).toHaveLength(1);
   });
 });
 

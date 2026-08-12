@@ -255,6 +255,32 @@ const dayParameter = (raw: unknown): number => {
   return Math.max(1, Math.min(MAX_DAYS, parsed));
 };
 
+/**
+ * Zeilen ab einem Stichtag – **nach Zeit verglichen, nicht nach Zeichen**.
+ *
+ * Der naheliegende Weg `row.day >= abIso` ist genau hier eine Falle, und sie
+ * hat zugeschlagen: PostgREST liefert `timestamptz` als
+ * `2026-08-11T00:00:00+00:00`, `toISOString()` schreibt
+ * `2026-08-11T00:00:00.000Z`. Zeichenweise verglichen ist `+` (43) kleiner als
+ * `.` (46) – die Zeile von HEUTE fällt damit aus dem Filter für heute heraus.
+ *
+ * Die Folge war eine Anzeige, die jeden Tag „0 Spieler heute" zeigte, direkt
+ * neben einem Zeitraum-Wert, der denselben Tag mitzählt (dort filtert Postgres,
+ * nicht JavaScript). Wer die Kacheln liest, schliesst daraus das Falsche über
+ * genau die Frage, für die es das Portal gibt.
+ *
+ * Unlesbare Zeitstempel fallen heraus statt hinein: Lieber eine Zeile zu wenig
+ * als eine Kachel, die Müll addiert.
+ */
+export function zeilenAb<T extends { day: string }>(zeilen: readonly T[], abIso: string): T[] {
+  const grenze = Date.parse(abIso);
+  if (!Number.isFinite(grenze)) return [...zeilen];
+  return zeilen.filter((zeile) => {
+    const zeitpunkt = Date.parse(zeile.day);
+    return Number.isFinite(zeitpunkt) && zeitpunkt >= grenze;
+  });
+}
+
 /** Mitternacht UTC vor `days` Tagen – der Startpunkt jeder Zeitraumabfrage. */
 export function sinceIso(days: number, now = Date.now()): string {
   const start = new Date(now);
@@ -331,7 +357,7 @@ export function createAdminRoutes(options: AdminOptions): {
         ...base,
         database: true,
         daily,
-        today: summarize(daily.filter((row) => row.day >= heute)),
+        today: summarize(zeilenAb(daily, heute)),
         window: summarize(daily),
         classes: usage,
         unusedClasses: unusedClasses(usage),

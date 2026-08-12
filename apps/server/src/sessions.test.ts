@@ -106,6 +106,57 @@ describe('Sitzungserfassung', () => {
     stopSessions(game);
   });
 
+  /**
+   * `player.kills` laeuft ueber die ganze Sitzung weiter -- `respawn()` setzt
+   * Score, Streak und Level zurueck, die Abschuesse nicht. Wer bei jedem Tod
+   * ADDIERT, zaehlt dieselben Abschuesse erneut, und der Fehler waechst
+   * dreieckig mit der Zahl der Leben.
+   */
+  it('zaehlt Abschuesse einmal, nicht bei jedem Tod erneut', async () => {
+    const { game, client } = spiele();
+    const id = game.addPlayer('Sam');
+    beginSession(game, id, 'a1b2c3d4e5f60718', 'Sam', 0);
+
+    const intern = game as unknown as {
+      killPlayer(t: unknown, a: string | null, n: number, e: string): void;
+    };
+    const ziel = spieler(game).get(id)!;
+
+    // Drei Leben mit 2, 3 und 2 Abschuessen -- kumulativ also 2, 5, 7.
+    for (const stand of [2, 5, 7]) {
+      ziel.kills = stand;
+      ziel.dead = false;
+      intern.killPlayer(ziel, null, 1_000 * stand, 'Arena');
+    }
+
+    endSession(game, id, 60_000);
+    await flushSessions(game);
+
+    const eintrag = client.geschrieben[0]!;
+    expect(eintrag.runs).toBe(3);
+    // Addiert waeren es 14 -- die Zahl, die vorher in der Datenbank stand.
+    expect(eintrag.kills).toBe(7);
+    stopSessions(game);
+  });
+
+  it('nimmt die Abschuesse auch von dem mit, der nie stirbt', async () => {
+    const { game, client } = spiele();
+    const id = game.addPlayer('Sam');
+    beginSession(game, id, 'a1b2c3d4e5f60718', 'Sam', 0);
+
+    const ziel = spieler(game).get(id)!;
+    ziel.kills = 9;
+    ziel.score = 3_000;
+
+    // Verlassen ohne Tod: Genau der Spieler, der gut war, haette sonst 0.
+    game.removePlayer(id);
+    endSession(game, id, 60_000);
+    await flushSessions(game);
+
+    expect(client.geschrieben[0]!.kills).toBe(9);
+    stopSessions(game);
+  });
+
   it('verwirft zu kurze Besuche, statt sie als Spieler zu zaehlen', async () => {
     const { game, client } = spiele();
     const id = game.addPlayer('Sam');
