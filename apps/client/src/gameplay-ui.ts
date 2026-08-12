@@ -16,13 +16,18 @@ import { vibrate } from './input';
 type ExtendedSnapshot = WorldSnapshot & Partial<GameplayWorldExtension>;
 type SendMessage = (message: object) => void;
 
+// Auch Knöpfe und Links zählen: Ein `<button>` wird per Spezifikation von der
+// Leertaste aktiviert – wer per Tab auf RESPAWN oder ARENA BETRETEN steht,
+// dessen Space gehört dem Knopf, nicht dem Fähigkeits-Hotkey (Befund 70).
 const editableTarget = (target: EventTarget | null): boolean => {
   const element = target instanceof HTMLElement ? target : null;
-  return Boolean(element?.closest('input, textarea, select, [contenteditable="true"]'));
+  return Boolean(element?.closest('input, textarea, select, button, [role="button"], a[href], [contenteditable="true"]'));
 };
 
 const EVENT_COPY: Partial<Record<string, { name: string; active: string; where: string }>> = {
-  coreSurge: { name: 'CORE SURGE', active: 'mehr Shapes und Elites im Zentrum', where: 'Zentrum' },
+  // „Formen" wie im Onboarding – dieselben Dinger hießen hier „Shapes",
+  // und der Neuling musste übersetzen (Befund 45).
+  coreSurge: { name: 'CORE SURGE', active: 'mehr Formen und Eliten im Zentrum', where: 'Zentrum' },
   overcharge: { name: 'OVERCHARGE', active: 'Geschosse löschen sich in der Zone nicht mehr aus', where: 'Zentrum' },
   hunterSignal: { name: 'HUNTER SIGNAL', active: 'neutraler Guardian im Zentrum · 600 Bonus-XP', where: 'Zentrum' },
   // Fracture ist ortlos – ein "Zentrum"-Hinweis würde Spieler an eine Stelle schicken, an der nichts passiert.
@@ -72,7 +77,7 @@ export class GameplayUI {
       const definition = ACTIVE_MODULE_DEFINITIONS[id];
       const option = document.createElement('option');
       option.value = id;
-      option.textContent = `${definition.label} · ${definition.role}`;
+      option.textContent = `${definition.label} · ${definition.roleLabel}`;
       this.moduleSelect.append(option);
     }
     for (const id of PASSIVE_MODIFIER_IDS) {
@@ -142,8 +147,10 @@ export class GameplayUI {
     window.addEventListener('keydown', (event) => {
       if (event.repeat || editableTarget(event.target)) return;
       if (event.code !== 'Space' && event.code !== 'ShiftLeft' && event.code !== 'ShiftRight') return;
-      event.preventDefault();
-      this.activate();
+      // preventDefault erst, wenn die Fähigkeit wirklich zündet: Vorher
+      // unterdrückte der Handler das Space-Verhalten jedes fokussierten
+      // Elements, obwohl `activate()` gleich darauf ausstieg (Befund 70).
+      if (this.activate()) event.preventDefault();
     });
   }
 
@@ -198,7 +205,9 @@ export class GameplayUI {
     const active = gameplay.moduleActiveUntil > snapshot.serverTime;
     const ready = remaining <= 0 && !self.dead;
     this.abilityLabel.textContent = module.shortLabel;
-    this.abilityCooldown.textContent = self.dead ? 'NACH RESPAWN' : active ? 'ACTIVE' : ready ? 'READY' : `${(remaining / 1000).toFixed(1)}S`;
+    // Zustandsanzeigen auf Deutsch – der Knopf zählte vorher abwechselnd auf
+    // Deutsch und Englisch herunter (Befund 45).
+    this.abilityCooldown.textContent = self.dead ? 'NACH RESPAWN' : active ? 'AKTIV' : ready ? 'BEREIT' : `${(remaining / 1000).toFixed(1)}S`;
     this.abilityButton.disabled = !ready || active;
     this.abilityButton.classList.toggle('active', active);
     this.abilityButton.style.setProperty('--charge', `${Math.round(gameplay.moduleCharge * 100)}%`);

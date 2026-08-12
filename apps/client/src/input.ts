@@ -53,6 +53,10 @@ export class InputController {
   private readonly getWorldAim: (pointer: Vector2) => Vector2;
   private readonly finePointer = window.matchMedia('(pointer: fine)').matches;
   private readonly resetSticks: Array<() => void> = [];
+  /** Weiche Variante: Eingabewerte auf null, aber der liegende Daumen bleibt gebucht. */
+  private readonly calmSticks: Array<() => void> = [];
+  /** Nach `setEnabled(true)` die noch liegenden Daumen wieder scharf schalten. */
+  private readonly resyncSticks: Array<() => void> = [];
   private sequence = 0;
   private primaryDown = false;
   private secondaryDown = false;
@@ -139,6 +143,10 @@ export class InputController {
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     if (!enabled) this.resetTransient();
+    // Ein Daumen, der ueber den Tod hinweg liegen blieb, erzeugt kein zweites
+    // pointerdown -- ohne Resync waeren beide Sticks nach jedem Respawn tot,
+    // bis der Spieler beide Finger hebt und neu aufsetzt (Befund 61).
+    else for (const resync of this.resyncSticks) resync();
   }
 
   nextMessage(): InputMessage {
@@ -198,15 +206,30 @@ export class InputController {
     return this.autoFire;
   }
 
+  /**
+   * Räumt flüchtigen Eingabezustand: Tasten, Maustasten, Stick-WERTE. Die
+   * Stick-BUCHFÜHRUNG (welcher Zeiger, welcher Ursprung) ist nicht flüchtig --
+   * sie beschreibt einen physisch auf dem Glas liegenden Finger und bleibt
+   * stehen, damit `setEnabled(true)` ihn wieder scharf schalten kann.
+   * Autofire bleibt als bewusste Einstellung ebenfalls stehen.
+   */
   resetTransient(): void {
     this.keys.clear();
     this.primaryDown = false;
     this.secondaryDown = false;
-    for (const reset of this.resetSticks) reset();
+    for (const calm of this.calmSticks) calm();
   }
 
+  /**
+   * Alles auf Anfang -- nur für den Verbindungsabbruch (main.ts), wo wirklich
+   * keine Sitzung mehr weiterläuft. Beim Tod wäre das falsch: Es würde
+   * Autofire abschalten (Befund 68) und liegende Daumen entwaffnen (Befund 61).
+   */
   resetAll(): boolean {
-    this.resetTransient();
+    this.keys.clear();
+    this.primaryDown = false;
+    this.secondaryDown = false;
+    for (const reset of this.resetSticks) reset();
     const changed = this.autoFire;
     this.autoFire = false;
     return changed;
@@ -224,6 +247,7 @@ export class InputController {
     if (!area || !ring || !knob) return;
     let pointerId: number | null = null;
     let origin: Vector2 | null = null;
+    let lastClient: Vector2 | null = null;
     const travel = 46;
 
     const reset = (): void => {
@@ -236,6 +260,7 @@ export class InputController {
       }
       pointerId = null;
       origin = null;
+      lastClient = null;
       state.direction = fires ? { x: 1, y: 0 } : { x: 0, y: 0 };
       state.magnitude = 0;
       state.active = false;
@@ -246,8 +271,21 @@ export class InputController {
     };
     this.resetSticks.push(reset);
 
-    const update = (event: PointerEvent): void => {
-      if (!this.enabled || !origin) { reset(); return; }
+    // Weich: Werte auf null, Zeiger und Ursprung bleiben -- der Daumen liegt ja noch.
+    const calm = (): void => {
+      state.magnitude = 0;
+      state.engaged = false;
+      knob.style.transform = '';
+      area.classList.remove('engaged');
+    };
+    this.calmSticks.push(calm);
+
+    const update = (event: { clientX: number; clientY: number }): void => {
+      if (!origin) { reset(); return; }
+      lastClient = { x: event.clientX, y: event.clientY };
+      // Im Tod laeuft nichts weiter, aber die Position wird gemerkt: Beim
+      // Respawn rechnet der Resync aus genau diesem Stand weiter.
+      if (!this.enabled) return;
       const dx = event.clientX - origin.x;
       const dy = event.clientY - origin.y;
       const rawLength = Math.hypot(dx, dy);
@@ -274,7 +312,9 @@ export class InputController {
     };
 
     area.addEventListener('pointerdown', (event) => {
-      if (!this.enabled || pointerId !== null) return;
+      // Auch im Tod buchen: Die Eingabe bleibt aus (`update` prueft enabled),
+      // aber der Finger ist beim Respawn sofort wieder scharf.
+      if (pointerId !== null) return;
       event.preventDefault();
       pointerId = event.pointerId;
       try {
@@ -298,5 +338,11 @@ export class InputController {
     area.addEventListener('pointerup', release);
     area.addEventListener('pointercancel', release);
     area.addEventListener('lostpointercapture', release);
+
+    // Nach `setEnabled(true)`: Liegt der Daumen noch, aus der letzten bekannten
+    // Position weiterrechnen, statt auf ein pointerdown zu warten, das nie kommt.
+    this.resyncSticks.push((): void => {
+      if (pointerId !== null && origin && lastClient) update({ clientX: lastClient.x, clientY: lastClient.y });
+    });
   }
 }

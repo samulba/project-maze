@@ -160,8 +160,13 @@
     width: min(440px, calc(100vw - 250px));
     translate: none;
   }
+  /*
+   * Der Event-Banner bleibt sichtbar: Der Onboarding-Schritt „event" sagt
+   * wörtlich „Der Banner oben nennt, was gerade gilt" und zeigt auf genau
+   * dieses Element – es auszublenden, während die Karte steht, machte den
+   * Hinweis zur Anleitung für ein unsichtbares Element (Befund 14).
+   */
   :root.onboarding-active .leaderboard,
-  :root.onboarding-active .arena-event-banner,
   :root.onboarding-active .bounty-banner { display: none; }
   /* Toasts bleiben – sie melden Dinge, die auch Anfänger sehen müssen –,
      rücken aber unter die Karte. */

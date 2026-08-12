@@ -12,6 +12,7 @@ import {
 import type { ArenaEventKind } from '@project-maze/shared/gameplay';
 import { arenaEventStyle, cssColor } from './arena-event-style';
 import { classPreviewSvg } from './class-preview';
+import { deathToastText, respawnFacts, respawnTileLabel, respawnTileValue } from './death-summary';
 import {
   FAMILY_LOCK_HINT,
   UPGRADE_SLOT_IDS,
@@ -112,6 +113,7 @@ export class GameUI {
   private readonly autoFire: HTMLButtonElement;
   private readonly toastContainer: HTMLElement;
   private readonly minimap: HTMLCanvasElement;
+  private readonly secondaryAction: HTMLButtonElement;
   private readonly classSelection: HTMLElement;
   private readonly classChoices: HTMLElement;
   private readonly deathScreen: HTMLElement;
@@ -135,10 +137,20 @@ export class GameUI {
   private nameTouched = false;
   private lastDeathCount = 0;
   private lastClassChoicesKey = '';
+  /**
+   * Auf Touch klappt eine neue Klassenwahl nicht von selbst auf: Offen legt
+   * sie dort Sticks und Fähigkeit still (Befund 13).
+   */
+  private readonly autoCollapseClassSelection = window.matchMedia('(pointer: coarse)').matches;
   private lastLeaderboardKey = '';
   private lastKillfeedKey = '';
   private lastStreak = 0;
   private runStartedAt = Date.now();
+  /**
+   * Sitzungs-Kills beim Start des aktuellen Lebens: Die Engine setzt `kills`
+   * beim Respawn nie zurück, die Death-Karte gilt aber je Leben (Befund 58).
+   */
+  private killsAtLifeStart = 0;
   /** Zeitpunkt des Todes – die Laufzeit steht danach still. */
   private runEndedAt: number | null = null;
   private wasDead = false;
@@ -180,7 +192,7 @@ export class GameUI {
                 ${START_NAV.map((eintrag) => `<button type="button" data-goto="${eintrag.id}"><strong>${eintrag.label}</strong><span>${eintrag.hint}</span><small data-nav-badge ${navBadgeHook[eintrag.id] ?? ''}></small><i aria-hidden="true"></i></button>`).join('')}
               </nav>
 
-              <p class="start-note"><span>WASD</span><span>LINKS FEUER</span><span>RECHTS DROHNEN</span><span>C KLASSEN</span></p>
+              <p class="start-note"><span>WASD</span><span>LINKS FEUER</span><span>E AUTOFEUER</span><span>SPACE FÄHIGKEIT</span><span>C KLASSEN</span></p>
             </form>
 
             <section class="start-page start-page-wide" data-view="klassen" hidden>
@@ -263,7 +275,7 @@ export class GameUI {
           </div>
 
           <div class="network-pill"><span id="connection-dot"></span><b id="connection">VERBINDE</b><i></i><span id="ping">-- MS</span></div>
-          <aside class="glass leaderboard" id="leaderboard"><div class="panel-title">TOP PLAYERS</div></aside>
+          <aside class="glass leaderboard" id="leaderboard"><div class="panel-title">BESTENLISTE</div></aside>
 
           <div class="upgrade-panel" id="upgrades" hidden>
             <div class="upgrade-header"><span>UPGRADES</span><b><span id="upgrade-points">0</span> PUNKTE</b><button class="sheet-close" id="upgrades-close" type="button" aria-label="Upgrades schließen">✕</button></div>
@@ -330,7 +342,7 @@ export class GameUI {
 
           <canvas class="minimap" id="minimap" width="180" height="120"></canvas>
           <button class="auto-fire" id="auto-fire" type="button">AUTO <b>OFF</b></button>
-          <button class="secondary-action" id="secondary-action" type="button">REPEL</button>
+          <button class="secondary-action" id="secondary-action" type="button" hidden>DROHNEN</button>
         </section>
 
         <div class="touch-control move-stick" id="move-stick"><div class="stick-ring"><div class="stick-knob"></div></div></div>
@@ -367,12 +379,13 @@ export class GameUI {
     this.autoFire = this.require<HTMLButtonElement>('#auto-fire');
     this.toastContainer = this.require('#toasts');
     this.minimap = this.require<HTMLCanvasElement>('#minimap');
+    this.secondaryAction = this.require<HTMLButtonElement>('#secondary-action');
     this.classSelection = this.require('#class-selection');
     this.classChoices = this.require('#class-choices');
     // Zuklappen und wieder aufklappen. Der Zustand hängt am Element, nicht an
     // einem Feld: So sieht CSS ihn ohne Umweg, und `updateClassSelection`
     // setzt ihn bei einer neuen Auswahl in einer Zeile zurück.
-    this.classSelection.dataset.collapsed = 'false';
+    this.classSelection.dataset.collapsed = this.autoCollapseClassSelection ? 'true' : 'false';
     this.require<HTMLButtonElement>('#class-selection-close')
       .addEventListener('click', () => { this.classSelection.dataset.collapsed = 'true'; });
     this.require<HTMLButtonElement>('#class-selection-open')
@@ -631,6 +644,7 @@ export class GameUI {
     if (this.wasDead && !self.dead) {
       this.runStartedAt = Date.now();
       this.runEndedAt = null;
+      this.killsAtLifeStart = self.kills;
     }
     if (!this.wasDead && self.dead) this.runEndedAt = Date.now();
     this.wasDead = self.dead;
@@ -639,6 +653,12 @@ export class GameUI {
       this.toast(`${self.streak}er-Streak!`, 'Du bist nicht zu stoppen – bleib wachsam.', 'success');
     }
     this.lastStreak = self.streak;
+
+    // Der Drohnen-Knopf existiert nur für Klassen mit Drohnen: Für die
+    // übrigen 55 tat „REPEL" nichts – außer still den Spawnschutz zu beenden
+    // (Befund 40). Der CSS-Guard `[hidden]` steht in style.css, weil die
+    // Touch-Regeln `display` sonst überschreiben.
+    this.secondaryAction.hidden = CLASS_DEFINITIONS[self.playerClass].droneCount === 0;
 
     this.updateClassSelection(self);
     this.updateDeathScreen(snapshot, self);
@@ -649,7 +669,9 @@ export class GameUI {
       // Im Royale ist der Tod das Ende der Runde, kein Neustart auf Level x –
       // die gewohnte Meldung wäre dort schlicht falsch.
       if (royaleZoneOf(snapshot)) this.toast('Ausgeschieden', 'Du bist raus, bis die Runde vorbei ist.', 'danger');
-      else this.toast('Run beendet', `Du startest auf Level ${self.respawnLevel} neu.`, 'danger');
+      // Klasse und Score gehören dazu: „Level 11" allein verschwieg, dass es
+      // als Core mit halbem Score weitergeht (Befund 15).
+      else this.toast('Run beendet', deathToastText(respawnFacts(self)), 'danger');
     }
     this.lastDeathCount = self.deaths;
     return self;
@@ -671,12 +693,21 @@ export class GameUI {
   private updateClassSelection(self: PlayerSnapshot): void {
     const choices = availableClassChoices(self.playerClass, self.level);
     this.classSelection.hidden = choices.length === 0 || self.dead;
-    const key = self.dead ? '' : choices.join('|');
+    // Im Tod nichts umbauen und den Auswahl-Schlüssel stehen lassen: Sonst
+    // klappte nach JEDEM Respawn dieselbe Auswahl wieder auf, auch wenn der
+    // Spieler sie vor dem Tod bewusst zugeklappt hatte (Befund 13).
+    if (self.dead) return;
+    const key = choices.join('|');
     if (key === this.lastClassChoicesKey) return;
     this.lastClassChoicesKey = key;
     // Eine *neue* Auswahl klappt wieder auf: Wer die letzte weggeklickt hat,
-    // wollte diese eine nicht sehen – nicht alle künftigen.
-    this.classSelection.dataset.collapsed = 'false';
+    // wollte diese eine nicht sehen – nicht alle künftigen. Auf Touch bleibt
+    // sie zu: Die offene Wahl schaltet dort bewusst Sticks und Fähigkeit stumm
+    // (hud-layout.css) – ohne Zutun aufgeklappt stünde der Tank mitten in der
+    // Arena still, rund zwölfmal in den ersten zehn Minuten (Befund 13). Die
+    // Leiste „NEUE KLASSE – N Wege offen" fällt trotzdem auf; wer sie antippt,
+    // akzeptiert den Stillstand bewusst.
+    this.classSelection.dataset.collapsed = this.autoCollapseClassSelection ? 'true' : 'false';
     const zaehler = this.classSelection.querySelector('#class-selection-count');
     if (zaehler) zaehler.textContent = `${choices.length} ${choices.length === 1 ? 'Weg' : 'Wege'} offen`;
     this.classChoices.replaceChildren();
@@ -712,10 +743,16 @@ export class GameUI {
     this.deathScreen.classList.toggle('spectating', spectatedName(snapshot) !== null);
     const remaining = Math.max(0, self.canRespawnAt - snapshot.serverTime);
     const aliveText = runDurationText(runSeconds(this.runStartedAt, this.runEndedAt, Date.now()));
+    // Kills DIESES Lebens: Die Engine zählt `kills` über die Sitzung weiter,
+    // die Karte sagt aber „RUN BEENDET" (Befund 58).
+    const lifeKills = Math.max(0, self.kills - this.killsAtLifeStart);
+    // Ehrliche Neustart-Zeile: Klasse, halbierter Score und XP-Behalt aus
+    // denselben shared-Formeln, mit denen der Server rechnet (Befunde 15/28).
+    const facts = respawnFacts(self);
     this.deathKiller.textContent = `Eliminiert von ${self.killerName || 'Arena'}`;
     // Dieselben Zahlen in einer Zeile statt in sechs Kacheln.
-    this.deathSummary.textContent = `LEVEL ${self.deathLevel} · ${self.kills} KILLS · ${self.score.toLocaleString('de-DE')} SCORE · ${aliveText}`;
-    this.deathStats.innerHTML = `<div><span>Erreicht</span><b>Level ${self.deathLevel}</b></div><div><span>Neustart</span><b>Level ${self.respawnLevel}</b></div><div><span>Score</span><b>${self.score.toLocaleString('de-DE')}</b></div><div><span>Kills</span><b>${self.kills}</b></div><div><span>Überlebt</span><b>${aliveText}</b></div><div><span>Beste Streak</span><b>${self.bestStreak}</b></div>`;
+    this.deathSummary.textContent = `LEVEL ${self.deathLevel} · ${lifeKills} KILLS · ${self.score.toLocaleString('de-DE')} SCORE · ${aliveText}`;
+    this.deathStats.innerHTML = `<div><span>Erreicht</span><b>Level ${self.deathLevel}</b></div><div><span>${respawnTileLabel(facts)}</span><b>${respawnTileValue(facts)}</b></div><div><span>Score</span><b>${self.score.toLocaleString('de-DE')}</b></div><div><span>Kills</span><b>${lifeKills}</b></div><div><span>Überlebt</span><b>${aliveText}</b></div><div><span>Beste Streak</span><b>${self.bestStreak}</b></div>`;
     /*
      * Im Battle Royale gibt es keinen Wiedereinstieg in die laufende Runde –
      * der Server schiebt `canRespawnAt` dafür auf Unendlich. Ein Countdown
@@ -748,7 +785,9 @@ export class GameUI {
     this.lastLeaderboardKey = key;
     const title = document.createElement('div');
     title.className = 'panel-title';
-    title.textContent = 'TOP PLAYERS';
+    // Dieselbe Liste heißt auf dem Startscreen „Bestenliste" – ein Name für
+    // eine Sache (Befund 45).
+    title.textContent = 'BESTENLISTE';
     const fragment = document.createDocumentFragment();
     fragment.append(title);
     snapshot.leaderboard.forEach((entry, index) => {

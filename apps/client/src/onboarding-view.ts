@@ -85,6 +85,13 @@ export class OnboardingCoach {
       this.card.hidden = true;
       this.setFocus(null);
       this.currentStepId = null;
+      // Die Klasse gehört an „gerade steht eine Karte", nicht an „das
+      // Onboarding ist noch nicht abgeschlossen": Zwischen den Grundlagen und
+      // dem Event-Hinweis liegen bis zu zehn Minuten (ONBOARDING_EVENT_WINDOW),
+      // und solange die Klasse hing, fehlten auf Touch Event- und
+      // Bounty-Banner, auf dem Desktop stand die obere Spalte 108 px zu tief
+      // (Befund 14).
+      document.documentElement.classList.remove('onboarding-active');
       return;
     }
 

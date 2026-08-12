@@ -960,7 +960,11 @@ export class GameRenderer {
       view.signatureBar.roundRect(-25,38,50,2,1).fill({color:0x000000,alpha:.42});
       if(ratio>0)view.signatureBar.roundRect(-25,38,50*ratio,2,1).fill(this.palette.self);
     }
-    view.name.text=view.isGuardian?GUARDIAN_NAME:`${player.name}${player.isBot?' · BOT':''}`;
+    // Level im Schild (Befund 11): Ein Level-30-Rückkehrer im Core sieht sonst
+    // aus wie ein Anfänger – 242 statt 110 Leben bei identischer Silhouette,
+    // und der normierte Balken verrät es auch nicht. Die Zahl liegt für jeden
+    // Spieler im Snapshot, kostet also kein Byte.
+    view.name.text=view.isGuardian?GUARDIAN_NAME:`${player.name} · L${player.level}${player.isBot?' · BOT':''}`;
     view.name.style.fill=view.isGuardian?GUARDIAN_COLOR:view.isSelf?this.palette.label:this.palette.enemy;
     view.name.style.fontSize=view.isGuardian?14:12;
     view.name.style.fontWeight=view.isGuardian?'800':'600';

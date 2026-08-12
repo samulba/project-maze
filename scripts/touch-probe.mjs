@@ -244,6 +244,13 @@ const senden = (type) => cdp.send('Input.dispatchTouchEvent', {
 
 const moveMitte = await mitteVon('#move-stick');
 const aimMitte = await mitteVon('#aim-stick');
+
+// Befund 68: Autofire ist eine bewusste Einstellung und muss den Tod
+// ueberleben. Einmal am Anfang einschalten, nach jedem Respawn nachsehen.
+await page.tap('.auto-fire').catch(() => {});
+await page.waitForTimeout(200);
+const autofireAn = await page.evaluate(() => document.querySelector('.auto-fire')?.classList.contains('active') ?? false);
+
 daumen.set(1, { ...moveMitte });
 daumen.set(2, { ...aimMitte });
 await senden('touchStart');
@@ -251,6 +258,12 @@ await senden('touchStart');
 let aimAngesprungen = false;
 let beideGleichzeitig = false;
 let tode = 0;
+// Befund 61: Nach einem Respawn muessen die LIEGEN GEBLIEBENEN Daumen wieder
+// greifen -- ohne neues Aufsetzen.
+let wartetAufReengage = false;
+let schritteSeitRespawn = 0;
+let sticksNachRespawnTot = false;
+let autofireVerloren = false;
 const SCHRITTE = 60;
 for (let schritt = 0; schritt < SCHRITTE; schritt += 1) {
   // Beide Daumen kreisen, gegenläufig: fahren in die eine, zielen in die
@@ -266,27 +279,46 @@ for (let schritt = 0; schritt < SCHRITTE; schritt += 1) {
   }));
   if (zustand.aim) aimAngesprungen = true;
   if (zustand.aim && zustand.move) beideGleichzeitig = true;
+  if (wartetAufReengage) {
+    schritteSeitRespawn += 1;
+    if (zustand.move && zustand.aim) wartetAufReengage = false;
+  }
 
   /*
    * Sterben gehört dazu – ein Spieler auf Stufe 1 zwischen achtzehn Bots hält
-   * selten fünfzehn Sekunden durch. Nach dem Tod schaltet `setEnabled(false)`
-   * die Sticks ab; wer das nicht behandelt, misst ab da nur noch Totenstille
-   * und meldet je nach Todeszeitpunkt mal grün, mal rot. Genau das ist auf
-   * 844 × 390 passiert.
+   * selten fünfzehn Sekunden durch. Entscheidend seit Befund 61: Die Daumen
+   * bleiben LIEGEN – so spielt ein Mensch. Früher setzte die Probe hier beide
+   * Finger neu auf (`touchEnd` + `touchStart`) und testete damit genau den
+   * Fehler weg, den sie hätte finden müssen: Nach dem Respawn waren beide
+   * Sticks tot, bis der Spieler beide Daumen hob und neu aufsetzte. Der
+   * Respawn-Knopf wird deshalb programmatisch gedrückt (seine Erreichbarkeit
+   * misst ui-layout-check als „Weg zurück"); die Probe misst, ob die
+   * liegenden Daumen danach von selbst wieder greifen.
    */
   if (zustand.tot) {
     tode += 1;
-    daumen.clear();
-    await senden('touchEnd');
+    // Nur werten, wenn nach dem Respawn wirklich Zeit zum Greifen war --
+    // ein Sofort-Tod direkt nach dem Wiedereinstieg ist kein Stick-Befund.
+    if (wartetAufReengage && schritteSeitRespawn >= 3) sticksNachRespawnTot = true;
+    if (autofireAn) {
+      const nochAn = await page.evaluate(() => document.querySelector('.auto-fire')?.classList.contains('active') ?? false);
+      if (!nochAn) autofireVerloren = true;
+    }
     await page.waitForSelector('#respawn-button:not([disabled])', { timeout: 20_000 }).catch(() => {});
-    await page.tap('#respawn-button').catch(() => {});
+    await page.evaluate(() => document.querySelector('#respawn-button')?.click());
     await page.waitForTimeout(600);
-    daumen.set(1, { ...moveMitte });
-    daumen.set(2, { ...aimMitte });
-    await senden('touchStart');
+    wartetAufReengage = true;
+    schritteSeitRespawn = 0;
     continue;
   }
   await page.waitForTimeout(250);
+}
+// Endete der Lauf, ohne dass die liegenden Daumen nach dem letzten Respawn je
+// wieder gegriffen haben, ist das derselbe Befund -- sofern Zeit dafuer war.
+if (wartetAufReengage && schritteSeitRespawn >= 3) sticksNachRespawnTot = true;
+if (tode > 0 && autofireAn) {
+  const nochAn = await page.evaluate(() => document.querySelector('.auto-fire')?.classList.contains('active') ?? false);
+  if (!nochAn) autofireVerloren = true;
 }
 daumen.clear();
 await senden('touchEnd');
@@ -324,7 +356,8 @@ const gefeuert = (befund.xp ?? 0) > 0 || (befund.level ?? 1) > 1;
  * absichtlich NICHT dabei -- siehe Kopfkommentar.
  */
 const okay = befund.canvas && sticksSichtbar.move && sticksSichtbar.aim
-  && moveAngesprungen && aimAngesprungen && beideGleichzeitig && bewegt && fehler.length === 0;
+  && moveAngesprungen && aimAngesprungen && beideGleichzeitig && bewegt
+  && !sticksNachRespawnTot && !autofireVerloren && fehler.length === 0;
 
 console.log(JSON.stringify({
   okay,
@@ -333,6 +366,8 @@ console.log(JSON.stringify({
   sticksReagieren: { move: moveAngesprungen, aim: aimAngesprungen },
   multiTouch: beideGleichzeitig,
   tode,
+  // Befunde 61/68: liegende Daumen und Autofire muessen den Tod ueberleben.
+  respawn: { sticksTot: sticksNachRespawnTot, autofireVerloren, autofireGeprueft: autofireAn },
   bewegung: {
     vorher: schrittVorher,
     nachher: schrittNachher,
@@ -360,5 +395,7 @@ if (!okay) {
   if (!beideGleichzeitig) console.error('  Zwei Daumen gleichzeitig gehen nicht – Multi-Touch streitet um denselben Zeiger.');
   if (!aimAngesprungen) console.error('  Der Ziel-Stick erreichte nie die Feuerschwelle – die Eingabe kommt nicht durch.');
   if (!moveAngesprungen) console.error('  Der Bewegungs-Stick sprang nie an.');
+  if (sticksNachRespawnTot) console.error('  Nach dem Respawn griffen die liegen gebliebenen Daumen nicht wieder (Befund 61).');
+  if (autofireVerloren) console.error('  Autofire war nach einem Tod wieder aus – eine bewusste Einstellung überlebt den Respawn nicht (Befund 68).');
 }
 process.exit(okay ? 0 : 1);

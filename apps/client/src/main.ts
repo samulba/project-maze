@@ -25,6 +25,7 @@ import { AchievementPopups } from './achievement-popups';
 import { GameplayEffects } from './gameplay-effects';
 import { GameplayUI } from './gameplay-ui';
 import { InputController } from './input';
+import { levelToast } from './level-toast';
 import {
   JOIN_BACKOFF_START_MS,
   joinRejectionAction,
@@ -416,7 +417,11 @@ function handleServerMessage(message: ServerMessage): void {
      * merkt, hält das Spiel für kaputt statt für anders.
      */
     const modus = message.mode ?? 'maze';
-    ui.setConnection('online', modus === 'maze' ? 'MAZERS ALPHA' : `MAZERS · ${ARENA_MODES[modus].label.toUpperCase()}`);
+    // Kein „ALPHA" im Gefecht: GOAL.md verlangt „fühlt sich an wie ein
+    // fertiges Spiel" – der Entwicklungsstand steht auf dem Startscreen
+    // (PLAYABLE ALPHA, balance-lab.css), nicht dauerhaft mitten im HUD
+    // (Befund 37).
+    ui.setConnection('online', modus === 'maze' ? 'MAZERS' : `MAZERS · ${ARENA_MODES[modus].label.toUpperCase()}`);
     ui.toast('Arena betreten', 'Farme Formen und entwickle deinen Tank.', 'success');
     input?.setEnabled(true);
     return;
@@ -491,14 +496,17 @@ function updateWorld(snapshot: WorldSnapshot): void {
 
   const wasDead = previousSelf?.dead ?? false;
   currentSelfDead = updatedSelf.dead;
-  if (updatedSelf.dead && !wasDead) {
-    if (input?.resetAll()) ui.setAutoFire(false);
-  }
+  // Der Tod raeumt nur Fluechtiges: `resetAll()` wuerde Autofire abschalten
+  // (Befund 68) und liegende Daumen entwaffnen (Befund 61) -- beides
+  // Einstellungen bzw. physischer Zustand, die den Respawn ueberleben sollen.
+  // `resetAll()` bleibt dem Verbindungsabbruch vorbehalten.
+  if (updatedSelf.dead && !wasDead) input?.resetTransient();
   if (!updatedSelf.dead && wasDead) input?.resetTransient();
   input?.setEnabled(joined && !updatedSelf.dead);
 
   if (previousSelf && updatedSelf.level > previousSelf.level) {
-    ui.toast(`Level ${updatedSelf.level}`, 'Du hast einen neuen Upgrade-Punkt erhalten.', 'success');
+    const toast = levelToast(previousSelf.level, updatedSelf.level);
+    if (toast) ui.toast(toast.title, toast.body, 'success');
   }
 
   previousSelf = {

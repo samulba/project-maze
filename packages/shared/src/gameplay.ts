@@ -12,6 +12,13 @@ export interface ActiveModuleDefinition {
   shortLabel: string;
   description: string;
   role: 'mobility' | 'control' | 'defense' | 'sustain';
+  /**
+   * Anzeigename der Rolle. `role` ist ein interner Aufzählungstyp und stand
+   * unübersetzt im Loadout-Menü („Dash · mobility") – der Kasten las sich wie
+   * ein Entwicklerwerkzeug (Befund 44). Eine Quelle, damit Anzeige und Typ
+   * nicht auseinanderlaufen.
+   */
+  roleLabel: string;
   cooldownMs: number;
   activeMs: number;
 }
@@ -33,6 +40,7 @@ export const ACTIVE_MODULE_DEFINITIONS: Record<ActiveModuleId, ActiveModuleDefin
     shortLabel: 'DASH',
     description: 'Kurzer Bewegungsschub ohne Unverwundbarkeit.',
     role: 'mobility',
+    roleLabel: 'Mobilität',
     cooldownMs: 10_000,
     activeMs: 180
   },
@@ -42,6 +50,7 @@ export const ACTIVE_MODULE_DEFINITIONS: Record<ActiveModuleId, ActiveModuleDefin
     shortLabel: 'PULSE',
     description: 'Verdrängt Gegner, Drohnen und nahe Projektile.',
     role: 'control',
+    roleLabel: 'Kontrolle',
     cooldownMs: 12_000,
     activeMs: 260
   },
@@ -51,6 +60,7 @@ export const ACTIVE_MODULE_DEFINITIONS: Record<ActiveModuleId, ActiveModuleDefin
     shortLabel: 'BARRIER',
     description: 'Kurzer Schild gegen Angriffe aus dem Frontwinkel.',
     role: 'defense',
+    roleLabel: 'Verteidigung',
     cooldownMs: 12_000,
     activeMs: 900
   },
@@ -60,6 +70,7 @@ export const ACTIVE_MODULE_DEFINITIONS: Record<ActiveModuleId, ActiveModuleDefin
     shortLabel: 'REPAIR',
     description: 'Riskante Heilung, die durch Kampfhandlungen abbricht.',
     role: 'sustain',
+    roleLabel: 'Erholung',
     cooldownMs: 17_000,
     activeMs: 3_000
   }

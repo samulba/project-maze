@@ -1,9 +1,17 @@
 .class-choices button[data-enhanced="true"] { position:relative; overflow:hidden; min-width:220px; padding-top:34px; }
+/* Eine Farbe je Familie, dieselben Werte wie das Rad (class-tree.css) und das
+   Death-Portrait – vorher trugen nur die vier alten Familien eine Farbe (die
+   vier neueren blieben grau) und Präzision stand orange über einem blauen
+   Tank (Befund 21). */
 .class-choice-role { position:absolute; top:12px; left:14px; font-style:normal; font-size:9px; font-weight:850; letter-spacing:.11em; color:#9aa3b8; }
-.class-choices button[data-branch="rapid"] .class-choice-role { color:#8ad6ff; }
-.class-choices button[data-branch="precision"] .class-choice-role { color:#ffc66f; }
-.class-choices button[data-branch="control"] .class-choice-role { color:#73e3bd; }
-.class-choices button[data-branch="impact"] .class-choice-role { color:#ff8192; }
+.class-choices button[data-branch="rapid"] .class-choice-role { color:#5b8cff; }
+.class-choices button[data-branch="precision"] .class-choice-role { color:#e0a44a; }
+.class-choices button[data-branch="control"] .class-choice-role { color:#46b98d; }
+.class-choices button[data-branch="impact"] .class-choice-role { color:#d2606f; }
+.class-choices button[data-branch="specter"] .class-choice-role { color:#8f7ff0; }
+.class-choices button[data-branch="tempest"] .class-choice-role { color:#e0954e; }
+.class-choices button[data-branch="siege"] .class-choice-role { color:#b0a24e; }
+.class-choices button[data-branch="aegis"] .class-choice-role { color:#4ea9a4; }
 .class-choice-bars { display:grid; gap:6px; width:100%; margin-top:13px; }
 .class-choice-bars > div { display:grid; grid-template-columns:54px 1fr; align-items:center; gap:8px; }
 .class-choice-bars span { font-size:9px !important; color:#8d96aa !important; line-height:1 !important; }
@@ -46,11 +54,13 @@
 .cp-barrel, .cp-barrels { fill: color-mix(in srgb, currentColor 55%, #6c7386); }
 .cp-drone { fill: currentColor; opacity: .62; }
 
-/* Jede Familie hat ihre Farbe – dieselbe Zuordnung wie die Rollennamen. */
-[data-branch=rapid]   .class-choice-preview { color: #6f7ad6; }
-[data-branch=precision] .class-choice-preview { color: #58b0e8; }
-[data-branch=control] .class-choice-preview { color: #5aa882; }
-[data-branch=impact]  .class-choice-preview { color: #c4626f; }
+/* Jede Familie hat ihre Farbe – dieselbe Zuordnung wie Rollenwort und Rad.
+   Die vier alten Familien trugen hier abweichende Werte; wer im Rad den
+   Präzisions-Ast suchte, suchte die falsche Farbe (Befund 21). */
+[data-branch=rapid]   .class-choice-preview { color: #5b8cff; }
+[data-branch=precision] .class-choice-preview { color: #e0a44a; }
+[data-branch=control] .class-choice-preview { color: #46b98d; }
+[data-branch=impact]  .class-choice-preview { color: #d2606f; }
 [data-branch=specter] .class-choice-preview { color: #8f7ff0; }
 [data-branch=tempest] .class-choice-preview { color: #e0954e; }
 [data-branch=siege]   .class-choice-preview { color: #b0a24e; }

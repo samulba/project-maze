@@ -459,7 +459,32 @@ function messenImBrowser() {
     }
   }
 
-  return { flaechen, ueberlappungen, verdeckt, ausserhalb, wahlKarten, rueckweg, imTod, innen,
+  /*
+   * Stick-Schärfe auf Touch (Befund 13). `sichtbar()` filtert opacity < 0.05 –
+   * lahmgelegte Sticks fielen damit still aus ALLEN Messschichten, und keine
+   * wertete `pointer-events`. Gemessen wird der Standardzustand: Solange keine
+   * Klassenwahl offen steht (offen legt sie die Sticks bewusst still,
+   * hud-layout.css) und der Spieler lebt, müssen beide Sticks sichtbar und
+   * scharf sein. Hochformat zeigt den Drehen-Hinweis und ist ausgenommen.
+   */
+  let sticksTot = null;
+  if (window.matchMedia('(pointer: coarse)').matches
+    && !window.matchMedia('(orientation: portrait)').matches
+    && !imTod) {
+    const wahlOffen = wahl && !wahl.hidden && wahl.dataset.collapsed !== 'true';
+    if (!wahlOffen) {
+      const lahm = [];
+      for (const sel of ['#move-stick', '#aim-stick']) {
+        const el = document.querySelector(sel);
+        if (!el) continue;
+        const s = getComputedStyle(el);
+        if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) < 0.05 || s.pointerEvents === 'none') lahm.push(sel);
+      }
+      if (lahm.length > 0) sticksTot = lahm;
+    }
+  }
+
+  return { flaechen, ueberlappungen, verdeckt, ausserhalb, wahlKarten, rueckweg, imTod, innen, sticksTot,
     _dbg: { radDa: Boolean(rad), radHidden: rad ? rad.hidden : null, kartenOpazitaet: spielerkarte ? getComputedStyle(spielerkarte).opacity : null, leseansicht },
     kompakterTod: Boolean(totenschirm && totenschirm.classList.contains('spectating')),
     totAnteil: raster > 0 ? +(tot / raster * 100).toFixed(1) : null };
@@ -579,7 +604,15 @@ const FAELLE = [
   { name: 'mobil-hoch', w: 390, h: 844, touch: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
   { name: 'mobil-quer', w: 844, h: 390, touch: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
   { name: 'mobil-tablet', w: 820, h: 1180, touch: true, zustand: { level: 24, playerClass: 'storm', punkte: 6 } },
-  { name: 'mobil-klein-quer', w: 667, h: 375, touch: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } }
+  { name: 'mobil-klein-quer', w: 667, h: 375, touch: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
+  // Seit Befund 38 ist die Bestenliste auf Touch wieder da – drei Zustände,
+  // die es vorher nicht zu messen gab: mit offener Abruf-Minimap (gleicher
+  // Anker oben rechts), mit laufendem Event auf dem schmalsten Format (der
+  // zentrierte Meldungs-Slot und die Liste teilen sich 667 px) und die auf
+  // Touch bewusst GEÖFFNETE Klassenwahl (Standard ist seit Befund 13 zu).
+  { name: 'mobil-minimap', w: 844, h: 390, touch: true, minimap: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } },
+  { name: 'mobil-klein-event', w: 667, h: 375, touch: true, zustand: { level: 10, playerClass: 'core', event: 'coreSurge' } },
+  { name: 'mobil-wahl-offen', w: 844, h: 390, touch: true, aufklappen: true, zustand: { level: 10, playerClass: 'core', punkte: 4 } }
 ];
 
 /**
@@ -976,6 +1009,18 @@ async function main() {
       await page.click('#class-selection-close').catch(() => {});
       await page.waitForTimeout(400);
     }
+    if (fall.aufklappen) {
+      // Auf Touch startet die Wahl seit Befund 13 zugeklappt – der offene
+      // Zustand ist trotzdem erreichbar und wird hier bewusst geöffnet.
+      await page.click('#class-selection-open').catch(() => {});
+      await page.waitForTimeout(400);
+    }
+    if (fall.minimap) {
+      // Die Abruf-Minimap teilt sich den Anker oben rechts mit der
+      // Bestenliste – dieser Zustand war nie in der Matrix (Befund 38).
+      await page.evaluate(() => document.querySelector('#app')?.classList.add('minimap-open'));
+      await page.waitForTimeout(200);
+    }
     const messung = await page.evaluate(messenImBrowser);
     if (SHOTS) await page.screenshot({ path: `.probe/ui-${fall.name}.png` });
     await page.close();
@@ -1007,6 +1052,9 @@ async function main() {
       if (messung.rueckweg.respawn === null && messung.rueckweg.start === null) {
         zeile.push('Weg zurueck: GAR KEIN Knopf auf der Todeskarte');
       }
+    }
+    if (messung.sticksTot) {
+      zeile.push(`Sticks lahmgelegt trotz Standardzustand: ${messung.sticksTot.join(', ')} (Befund 13)`);
     }
     if (!fall.touch && messung.totAnteil !== null && messung.totAnteil > TOT_GRENZE) {
       zeile.push(`${messung.totAnteil} % der Bildfläche nimmt keine Klicks an (Grenze ${TOT_GRENZE} %)`);

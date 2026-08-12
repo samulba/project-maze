@@ -278,9 +278,16 @@
   .upgrade-list button > span { font-size: 10px; line-height: 1.15; }
 
   /* --- 3d. Auf Abruf statt dauernd ---------------------------------- */
-  /* Bestenliste und Ping-Pille sind auf Touch ganz draußen (style.css),
-     der Killfeed ebenso – Kills stehen im Meldungs-Slot. */
+  /* Die Ping-Pille ist auf Touch ganz draußen (style.css), der Killfeed
+     ebenso – er hat auf Touch bisher keinen Ersatz (Befund 38 führt das als
+     offen; der Meldungs-Slot trägt Event, Bounty, Achievement und Toast,
+     aber keine Kills). */
   .killfeed { display: none; }
+
+  /* Die Bestenliste bleibt – kompakt: Auf allen Handy-Höhen greift unten die
+     Top-Rangliste-Regel, und sie weicht der Abruf-Minimap, die denselben
+     Anker oben rechts benutzt (Befund 38). */
+  #app.minimap-open .leaderboard { display: none; }
   /* Minimap: Tipp auf die Statusleiste blendet sie oben rechts ein, wo seit
      dem Wegfall der Bestenliste Platz ist – nicht im Daumenbereich. */
   .minimap { display: none; }
@@ -369,9 +376,21 @@
   .class-choice-perk, .class-choice-leads { display: none; }
 }
 
-/* Auf kleinen Screens zählt nur die Spitze der Rangliste. */
+/* Auf kleinen Screens zählt nur die Spitze der Rangliste. Der Titel ist das
+   erste div – n+6 zeigt also die Plätze 1 bis 4. */
 @media (pointer: coarse) and (max-height: 560px) {
-  .leaderboard .leader-row:nth-of-type(n + 5) { display: none; }
+  .leaderboard .leader-row:nth-of-type(n + 6) { display: none; }
+}
+
+/* Schmale Handys: Der zentrierte Meldungs-Slot (max. 360 px) und die Liste
+   oben rechts teilen sich 667 px – ohne diese Verengung überlappten sie um
+   rund 68 px, sobald ein Event läuft (Befund 38). */
+@media (pointer: coarse) and (max-width: 720px) {
+  .leaderboard { width: 150px; }
+  .arena-event-banner,
+  .bounty-banner,
+  .toasts,
+  .achievement-popup { max-width: min(300px, calc(100vw - 32px)); }
 }
 
 /* ------------------------------------------------------------------ *
