@@ -77,9 +77,21 @@ describe('Flächengleiche Sicht – die Alternative', () => {
     expect(gleich.scale).toBeCloseTo(fest.scale, 9);
   });
 
-  it('füllt den 21:9-Schirm ohne Ränder', () => {
-    const { rect } = computeViewport(2560, 1080, 'flaechengleich');
-    expect([rect.x, rect.y, rect.width, rect.height]).toEqual([0, 0, 2560, 1080]);
+  /**
+   * Hier stand bis zum 12.08. „fuellt den 21:9-Schirm ohne Raender" -- und
+   * genau das war die Luege: Der Server schneidet Entitaeten bei 848 Einheiten
+   * ab, der randlose 21:9-Ausschnitt zeigte 924. In den aeusseren 76 Einheiten
+   * je Seite wurden Raster und Waende gezeichnet, aber nie ein Tank, eine
+   * Kugel oder eine Form. Der Balken ist die ehrlichere Antwort.
+   */
+  it('nutzt vom 21:9-Schirm so viel, wie der Server deckt -- und nicht mehr', () => {
+    const { rect, world } = computeViewport(2560, 1080, 'flaechengleich');
+    const grenzen = viewportLimits();
+    expect(world.width / 2).toBeLessThanOrEqual(grenzen.serverEntitaetBreite);
+    expect(world.height / 2).toBeLessThanOrEqual(grenzen.serverEntitaetHoehe);
+    // Deutlich mehr als „Fest 16:9", nur eben nicht randlos.
+    expect(rect.width).toBeGreaterThan(computeViewport(2560, 1080, 'fest').rect.width);
+    expect(rect.x).toBeGreaterThan(0);
   });
 
   it('hält die sichtbare Weltfläche über alle Seitenverhältnisse konstant', () => {
@@ -93,9 +105,10 @@ describe('Flächengleiche Sicht – die Alternative', () => {
     const breit = computeViewport(2560, 1080, 'flaechengleich').world;
     expect(breit.width).toBeGreaterThan(GAME.visibleWorldWidth);
     expect(breit.height).toBeLessThan(GAME.visibleWorldHeight);
-    // +15 % zur Seite kosten −13 % nach oben und unten.
-    expect(breit.width / GAME.visibleWorldWidth).toBeCloseTo(1.15, 2);
-    expect(breit.height / GAME.visibleWorldHeight).toBeCloseTo(0.87, 2);
+    // +6 % zur Seite kosten −6 % nach oben und unten. (Vor dem 12.08. waren es
+    // +15 %/−13 % -- so weit deckt der Server die Sicht aber nicht.)
+    expect(breit.width / GAME.visibleWorldWidth).toBeCloseTo(1.06, 2);
+    expect(breit.height / GAME.visibleWorldHeight).toBeCloseTo(0.945, 2);
   });
 
   it('lässt auf extremen Formaten wieder Ränder stehen', () => {
@@ -128,10 +141,26 @@ describe('Grenzen gegen die Sichtweite des Servers', () => {
     expect(grenzen.halbeDiagonale).toBeLessThan(grenzen.serverRadius);
   });
 
-  it('deckt die gängigen Ultrawide-Formate ab, ohne zu klemmen', () => {
-    // 21:9 kommt als 2560×1080 (2,370) und 3440×1440 (2,389) – beide unter der Grenze.
-    expect(2560 / 1080).toBeLessThan(MAX_ASPECT);
-    expect(3440 / 1440).toBeLessThan(MAX_ASPECT);
+  /**
+   * Die Grenze, die wirklich gilt. Die drei Tests darueber pruefen gegen
+   * `wallsInView` und `viewRadius` -- beides Regeln der BASIS, die
+   * `hardenSimulation` ersetzt hat. Genau dadurch blieb der Fehler unsichtbar:
+   * Der Client mass sich an einer Regel, die nicht mehr laeuft.
+   */
+  it('zeigt nie mehr Welt, als der Server an Entitaeten liefert', () => {
+    // Ueber die ganze Spanne, nicht nur an den Ecken.
+    for (let aspect = 0.4; aspect <= 4; aspect += 0.05) {
+      const welt = worldViewFor(aspect);
+      expect(welt.width / 2).toBeLessThanOrEqual(grenzen.serverEntitaetBreite);
+      expect(welt.height / 2).toBeLessThanOrEqual(grenzen.serverEntitaetHoehe);
+    }
+  });
+
+  it('klemmt Ultrawide bewusst, statt ein leeres Band zu zeigen', () => {
+    // 21:9 (2,370) und 3440x1440 (2,389) liegen jenseits der Grenze und werden
+    // geklemmt -- das ist der Preis dafuer, dass im Bild auch etwas passiert.
+    expect(2560 / 1080).toBeGreaterThan(MAX_ASPECT);
+    expect(worldViewFor(2560 / 1080)).toEqual(worldViewFor(MAX_ASPECT));
   });
 
   it('klemmt Ausreißer und fällt bei Unsinn auf 16:9 zurück', () => {

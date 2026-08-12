@@ -64,6 +64,43 @@ const PLACEHOLDER_PLAYER: PlayerStatics = {
   upgrades: EMPTY_UPGRADES
 };
 
+/**
+ * Deckel je Cache – und warum es ihn braucht.
+ *
+ * Die Statik-Caches wuchsen unbegrenzt: Jeder Spieler und jede Form, die je im
+ * Sichtfenster war, blieb bis zum naechsten Verbindungsabbruch stehen. Der
+ * Respawn geht nicht ueber `reset`, eine lange Sitzung also auch nicht – rund
+ * zwei neue Eintraege je Sekunde, in der Groessenordnung 0,75 MB je Stunde.
+ * Kein Spieler merkt das an einem Abend; ein Browser-Tab, der ueber Nacht
+ * offen bleibt, schon.
+ *
+ * 512 ist weit jenseits von allem, was gleichzeitig sichtbar sein kann
+ * (80 Spieler, dazu die Formen im Fenster). Verdraengt wird der am laengsten
+ * nicht mehr gelesene Eintrag, nicht der aelteste: Ein Tank, der seit einer
+ * halben Stunde neben einem steht, waere sonst der Erste, der herausfliegt –
+ * und genau der braucht seinen Eintrag noch.
+ */
+export const STATICS_CACHE_LIMIT = 512;
+
+/** Eintragen und dabei den Deckel halten (LRU: aeltester Zugriff fliegt). */
+const merken = <T>(cache: Map<string, T>, id: string, wert: T): void => {
+  cache.set(id, wert);
+  while (cache.size > STATICS_CACHE_LIMIT) {
+    const aeltester = cache.keys().next();
+    if (aeltester.done) break;
+    cache.delete(aeltester.value);
+  }
+};
+
+/** Lesen und dabei nach hinten schieben – so ueberlebt, was benutzt wird. */
+const holen = <T>(cache: Map<string, T>, id: string): T | undefined => {
+  const wert = cache.get(id);
+  if (wert === undefined) return undefined;
+  cache.delete(id);
+  cache.set(id, wert);
+  return wert;
+};
+
 export class SnapshotHydrator {
   private readonly playerStatics = new Map<string, PlayerStatics>();
   private readonly shapeStatics = new Map<string, ShapeStatics>();
@@ -79,6 +116,11 @@ export class SnapshotHydrator {
    */
   get missingStatics(): number {
     return this.missing;
+  }
+
+  /** Nur fuer Tests und Diagnose: wie voll die beiden Caches gerade sind. */
+  get cacheSize(): { players: number; shapes: number } {
+    return { players: this.playerStatics.size, shapes: this.shapeStatics.size };
   }
 
   /**
@@ -137,7 +179,7 @@ export class SnapshotHydrator {
     ) {
       // Eingefroren, weil derselbe Upgrade-Stand danach in jedem Snapshot
       // dieses Spielers steckt – eine Mutation würde den Cache vergiften.
-      this.playerStatics.set(id, {
+      merken(this.playerStatics, id, {
         name: player.name,
         playerClass: player.playerClass,
         isBot: player.isBot,
@@ -145,7 +187,7 @@ export class SnapshotHydrator {
       });
       return;
     }
-    const cached = this.playerStatics.get(id);
+    const cached = holen(this.playerStatics, id);
     if (!cached) this.missing += 1;
     const statics = cached ?? PLACEHOLDER_PLAYER;
     player.name = statics.name;
@@ -157,10 +199,10 @@ export class SnapshotHydrator {
   private fillShape(shape: WireShapeSnapshot): void {
     const id = shape.id as string;
     if (shape.kind !== undefined && shape.radius !== undefined && shape.maxHealth !== undefined) {
-      this.shapeStatics.set(id, { kind: shape.kind, radius: shape.radius, maxHealth: shape.maxHealth });
+      merken(this.shapeStatics, id, { kind: shape.kind, radius: shape.radius, maxHealth: shape.maxHealth });
       return;
     }
-    const cached = this.shapeStatics.get(id);
+    const cached = holen(this.shapeStatics, id);
     if (!cached) {
       this.missing += 1;
       // Ohne bekannte Größe wäre die Form unsichtbar oder ein Nullradius-Kreis;

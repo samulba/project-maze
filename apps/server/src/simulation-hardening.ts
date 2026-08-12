@@ -1,5 +1,6 @@
 import {
   CLASS_DEFINITIONS,
+  ENTITY_CULL_HALF,
   GAME,
   type PlayerSnapshot,
   type ProjectileSnapshot,
@@ -60,9 +61,14 @@ const momentumMultiplier = (player: RuntimePlayer): number => {
  */
 const bodyDamage = (internals: GameInternals, player: RuntimePlayer): number =>
   internals.bodyDamageOf(player) * momentumMultiplier(player);
-const inFixedView = (position: Vector2, center: Vector2, padding = 0): boolean =>
-  Math.abs(position.x - center.x) <= GAME.visibleWorldWidth / 2 + padding &&
-  Math.abs(position.y - center.y) <= GAME.visibleWorldHeight / 2 + padding;
+/**
+ * Der Entitaeten-Ausschnitt. Die Kanten stehen in `shared`
+ * (`ENTITY_CULL_HALF`), damit der Client dieselbe Zahl lesen kann -- er leitet
+ * daraus ab, wie breit er hoechstens zeigen darf.
+ */
+const inFixedView = (position: Vector2, center: Vector2): boolean =>
+  Math.abs(position.x - center.x) <= ENTITY_CULL_HALF.width &&
+  Math.abs(position.y - center.y) <= ENTITY_CULL_HALF.height;
 
 /**
  * Isolates final physics/network hardening from the gameplay class while the
@@ -102,10 +108,10 @@ export function hardenSimulation<T extends MazeGame>(game: T): T {
     const self = snapshot.players.find((player) => player.id === selfId);
     if (!self) return snapshot;
     const center = self.position;
-    snapshot.players = snapshot.players.filter((player) => player.id === selfId || inFixedView(player.position, center, 48));
-    snapshot.projectiles = snapshot.projectiles.filter((projectile) => inFixedView(projectile.position, center, 48));
-    snapshot.drones = snapshot.drones.filter((drone) => inFixedView(drone.position, center, 48));
-    snapshot.shapes = snapshot.shapes.filter((shape) => inFixedView(shape.position, center, 48));
+    snapshot.players = snapshot.players.filter((player) => player.id === selfId || inFixedView(player.position, center));
+    snapshot.projectiles = snapshot.projectiles.filter((projectile) => inFixedView(projectile.position, center));
+    snapshot.drones = snapshot.drones.filter((drone) => inFixedView(drone.position, center));
+    snapshot.shapes = snapshot.shapes.filter((shape) => inFixedView(shape.position, center));
     return snapshot;
   }) as T['snapshot'];
 

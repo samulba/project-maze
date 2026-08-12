@@ -1,4 +1,4 @@
-import { GAME } from '@project-maze/shared';
+import { ENTITY_CULL_HALF, GAME } from '@project-maze/shared';
 
 /**
  * Geometrie des Sichtfelds – wie viel Bildschirm das Spielfeld bekommt und wie
@@ -39,15 +39,37 @@ export const VIEW_AREA = GAME.visibleWorldWidth * GAME.visibleWorldHeight;
  * Grenzen des Seitenverhältnisses.
  *
  * Sie kommen **nicht** aus dem Geschmack, sondern aus der Sichtgrenze des
- * Servers: `wallsInView` schneidet Wände bei `visibleWorldWidth · 0,62`
- * (992 Einheiten) und `visibleWorldHeight · 0,72` (648) ab, Entitäten fallen
- * bei `viewRadius` (1100) weg. Sieht der Client weiter als das, tauchen Wände
- * am Bildrand aus dem Nichts auf. `viewportLimits()` rechnet nach, dass die
- * Grenzen unterhalb bleiben – ein Test hält es fest, damit eine spätere
- * Änderung an den Server-Konstanten hier auffällt und nicht im Spiel.
+ * Servers – und sie werden aus ihr **gerechnet**, nicht danebengeschrieben.
+ *
+ * Bis zum 12.08. standen hier feste 1 und 2,4, begründet mit dem
+ * Wand-Ausschnitt (992 × 648) und `viewRadius` (1100). Beides sind Regeln der
+ * Basis, die `hardenSimulation` längst ersetzt hat: Entitäten schneidet die
+ * Schicht an einem festen Rechteck ab, `ENTITY_CULL_HALF` = 848 × 498. Auf
+ * einem 21:9-Schirm zeigte „Bildschirmfüllend" damit 924 Einheiten zur Seite,
+ * der Server lieferte 848 – ein Band von 76 Einheiten je Seite, in dem Raster
+ * und Wände gezeichnet werden, aber nie ein Tank, eine Kugel oder eine Form
+ * erscheint. Auf hohen Fenstern dasselbe senkrecht: 600 gegen 498.
+ *
+ * Die Fläche ist konstant (`VIEW_AREA`), also folgt aus der Kante direkt das
+ * äußerste Seitenverhältnis:
+ *
+ *   Breite/2 = √(FLÄCHE · a)/2 ≤ 848  →  a ≤ (2·848)² / FLÄCHE
+ *   Höhe/2   = √(FLÄCHE / a)/2 ≤ 498  →  a ≥ FLÄCHE / (2·498)²
+ *
+ * Heraus kommen rund 1,99 und 1,45. Das ist weniger Ausbeute auf 21:9 als die
+ * alten 2,4 – aber es ist die Ausbeute, die der Server auch deckt. Lieber ein
+ * schmaler schwarzer Balken als ein Streifen, in dem nie etwas passiert.
  */
-export const MIN_ASPECT = 1;
-export const MAX_ASPECT = 2.4;
+const aspektGrenzen = (): { min: number; max: number } => {
+  const max = Math.pow(2 * ENTITY_CULL_HALF.width, 2) / VIEW_AREA;
+  const min = VIEW_AREA / Math.pow(2 * ENTITY_CULL_HALF.height, 2);
+  // Zwei Nachkommastellen nach innen: eine Kante auf den Zehntel-Einheit genau
+  // auszureizen waere eine Wette auf Rundung.
+  return { min: Math.ceil(min * 100) / 100, max: Math.floor(max * 100) / 100 };
+};
+
+export const MIN_ASPECT = aspektGrenzen().min;
+export const MAX_ASPECT = aspektGrenzen().max;
 
 export interface ViewportRect { x: number; y: number; width: number; height: number }
 /** Ausschnitt der Welt, der in das Rechteck passt. */
@@ -100,6 +122,7 @@ export function computeViewport(screenWidth: number, screenHeight: number, mode:
 export function viewportLimits(): {
   halbeBreite: number; halbeHoehe: number; halbeDiagonale: number;
   serverWandBreite: number; serverWandHoehe: number; serverRadius: number;
+  serverEntitaetBreite: number; serverEntitaetHoehe: number;
 } {
   const breit = worldViewFor(MAX_ASPECT);
   const hoch = worldViewFor(MIN_ASPECT);
@@ -109,7 +132,10 @@ export function viewportLimits(): {
     halbeDiagonale: Math.hypot(breit.width / 2, breit.height / 2),
     serverWandBreite: GAME.visibleWorldWidth * 0.62,
     serverWandHoehe: GAME.visibleWorldHeight * 0.72,
-    serverRadius: GAME.viewRadius
+    serverRadius: GAME.viewRadius,
+    // Die Grenze, die wirklich gilt: `hardenSimulation` schneidet hier ab.
+    serverEntitaetBreite: ENTITY_CULL_HALF.width,
+    serverEntitaetHoehe: ENTITY_CULL_HALF.height
   };
 }
 

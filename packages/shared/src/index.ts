@@ -780,6 +780,22 @@ export interface ErrorMessage { type:'error'; message:string; }
 export interface PongMessage { type:'pong'; sentAt:number; serverTime:number; }
 export type ServerMessage = WorldSnapshot | WelcomeMessage | ErrorMessage | PongMessage;
 
+/**
+ * Wie weit der Server Entitaeten ueberhaupt mitschickt.
+ *
+ * `hardenSimulation` schneidet Spieler, Kugeln, Drohnen und Formen an einem
+ * festen Rechteck um den Blickpunkt ab -- und zwar an DIESEM. Die Zahl stand
+ * bis zum 12.08. nur dort, waehrend der Client seine Sichtgrenzen gegen
+ * `viewRadius` (1100) und den Wand-Ausschnitt (992 x 648) rechnete: also gegen
+ * Regeln, die diese Schicht laengst ersetzt hat. Im Modus
+ * „Bildschirmfuellend" sah der Spieler dadurch auf 21:9 rund 76 Einheiten je
+ * Seite weiter, als der Server liefert -- ein Band, in dem Raster und Waende
+ * gezeichnet werden, aber nie ein Tank, eine Kugel oder eine Form erscheint.
+ *
+ * Deshalb steht die Grenze hier, wo beide Seiten sie lesen koennen.
+ */
+export const ENTITY_CULL_PADDING = 48;
+
 export const GAME = {
   worldWidth: 9000,
   worldHeight: 6000,
@@ -800,6 +816,20 @@ export const GAME = {
   snapshotBackpressureBytes: 512000,
   projectileStepDistance: 10
 } as const;
+
+/**
+ * Halbe Kantenlaengen des Entitaeten-Ausschnitts, den der Server liefert.
+ *
+ * Wer weiter sieht als das, sieht ein leeres Band: Waende und Raster zeichnet
+ * der Client selbst, Tanks und Kugeln kommen vom Server. `viewport.ts` leitet
+ * daraus seine Seitenverhaeltnis-Grenzen ab, `simulation-hardening.ts`
+ * schneidet danach.
+ */
+export const ENTITY_CULL_HALF = {
+  width: GAME.visibleWorldWidth / 2 + ENTITY_CULL_PADDING,
+  height: GAME.visibleWorldHeight / 2 + ENTITY_CULL_PADDING
+} as const;
+
 
 export const EMPTY_UPGRADES = (): UpgradeLevels => ({ maxHealth:0, regen:0, moveSpeed:0, reload:0, damage:0, projectileSpeed:0, penetration:0, bodyDamage:0, signatureRate:0, signaturePower:0, projectileRange:0, moduleCooldown:0 });
 export const sanitizePlayerName = (value:string):string => value.normalize('NFKC').replace(/[<>\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 18);

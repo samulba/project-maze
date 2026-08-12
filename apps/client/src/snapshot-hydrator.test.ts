@@ -7,7 +7,7 @@ import {
   type WorldSnapshot
 } from '@project-maze/shared';
 import { describe, expect, it } from 'vitest';
-import { SnapshotHydrator, isWireSnapshot } from './snapshot-hydrator';
+import { STATICS_CACHE_LIMIT, SnapshotHydrator, isWireSnapshot } from './snapshot-hydrator';
 
 const upgrades = (value = 0): Record<UpgradeId, number> =>
   Object.fromEntries(UPGRADE_IDS.map((id) => [id, value])) as Record<UpgradeId, number>;
@@ -213,6 +213,62 @@ describe('SnapshotHydrator reset', () => {
     expect(result.walls).toEqual([]);
     expect(result.leaderboard).toEqual([]);
     expect(result.killfeed).toEqual([]);
+  });
+});
+
+/**
+ * Die Caches wuchsen unbegrenzt: Jeder Spieler und jede Form, die je im
+ * Sichtfenster war, blieb bis zum naechsten Verbindungsabbruch stehen -- und
+ * der Respawn geht nicht ueber `reset`. Rund 0,75 MB je Stunde in einem Tab,
+ * der offen bleibt.
+ */
+describe('SnapshotHydrator cache limit', () => {
+  /** Ein Spieler, wie er auf der Leitung aussieht: ohne die Statik-Felder. */
+  const ohneStatik = (eintrag: PlayerSnapshot): never => {
+    const kopie: Record<string, unknown> = { ...eintrag };
+    delete kopie.name;
+    delete kopie.playerClass;
+    delete kopie.isBot;
+    delete kopie.upgrades;
+    return kopie as never;
+  };
+
+  const vollerSpieler = (id: string): WireWorldSnapshot => ({
+    ...(stripped(full({ tick: 1 })) as WireWorldSnapshot),
+    players: [player(id) as never],
+    shapes: [shape(`s-${id}`) as never]
+  });
+
+  it('waechst nicht ueber den Deckel hinaus', () => {
+    const hydrator = new SnapshotHydrator();
+    for (let i = 0; i < STATICS_CACHE_LIMIT * 3; i += 1) hydrator.hydrate(vollerSpieler(`p-${i}`));
+    expect(hydrator.cacheSize.players).toBeLessThanOrEqual(STATICS_CACHE_LIMIT);
+    expect(hydrator.cacheSize.shapes).toBeLessThanOrEqual(STATICS_CACHE_LIMIT);
+  });
+
+  /**
+   * Der springende Punkt: Verdraengt wird der am laengsten nicht GELESENE
+   * Eintrag, nicht der aelteste. Ein Tank, der seit einer halben Stunde neben
+   * einem steht, waere sonst der Erste, der herausfliegt.
+   */
+  it('behaelt, was benutzt wird, statt einfach das Aelteste zu werfen', () => {
+    const hydrator = new SnapshotHydrator();
+    hydrator.hydrate(vollerSpieler('dauergast'));
+    for (let i = 0; i < STATICS_CACHE_LIMIT * 2; i += 1) {
+      hydrator.hydrate(vollerSpieler(`p-${i}`));
+      // Der Dauergast wird jede Runde gelesen -- wie im Spiel, wo er im Bild steht.
+      if (i % 3 === 0) {
+        const welt = stripped(full({ tick: 2 }), { playerStatics: true });
+        welt.players = [ohneStatik(player('dauergast'))];
+        hydrator.hydrate(welt);
+      }
+    }
+    const vorher = hydrator.missingStatics;
+    const welt = stripped(full({ tick: 3 }), { playerStatics: true });
+    welt.players = [ohneStatik(player('dauergast'))];
+    const ergebnis = hydrator.hydrate(welt);
+    expect(hydrator.missingStatics).toBe(vorher);
+    expect(ergebnis.players[0]?.name).toBe('Name-dauergast');
   });
 });
 

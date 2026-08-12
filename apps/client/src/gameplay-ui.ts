@@ -153,9 +153,24 @@ export class GameplayUI {
   onWelcome(): void {
     this.connected = true;
     const deathCard = this.root.querySelector<HTMLElement>('.death-card');
-    const respawnButton = deathCard?.querySelector<HTMLElement>('#respawn-button');
+    /*
+     * Eingehaengt wird vor dem KIND der Karte, in dem der Respawn-Knopf steckt
+     * -- nicht vor dem Knopf selbst.
+     *
+     * `insertBefore` verlangt einen direkten Nachfahren; `querySelector`
+     * findet dagegen in jeder Tiefe. Seit der Knopf in der klebenden
+     * `.death-actions`-Leiste sitzt, war der gefundene Knopf kein Kind der
+     * Karte mehr, und der Aufruf warf `NotFoundError` -- mitten in der
+     * Snapshot-Verarbeitung, also fuer den Spieler als "Der Server hat
+     * ungueltige Daten gesendet". Gefunden hat es `npm run wire-probe`,
+     * nicht der Layout-Durchlauf: Es ist kein Layout-Fehler, sondern ein
+     * Absturz beim ersten Snapshot nach dem Beitritt.
+     */
+    const anker = deathCard
+      ?.querySelector<HTMLElement>('#respawn-button')
+      ?.closest<HTMLElement>('.death-card > *') ?? null;
     if (deathCard && this.loadoutPanel.parentElement !== deathCard) {
-      if (respawnButton) deathCard.insertBefore(this.loadoutPanel, respawnButton);
+      if (anker && anker.parentElement === deathCard) deathCard.insertBefore(this.loadoutPanel, anker);
       else deathCard.append(this.loadoutPanel);
     }
     this.sendLoadout();

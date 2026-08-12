@@ -59,22 +59,40 @@ Produkt bleibt 1600 × 900 = 1,44 Mio. Einheiten².
 | Schirm | Sicht bisher | Sicht flächengleich | Balken |
 |---|---|---|---|
 | 16:9 | 1600 × 900 | **1600 × 900** (identisch) | keine |
-| 21:9 (2560×1080) | 1600 × 900 | 1848 × 779 (+15 % / −13 %) | **keine** |
-| 4:3 (1280×1024) | 1600 × 900 | 1342 × 1073 (−16 % / +19 %) | **keine** |
-| 32:9 | 1600 × 900 | geklemmt bei 2,4 | schmal, bleibt |
+| 21:9 (2560×1080) | 1600 × 900 | 1693 × 851 (+6 % / −5 %) | schmal |
+| 4:3 (1280×1024) | 1600 × 900 | 1450 × 993 (−9 % / +10 %) | schmal |
+| 32:9 | 1600 × 900 | geklemmt bei 1,99 | breit, bleibt |
+
+> **Korrektur vom 12.08.** Diese Tabelle stand hier bis dahin mit 1848 × 779
+> auf 21:9 und „**keine** Balken" – und beides war falsch, weil die Rechnung
+> unten gegen die falsche Server-Grenze lief. Siehe den Kasten dort.
 
 **Auf 16:9 ändert sich nichts** – nicht ungefähr, sondern auf sechs
 Nachkommastellen; ein Test hält das fest. Wer heute spielt, merkt vom
 Umschalten nichts, und die Balance verschiebt sich nicht durch die Hintertür.
 
-**Die Klemmung bei 2,4 ist keine Geschmacksfrage, sondern gerechnet.** Der
-Server schneidet Wände bei `visibleWorldWidth · 0,62` = 992 Einheiten ab und
-Entitäten bei `viewRadius` = 1100. Ein Client, der weiter sieht, bekommt Wände,
-die am Bildrand aus dem Nichts auftauchen. Bei Seitenverhältnis 2,4 liegt die
-halbe Sichtbreite bei 949 – 43 Einheiten Luft. `viewportLimits()` rechnet das
-aus, und vier Tests prüfen es gegen die Server-Konstanten: **Wenn 02 an den
-Cull-Werten dreht, fällt es hier auf und nicht im Spiel.** Die gängigen
-Ultrawides (2560×1080 = 2,370 · 3440×1440 = 2,389) liegen darunter.
+**Die Klemmung ist keine Geschmacksfrage, sondern gerechnet – aber sie war
+gegen die falsche Zahl gerechnet.**
+
+Hier stand: „Der Server schneidet Wände bei `visibleWorldWidth · 0,62` = 992
+ab und Entitäten bei `viewRadius` = 1100; bei Seitenverhältnis 2,4 liegt die
+halbe Sichtbreite bei 949 – 43 Einheiten Luft." Beide Zahlen sind Regeln der
+**Basis**, und `hardenSimulation` hat sie ersetzt: Entitäten fallen dort an
+einem festen Rechteck weg, `ENTITY_CULL_HALF` = **848 × 498**. Die vier Tests
+prüften also gegen eine Regel, die nicht mehr läuft – dieselbe Fehlerklasse,
+die GOAL.md unter „Eine Fehlerklasse, die zweimal zugeschlagen hat" führt,
+diesmal an der Client/Server-Naht.
+
+Gemessen: Auf 2560 × 1080 zeigte „Bildschirmfüllend" 924 Einheiten zur Seite,
+geliefert werden 848. In den äußeren **76 Einheiten je Seite** zeichnet der
+Client Raster und Wände, aber es erscheint dort nie ein Tank, eine Kugel oder
+eine Form. Auf hohen Fenstern dasselbe senkrecht: 600 gegen 498.
+
+Seit dem 12.08. werden `MIN_ASPECT` und `MAX_ASPECT` **aus** `ENTITY_CULL_HALF`
+gerechnet statt danebengeschrieben (1,46 und 1,99), und ein Test fährt die
+ganze Spanne von 0,4 bis 4,0 ab: Kein Seitenverhältnis darf mehr Welt zeigen,
+als der Server liefert. Der Preis ist ein schmaler Balken auf 21:9 – die
+ehrlichere Antwort als ein Streifen, in dem nie etwas passiert.
 
 **Standard bleibt „Fest 16:9".** Eine Änderung der Sichtweite ist eine
 Balance-Frage, also Regel 3: Sie steht als Auswahl „SICHTFELD" im Startscreen
