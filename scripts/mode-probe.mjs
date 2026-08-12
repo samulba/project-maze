@@ -115,6 +115,18 @@ await new Promise((fertig) => setTimeout(fertig, SEKUNDEN * 1000));
 clearInterval(fahren);
 socket.close();
 
+// Auch die Telemetrie muss denselben Modus nennen (Befund 65): Dort stand
+// jahrelang das hartkodierte 'maze-alpha' -- zwei Dienste (Maze + Royale)
+// waren in Prometheus nicht auseinanderzuhalten, und genau diese Luecke hat
+// die Probe nicht gesehen, weil sie nur welcome und /health verglich.
+// Telemetrie kann per TELEMETRY_ENABLED aus sein -- dann ist der Endpunkt
+// 404 und der Vergleich entfaellt, statt falsch rot zu melden.
+let telemetrieModus = null;
+try {
+  const antwort = await fetch(`${URL}/metrics?format=json`);
+  if (antwort.ok) telemetrieModus = (await antwort.json()).mode ?? null;
+} catch { /* Ohne Telemetrie kein Vergleich. */ }
+
 const befunde = {
   modusGemeldet: Boolean(modus),
   // Der Client beschriftet sein Etikett aus `welcome` – läuft das auseinander,
@@ -122,6 +134,7 @@ const befunde = {
   etikettPasst: gesehen.welcomeModus === modus,
   snapshotsKommen: gesehen.snapshots > 0
 };
+if (telemetrieModus !== null) befunde.telemetrieNenntModus = telemetrieModus === modus;
 
 if (modus === 'maze') befunde.waendeKommenAn = gesehen.maxWaende > 0;
 if (modus === 'ffa') befunde.keineWand = gesehen.maxWaende === 0;
