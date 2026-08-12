@@ -5,7 +5,21 @@
 | **Auftrag** | Sam: „erst nachmessen, dann anfassen" – die 79 Rohbefunde aus Bericht 19 |
 | **Branch** | `claude/validate-bericht-19-findings-85aiaz` (Sitzungs-Vorgabe; main ist per Sams Freigabe „Ja, merge du" nachgezogen) |
 | **Basis** | `3834b52` |
-| **Tests** | `npm run check` grün – 77 Dateien, 1056 Tests |
+| **Tests** | `npm run check` grün – 77 Dateien, 1060 Tests |
+
+**Nachtrag (nach Sams Entscheidungen per Rückfrage, spätabends):** Die zwei
+defektartigen Bot-Befunde sind gefixt und per Gegenprobe bestätigt –
+**75:** Rotation je Stil mit Versätzen (`bot-brain.ts`), jetzt 18 von 18
+Archetypen verschieden, alle acht Familien im Bestand (Siege über den Kiter,
+Aegis über den Brawler), Hunter erreicht Elite, Bau bleibt deterministisch
+(messung-75). **79:** `holdsStill`-Markierung – tuneRapidBots respektiert
+den gewollten Reparatur-Halt; im A/B-Mittel jetzt 7 Reparaturzyklen je
+4 min mit der Schicht statt 0–1 (messung-79). Dazu der **ehrliche
+Repulse-Text** (63): „Stößt Nahe kurz zurück und lenkt Projektile ab –
+verschafft einen Moment Luft." Der Schalter blieb unangetastet.
+**Prediction (64) bleibt aus** – Sam spielt erst selbst. Das
+**Vorschlagspapier** zum restlichen Bot-Schwierigkeits-Paket (71, 72, 73,
+76, 77, 78) hat Sam bestellt; es ist der nächste Schritt.
 | **Status** | **Alle 79 Befunde geprüft**: 43 behoben, 2 verworfen (2, 74), Rest bestätigt-aber-offen – Bots/Balance/Content bei Sam |
 
 Dieses Dokument ist der Einstieg für die nächste Sitzung. Der volle Bericht

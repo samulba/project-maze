@@ -181,8 +181,10 @@ interface BotInternals {
  *
  * Deshalb eine eigene, äußere Schicht: `tuneBotBrain` ersetzt `updateBot`
  * vollständig, eine innere Änderung würde einfach überschrieben. Hier wird nur
- * die letzte Entscheidung nachgebessert – gefeuert wird weiterhin nicht, die
- * Reparatur bricht also nicht ab.
+ * die letzte Entscheidung nachgebessert – und NUR die versehentliche: Der
+ * gewollte Reparatur-Halt der Bot-Steuerung (`holdsStill`) bleibt stehen,
+ * sonst fällt das Tempo nie unter das Reparatur-Limit und der Zyklus beginnt
+ * gar nicht erst (Befund 79).
  *
  * Steht am selben Schalter wie die Mechanik: Ohne Signature keine Sonderregel.
  */
@@ -197,6 +199,12 @@ export function tuneRapidBots<T extends MazeGame>(game: T, enabled = false): T {
     // Spawnschutz nicht aushebeln: Die Bot-Steuerung beendet ihn, sobald sie
     // handelt. Wer noch geschützt dasteht, soll das auch dürfen.
     if (player.invulnerable) return;
+    // Gewollter Stillstand ist kein Momentum-Unfall: Die Bot-Steuerung hält
+    // für die Reparatur an („erst anhalten, dann reparieren") – diese Schicht
+    // übersetzte den Halt zurück in Fahrt, das Tempo fiel nie unter das
+    // Reparatur-Limit, und der Zyklus begann nie (Befund 79: 0–1 Zyklen in
+    // 4 min gegen 1–5 ohne die Schicht, gemessen in messung-79).
+    if ((player.bot as { holdsStill?: boolean }).holdsStill) return;
     if (Math.hypot(player.move.x, player.move.y) >= RAPID_BOT_MIN_MOVE) return;
 
     const speed = Math.hypot(player.velocity.x, player.velocity.y);

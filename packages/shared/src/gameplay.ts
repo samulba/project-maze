@@ -48,7 +48,12 @@ export const ACTIVE_MODULE_DEFINITIONS: Record<ActiveModuleId, ActiveModuleDefin
     id: 'repulse',
     label: 'Repulse Pulse',
     shortLabel: 'PULSE',
-    description: 'Verdrängt Gegner, Drohnen und nahe Projektile.',
+    // Ehrlicher Text (Befund 63, Sams Entscheidung vom 12.08.): Gemessen
+    // stößt der Puls einen Stehenden rund einen Tankdurchmesser weit und
+    // kauft gegen einen Anlaufenden etwa eine halbe Sekunde – „verdrängt"
+    // versprach eine Wirkung, die es in dieser Stellung nicht gibt.
+    // Projektile lenkt er dagegen wirklich ab (und beschädigt sie).
+    description: 'Stößt Nahe kurz zurück und lenkt Projektile ab – verschafft einen Moment Luft.',
     role: 'control',
     roleLabel: 'Kontrolle',
     cooldownMs: 12_000,

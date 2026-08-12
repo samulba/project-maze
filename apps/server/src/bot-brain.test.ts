@@ -322,3 +322,54 @@ describe('bot brain', () => {
     }
   });
 });
+
+describe('Bot-Bestand (Befund 75)', () => {
+  /** Standardarena bauen, einen Tick laufen lassen (Gehirne entstehen), Bestand lesen. */
+  const bestand = () => {
+    const game = tuneBotBrain(tuneCombatScaling(new MazeGame(18)), DEFAULT_BOT_PACING);
+    const internals = game as unknown as Internals;
+    game.step(0.025, 1_000_000);
+    return [...internals.players.values()]
+      .filter((player) => player.bot)
+      .map((player) => ({
+        style: (player.bot as { style: string }).style,
+        aimError: (player.bot as { aimError: number }).aimError,
+        reactionMs: (player.bot as { reactionMs: number }).reactionMs,
+        path: (player.bot as { classPath: PlayerClass[] }).classPath.join('>'),
+        family: CLASS_DEFINITIONS[(player.bot as { classPath: PlayerClass[] }).classPath.at(-1)!].branch
+      }));
+  };
+
+  it('enthält alle acht Familien – auch SIEGE und AEGIS', () => {
+    // Vorher fehlten genau die beiden Familien, die der Kommentar an der
+    // Controller-Rotation ausdrücklich haben will: Die Modulo-Kopplung von
+    // Stil (Periode 10) und Pfad/Tier (gemeinsamer Zähler) zog sie nie.
+    const familien = new Set(bestand().map((bot) => bot.family));
+    expect([...familien].sort()).toEqual(
+      ['aegis', 'control', 'impact', 'precision', 'rapid', 'siege', 'specter', 'tempest']
+    );
+  });
+
+  it('vergibt 18 verschiedene Archetypen und mehrere Tiers je Stil', () => {
+    const bots = bestand();
+    // Archetyp = Stil + Profil + Pfad; vorher waren es 12 auf 18 Plätzen.
+    const archetypen = new Set(bots.map((bot) => `${bot.style}|${bot.aimError}|${bot.reactionMs}|${bot.path}`));
+    expect(archetypen.size).toBe(18);
+    // Kein Stil ist mehr auf ein einziges Profil festgenagelt („jeder Kiter
+    // Veteran, kein Hunter je Elite").
+    const profileJeStil = new Map<string, Set<number>>();
+    for (const bot of bots) {
+      const set = profileJeStil.get(bot.style) ?? new Set<number>();
+      set.add(bot.aimError);
+      profileJeStil.set(bot.style, set);
+    }
+    for (const [stil, profile] of profileJeStil) {
+      expect(profile.size, `Stil ${stil} hat nur ein Profil`).toBeGreaterThan(1);
+    }
+  });
+
+  it('bleibt je Arena deterministisch – Tests und Wiederholungsläufe brauchen das', () => {
+    const key = (bots: ReturnType<typeof bestand>) => bots.map((bot) => `${bot.style}|${bot.aimError}|${bot.path}`).join(';');
+    expect(key(bestand())).toBe(key(bestand()));
+  });
+});

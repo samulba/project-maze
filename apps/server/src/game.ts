@@ -75,6 +75,12 @@ export interface BotState {
   fleeHealth: number;
   classPath: PlayerClass[];
   upgradePath: UpgradeId[];
+  /**
+   * Die Bot-Steuerung steht GEWOLLT still (Reparatur: „erst anhalten, dann
+   * reparieren"). Markierung für äußere Schichten – tuneRapidBots übersetzte
+   * den Halt sonst zurück in Fahrt, und die Reparatur begann nie (Befund 79).
+   */
+  holdsStill?: boolean;
 }
 interface GamePlayer extends PlayerSnapshot {
   move: Vector2;

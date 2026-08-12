@@ -233,6 +233,35 @@ describe('rapid signature – momentum', () => {
     expect(Math.hypot(rapid.move.x, rapid.move.y)).toBe(0);
   });
 
+  it('respektiert den gewollten Reparatur-Halt der Bot-Steuerung (Befund 79)', () => {
+    // Der Stub hält an UND markiert den Halt als gewollt – wie es die echte
+    // Steuerung beim „erst anhalten, dann reparieren" tut. Vorher übersetzte
+    // die Schicht genau diesen Halt zurück in Fahrt, das Tempo fiel nie unter
+    // das Reparatur-Limit, und der Zyklus begann nie.
+    const game = tuneCombatScaling(new MazeGame(1));
+    const internals = game as unknown as Internals & { updateBot(player: any, now: number): void };
+    internals.updateBot = (player: any): void => {
+      player.move = { x: 0, y: 0 };
+      player.bot.holdsStill = true;
+    };
+    tuneRapidBots(game, true);
+
+    const [rapid] = [...internals.players.values()].filter((player) => player.bot);
+    Object.assign(rapid, { playerClass: 'storm', invulnerable: false, velocity: { x: 0, y: -220 } });
+
+    internals.updateBot(rapid, 10_000);
+    expect(Math.hypot(rapid.move.x, rapid.move.y)).toBe(0);
+
+    // Fällt die Markierung, greift die Momentum-Regel wieder.
+    internals.updateBot = (player: any): void => {
+      player.move = { x: 0, y: 0 };
+      player.bot.holdsStill = false;
+    };
+    tuneRapidBots(game, true);
+    internals.updateBot(rapid, 10_050);
+    expect(Math.hypot(rapid.move.x, rapid.move.y)).toBeCloseTo(1, 6);
+  });
+
   it('überschreibt keine Bot-Entscheidung, die ohnehin fährt', () => {
     const game = tuneCombatScaling(new MazeGame(2));
     const internals = game as unknown as Internals & { updateBot(player: any, now: number): void };

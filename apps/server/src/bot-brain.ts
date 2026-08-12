@@ -41,6 +41,22 @@ export const TIER_PROFILES: Record<BotSkillTier, TierProfile> = {
 /** 40 % Rookie, 40 % Veteran, 20 % Elite – die Arena bleibt eine faire Mischung. */
 export const TIER_SEQUENCE: readonly BotSkillTier[] = ['rookie', 'veteran', 'rookie', 'veteran', 'elite'];
 
+/**
+ * Start-Versätze der Rotation je Stil (Befund 75).
+ *
+ * Vorher hingen Tier und Klassenpfad am selben globalen Zähler wie der Stil
+ * (Periode 10 gegen Periode 5): Der Bestand war in jeder Sitzung bit-identisch,
+ * 12 Archetypen auf 18 Plätzen, kein Hunter je Elite – und die Siege-/Aegis-
+ * Pfade unten wurden NIE gezogen, obwohl der Kommentar an der Controller-
+ * Rotation sie ausdrücklich will. Jetzt zählt jeder Stil für sich, und die
+ * Versätze sind so gewählt, dass die Standardarena (7/4/2/3/2 Bots je Stil)
+ * alle acht Familien enthält: Siege über kiter[2], Aegis über brawler[3],
+ * Impact über brawler[5], und der Hunter erreicht Elite. Tier-Mischung damit
+ * 6/8/4 statt vorher 7/8/3. Gegenprobe: scripts/messungen/messung-75.mjs.
+ */
+const BOT_PATH_OFFSET: Record<BotStyle, number> = { farmer: 0, hunter: 0, kiter: 2, brawler: 3, controller: 0 };
+const BOT_TIER_OFFSET: Record<BotStyle, number> = { farmer: 0, hunter: 3, kiter: 0, brawler: 2, controller: 3 };
+
 export interface BotLoadout {
   module: ActiveModuleId;
   frame: PassiveModifierId;
@@ -156,6 +172,8 @@ interface BotState {
   fleeHealth: number;
   classPath: PlayerClass[];
   upgradePath: UpgradeId[];
+  /** Gewollter Reparatur-Halt – Markierung für tuneRapidBots (Befund 79). */
+  holdsStill?: boolean;
 }
 
 interface RuntimePlayer extends PlayerSnapshot {
@@ -212,14 +230,15 @@ interface BotBrain {
 
 interface GameBrainState {
   brains: Map<string, BotBrain>;
-  counter: number;
+  /** Rotationszähler je Stil – entkoppelt Tier und Pfad vom Spawn-Index (Befund 75). */
+  perStyle: Map<BotStyle, number>;
 }
 
 const states = new WeakMap<MazeGame, GameBrainState>();
 const stateFor = (game: MazeGame): GameBrainState => {
   const existing = states.get(game);
   if (existing) return existing;
-  const created: GameBrainState = { brains: new Map(), counter: 0 };
+  const created: GameBrainState = { brains: new Map(), perStyle: new Map() };
   states.set(game, created);
   return created;
 };
@@ -247,12 +266,19 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
     const existing = state.brains.get(player.id);
     if (existing) return existing;
     const bot = player.bot!;
-    const index = state.counter += 1;
-    const tier = TIER_SEQUENCE[index % TIER_SEQUENCE.length] ?? 'rookie';
+    // Rotation je Stil statt am globalen Zähler (Befund 75): Pfad läuft die
+    // Liste des Stils der Reihe nach ab; das Tier rückt bei jedem Pfad-Umlauf
+    // eine Stufe weiter, damit sich (Tier, Pfad) erst nach 5 × Pfadlänge
+    // wiederholt – sieben Farmer bekommen so sieben verschiedene Archetypen.
+    const perStyle = state.perStyle.get(bot.style) ?? 0;
+    state.perStyle.set(bot.style, perStyle + 1);
+    const paths = BOT_CLASS_PATHS[bot.style];
+    const tierIndex = (perStyle + Math.floor(perStyle / paths.length) + BOT_TIER_OFFSET[bot.style]) % TIER_SEQUENCE.length;
+    const tier = TIER_SEQUENCE[tierIndex] ?? 'rookie';
     const profile = TIER_PROFILES[tier];
     bot.reactionMs = profile.reactionMs;
     bot.aimError = profile.aimError;
-    bot.classPath = BOT_CLASS_PATHS[bot.style][index % BOT_CLASS_PATHS[bot.style].length] ?? bot.classPath;
+    bot.classPath = paths[(perStyle + BOT_PATH_OFFSET[bot.style]) % paths.length] ?? bot.classPath;
     const created: BotBrain = {
       tier,
       equipped: false,
@@ -289,6 +315,8 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
         brain.lastAttackerId = attackerId;
         brain.lastAttackedAt = now;
         brain.holdUntil = 0;
+        // Der Halt ist vorbei – die Markierung fällt mit (Befund 79).
+        target.bot.holdsStill = false;
       }
     }
     // Ein eigener Treffer ist Fortschritt und stellt den Jagd-Timeout neu.
@@ -462,12 +490,17 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
     }
 
     if (brain.holdUntil > now && enemyDistance > 520) {
+      // Gewollter Stillstand, als Markierung nach außen sichtbar: tuneRapidBots
+      // übersetzte den Halt sonst zurück in Fahrt, und die Reparatur begann
+      // nie (Befund 79 – 0 bis 1 Zyklen in 4 min gegen 1 bis 5 ohne Schicht).
+      bot.holdsStill = true;
       player.move = { x: 0, y: 0 };
       player.primary = false;
       player.secondary = false;
       return;
     }
     brain.holdUntil = 0;
+    bot.holdsStill = false;
 
     const target = enemy?.position ?? shape?.position;
     if (!target) {
