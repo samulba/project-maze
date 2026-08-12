@@ -52,6 +52,12 @@ mit Test:
   DROHNEN-Knopf nur für Drohnenklassen (40), kein „ALPHA" im HUD (37), der
   Name überlebt den Reload (54).
 
+**Alle Proben sind gefahren und grün:** wire, progress, mode ×3, royale, duo,
+touch ×5 (mit den neuen Kriterien) und die Layout-Matrix (198/199 im letzten
+Volllauf, der eine Fall behoben und einzeln verifiziert). Die Matrix hat dabei
+fünf Folgefehler der eigenen Fixes gefunden – alle behoben, Details in
+Bericht 21 Abschnitt 6.
+
 **Zwei Infrastruktur-Funde:** `playwright-core` stand in keiner package.json
 (alle Browser-Proben hingen am Zufall des Containers – jetzt devDependency),
 und die mode-probe vergleicht jetzt auch die Telemetrie, sonst wäre Befund 65

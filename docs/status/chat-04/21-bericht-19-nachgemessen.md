@@ -204,11 +204,32 @@ Schwierigkeits-Entscheidungen, also mindestens zur Hälfte Sams.
 
 ```
 npm run check      1023 Tests gruen (74 Dateien; +22 neue)
-proben (kurz)      mode x3 und duo gruen; wire/progress/royale liefen erst
-                   nach dem playwright-core-Fund -- Ergebnis siehe unten
-touch-probe        misst jetzt liegende Daumen und Autofire ueber den Tod
-ui-layout-check    drei neue Mobil-Faelle plus Stick-Schaerfe-Messschicht
+wire-probe         gruen
+progress-probe     gruen (im Suite-Lauf einmal an der Container-Last
+                   gescheitert, einzeln reproduzierbar gruen)
+mode-probe x3      maze / ffa / royale gruen -- NEU: inkl. Telemetrie-Modus
+royale-probe       gruen
+duo-probe          gruen
+touch-probe:all    5/5 Formate gruen -- NEU: Daumen bleiben ueber den Tod
+                   liegen, Autofire wird nach jedem Respawn geprueft
+ui-layout-check    198/199 im letzten Volllauf; der eine Fall (Klassen-
+                   Spalte der schmalen Top-4-Liste) behoben und unter der
+                   verschaerften Bedingung (25 min Serverlaufzeit) einzeln
+                   gruen -- drei neue Mobil-Faelle, Stick-Schaerfe-Schicht
 ```
+
+Die Matrix hat dabei ihren Zweck erfüllt und **fünf Folgefehler der eigenen
+Fixes gefunden**, alle behoben: Die Signature-Zeile sprengte den
+34-vh-Deckel der Wahlkarten (jetzt in der Rollenzeile, null Höhe), der
+sichtbare Sperrgrund lief übers Panel (drei Ursachen: Textlänge,
+`1fr` ohne `minmax(0,…)`, geerbtes `justify-items:center` gegen die
+Ellipse), die versteckte kbd-Marke rendorte trotz `hidden` (dieselbe
+display-Falle wie beim Drohnen-Knopf), die fünfte Steuerzeilen-Pille machte
+den Startscreen auf 1366×768 scrollend, und die Abruf-Minimap kollidierte
+mit der Onboarding-Karte. Der lehrreichste: Die Klassen-Spalte der schmalen
+Top-4-Liste passte mit frischem Server und sprengte die Zeile nach
+25 Minuten Arena-Laufzeit – eine Spalte, deren Passen vom Serveralter
+abhängt, gehört nicht in die Zeile.
 
 Zwei Infrastruktur-Funde am Rande: `playwright-core` stand in keiner
 package.json – alle Browser-Proben liefen nur, weil es im alten Container
