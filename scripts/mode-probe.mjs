@@ -80,7 +80,39 @@ socket.on('error', (fehler) => {
   process.exit(2);
 });
 
+/*
+ * Waehrend der Messung wird GEFAHREN, nicht gestanden.
+ *
+ * Waende kommen nur im Sichtfenster an. Ein Spieler, der auf einem der zehn
+ * festen Spawnpunkte stehen bleibt, kann im freien Feld stehen -- dann meldet
+ * die Probe "keine einzige Wand" und faellt durch, obwohl das Labyrinth in
+ * Ordnung ist. Genau das ist am 12.08. einmal passiert (maxWaende 0), und im
+ * naechsten Lauf standen 3 da: eine Probe, die vom Zufall des Spawnpunkts
+ * abhaengt, ist keine.
+ *
+ * Also fahren: ein Richtungswechsel je Sekunde deckt in sechs Sekunden ein
+ * Vielfaches des Startfensters ab.
+ */
+const RICHTUNGEN = [
+  { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 0, y: -1 },
+  { x: 0.7, y: 0.7 }, { x: -0.7, y: 0.7 }
+];
+let folge = 0;
+const fahren = setInterval(() => {
+  if (socket.readyState !== socket.OPEN) return;
+  const richtung = RICHTUNGEN[folge % RICHTUNGEN.length];
+  socket.send(JSON.stringify({
+    type: 'input',
+    sequence: ++folge,
+    move: richtung,
+    aim: { x: 400 * richtung.x, y: 400 * richtung.y },
+    primary: false,
+    secondary: false
+  }));
+}, 200);
+
 await new Promise((fertig) => setTimeout(fertig, SEKUNDEN * 1000));
+clearInterval(fahren);
 socket.close();
 
 const befunde = {
