@@ -49,7 +49,7 @@ ist, entscheidet, wer es spielt.
 | Das Labyrinth bleibt ein Labyrinth | Wanddeckung 3,8–5,2 % der Fläche (`world.test.ts`) | ✅ 4,53 % |
 | Kein Upgrade ohne Wirkung | `upgradeAppliesTo`, geprüft durch die **ganze** Tuning-Kette | ✅ |
 | Kein Knopf ohne Server-Antwort | Alle 8 Familien-Signatures serverseitig verdrahtet | ✅ |
-| Keine Serverlags bei voller Arena | Tick p95 < 25 ms **und ≤ 160 KB/s pro Spieler** | ✅ Maze 142,7 KB/s / p95 7,6 ms · Royale 144,2 KB/s / p95 7,6 ms (je 80 Spieler) |
+| Keine Serverlags bei voller Arena | Tick p95 < 25 ms **und ≤ 160 KB/s pro Spieler** | ✅ Maze 134,6 KB/s / p95 10,8 ms · Royale 140,3 KB/s / p95 7,2 ms (je 80 Spieler, neu gemessen am 12.08.) |
 | Die Leitung Server→Client ist heil | `npm run wire-probe` grün | ✅ |
 | Auf dem Handy lässt sich **spielen**, nicht nur gucken | `npm run touch-probe:all` grün | ✅ 5 Formate, 667×375 bis 932×430 |
 | Die Fortschrittsschleife trägt: farmen → aufsteigen → Klasse → Upgrade | `npm run progress-probe` grün | ✅ |
@@ -551,8 +551,14 @@ done
 
 # Traegt eine ganze Royale-Runde? Zone sehen, draussen bluten, ausscheiden,
 # Sieger, neue Runde -- gewertet wird, was auf dem Schirm steht.
-# Braucht einen eigenen Server: Zeitraffer, ein Bot, kein Direktor.
-ARENA_MODE=royale ROYALE_SPEED=20 BOT_COUNT=1 ARENA_DIRECTOR_ENABLED=false \
+# Braucht einen eigenen Server: Zeitraffer und ein Bot.
+#
+# Der Direktor laeuft dabei MIT -- so wie in Produktion. Bis zum 12.08. stand
+# hier `ARENA_DIRECTOR_ENABLED=false`, und genau diese Ausnahme hat den Befund
+# gedeckt, dass der Direktor mitten in der Runde Bots nachschob: Die Probe
+# konnte den Fall gar nicht sehen, der in Produktion lief. Seit der Sperre
+# (`arena-director.ts`) laeuft sie mit der echten Konfiguration gruen.
+ARENA_MODE=royale ROYALE_SPEED=20 BOT_COUNT=1 \
   PORT=2599 node apps/server/dist/index.js &
 URL=http://127.0.0.1:2599 npm run royale-probe
 

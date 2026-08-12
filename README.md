@@ -69,7 +69,9 @@ ARENA_MODE=royale ROYALE_SPEED=20 PORT=2599 node apps/server/dist/index.js
 ```
 
 Dieselbe Zeile ist die Voraussetzung für `npm run royale-probe` (mit
-`BOT_COUNT=1 ARENA_DIRECTOR_ENABLED=false`): Die Probe spielt eine ganze Runde
+`BOT_COUNT=1`, und ausdrücklich **mit** eingeschaltetem Direktor – so wie in
+Produktion; die frühere Ausnahme `ARENA_DIRECTOR_ENABLED=false` hat einen
+Befund gedeckt, den die Probe dadurch nie sehen konnte): Die Probe spielt eine ganze Runde
 im echten Browser durch – Zone sehen, draußen bluten, ausscheiden, Sieger, neue
 Runde – und prüft, was auf dem Schirm steht, nicht was der Server denkt.
 
