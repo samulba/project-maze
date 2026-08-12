@@ -1,6 +1,6 @@
 import { GAME, type PlayerSnapshot, type Vector2 } from '@project-maze/shared';
 import { royaleZoneFor } from './arena-royale.js';
-import { BOT_NAMES, MazeGame, botState, type BotState } from './game.js';
+import { MazeGame, botNameFor, botState, type BotState } from './game.js';
 import { distanceSquared } from './physics.js';
 
 /**
@@ -190,7 +190,10 @@ export function tuneArenaDirector<T extends MazeGame>(
   const spawnBot = (now: number): void => {
     const humans = humansOf(internals);
     const index = state.spawnIndex++;
-    const name = BOT_NAMES[index % BOT_NAMES.length] ?? `Bot ${index + 1}`;
+    // Nachsehen statt modulo: Der Direktor spawnt ueber Stunden nach, und zwei
+    // gleichnamige Tanks im Killfeed sind fuer den Spieler ein Tank.
+    const vergeben = new Set([...internals.players.values()].map((spieler) => spieler.name));
+    const name = botNameFor(index, vergeben);
     const id = internals.createPlayer(name, true, botState(index));
     const bot = internals.players.get(id);
     if (!bot) return;

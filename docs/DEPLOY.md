@@ -38,7 +38,7 @@ Der Server findet `apps/client/dist` automatisch und liefert ihn aus.
 | `ARENA_DIRECTOR_ENABLED` | an | Dynamische Bot-Population nach Spielerzahl; `false` friert sie auf `BOT_COUNT` ein |
 | `SHORT_NET_IDS` | aus | Kurze numerische Entitäts-IDs statt UUIDs im Snapshot; braucht einen passenden Client |
 | `SPECTATOR_ENABLED` | aus | Nach dem Tod live dem Killer zusehen; braucht einen passenden Client |
-| `ACHIEVEMENTS_ENABLED` | aus | Achievement-Engine im Server (beobachtend, In-Memory, noch ohne Client-Anzeige) |
+| `ACHIEVEMENTS_ENABLED` | **an** (Opt-out) | Achievement-Engine im Server. Popup im Client, Liste auf der Profilkarte, Persistenz ueber Migration 0003. Bis 12.08. Opt-in -- und damit in Produktion nie gelaufen |
 | `SIGNATURE_RAPID_ENABLED` | aus | Signature „Momentum" der Rapid-Familie (schnelleres Nachladen in Bewegung); reine Serverwirkung. In `/health` unter `features.signatureRapid` prüfbar |
 | `SIGNATURE_IMPACT_ENABLED` | aus | Signature „Wucht" der Impact-Familie (mehr Rammschaden); reine Serverwirkung. In `/health` unter `features.signatureImpact` prüfbar |
 | `RATE_LIMITS_ENABLED` | an | Rate-Limits je IP und Verbindung; `false` schaltet sie ab |

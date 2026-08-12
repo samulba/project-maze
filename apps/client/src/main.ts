@@ -365,7 +365,16 @@ function connect(): void {
     ui.setConnection('offline', ablehnung ?? 'VERBINDUNG VERLOREN');
 
     if (!enteredGame) {
-      ui.setJoinPending(false, 'Server nicht erreichbar. Prüfe, ob npm run dev noch läuft.');
+      /*
+       * Kein Entwickler-Satz für Spieler.
+       *
+       * Hier stand „Prüfe, ob npm run dev noch läuft." -- eine Anweisung an
+       * jemanden, der das Repo ausgecheckt hat. Ein Fremder auf mazers.de
+       * liest sie als Beweis, dass er auf einer Baustelle gelandet ist. Was er
+       * wirklich tun kann, ist warten und neu laden; alles andere liegt bei
+       * uns.
+       */
+      ui.setJoinPending(false, 'Der Server ist gerade nicht erreichbar. Bitte lade die Seite in einem Moment neu.');
       return;
     }
     if (joinOptions) {

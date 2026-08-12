@@ -9,6 +9,7 @@ import {
   targetBotCount,
   tuneArenaDirector
 } from './arena-director';
+import { BOT_NAMES, botNameFor } from './game';
 import { tuneBotBrain } from './bot-brain';
 import { tuneClassMechanics } from './class-mechanics';
 import { tuneCombatScaling } from './combat-tuning';
@@ -355,5 +356,53 @@ describe('Abschalter', () => {
     }
     expect(botsOf(game)).toHaveLength(3);
     game.removePlayer(humanId);
+  });
+});
+
+/**
+ * Zwoelf Namen fuer achtzehn Bots: Sechs hiessen wie ein anderer, sichtbar im
+ * Killfeed ("Vektor eliminierte Mako" zweimal nebeneinander, vier verschiedene
+ * Tanks). Wer sich merken will, wer ihn abgeschossen hat, kann das dann nicht.
+ */
+describe('Bot-Namen', () => {
+  it('vergibt in einer vollen Arena keinen Namen zweimal', () => {
+    const game = hardenSimulation(new MazeGame(DEFAULT_DIRECTOR_CONFIG.baseBots));
+    const namen = [...(game as unknown as { players: Map<string, { name: string }> }).players.values()]
+      .map((spieler) => spieler.name);
+    expect(namen.length).toBe(DEFAULT_DIRECTOR_CONFIG.baseBots);
+    expect(new Set(namen).size).toBe(namen.length);
+  });
+
+  /*
+   * Die 24er-Liste allein reicht fuer eine Arena aus 18 Bots -- modulo genuegt
+   * dort. Sie reicht NICHT fuer einen Server, der stundenlang nachschiebt:
+   * `spawnIndex` waechst unbegrenzt, und beim zweiten Durchlauf lebt der erste
+   * Traeger oft noch. Deshalb wird nachgesehen, und deshalb steht die Regel
+   * hier einzeln -- der Arena-Test unten kann sie nicht erreichen.
+   */
+  it('weicht auf einen freien Namen aus, wenn der naechste schon vergeben ist', () => {
+    const alleAusserEinem = new Set(BOT_NAMES.filter((name) => name !== 'Lumen'));
+    expect(botNameFor(0, alleAusserEinem)).toBe('Lumen');
+    expect(botNameFor(5, alleAusserEinem)).toBe('Lumen');
+    // Der erste Kandidat ist frei -- dann bleibt es dabei.
+    expect(botNameFor(0, new Set())).toBe(BOT_NAMES[0]);
+    // Und wenn wirklich alles vergeben ist, gibt es eine Nummer statt eines
+    // zweiten „Vektor".
+    expect(botNameFor(7, new Set(BOT_NAMES))).toBe('Bot 8');
+  });
+
+  it('haelt das auch durch, wenn der Direktor ueber Stunden nachschiebt', () => {
+    const game = tuneArenaDirector(hardenSimulation(new MazeGame(0)));
+    const internals = game as unknown as { players: Map<string, { name: string; isBot: boolean }> };
+    game.addPlayer('Mensch');
+    let now = Date.now();
+    // Weit ueber die Laenge der Namensliste hinaus: jede Aenderung ein Fenster.
+    for (let i = 0; i < 30; i += 1) {
+      now += DEFAULT_DIRECTOR_CONFIG.phaseIntervalMs + 50;
+      game.step(1 / GAME.tickRate, now);
+    }
+    const namen = [...internals.players.values()].map((spieler) => spieler.name);
+    expect(namen.length).toBeGreaterThan(10);
+    expect(new Set(namen).size).toBe(namen.length);
   });
 });

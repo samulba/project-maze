@@ -567,10 +567,25 @@ describe('hunter signal event', () => {
      * Der Schaden bleibt die zweite, unabhaengige Bedingung – gefeuert zu haben
      * genuegt nicht, es muss auch angekommen sein.
      */
-    // Der Herausforderer bleibt als Trainingsziel stehen, damit der Kill den Test nicht beendet.
+    /*
+     * Das Trainingsziel BLEIBT in Reichweite -- es steht nicht still.
+     *
+     * Der Guardian bewegt sich; ein Herausforderer auf einem festen Punkt kann
+     * die ganzen drei Sekunden ausserhalb von `maxAimDistance` liegen, und dann
+     * misst der Test nicht seine Angriffslust, sondern seinen Spazierweg.
+     * Genau daran ist er am 12.08. in einem von zehn vollen Suite-Laeufen
+     * gescheitert (`damageTaken` blieb 0) -- dieselbe Ursache, die der
+     * Kommentar oben fuer `primary` schon einmal behoben hat, nur eine Zeile
+     * tiefer. Also folgt das Ziel dem Guardian in konstantem Abstand.
+     */
     let damageTaken = 0;
     let hatGefeuert = false;
     for (let index = 0; index < 120; index += 1) {
+      challenger.position = freeSpotSeenFrom(
+        { x: guardian.position.x + 170, y: guardian.position.y },
+        guardian.position,
+        40
+      );
       now += 25;
       game.step(1 / 40, now);
       if (guardian.primary) hatGefeuert = true;

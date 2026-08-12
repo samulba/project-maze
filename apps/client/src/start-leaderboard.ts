@@ -105,8 +105,24 @@ export class StartLeaderboard {
         leaderboardUrl(window.location, import.meta.env.DEV, LEADERBOARD_LIMIT),
         { signal: controller.signal, headers: { accept: 'application/json' } }
       );
+      /*
+       * 404 heisst „gibt es hier nicht", alles andere heisst „gibt es, aber".
+       *
+       * Der Server antwortet nur ohne konfigurierte Persistenz mit 404
+       * (`persistence.ts`). Ein leeres Ergebnis mit 200 bedeutet dagegen: Die
+       * Bestenliste laeuft, es hat nur noch niemand einen Lauf beendet -- der
+       * Normalfall am ersten Tag. Beides fiel hier zusammen, und der Satz
+       * „auf diesem Server noch nicht eingerichtet" blieb stehen. Wer ihn
+       * liest, glaubt, sein Lauf zaehle ohnehin nicht.
+       */
+      if (response.status === 404) return;
       if (!response.ok) return;
-      this.render(usableEntries(await response.json()));
+      const eintraege = usableEntries(await response.json());
+      if (eintraege.length === 0) {
+        this.zeigeLeer('Noch kein Lauf in der Bestenliste – deiner kann der erste sein.');
+        return;
+      }
+      this.render(eintraege);
     } catch {
       /* Kein Netz, kein Endpunkt, Zeitüberschreitung: Panel bleibt aus. */
     } finally {
@@ -135,6 +151,19 @@ export class StartLeaderboard {
     if (this.empty) this.empty.hidden = true;
     this.panel.hidden = false;
     this.markScrollable();
+  }
+
+  /**
+   * Die Bestenliste laeuft, ist aber leer. Das ist kein Fehler und keine
+   * fehlende Einrichtung, sondern eine Einladung.
+   */
+  private zeigeLeer(text: string): void {
+    if (this.empty) {
+      this.empty.textContent = text;
+      this.empty.hidden = false;
+    }
+    if (this.meta) this.meta.textContent = 'NOCH LEER';
+    this.panel.hidden = false;
   }
 
   /** Der Verlauf am unteren Rand darf nur erscheinen, wenn es wirklich weitergeht. */

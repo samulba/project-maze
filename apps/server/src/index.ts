@@ -166,8 +166,26 @@ const SNAPSHOT_DELTAS = !['false', '0', 'off']
 /**
  * Serverseitige Achievement-Engine. Rein beobachtend und nur im Arbeitsspeicher;
  * ohne den Schalter wird die Schicht gar nicht erst angehängt.
+ *
+ * **Opt-out seit dem 12.08.** Vorher stand hier `=== 'true'` – ein Opt-in, und
+ * niemand hat es je gesetzt: `.env.example` sagte `false`, `docs/DEPLOY.md`
+ * sagte „aus", und `railway.json` setzt gar keine Variablen. In Produktion lief
+ * das Erfolgssystem also nie.
+ *
+ * Das war einmal richtig: Als der Schalter entstand, gab es serverseitig eine
+ * Engine und sonst nichts. Inzwischen sind alle drei Teile da – der Client
+ * zeigt Popups (`achievement-popups.ts`), die Profilkarte listet sie
+ * (`profile.ts`), und die Persistenz schreibt sie (Migration 0003). Fertige
+ * Arbeit hinter einem Schalter, den niemand setzt, ist keine Arbeit; genau
+ * dieses Muster hat `docs/status/chat-04/17` schon einmal für drei andere
+ * Schalter aufgeräumt.
+ *
+ * Der Preis ist klein und bekannt: eine Prüfung je Snapshot
+ * (`drainUnlockedAchievements`), die im Normalfall eine leere Liste
+ * zurückgibt, und ein Feld im Snapshot **nur im Moment einer Freischaltung**.
  */
-const ACHIEVEMENTS_ENABLED = process.env.ACHIEVEMENTS_ENABLED === 'true';
+const ACHIEVEMENTS_ENABLED = !['false', '0', 'off']
+  .includes((process.env.ACHIEVEMENTS_ENABLED ?? '').trim().toLowerCase());
 /**
  * Ersetzt UUIDs im Snapshot durch kurze Zahlen. Dieselbe Bedingung wie bei
  * `SNAPSHOT_DELTAS`, und dieselbe Antwort: Der Client kennt die Feldform

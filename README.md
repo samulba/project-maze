@@ -195,10 +195,13 @@ damit ein wiederkehrendes Konto nichts doppelt freischaltet.
   danach abgleichen. Die serverseitige Bewegungsintegration ist in
   [`docs/CLIENT_PREDICTION.md`](docs/CLIENT_PREDICTION.md) Schritt für Schritt
   festgehalten; jede Abweichung im Nachbau wird als Ruckeln sichtbar.
-- **Achievements:** `ACHIEVEMENTS_ENABLED=true` hängt eine rein beobachtende
-  Engine an (sieben Achievements, Katalog in `apps/server/src/achievements.ts`).
-  Der Fortschritt liegt im Arbeitsspeicher und gilt je Verbindung; Persistenz
-  und Client-Anzeige sind eigene Pakete.
+- **Achievements:** eine rein beobachtende Engine (sieben Achievements, Katalog
+  in `apps/server/src/achievements.ts`). Der Fortschritt liegt im
+  Arbeitsspeicher und gilt je Verbindung; der Client zeigt Freischaltungen als
+  Popup, die Profilkarte listet sie, und mit Supabase-Persistenz plus Konto
+  werden sie dauerhaft gespeichert. Seit dem 12.08. **Opt-out**
+  (`ACHIEVEMENTS_ENABLED=false` stellt den alten Zustand her) -- vorher war es
+  Opt-in, und gesetzt hat es nie jemand.
 
 ## Aktueller Alpha-Stand (1.0)
 

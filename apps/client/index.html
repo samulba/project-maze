@@ -5,15 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#070910" />
     <title>MAZERS – Browser-Arena-Game</title>
-    <meta name="description" content="MAZERS: Farmen, leveln, 29 Tankklassen, Arena-Events und Bots – kostenloses Browser-Arena-Game. Kein Account, kein Pay-to-win." />
+    <meta name="description" content="MAZERS: Farmen, leveln, 65 Tankklassen in acht Familien, drei Modi (Maze, FFA, Battle Royale) – kostenloses Browser-Arena-Game. Kein Account, kein Pay-to-win." />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!--
+      Die 192er- und 512er-Icons lagen seit jeher im Deploy, aber ohne Manifest
+      hat sie niemand gelesen: „Zum Startbildschirm" ergab eine Verknuepfung
+      ohne Namen und ohne Bild. Vollbild und Querformat stehen drin, weil das
+      Spiel genau so gespielt wird -- die Touch-Steuerung ist auf Querformat
+      gemessen (fuenf Formate, 667x375 bis 932x430).
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="MAZERS" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="MAZERS" />
     <meta property="og:title" content="MAZERS – Browser-Arena-Game" />
-    <meta property="og:description" content="Farmen, leveln, 29 Tankklassen, Arena-Events – direkt im Browser. Kein Account, kein Pay-to-win." />
+    <meta property="og:description" content="Farmen, leveln, 65 Tankklassen in acht Familien, drei Modi – direkt im Browser. Kein Account, kein Pay-to-win." />
     <meta property="og:url" content="https://www.mazers.de/" />
     <meta property="og:image" content="https://www.mazers.de/og.png" />
     <meta property="og:image:width" content="1200" />

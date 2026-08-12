@@ -90,7 +90,38 @@ interface GamePlayer extends PlayerSnapshot {
 interface GameProjectile extends ProjectileSnapshot { damage: number; life: number; }
 interface GameDrone extends DroneSnapshot { slot: number; contactCooldown: number; }
 
-export const BOT_NAMES = ['Vektor', 'Nyx', 'Orbit', 'Kairo', 'Mako', 'Echo', 'Rift', 'Nova', 'Flux', 'Onyx', 'Astra', 'Mira'];
+/*
+ * Vierundzwanzig Namen fuer achtzehn Bots.
+ *
+ * Es waren zwoelf, und die Arena haelt seit der grossen Karte achtzehn: Ueber
+ * `BOT_NAMES[index % 12]` hiessen sechs Bots wie ein anderer. Sichtbar war das
+ * im Killfeed -- „Vektor eliminierte Mako" zweimal nebeneinander, mit vier
+ * verschiedenen Tanks. Wer sich merken will, wer ihn gerade abgeschossen hat,
+ * kann das dann nicht.
+ */
+export const BOT_NAMES = [
+  'Vektor', 'Nyx', 'Orbit', 'Kairo', 'Mako', 'Echo', 'Rift', 'Nova',
+  'Flux', 'Onyx', 'Astra', 'Mira', 'Zenit', 'Puls', 'Kobalt', 'Sirius',
+  'Hydra', 'Volt', 'Kepler', 'Basalt', 'Iris', 'Titan', 'Lumen', 'Delta'
+];
+
+/**
+ * Ein Name, den gerade niemand traegt.
+ *
+ * Der Direktor spawnt ueber die ganze Laufzeit nach; sein `spawnIndex` waechst
+ * unbegrenzt, und irgendwann ist jede feste Liste einmal herum. Deshalb wird
+ * nicht nur modulo gerechnet, sondern nachgesehen: Ist der Name vergeben,
+ * nimmt der naechste freie den Platz. Erst wenn wirklich alle vierundzwanzig
+ * stehen, gibt es eine Nummer -- das ist haesslich, aber ehrlich, und es
+ * passiert nur jenseits von vierundzwanzig gleichzeitigen Bots.
+ */
+export function botNameFor(index: number, vergeben: ReadonlySet<string>): string {
+  for (let versatz = 0; versatz < BOT_NAMES.length; versatz += 1) {
+    const kandidat = BOT_NAMES[(index + versatz) % BOT_NAMES.length]!;
+    if (!vergeben.has(kandidat)) return kandidat;
+  }
+  return `Bot ${index + 1}`;
+}
 /**
  * Stil-Verteilung der Bots. Farmer sind die friedlichsten Gegner – sie räumen
  * Formen ab und suchen nur gelegentlich Streit. Ihr Anteil steigt bewusst von
@@ -201,7 +232,8 @@ export class MazeGame {
       this.shapes.set(shape.id, shape);
     }
     for (let index = 0; index < Math.max(0, Math.min(MazeGame.MAX_BOTS, botCount)); index += 1) {
-      this.createPlayer(BOT_NAMES[index % BOT_NAMES.length] ?? `Bot ${index + 1}`, true, botState(index));
+      const vergeben = new Set([...this.players.values()].map((spieler) => spieler.name));
+      this.createPlayer(botNameFor(index, vergeben), true, botState(index));
     }
   }
 
