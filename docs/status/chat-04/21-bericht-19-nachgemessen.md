@@ -188,14 +188,14 @@ Rückfrage alle bestellt, sie sind gebaut und getestet:
   hieße, eine getroffene Entscheidung zu übergehen. **Aber:** Die
   Menü-Beschreibung verspricht „Verdrängt Gegner …", und gemessen wackelt der
   Gegner einen halben Tank und ist eine halbe Sekunde später näher als vorher.
-  Sam hat die **Messrunde bestellt** (beide Schalterstellungen, Zahlen zu ihm –
-  der Schalter selbst bleibt unangetastet).
+  Sam hat die **Messrunde bestellt**; sie ist gefahren, die Zahlen stehen in
+  Abschnitt 7 – der Schalter selbst bleibt unangetastet.
 * **Befund 64 (Prediction-Default aus).** Kein Sam-Punkt (GOAL.md reserviert
   es nicht), aber die Hausregel verlangt Absicherung vor dem Umlegen – und
   anders als bei SNAPSHOT_DELTAS gibt es keine Probe, die Prediction-Gefühl
   misst. Prediction-Fehler äußern sich als Gummiband, nicht als roter Test.
-  Sam hat den **Messlauf bestellt** (beide Stellungen, Zahlen zu ihm, Default
-  entscheidet er).
+  Sam hat den **Messlauf bestellt**; er ist gefahren, die Zahlen stehen in
+  Abschnitt 7 – den Default entscheidet er.
 * **Befund 3 (Schussfeedback an der Serverantwort).** Bestätigt (Ø 110 ms bei
   60 ms Ping), aber die lokale Auslösung braucht eine Client-Nachladeuhr, und
   die Je-Punkt-Faktoren leben in combat-tuning, nicht in shared – dieselbe
@@ -269,23 +269,85 @@ package.json – alle Browser-Proben liefen nur, weil es im alten Container
 zufällig lag; jetzt devDependency. Und die mode-probe prüft die Telemetrie
 mit, sonst wäre Befund 65 beim nächsten Mal wieder durchgerutscht.
 
-## 7. Womit anzufangen ist
+## 7. Die zwei bestellten Messrunden (63, 64) – die Zahlen
 
-1. **Die zwei bestellten Messrunden fahren:** Repulse (63) und Prediction
-   (64), jeweils beide Schalterstellungen, Zahlen zu Sam – kein Schalter wird
-   dabei umgelegt.
-2. **Sams Entscheidungen abholen:** Balance-Liste aus Abschnitt 4, Zeitfenster/
-   Dedup der Bestenliste (51), Wortlaut der Login-Zeile (55), Repulse-Text
-   oder -Schalter nach der Messrunde.
-3. **Die Bot-Gruppe (71–79) nachmessen** – eigene Sitzung, Messskripte nach
+### Repulse (Befund 63), beide Stellungen von `REPULSE_TRAVEL_ENABLED`
+
+Gemessen am gebauten Server (`tuneLoadoutSystem` über `tuneCombatScaling`,
+exakt die Schichtung aus index.ts), Ziel auf 100 px, 25-ms-Ticks. Zahlen:
+Verschiebung des Ziels entlang der Stoßachse (positiv = vom Stoßer weg) und
+Abstand zum Stoßer (Start: 100; Körperkontakt: 44).
+
+| Stellung | Ziel | nach 200 ms | nach 500 ms | nach 1 s | max. Auslenkung |
+|---|---|---|---|---|---|
+| AUS (Produktion) | stehend | +44,9 → 144,9 | +45,7 → 145,7 | +45,7 → 145,7 | 45,7 |
+| AUS (Produktion) | anlaufend | +44,9 → 144,9 | −4,5 → **95,5** | −97,7 → **44 (Kontakt)** | 45,7 |
+| AN | stehend | +93,8 → 193,8 | +97,4 → 197,4 | +97,4 → 197,4 | 97,4 |
+| AN | anlaufend | +58,2 → 158,2 | −19,2 → **80,8** | −105,1 → **44 (Kontakt)** | 60,2 |
+
+Kontrolle ohne Repulse, anlaufendes Ziel: Kontakt nach ~500 ms.
+
+Was die Zahlen sagen (benannt, nicht entschieden):
+
+* **Gegen Stehende verdoppelt `travel` die Wirkung** – 46 → 97 px, also von
+  einem Tankdurchmesser auf den halben Wirkradius (195). Das deckt sich mit
+  der dokumentierten Messung am Schalter.
+* **Gegen Anlaufende hilft keine der beiden Stellungen nachhaltig:** In
+  beiden steht der Angreifer nach einer Sekunde auf Körperkontakt. Der
+  Repulse kauft gegenüber „kein Repulse" rund eine halbe Sekunde (Kontakt
+  bei ~0,5 s statt sofortigem Durchlaufen), für 12 s Abklingzeit.
+* **`travel AN` ist gegen Anlaufende kaum stärker als AUS** (max. 60 statt
+  46 px) und nach 500 ms sogar *näher* (80,8 gegen 95,5): Der getragene
+  Stoß addiert sich zur Eingabe des Getroffenen („der Getroffene behält die
+  Kontrolle"), während der Sofort-Kick dessen Eingabe erst einmal
+  überschreibt.
+* Der Menü-Text „Verdrängt Gegner" stimmt in Produktion also nur für
+  Stehende, und dort für einen Tankdurchmesser.
+
+### Prediction (Befund 64), beide Stellungen in einem Lauf
+
+Kein Browser, aber keine Nachbildung: Die **echte** `PredictionEngine` und
+der **echte** `SnapshotHydrator` aus apps/client/src liefen gegen einen
+echten Server (Deltas, kurze IDs, Eingabe-Quittungen an – Produktionsstand),
+30 s je Lauf, 40-Hz-Eingaben, Richtungswechsel alle 400 ms, Maze-Modus mit
+Wänden. Zwei Läufe, deckungsgleich:
+
+| Was | Zahl |
+|---|---|
+| **Stellung AUS kostet:** Quittungs-Latenz (so alt ist der eigene Tank) | p50 **29–33 ms**, p90 46–50, p99 ~57, max 73 |
+| **Stellung AN kostet:** harte Korrekturen (der sichtbare „Gummiband"-Fall) | **0** in 2 × 30 s |
+| weiche Korrekturen je Snapshot (unsichtbar über 135 ms eingeblendet) | p50 **6,3 px**, p90 ~9,5, max 17 (Tankradius: 22) |
+| verworfene Eingaben / fehlende Hydrator-Statik / Tode | 0 / 0 / 0 |
+
+Einordnung: Die Quittungs-Latenz ist die **localhost-Untergrenze** (Tick-
+plus Snapshot-Takt). Auf echten Leitungen addiert sich die halbe RTT für
+AUS eins zu eins obendrauf – AN versteckt sie vollständig. Die weichen
+Korrekturen sind zum Großteil der beabsichtigte Render-Vorlauf gegen den
+Tick-Versatz, kein Vorhersagefehler. Nicht im Lauf enthalten (BOT_COUNT=0):
+Rückstoß, Repulse-Schub und Tank-Kollisionen – die sagt die Engine bewusst
+nicht vorher und zieht dann hart nach; das ist dokumentiertes Design und
+der Fall, den man beim Spielen prüfen müsste. **Der Default bleibt Sams
+Entscheidung.**
+
+Messwerkzeuge: `repulse-messrunde.mjs` und `prediction-messlauf-entry.ts`
+(Sitzungs-Scratchpad; bei Bedarf jederzeit aus diesem Abschnitt
+rekonstruierbar – Aufbau steht oben vollständig).
+
+## 8. Womit anzufangen ist
+
+1. **Sams Entscheidungen abholen:** Repulse-Schalter oder ehrlicher
+   Menü-Text (63) und Prediction-Default (64) – die Zahlen zu beidem stehen
+   in Abschnitt 7. Dazu die Balance-Liste aus Abschnitt 4, Zeitfenster/
+   Dedup der Bestenliste (51), Wortlaut der Login-Zeile (55).
+2. **Die Bot-Gruppe (71–79) nachmessen** – eigene Sitzung, Messskripte nach
    den Gegenproben im Bericht 19.
-4. **Rest der Retention-Runde:** die Login-Zeile auf dem Death-Screen (55,
+3. **Rest der Retention-Runde:** die Login-Zeile auf dem Death-Screen (55,
    Wortlaut mit Sam) und die restlichen 53er-Zeilen.
-5. Der einzige echte Blocker bleibt unverändert Sams: Migration
+4. Der einzige echte Blocker bleibt unverändert Sams: Migration
    `0005_sessions.sql` und die Railway-Variablen – ohne sie misst die
    dreizehnte Zeile nicht.
 
-## 8. Die Lehre des Tages
+## 9. Die Lehre des Tages
 
 Die Gegenprüfung hat wieder Behebungen verhindert, nicht nur Befunde
 bestätigt: Befund 2 wäre eine Verschlimmbesserung gewesen (das Verhältnis war

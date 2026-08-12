@@ -81,20 +81,23 @@ wieder durchgerutscht.
 
 ## 2. Womit anzufangen ist
 
-1. **Die zwei von Sam bestellten Messrunden fahren:** Repulse (63, beide
-   `REPULSE_TRAVEL_ENABLED`-Stellungen, Verschiebung nach 200 ms/500 ms/1 s)
-   und Prediction (64, beide Stellungen). Zahlen zu Sam – kein Schalter wird
-   dabei umgelegt.
-2. **Sams Entscheidungen abholen** (Abschnitte 3–4 in Bericht 21):
-   Balance-Liste (18, 25, 26, 27, 30, 31, 32, 34, 59), Bestenlisten-Fenster/
-   Dedup (51), Wortlaut der Login-Zeile (55), Repulse-Text oder -Schalter
-   nach der Messrunde.
-3. **Bot-Gruppe 71–79 nachmessen** – die 20 ungeprüften Befunde sind fast
+1. **Sams Entscheidungen abholen** – die beiden bestellten Messrunden sind
+   gefahren, die Zahlen stehen in Bericht 21, Abschnitt 7:
+   * **Repulse (63):** Gegen Stehende verdoppelt `travel` die Wirkung
+     (46 → 97 px); gegen Anlaufende steht der Angreifer in **beiden**
+     Stellungen nach 1 s auf Körperkontakt – der Puls kauft ~0,5 s für 12 s
+     Abklingzeit. Schalter, ehrlicher Menü-Text oder stärkere Zahlen: Sam.
+   * **Prediction (64):** AUS kostet 29–33 ms Eigen-Latenz (localhost-
+     Untergrenze; echte RTT kommt voll obendrauf), AN kostete im Messlauf
+     **null** sichtbare Korrekturen. Default: Sam.
+   * Dazu: Balance-Liste (18, 25, 26, 27, 30, 31, 32, 34, 59),
+     Bestenlisten-Fenster/Dedup (51), Wortlaut der Login-Zeile (55).
+2. **Bot-Gruppe 71–79 nachmessen** – die 20 ungeprüften Befunde sind fast
    alle hier; jede Prüfung braucht Laufzeitmessungen gegen den echten Server,
    und die Hälfte der Fixes wäre zugleich Schwierigkeits-Balance.
-4. **Rest der Retention-Runde:** Login-Zeile auf dem Death-Screen (55,
+3. **Rest der Retention-Runde:** Login-Zeile auf dem Death-Screen (55,
    Wortlaut mit Sam) und die restlichen 53er-Zeilen.
-5. **Der einzige echte Blocker bleibt Sams:** Migration `0005_sessions.sql`
+4. **Der einzige echte Blocker bleibt Sams:** Migration `0005_sessions.sql`
    und die Railway-Variablen – ohne sie misst die dreizehnte Zeile nicht.
 
 ## 3. Die Lehre der Sitzung, in einem Satz
