@@ -384,9 +384,11 @@
 
 /* Schmale Handys: Der zentrierte Meldungs-Slot (max. 360 px) und die Liste
    oben rechts teilen sich 667 px – ohne diese Verengung überlappten sie um
-   rund 68 px, sobald ein Event läuft (Befund 38). */
+   rund 68 px, sobald ein Event läuft (Befund 38). Die BOT-Marke fliegt dort
+   raus, sonst sprengt der min-content der Zeile die 150 px um 5 px. */
 @media (pointer: coarse) and (max-width: 720px) {
   .leaderboard { width: 150px; }
+  .leader-row em { display: none; }
   .arena-event-banner,
   .bounty-banner,
   .toasts,

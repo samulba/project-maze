@@ -194,7 +194,7 @@ export class GameUI {
                 ${START_NAV.map((eintrag) => `<button type="button" data-goto="${eintrag.id}"><strong>${eintrag.label}</strong><span>${eintrag.hint}</span><small data-nav-badge ${navBadgeHook[eintrag.id] ?? ''}></small><i aria-hidden="true"></i></button>`).join('')}
               </nav>
 
-              <p class="start-note"><span>WASD</span><span>LINKS FEUER</span><span>E AUTOFEUER</span><span>SPACE FÄHIGKEIT</span><span>C KLASSEN</span></p>
+              <p class="start-note"><span>WASD</span><span>LINKS FEUER</span><span>E AUTO</span><span>SPACE MODUL</span><span>C KLASSEN</span></p>
             </form>
 
             <section class="start-page start-page-wide" data-view="klassen" hidden>
