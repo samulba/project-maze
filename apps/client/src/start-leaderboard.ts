@@ -111,6 +111,32 @@ export function distanceLine(entries: readonly LeaderboardEntry[], bestScore: nu
   return `Dein Bestwert: ${formatScore(bestScore)} – Platz ${letzte.rank} liegt bei ${formatScore(letzte.score)}.`;
 }
 
+/**
+ * Der Bestenlisten-Abstand für die Death-Karte (Rest von Befund 53): „War das
+ * gut?" bekommt neben dem eigenen Rekord auch die öffentliche Messlatte.
+ *
+ * Zwei Fälle, weil die Liste zwei Zustände hat:
+ * - Sie ist noch nicht voll (oder der Lauf schlägt Einträge): Der Lauf STEHT
+ *   in der Liste – der Server hat ihn beim Tod bereits geschrieben. Also der
+ *   ungefähre Platz, kein „noch X Punkte" für etwas, das längst erreicht ist.
+ * - Sie ist voll und der Lauf liegt darunter: der Abstand zur letzten Zeile.
+ * „Etwa", weil zwischen Tod und Antwort weitere Läufe eintreffen können.
+ */
+export function deathDistanceLine(
+  entries: readonly LeaderboardEntry[],
+  score: number,
+  limit = LEADERBOARD_LIMIT
+): string | null {
+  if (entries.length === 0) return null;
+  const letzte = entries[entries.length - 1];
+  if (!letzte) return null;
+  if (entries.length < limit || score >= letzte.score) {
+    const platz = entries.find((entry) => score >= entry.score)?.rank ?? letzte.rank + 1;
+    return `Dieser Lauf steht in der Bestenliste – etwa Platz ${platz}.`;
+  }
+  return `Noch ${formatScore(letzte.score - score)} Punkte bis zur Bestenliste (Platz ${letzte.rank}: ${formatScore(letzte.score)}).`;
+}
+
 export class StartLeaderboard {
   private readonly panel: HTMLElement;
   private readonly list: HTMLElement;

@@ -12,7 +12,7 @@ import {
 import type { ArenaEventKind } from '@project-maze/shared/gameplay';
 import { arenaEventStyle, cssColor } from './arena-event-style';
 import { classPreviewSvg } from './class-preview';
-import { deathToastText, respawnFacts, respawnTileLabel, respawnTileValue } from './death-summary';
+import { deathToastText, respawnFacts, respawnTileLabel, respawnTileValue, runUnlocksLine } from './death-summary';
 import {
   FAMILY_LOCK_HINT,
   FAMILY_UNLOCK_LEVEL,
@@ -28,6 +28,7 @@ import { royaleDeathText, royaleZoneOf } from './royale-hud';
 import { runDurationText, runSeconds } from './run-clock';
 import { deathRecordLine, readRunRecord, recordLine, rememberRun } from './run-record';
 import { signatureLabel, signatureRatio } from './signature';
+import { LEADERBOARD_LIMIT, deathDistanceLine, leaderboardUrl, usableEntries } from './start-leaderboard';
 import { START_NAV } from './start-nav';
 import { spectatedName, spectatedPlayer } from './spectator';
 import { DEFAULT_THEME, applyTheme, type ClientThemeId } from './themes';
@@ -128,6 +129,12 @@ export class GameUI {
   private readonly deathRecord: HTMLElement;
   /** Vergleich des gerade beendeten Laufs mit dem lokalen Rekord (Befund 48/53). */
   private lastRunVerdict: string | null = null;
+  /** „Freigeschaltet in diesem Lauf" – Ids seit dem letzten Respawn (53-Rest). */
+  private runUnlockIds: string[] = [];
+  private readonly deathUnlocks: HTMLElement;
+  /** Abstand zur öffentlichen Bestenliste, geholt beim Tod (53-Rest). */
+  private deathBoardLine: string | null = null;
+  private readonly deathDistance: HTMLElement;
   private readonly respawnButton: HTMLButtonElement;
   private readonly respawnCountdown: HTMLElement;
   /** Rundenstand auf der Todeskarte – nur im Battle Royale sichtbar. */
@@ -328,6 +335,9 @@ export class GameUI {
               <div class="death-stats" id="death-stats"></div>
               <p class="death-summary" id="death-summary"></p>
               <p class="death-record" id="death-record" hidden></p>
+              <!-- Rest von Befund 53: die Ernte des Laufs und die öffentliche Messlatte. -->
+              <p class="death-record death-unlocks" id="death-unlocks" hidden></p>
+              <p class="death-record death-distance" id="death-distance" hidden></p>
               <!--
                 Der Weg zurück ins Spiel steht in einem eigenen Kasten, der am
                 unteren Rand der Karte klebt (hud-layout.css, position sticky).
@@ -405,6 +415,8 @@ export class GameUI {
     this.deathPortrait = this.require('#death-portrait');
     this.deathSummary = this.require('#death-summary');
     this.deathRecord = this.require('#death-record');
+    this.deathUnlocks = this.require('#death-unlocks');
+    this.deathDistance = this.require('#death-distance');
     this.respawnButton = this.require<HTMLButtonElement>('#respawn-button');
     this.respawnCountdown = this.require('#respawn-countdown');
     this.royaleDeathNote = this.require('#royale-death-note');
@@ -689,7 +701,14 @@ export class GameUI {
       this.runStartedAt = Date.now();
       this.runEndedAt = null;
       this.killsAtLifeStart = self.kills;
+      this.runUnlockIds = [];
+      this.deathBoardLine = null;
     }
+    // Ernte des Laufs (53-Rest): Der Server schickt `freshAchievements` genau
+    // einmal je Freischaltung – hier gesammelt, auf der Death-Karte genannt.
+    // Bewusst auch im Tod (royaleWinner kommt einen Snapshot nach `dead`).
+    const fresh = (snapshot as WorldSnapshot & { freshAchievements?: string[] }).freshAchievements;
+    if (fresh && fresh.length > 0) this.runUnlockIds.push(...fresh);
     if (!this.wasDead && self.dead) {
       this.runEndedAt = Date.now();
       // Der Lauf wandert in den lokalen Rekord (Befund 48) – Score vor der
@@ -702,6 +721,9 @@ export class GameUI {
         seconds: runSeconds(this.runStartedAt, this.runEndedAt, Date.now())
       });
       this.lastRunVerdict = deathRecordLine(ergebnis, self.score);
+      // Die öffentliche Messlatte (53-Rest): Die Karte steht sofort, die
+      // Zeile füllt sich nach, sobald die Antwort da ist.
+      void this.ladeBestenlistenAbstand(self.score);
     }
     this.wasDead = self.dead;
 
@@ -782,6 +804,30 @@ export class GameUI {
     }
   }
 
+  /**
+   * Holt die Bestenliste einmal je Tod (53-Rest) – nicht beim Seitenstart
+   * gepuffert, weil zwischen Start und Tod eine halbe Stunde liegen kann und
+   * eine veraltete Messlatte die falsche Auskunft wäre. Der Server cacht die
+   * Antwort selbst; ohne Persistenz (404) bleibt die Zeile schlicht aus.
+   */
+  private async ladeBestenlistenAbstand(score: number): Promise<void> {
+    this.deathBoardLine = null;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 4000);
+    try {
+      const response = await fetch(
+        leaderboardUrl(window.location, import.meta.env.DEV, LEADERBOARD_LIMIT),
+        { signal: controller.signal, headers: { accept: 'application/json' } }
+      );
+      if (!response.ok) return;
+      this.deathBoardLine = deathDistanceLine(usableEntries(await response.json()), score);
+    } catch {
+      /* Kein Netz, kein Endpunkt, Zeitüberschreitung: Zeile bleibt aus. */
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  }
+
   private updateDeathScreen(snapshot: WorldSnapshot, self: PlayerSnapshot): void {
     this.deathScreen.hidden = !self.dead;
     if (!self.dead) return;
@@ -812,6 +858,12 @@ export class GameUI {
     // steht hier die Antwort – Neuer Bestwert oder der Abstand zum eigenen.
     this.deathRecord.hidden = this.lastRunVerdict === null;
     if (this.lastRunVerdict !== null) this.deathRecord.textContent = this.lastRunVerdict;
+    // Rest von Befund 53: die Ernte des Laufs und die öffentliche Messlatte.
+    const unlocks = runUnlocksLine(this.runUnlockIds);
+    this.deathUnlocks.hidden = unlocks === null;
+    if (unlocks !== null) this.deathUnlocks.textContent = unlocks;
+    this.deathDistance.hidden = this.deathBoardLine === null;
+    if (this.deathBoardLine !== null) this.deathDistance.textContent = this.deathBoardLine;
     this.deathStats.innerHTML = `<div><span>Erreicht</span><b>Level ${self.deathLevel}</b></div><div><span>${respawnTileLabel(facts)}</span><b>${respawnTileValue(facts)}</b></div><div><span>Score</span><b>${self.score.toLocaleString('de-DE')}</b></div><div><span>Kills</span><b>${lifeKills}</b></div><div><span>Überlebt</span><b>${aliveText}</b></div><div><span>Beste Streak</span><b>${self.bestStreak}</b></div>`;
     /*
      * Im Battle Royale gibt es keinen Wiedereinstieg in die laufende Runde –

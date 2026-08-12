@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { respawnLevelFrom } from '@project-maze/shared';
-import { deathToastText, respawnFacts, respawnTileLabel, respawnTileValue } from './death-summary';
+import { deathToastText, respawnFacts, respawnTileLabel, respawnTileValue, runUnlocksLine } from './death-summary';
 
 const factsFor = (deathLevel: number, score: number) =>
   respawnFacts({ deathLevel, respawnLevel: respawnLevelFrom(deathLevel), playerClass: 'gatling', score });
@@ -39,5 +39,24 @@ describe('death screen texts', () => {
     const facts = factsFor(60, 20_000);
     expect(respawnTileValue(facts)).toBe('Level 30 · Core · 10.000 Score');
     expect(respawnTileLabel(facts)).toBe('Neustart (~16 % der XP)');
+  });
+});
+
+describe('runUnlocksLine (Rest von Befund 53)', () => {
+  it('nennt die Erfolge des Laufs beim Katalognamen', () => {
+    expect(runUnlocksLine(['firstStreak5', 'score10k'])).toBe(
+      'Freigeschaltet in diesem Lauf: Lauf ohne Ende, Fünfstellig'
+    );
+  });
+
+  it('lässt unbekannte Ids leise raus, statt undefined zu zeigen', () => {
+    expect(runUnlocksLine(['zukunftserfolg', 'firstStreak5'])).toBe(
+      'Freigeschaltet in diesem Lauf: Lauf ohne Ende'
+    );
+  });
+
+  it('bleibt ohne Freischaltungen stumm', () => {
+    expect(runUnlocksLine([])).toBeNull();
+    expect(runUnlocksLine(['zukunftserfolg'])).toBeNull();
   });
 });

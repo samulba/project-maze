@@ -5,7 +5,7 @@
 | **Auftrag** | Sam: „erst nachmessen, dann anfassen" – die 79 Rohbefunde aus [Bericht 19](19-rohbefunde-spielgefuehl.md) |
 | **Branch** | `claude/validate-bericht-19-findings-85aiaz` (Vorgabe dieser Sitzung; main ist per Sams Freigabe „Ja, merge du" nachgezogen) |
 | **Basis** | `3834b52` |
-| **Tests** | `npm run check` grün – 77 Dateien, 1050 Tests |
+| **Tests** | `npm run check` grün – 77 Dateien, 1056 Tests |
 | **Status** | 51 gegengeprüft: 43 behoben, 53 teilweise, 6 bestätigt-aber-offen, Befund 2 verworfen · 20 ungeprüft |
 
 ## 1. Wie gemessen wurde
@@ -201,11 +201,21 @@ Rückfrage alle bestellt, sie sind gebaut und getestet:
   die Je-Punkt-Faktoren leben in combat-tuning, nicht in shared – dieselbe
   Voraussetzung wie beim Text-Teil von Befund 20. Erst Konstanten nach shared
   heben, sonst entsteht exakt die abgetippte-Zahl-Fehlerklasse aus GOAL.md.
-* **Rest des Retention-Pakets (53-Rest, 55).** 48, 49, 54, 56 und die erste
-  53er-Zeile sind erledigt (Abschnitt 2). Offen: die Login-Zeile mit Preis
-  auf dem Death-Screen (55 – der Wortlaut ist Produktton, den sollte Sam
-  absegnen) und die restlichen 53er-Zeilen (Abstand zur Bestenliste auf der
-  Death-Karte, frisch freigeschaltete Erfolge dort nennen).
+* **Rest des Retention-Pakets (55).** 48, 49, 54, 56 und inzwischen alle
+  53er-Zeilen sind erledigt (Abschnitt 2, Nachtrag): Die Death-Karte nennt
+  jetzt auch die Erfolge des Laufs („Freigeschaltet in diesem Lauf: …",
+  `runUnlocksLine`) und die öffentliche Messlatte („Dieser Lauf steht in der
+  Bestenliste – etwa Platz N" bzw. „Noch X Punkte bis zur Bestenliste",
+  `deathDistanceLine`, je Tod frisch geholt, ohne Persistenz still). Offen
+  bleibt allein die Login-Zeile mit Preis auf dem Death-Screen (55 – der
+  Wortlaut ist Produktton, den sollte Sam absegnen).
+  Beifang der Absicherung: Auf Querformat-Handys (≤ 430 px hoch) wuchs die
+  Bestenliste mit Selbstzeile und Trenner (Befund 19) von oben in den
+  AUTO-Knopf – 42×8 px Überlappung auf 844×390, aber nur auf gealtertem
+  Server (ab Platz 9), exakt die Serveralters-Falle aus der
+  Zertifizierungsrunde. Jetzt: drei Plätze plus Selbstzeile, Trenner weg
+  (mobile.css); Tod-, iPhone- und Mobil-Fälle der Matrix gegen einen 60 s
+  gealterten Server erneut grün.
 * **Befund 51 (Bestenliste ewig/ohne Dedup).** Kein Bug – der Code tut, was er
   soll. Zeitfenster-Reiter und Dedup sind Produktentscheidungen, und sauberer
   Dedup geht nur über `user_id` (Gäste heißen alle „Player"). Sam.

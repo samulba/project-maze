@@ -26,6 +26,7 @@ import {
   xpAtLevelStart,
   type PlayerClass
 } from '@project-maze/shared';
+import { ACHIEVEMENT_CATALOG, type AchievementId } from '@project-maze/shared/gameplay';
 
 export interface RespawnFacts {
   /** Level nach dem Respawn (kommt fertig aus dem Snapshot). */
@@ -61,3 +62,18 @@ export const respawnTileLabel = (facts: RespawnFacts): string =>
 
 export const respawnTileValue = (facts: RespawnFacts): string =>
   `Level ${facts.level} · ${facts.classLabel} · ${facts.score.toLocaleString('de-DE')} Score`;
+
+/**
+ * „Freigeschaltet in diesem Lauf: …" (Rest von Befund 53). Die Popups zeigen
+ * jede Freischaltung 4,6 Sekunden mitten im Gefecht – wer gerade kämpft,
+ * verpasst sie. Die Death-Karte ist der Moment, in dem man zurückschaut,
+ * also steht die Ernte des Laufs dort noch einmal. Unbekannte Ids (älterer
+ * Client gegen neueren Server) fallen leise raus statt „undefined" zu zeigen.
+ */
+export function runUnlocksLine(ids: readonly string[]): string | null {
+  const namen = ids
+    .map((id) => ACHIEVEMENT_CATALOG[id as AchievementId]?.name)
+    .filter((name): name is string => Boolean(name));
+  if (namen.length === 0) return null;
+  return `Freigeschaltet in diesem Lauf: ${namen.join(', ')}`;
+}

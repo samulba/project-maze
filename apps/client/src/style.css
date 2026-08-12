@@ -49,6 +49,9 @@
    Bilanz, ab dem zweiten Lauf. */
 .death-record{margin:8px 0 0;color:var(--accent);font-size:10px;font-weight:750}
 .death-record[hidden]{display:none}
+/* 53-Rest: Ernte des Laufs in der Erfolgs-Farbe, Messlatte gedämpft darunter. */
+.death-record.death-unlocks{color:var(--success)}
+.death-record.death-distance{margin-top:4px;color:var(--muted)}
 /* Zweiter, bewusst leiser Weg: zurück zur Landingpage statt zurück in die Arena. */
 .death-card #exit-to-start{margin-top:12px;height:40px;background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:700;letter-spacing:.12em;font-size:11px}
 .death-card #exit-to-start:hover{color:var(--text);border-color:var(--accent)}

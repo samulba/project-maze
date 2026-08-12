@@ -5,7 +5,7 @@
 | **Auftrag** | Sam: „erst nachmessen, dann anfassen" – die 79 Rohbefunde aus Bericht 19 |
 | **Branch** | `claude/validate-bericht-19-findings-85aiaz` (Sitzungs-Vorgabe; main ist per Sams Freigabe „Ja, merge du" nachgezogen) |
 | **Basis** | `3834b52` |
-| **Tests** | `npm run check` grün – 77 Dateien, 1050 Tests |
+| **Tests** | `npm run check` grün – 77 Dateien, 1056 Tests |
 | **Status** | 51 Befunde gegengeprüft, **43 behoben** (plus 53 teilweise), 6 bestätigt-aber-offen, 20 ungeprüft |
 
 Dieses Dokument ist der Einstieg für die nächste Sitzung. Der volle Bericht
@@ -95,8 +95,9 @@ wieder durchgerutscht.
 2. **Bot-Gruppe 71–79 nachmessen** – die 20 ungeprüften Befunde sind fast
    alle hier; jede Prüfung braucht Laufzeitmessungen gegen den echten Server,
    und die Hälfte der Fixes wäre zugleich Schwierigkeits-Balance.
-3. **Rest der Retention-Runde:** Login-Zeile auf dem Death-Screen (55,
-   Wortlaut mit Sam) und die restlichen 53er-Zeilen.
+3. **Rest der Retention-Runde:** nur noch die Login-Zeile auf dem
+   Death-Screen (55, Wortlaut mit Sam) – die restlichen 53er-Zeilen sind
+   gebaut (Erfolge des Laufs + Bestenlisten-Messlatte auf der Death-Karte).
 4. **Der einzige echte Blocker bleibt Sams:** Migration `0005_sessions.sql`
    und die Railway-Variablen – ohne sie misst die dreizehnte Zeile nicht.
 

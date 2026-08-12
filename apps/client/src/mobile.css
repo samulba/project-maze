@@ -383,6 +383,18 @@
   .leaderboard .leader-row:nth-of-type(n + 6):not(.self) { display: none; }
 }
 
+/* Querformat-Handys (≤ 430 px hoch): drei Plätze plus die eigene Zeile.
+   Die Selbstzeile samt Trenner (Befund 19) machte die Liste zwei Zeilen
+   höher, und ab Platz 9 wuchs sie von oben in den AUTO-Knopf des
+   Aktions-Stapels (beginnt auf 390 px Höhe bei ~172 px von oben) – gemessen
+   42×8 px Überlappung auf 844×390. Auf frischem Server, solange man selbst
+   in den Top 8 steht, fehlen beide Zeilen: exakt die Serveralters-Falle aus
+   der Zertifizierungsrunde. Die Trennzeile ist hier reine Zierde. */
+@media (pointer: coarse) and (max-height: 430px) {
+  .leaderboard .leader-row:nth-of-type(n + 5):not(.self) { display: none; }
+  .leaderboard .leader-row.gap { display: none; }
+}
+
 /* Schmale Handys: Der zentrierte Meldungs-Slot (max. 360 px) und die Liste
    oben rechts teilen sich 667 px – ohne diese Verengung überlappten sie um
    rund 68 px, sobald ein Event läuft (Befund 38). Die BOT-Marke fliegt dort

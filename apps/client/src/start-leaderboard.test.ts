@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LEADERBOARD_LIMIT,
   classLabel,
+  deathDistanceLine,
   distanceLine,
   formatDuration,
   formatScore,
@@ -117,5 +118,34 @@ describe('eigene Zeile und Abstand (Befund 56)', () => {
   it('schweigt ohne lokalen Bestand oder ohne Liste', () => {
     expect(distanceLine([], 5_000)).toBeNull();
     expect(distanceLine([entry()], null)).toBeNull();
+  });
+});
+
+describe('Messlatte auf der Death-Karte (Rest von Befund 53)', () => {
+  const liste = (scores: number[]): LeaderboardEntry[] =>
+    scores.map((score, index) => entry({ rank: index + 1, score }));
+
+  it('nennt den ungefähren Platz, solange die Liste nicht voll ist', () => {
+    // Drei Einträge bei Limit 50: Jeder beendete Lauf steht in der Liste.
+    expect(deathDistanceLine(liste([9_000, 7_000, 5_000]), 8_000)).toBe(
+      'Dieser Lauf steht in der Bestenliste – etwa Platz 2.'
+    );
+    // Schwächer als alle: hinten dran.
+    expect(deathDistanceLine(liste([9_000, 7_000, 5_000]), 100)).toBe(
+      'Dieser Lauf steht in der Bestenliste – etwa Platz 4.'
+    );
+  });
+
+  it('rechnet bei voller Liste den Abstand zur letzten Zeile', () => {
+    const voll = liste(Array.from({ length: LEADERBOARD_LIMIT }, (_, i) => 100_000 - i * 1_000));
+    expect(deathDistanceLine(voll, 40_000)).toBe(
+      'Noch 11.000 Punkte bis zur Bestenliste (Platz 50: 51.000).'
+    );
+    // Wer die letzte Zeile schlägt, steht drin – auch bei voller Liste.
+    expect(deathDistanceLine(voll, 51_500)).toBe('Dieser Lauf steht in der Bestenliste – etwa Platz 50.');
+  });
+
+  it('bleibt ohne Daten stumm', () => {
+    expect(deathDistanceLine([], 5_000)).toBeNull();
   });
 });
