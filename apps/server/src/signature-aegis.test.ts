@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLASS_DEFINITIONS, type PlayerClass } from '@project-maze/shared';
+import { CLASS_DEFINITIONS, GAME, type PlayerClass } from '@project-maze/shared';
 import { tuneCombatScaling, tunedStatsFor } from './combat-tuning';
 import { MazeGame } from './game';
 import {
@@ -10,6 +10,8 @@ import {
   tuneAegisSignature,
   type SchildConfig
 } from './signature-aegis';
+import { tuneImpactSignature, wuchtFor } from './signature-impact';
+import { signatureStateFor } from './signature';
 import { isFree } from './world';
 
 const DT = 0.025;
@@ -365,5 +367,62 @@ describe('aegis signature – schild', () => {
     expect(Number.isInteger(entry?.signature)).toBe(true);
     expect(entry!.signature).toBe(25);
     expect(entry!.signature).toBeLessThan(SIGNATURE_MAX);
+  });
+});
+
+/**
+ * Der Schild lud aus dem Wert VOR dem Wucht-Aufschlag.
+ *
+ * `tuneImpactSignature` haengt INNERHALB von Aegis (index.ts) und
+ * multipliziert den Kontaktschaden noch einmal mit der Wucht des Rammenden.
+ * Aegis reichte `taken` nach innen und lud mit demselben `taken` -- den
+ * Aufschlag sah es nie. Ausgerechnet gegen die eine Familie, deren ganzes
+ * Spiel das Rammen ist, fuellte sich der Schild also am langsamsten, wenn er
+ * am meisten einsteckte.
+ *
+ * Der Test misst deshalb VERLORENES LEBEN gegen GELADENEN SCHILD -- die
+ * einzige Groesse, die jeden Aufschlag jeder Schicht darunter kennt.
+ */
+describe('aegis signature – Ladung gegen den Rammstoss', () => {
+  const rammen = (wucht: number) => {
+    const game = tuneAegisSignature(
+      tuneImpactSignature(tuneCombatScaling(new MazeGame(0)), true),
+      true
+    );
+    const internals = game as unknown as Internals;
+    internals.shapes.clear();
+    const schildId = game.addPlayer('Schild');
+    const rammerId = game.addPlayer('Rammer');
+    const schildTank = internals.players.get(schildId);
+    const rammer = internals.players.get(rammerId);
+    configure(schildTank, 'aegis', OPEN_GROUND);
+    configure(rammer, 'rammer', { x: OPEN_GROUND.x + GAME.playerRadius, y: OPEN_GROUND.y });
+    (rammer as { level: number }).level = 40;
+    (schildTank as { level: number }).level = 40;
+
+    const now = Date.now();
+    // Wucht von aussen setzen, damit die Messung nicht von der Anfahrt abhaengt.
+    signatureStateFor(game, 'impact').set(rammerId, wucht);
+    rammer.signature = wucht;
+    expect(wuchtFor(game, rammerId)).toBe(wucht);
+    const lebenVorher = schildTank.health;
+    game.step(1 / 40, now);
+    return {
+      verloren: lebenVorher - schildTank.health,
+      geladen: schildFor(game, schildId)
+    };
+  };
+
+  it('laedt im selben Verhaeltnis, egal wie hart der Stoss war', () => {
+    const ohne = rammen(0);
+    const voll = rammen(100);
+    expect(ohne.verloren).toBeGreaterThan(0);
+    // Der Stoss mit voller Wucht tut deutlich mehr weh -- sonst misst der Test
+    // gar keinen Aufschlag und waere gruen, ohne etwas geprueft zu haben.
+    expect(voll.verloren).toBeGreaterThan(ohne.verloren * 1.3);
+    // Und genau deshalb muss er auch mehr laden.
+    expect(voll.geladen).toBeGreaterThan(ohne.geladen * 1.3);
+    // Dasselbe Verhaeltnis Schild je verlorenem Leben, in beiden Faellen.
+    expect(voll.geladen / voll.verloren).toBeCloseTo(ohne.geladen / ohne.verloren, 4);
   });
 });

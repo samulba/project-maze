@@ -185,7 +185,25 @@ export function tuneAegisSignature<T extends MazeGame>(
     // den Schild erst über die Schwelle hebt, wird noch nicht gemindert.
     const before = schild.get(target.id) ?? 0;
     const taken = before > config.armorThreshold ? damage * (1 - config.armorReduction) : damage;
+    /*
+     * Gemessen statt geraten: Was wirklich vom Leben abgeht, entscheidet.
+     *
+     * Weiter innen liegt `tuneImpactSignature` (index.ts: Impact INNERHALB von
+     * Aegis), und dessen `damagePlayer` multipliziert den Wert bei
+     * Koerperkontakt noch einmal mit der Wucht des Rammenden. Aegis sah diesen
+     * Aufschlag nie und lud mit `taken`, dem Wert VOR dem Aufschlag --
+     * ausgerechnet gegen die eine Familie, deren ganzes Spiel das Rammen ist.
+     * Gemessen an einem AEGIS L40 gegen einen RAMMER L40: Bei Wucht 0 kostete
+     * der Kontakt 2,32 Leben, bei Wucht 100 waren es 5,74 -- die Ladung stand
+     * beide Male auf denselben 3,25. Der Schild fuellte sich also am
+     * langsamsten, wenn er am meisten einsteckte.
+     *
+     * Die Differenz aus Vorher und Nachher kennt jeden Aufschlag jeder Schicht
+     * darunter, heute und in Zukunft.
+     */
+    const lebenVorher = target.health;
     originalDamagePlayer(target, taken, attackerId, now);
+    const wirklich = Math.max(0, lebenVorher - target.health);
 
     if (target.dead) {
       // Genau wie `advanceSignature` es beim nächsten Tick täte – nur sofort,
@@ -197,7 +215,7 @@ export function tuneAegisSignature<T extends MazeGame>(
     }
     // Geladen wird der tatsächlich erlittene Schaden, nicht der angesetzte:
     // Die Rüstung bremst damit auch das Nachladen des Schildes.
-    const charged = Math.min(SIGNATURE_MAX, before + taken * konfigFuer(target).chargePerDamage);
+    const charged = Math.min(SIGNATURE_MAX, before + wirklich * konfigFuer(target).chargePerDamage);
     setSchild(target, charged);
     if (charged >= SIGNATURE_MAX && !discharging) discharge(target, now);
   };
