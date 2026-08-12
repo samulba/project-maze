@@ -36,7 +36,7 @@ gibt es im Browser gar keinen Login-Knopf, und das Portal sagt das auch.
 
 ### 2. Migration einspielen
 
-`supabase/migrations/0005_sessions.sql` in Supabase Studio → SQL Editor →
+`supabase/migrations/applied/0005_sessions.sql` in Supabase Studio → SQL Editor →
 einfügen → Run. Das Skript ist wiederholbar.
 
 Es legt an:

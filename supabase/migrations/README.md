@@ -30,4 +30,4 @@ sie auseinanderlaufen sieht, glaubt `/health`.
 | 0002 | `applied/0002_profiles.sql` | Tabelle `profiles` + `runs.user_id` | eingespielt 2026-08-05 |
 | 0003 | `applied/0003_achievements.sql` | Tabelle `achievements` + View `profile_stats` | eingespielt 2026-08-05 |
 | 0004 | `applied/0004_profile_favorite_class.sql` | View `profile_favorite_class` + Lieblingsklasse in `profile_stats` | eingespielt 2026-08-05 |
-| 0005 | `0005_sessions.sql` | Tabellen `sessions` + `devices`, Trigger `touch_device`, Views `admin_daily` und `admin_class_daily` (Admin-Portal) | **offen** |
+| 0005 | `applied/0005_sessions.sql` | Tabellen `sessions` + `devices`, Trigger `touch_device`, Views `admin_daily` und `admin_class_daily` (Admin-Portal) | eingespielt 2026-08-12 |

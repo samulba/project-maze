@@ -36,7 +36,7 @@ import { persistenceConfig, type PersistenceConfig } from './persistence.js';
  * vorgang beim Join, also genau im Pfad, der schnell sein muss.
  */
 
-/** Tabelle der Besuche – siehe supabase/migrations/0005_sessions.sql. */
+/** Tabelle der Besuche – siehe supabase/migrations/applied/0005_sessions.sql. */
 export const SESSIONS_TABLE = 'sessions';
 /** Aggregat je Browser, per Trigger aus `sessions` gepflegt. */
 export const DEVICES_TABLE = 'devices';
