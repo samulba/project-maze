@@ -547,6 +547,12 @@ npm run progress-probe
 # Aufstieg, kein Wiedereinstieg); Schwierigkeit ist Sams Entscheidung.
 MINUTEN=5 LAEUFE=3 npm run first-run-probe
 
+# ALLE Proben hintereinander, jede mit ihrem eigenen richtig konfigurierten
+# Server -- ein Befehl statt der Wand darunter:
+npm run proben                # ohne die langen (Touch, Erstlauf, Layout)
+npm run proben -- --alles     # mit ihnen, rund 40 Minuten
+npm run proben -- --nur duo   # einzeln nachfahren
+
 # Traegt der Weg zwischen ZWEI Menschen? Jede andere Probe spielt allein.
 # Leere FFA-Arena, damit die Messung den Spielern gilt und nicht den Bots:
 # sehen, treffen, sterben, richtig zugeordnet.

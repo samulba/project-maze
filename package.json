@@ -26,6 +26,7 @@
     "progress-probe": "node scripts/progress-probe.mjs",
     "first-run-probe": "node scripts/first-run-probe.mjs",
     "duo-probe": "node scripts/duo-probe.mjs",
+    "proben": "node scripts/proben.mjs",
     "royale-probe": "node scripts/royale-probe.mjs",
     "mode-probe": "node scripts/mode-probe.mjs",
     "build": "npm run build -w @project-maze/shared && npm run build -w @project-maze/server && npm run build -w @project-maze/client && npm run precompress",
