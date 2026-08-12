@@ -202,6 +202,15 @@ interface PersistenceState {
   /** Spieler-ID → Konto-ID, gesetzt beim angemeldeten Join. */
   accounts: Map<string, string>;
   lifeStartedAt: Map<string, number>;
+  /**
+   * Spieler-ID → Sitzungs-Kills beim Start des aktuellen Lebens. Die Engine
+   * setzt `kills` beim Respawn nie zurück (Kopfgeld-Auswahl liest den
+   * Sitzungsstand); ein `runs`-Eintrag gilt aber laut Schema „Spawn bis Tod".
+   * Ohne die Basis zählte jede Zeile die Vorleben mit – bei n Leben summiert
+   * `profile_stats.total_kills` dann das (n+1)/2-Fache (Befund 58; dieselbe
+   * Falle ist in sessions.ts:521 für die Admin-Tabelle dokumentiert).
+   */
+  killsAtLifeStart: Map<string, number>;
   written: number;
   dropped: number;
   failedFlushes: number;
@@ -233,6 +242,7 @@ const createState = (): PersistenceState => ({
   achievementsWritten: 0,
   accounts: new Map(),
   lifeStartedAt: new Map(),
+  killsAtLifeStart: new Map(),
   written: 0,
   dropped: 0,
   failedFlushes: 0,
@@ -922,13 +932,15 @@ export function tunePersistence<T extends MazeGame>(game: T, options: Persistenc
       score: Math.max(0, Math.round(target.score)),
       level: Math.max(1, Math.round(target.level)),
       playerClass: target.playerClass,
-      kills: Math.max(0, Math.round(target.kills)),
+      // Kills DIESES Lebens, nicht der Sitzung -- siehe killsAtLifeStart.
+      kills: Math.max(0, Math.round(target.kills - (state.killsAtLifeStart.get(target.id) ?? 0))),
       bestStreak: Math.max(0, Math.round(Math.max(target.bestStreak, target.streak))),
       durationSeconds: 0,
       userId: state.accounts.get(target.id) ?? null
     };
     const startedAt = state.lifeStartedAt.get(target.id);
     state.lifeStartedAt.delete(target.id);
+    state.killsAtLifeStart.delete(target.id);
 
     originalKillPlayer(target, attackerId, now, environmentName);
 
@@ -945,11 +957,17 @@ export function tunePersistence<T extends MazeGame>(game: T, options: Persistenc
     originalStep(dt, now);
     // Reine Buchhaltung im Arbeitsspeicher: kein Netzwerk, kein await.
     for (const player of internals.players.values()) {
-      if (player.dead) state.lifeStartedAt.delete(player.id);
-      else if (!state.lifeStartedAt.has(player.id)) state.lifeStartedAt.set(player.id, now);
+      if (player.dead) {
+        state.lifeStartedAt.delete(player.id);
+        state.killsAtLifeStart.delete(player.id);
+      } else if (!state.lifeStartedAt.has(player.id)) {
+        state.lifeStartedAt.set(player.id, now);
+        state.killsAtLifeStart.set(player.id, Math.max(0, Math.round(player.kills)));
+      }
     }
     if (state.lifeStartedAt.size > internals.players.size) {
       for (const id of state.lifeStartedAt.keys()) if (!internals.players.has(id)) state.lifeStartedAt.delete(id);
+      for (const id of state.killsAtLifeStart.keys()) if (!internals.players.has(id)) state.killsAtLifeStart.delete(id);
     }
     // Ein Map-Größenvergleich pro Tick; nachgereichte Vorladungen sind selten.
     if (state.pendingSeed.size > 0) applyPendingSeeds(game, state);
@@ -960,7 +978,28 @@ export function tunePersistence<T extends MazeGame>(game: T, options: Persistenc
     // Beim Verlassen noch einsammeln, was die Engine zuletzt vergeben hat –
     // danach ist ihr Fortschritt weg.
     collectAchievementUnlocks(game, state);
+    // Auch wer nie stirbt, hinterlässt seinen Lauf: Tab schließen ist der
+    // normale Ausstieg, und der beste Lauf einer Sitzung endet oft lebend --
+    // das ist ausgerechnet der Spieler, der gut war (Befund 52; dieselbe
+    // Lücke war in sessions.ts:539 schon erkannt, nur die Bestenliste ging
+    // weiter leer aus).
+    const leaving = internals.players.get(id);
+    if (leaving && !leaving.isBot && !leaving.dead && Math.round(leaving.score) > 0) {
+      const now = Date.now();
+      const startedAt = state.lifeStartedAt.get(id);
+      enqueue(state, {
+        playerName: leaving.name,
+        score: Math.max(0, Math.round(leaving.score)),
+        level: Math.max(1, Math.round(leaving.level)),
+        playerClass: leaving.playerClass,
+        kills: Math.max(0, Math.round(leaving.kills - (state.killsAtLifeStart.get(id) ?? 0))),
+        bestStreak: Math.max(0, Math.round(Math.max(leaving.bestStreak, leaving.streak))),
+        durationSeconds: startedAt === undefined ? 0 : Math.round(Math.max(0, now - startedAt) / 100) / 10,
+        userId: state.accounts.get(id) ?? null
+      });
+    }
     state.lifeStartedAt.delete(id);
+    state.killsAtLifeStart.delete(id);
     state.accounts.delete(id);
     state.pendingSeed.delete(id);
     originalRemovePlayer(id);

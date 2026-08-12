@@ -20,6 +20,7 @@ import {
 } from '@project-maze/shared/gameplay';
 import { clientMetricsSummary, clientMetricsText, type ClientMetricsSummary } from './client-metrics.js';
 import { MazeGame } from './game.js';
+import { currentArenaMode } from './world.js';
 
 /**
  * Anonyme Server-Telemetrie als eigenständige Tuning-Schicht.
@@ -33,7 +34,6 @@ import { MazeGame } from './game.js';
  */
 
 const TELEMETRY_VERSION = 3;
-const SERVER_MODE = 'maze-alpha';
 const SERVER_VERSION = '1.0.0-alpha';
 /** Round-Robin-Abstand für die Loadout-Erhebung (ein Spieler pro Intervall). */
 const LOADOUT_SAMPLE_INTERVAL_MS = 250;
@@ -506,7 +506,7 @@ export function telemetryReport(
 
   return {
     telemetryVersion: TELEMETRY_VERSION,
-    mode: SERVER_MODE,
+    mode: currentArenaMode(),
     version: SERVER_VERSION,
     subject,
     uptimeSeconds: round(Math.max(0, now - state.startedAt) / 1000, 1),
@@ -564,7 +564,7 @@ export function renderMetricsText(game: MazeGame, now = Date.now()): string {
       name: 'maze_build_info',
       help: 'Statische Kennung des laufenden Servers.',
       type: 'gauge',
-      samples: [{ labels: { mode: SERVER_MODE, version: SERVER_VERSION, telemetry: String(TELEMETRY_VERSION) }, value: 1 }]
+      samples: [{ labels: { mode: currentArenaMode(), version: SERVER_VERSION, telemetry: String(TELEMETRY_VERSION) }, value: 1 }]
     },
     {
       name: 'maze_uptime_seconds',

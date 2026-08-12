@@ -51,6 +51,7 @@ interface LoadoutInternals {
   removeOwnerDrones(ownerId: string): void;
   stepPlayer(player: RuntimePlayer, dt: number, now: number): void;
   spawnInitialDrones(owner: RuntimePlayer, now: number): void;
+  resolvePlayerCollisions(now: number): void;
 }
 
 interface LoadoutState {
@@ -67,6 +68,13 @@ interface LoadoutState {
   dashDirection: Vector2 | null;
   /** Ende der Dash-Fahrt in Serverzeit. */
   dashUntil: number;
+  /**
+   * Die beim letzten Aktivieren tatsaechlich gesetzte Abklingzeit. Der
+   * Ladebalken muss durch DENSELBEN Nenner teilen, mit dem `readyAt` gesetzt
+   * wurde – wer 10 Punkte in die Abklingzeit steckt, sah den Balken sonst
+   * beim Druecken auf 40 % springen (Befund 66).
+   */
+  lastCooldownMs: number;
 }
 
 /** Ein laufender Rueckstoss auf dem **Getroffenen**, nicht auf dem Ausloeser. */
@@ -115,7 +123,8 @@ const loadoutFor = (game: MazeGame, playerId: string): LoadoutState => {
     repairLastTickAt: 0,
     repairEndsAt: 0,
     dashDirection: null,
-    dashUntil: 0
+    dashUntil: 0,
+    lastCooldownMs: ACTIVE_MODULE_DEFINITIONS[DEFAULT_ACTIVE_MODULE].cooldownMs
   };
   state.players.set(playerId, created);
   return created;
@@ -144,7 +153,7 @@ const gameplaySnapshot = (game: MazeGame, player: RuntimePlayer, now: number): P
     passiveModifier: loadout.passiveModifier,
     moduleReadyAt: loadout.readyAt,
     moduleActiveUntil: loadout.activeUntil,
-    moduleCharge: loadout.readyAt <= now ? 1 : Math.max(0, 1 - (loadout.readyAt - now) / ACTIVE_MODULE_DEFINITIONS[loadout.activeModule].cooldownMs),
+    moduleCharge: loadout.readyAt <= now ? 1 : Math.max(0, 1 - (loadout.readyAt - now) / Math.max(1, loadout.lastCooldownMs)),
     barrierHealth: loadout.barrierHealth,
     barrierMaxHealth: loadout.barrierMaxHealth,
     repairing: loadout.repairEndsAt > now,
@@ -173,6 +182,10 @@ export function equipLoadout(
   loadout.barrierHealth = 0;
   cancelRepair(loadout);
   loadout.readyAt = Math.max(loadout.readyAt, now + 750);
+  // Der Balken laeuft ueber die Restzeit, die gerade wirklich gilt --
+  // nach einem Modulwechsel ist das die Wechselsperre, nicht die alte
+  // Abklingzeit des vorherigen Moduls.
+  loadout.lastCooldownMs = Math.max(1, loadout.readyAt - now);
   player.passiveModifier = passiveModifier;
 
   const nextStats = tunedStatsFor(player);
@@ -230,7 +243,8 @@ export function activateModule(game: MazeGame, playerId: string, now = Date.now(
   player.invulnerableUntil = 0;
   // Klassen 4.0: Der Fähigkeits-Slot verkürzt die Abklingzeit um 5 % je Punkt
   // (multiplikativ, wie beim Nachladen) – bei Cap 10 sind das −40 %.
-  loadout.readyAt = now + definition.cooldownMs * Math.pow(0.95, player.upgrades.moduleCooldown ?? 0);
+  loadout.lastCooldownMs = definition.cooldownMs * Math.pow(0.95, player.upgrades.moduleCooldown ?? 0);
+  loadout.readyAt = now + loadout.lastCooldownMs;
   loadout.activeUntil = now + definition.activeMs;
 
   if (loadout.activeModule === 'dash' && dashDirection) {
@@ -402,6 +416,22 @@ export function tuneLoadoutSystem<T extends MazeGame>(game: T, dashTravel = fals
     if (loadout.activeModule === 'dash' && loadout.activeUntil > now) player.primary = false;
   }) as T['applyInput'];
 
+  // Nur Schaden innerhalb von `resolvePlayerCollisions` ist Koerperkontakt --
+  // dasselbe Muster wie in perks.ts. Der Dash-Abschlag gilt laut Masterplan
+  // ausdruecklich fuer **Body**-Damage; ohne das Flag viertelte er auch
+  // Kugeln, die beim Abdruecken schon flogen, und jeden Drohnentreffer
+  // (Befund 62).
+  let inBodyContact = false;
+  const originalResolvePlayerCollisions = internals.resolvePlayerCollisions.bind(internals);
+  internals.resolvePlayerCollisions = (now: number): void => {
+    inBodyContact = true;
+    try {
+      originalResolvePlayerCollisions(now);
+    } finally {
+      inBodyContact = false;
+    }
+  };
+
   const originalDamagePlayer = internals.damagePlayer.bind(internals);
   internals.damagePlayer = (target: RuntimePlayer, damage: number, attackerId: string | null, now: number): void => {
     const loadout = loadoutFor(game, target.id);
@@ -422,7 +452,7 @@ export function tuneLoadoutSystem<T extends MazeGame>(game: T, dashTravel = fals
       if (loadout.barrierHealth <= 0) loadout.activeUntil = 0;
     }
 
-    if (attacker) {
+    if (attacker && inBodyContact) {
       const attackerLoadout = loadoutFor(game, attacker.id);
       if (attackerLoadout.activeModule === 'dash' && attackerLoadout.activeUntil > now) remainingDamage *= 0.25;
     }

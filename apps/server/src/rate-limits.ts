@@ -202,9 +202,35 @@ export function normalizeIp(value: string): string {
   if (colon > 0 && address.indexOf('.') > 0 && address.indexOf(':', colon + 1) === -1) address = address.slice(0, colon);
   if (!address.includes(':')) return address;
 
-  const groups = address.split(':');
-  if (groups.length <= 4 || address.includes('::')) return address;
+  // Zonen-Index (fe80::1%eth0) gehört nicht zum Präfix.
+  const zone = address.indexOf('%');
+  if (zone > 0) address = address.slice(0, zone);
+
+  // Erst auf acht Gruppen expandieren, dann kürzen: Die /64-Regel darf nicht
+  // an der Schreibweise hängen. '…:1234::5', die Kanonform und die Langform
+  // mit führenden Nullen sind dieselbe Adresse und müssen denselben Bucket
+  // treffen – sonst wählt sich ein Angreifer mit '::1' bis '::80' achtzig
+  // frische Zähler aus demselben /64.
+  const groups = expandIpv6(address);
+  if (!groups) return address;
   return `${groups.slice(0, 4).join(':')}::/64`;
+}
+
+/**
+ * Expandiert eine IPv6-Adresse zu acht Gruppen ohne führende Nullen.
+ * Liefert null, wenn der Wert keine wohlgeformte IPv6-Adresse ist – der
+ * Aufrufer behält dann die Rohform als eigenen Bucket, statt Unfug zu kürzen.
+ */
+function expandIpv6(address: string): string[] | null {
+  const parts = address.split('::');
+  if (parts.length > 2) return null;
+  const head = parts[0] ? parts[0].split(':') : [];
+  const tail = parts.length === 2 && parts[1] ? parts[1].split(':') : [];
+  const filler = parts.length === 2 ? 8 - head.length - tail.length : 0;
+  if (parts.length === 2 ? filler < 1 : head.length !== 8) return null;
+  const groups = [...head, ...Array.from({ length: filler }, () => '0'), ...tail];
+  if (groups.length !== 8 || groups.some((group) => !/^[0-9a-f]{1,4}$/.test(group))) return null;
+  return groups.map((group) => group.replace(/^0+(?=.)/, ''));
 }
 
 interface IpState {

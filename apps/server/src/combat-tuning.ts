@@ -7,6 +7,7 @@ import {
   isValidClassChoice,
   movementStatsFor,
   respawnClassFrom,
+  respawnScoreFrom,
   upgradeAppliesTo,
   upgradePointsAtLevel,
   xpAtLevelStart,
@@ -281,7 +282,7 @@ export function tuneCombatScaling<T extends MazeGame>(game: T): T {
     player.xpForNextLevel = xpThresholdForLevel(retainedLevel);
     player.availablePoints = upgradePointsAtLevel(retainedLevel);
     player.upgrades = EMPTY_UPGRADES();
-    player.score = Math.floor(player.score * 0.5);
+    player.score = respawnScoreFrom(player.score);
     player.streak = 0;
     player.bestStreak = 0;
     player.dead = false;

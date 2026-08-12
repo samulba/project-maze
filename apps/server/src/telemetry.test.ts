@@ -4,6 +4,7 @@ import { tuneCombatScaling } from './combat-tuning';
 import { MazeGame } from './game';
 import { equipLoadout, tuneLoadoutSystem } from './loadout-system';
 import { renderMetricsText, telemetryReport, telemetryTickHealth, tuneTelemetry } from './telemetry';
+import { setArenaMode } from './world';
 
 interface Internals {
   players: Map<string, any>;
@@ -295,5 +296,22 @@ describe('telemetry', () => {
     game.chooseClass(playerId, 'rapid');
 
     expect(telemetryReport(game).totals.classPicks).toBe(0);
+  });
+
+  // Befund 65: Der Modus in Report und Metriken muss der konfigurierte sein,
+  // nicht das historische Etikett 'maze-alpha' -- sonst sind zwei Dienste
+  // (Maze + Royale) in Prometheus nicht auseinanderzuhalten.
+  it('reports the configured arena mode instead of a hardcoded label', () => {
+    try {
+      setArenaMode('royale');
+      const game = createGame();
+      expect(telemetryReport(game).mode).toBe('royale');
+      expect(renderMetricsText(game, Date.now())).toContain('mode="royale"');
+    } finally {
+      setArenaMode('maze');
+    }
+    const game = createGame();
+    expect(telemetryReport(game).mode).toBe('maze');
+    expect(renderMetricsText(game, Date.now())).toContain('mode="maze"');
   });
 });

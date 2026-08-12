@@ -349,6 +349,86 @@ describe('run persistence', () => {
     stopPersistence(game);
   });
 
+  // Befund 58: Die Engine setzt `kills` beim Respawn nie zurück; ein Run gilt
+  // laut Schema aber "Spawn bis Tod". Leben mit 2 und 3 Kills müssen die
+  // Zeilen 2 und 3 ergeben -- nicht 2 und 5.
+  it('writes the kills of the life, not the running session total', async () => {
+    const client = new FakeClient();
+    const game = withPersistence(client);
+    const playerId = game.addPlayer('Leben');
+    const internals = game as unknown as Internals;
+    const now = Date.now();
+    game.step(1 / 40, now);
+
+    const player = internals.players.get(playerId);
+    player.score = 1_000;
+    player.kills = 2;
+    internals.killPlayer(player, null, now + 1_000, 'Arena');
+
+    // Zweites Leben: Respawn setzt `kills` nicht zurück -- die Buchhaltung
+    // merkt sich beim Lebensbeginn den Sitzungsstand als Basis.
+    player.dead = false;
+    player.score = 2_000;
+    game.step(1 / 40, now + 2_000);
+    player.kills = 5;
+    internals.killPlayer(player, null, now + 3_000, 'Arena');
+
+    await flushPersistence(game);
+    expect(client.inserted.map((run: any) => run.kills)).toEqual([2, 3]);
+    stopPersistence(game);
+  });
+
+  // Befund 52: Tab schließen ist der normale Ausstieg. Wer lebend geht,
+  // hinterlässt trotzdem seinen Lauf -- sessions.ts kannte die Lücke schon,
+  // nur die Bestenliste ging weiter leer aus.
+  it('records the run of a player who leaves alive', async () => {
+    const client = new FakeClient();
+    const game = withPersistence(client);
+    const playerId = game.addPlayer('Geher');
+    const internals = game as unknown as Internals;
+    const now = Date.now();
+    game.step(1 / 40, now);
+
+    const player = internals.players.get(playerId);
+    player.score = 15_000;
+    player.level = 38;
+    player.playerClass = 'gatling';
+    player.kills = 9;
+    player.bestStreak = 5;
+    game.removePlayer(playerId);
+
+    await flushPersistence(game);
+    expect(client.inserted).toHaveLength(1);
+    expect(client.inserted[0]).toMatchObject({
+      playerName: 'Geher',
+      score: 15_000,
+      level: 38,
+      playerClass: 'gatling',
+      kills: 9,
+      bestStreak: 5,
+      userId: null
+    });
+    stopPersistence(game);
+  });
+
+  it('does not write a second row when a dead player disconnects', async () => {
+    const client = new FakeClient();
+    const game = withPersistence(client);
+    const playerId = game.addPlayer('Tot');
+    const internals = game as unknown as Internals;
+    const now = Date.now();
+    game.step(1 / 40, now);
+
+    const player = internals.players.get(playerId);
+    player.score = 900;
+    internals.killPlayer(player, null, now + 1_000, 'Arena');
+    game.removePlayer(playerId);
+
+    await flushPersistence(game);
+    expect(client.inserted).toHaveLength(1);
+    stopPersistence(game);
+  });
+
   it('never lets a database outage reach the game', async () => {
     const client = new FakeClient();
     client.failInserts = true;

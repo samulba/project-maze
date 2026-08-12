@@ -9,6 +9,7 @@ interface Internals {
   players: Map<string, any>;
   projectiles: Map<string, any>;
   damagePlayer(target: any, damage: number, attackerId: string | null, now: number): void;
+  resolvePlayerCollisions(now: number): void;
 }
 
 const createGame = (): MazeGame => tuneLoadoutSystem(tuneCombatScaling(new MazeGame(0)));
@@ -32,24 +33,60 @@ describe('core modules and passive frames', () => {
     expect(player.position.x).toBe(after);
   });
 
+  // Befund 62: Der Masterplan begrenzt den Dash-Abschlag ausdruecklich auf
+  // **Body**-Damage. Der alte Test rief `damagePlayer` direkt auf und konnte
+  // Kontakt- von Projektilschaden nicht unterscheiden -- er blieb gruen, egal
+  // welche der beiden Regeln implementiert war. Deshalb laeuft der Kontaktfall
+  // jetzt durch die echte Kollisionsaufloesung.
   it('reduces body damage caused during Dash instead of creating a Rammer one-shot', () => {
+    const messeKontaktschaden = (mitDash: boolean): number => {
+      const game = createGame();
+      const attackerId = game.addPlayer('Rammer');
+      const targetId = game.addPlayer('Target');
+      const internals = game as unknown as Internals;
+      const attacker = internals.players.get(attackerId);
+      const target = internals.players.get(targetId);
+      if (mitDash) {
+        equipLoadout(game, attackerId, 'dash', 'standard', 1000);
+        game.applyInput(attackerId, { type: 'input', sequence: 1, move: { x: 1, y: 0 }, aim: { x: 500, y: 0 }, primary: false, secondary: false });
+        activateModule(game, attackerId, 2000);
+      }
+      // Positionen NACH der Aktivierung setzen -- ohne Travel-Schalter legt
+      // der Dash die ganze Strecke sofort zurueck.
+      attacker.position = { x: 3000, y: 2000 };
+      target.position = { x: 3030, y: 2000 };
+      attacker.invulnerable = false;
+      attacker.invulnerableUntil = 0;
+      target.invulnerable = false;
+      target.invulnerableUntil = 0;
+      const before = target.health;
+      internals.resolvePlayerCollisions(2050);
+      return before - target.health;
+    };
+
+    const ohneDash = messeKontaktschaden(false);
+    const mitDash = messeKontaktschaden(true);
+    expect(ohneDash).toBeGreaterThan(0);
+    expect(mitDash).toBeCloseTo(ohneDash * 0.25, 4);
+  });
+
+  it('keeps projectile-path damage during Dash at full strength', () => {
     const game = createGame();
-    const attackerId = game.addPlayer('Rammer');
+    const attackerId = game.addPlayer('Storm');
     const targetId = game.addPlayer('Target');
     const internals = game as unknown as Internals;
-    const attacker = internals.players.get(attackerId);
     const target = internals.players.get(targetId);
-    attacker.position = { x: 3000, y: 2000 };
-    target.position = { x: 3060, y: 2000 };
     target.invulnerable = false;
     target.invulnerableUntil = 0;
     equipLoadout(game, attackerId, 'dash', 'standard', 1000);
     game.applyInput(attackerId, { type: 'input', sequence: 1, move: { x: 1, y: 0 }, aim: { x: 500, y: 0 }, primary: false, secondary: false });
     activateModule(game, attackerId, 2000);
 
+    // Projektile treffen ueber den direkten `damagePlayer`-Pfad -- eine Salve,
+    // die beim Abdruecken schon flog, verliert durch den Dash nichts.
     const before = target.health;
     internals.damagePlayer(target, 40, attackerId, 2050);
-    expect(before - target.health).toBeCloseTo(10, 4);
+    expect(before - target.health).toBeCloseTo(40, 4);
   });
 
   it('absorbs frontal Barrier damage but not attacks from behind', () => {
@@ -164,6 +201,28 @@ describe('core modules and passive frames', () => {
     game.step(1 / GAME.tickRate, 4000);
     const snapshot = game.snapshot(playerId, 4000) as any;
     expect(snapshot.gameplay[playerId].repairing).toBe(false);
+  });
+
+  // Befund 66: Der Balken teilte durch die BASIS-Abklingzeit, `readyAt` wurde
+  // aber mit dem Upgrade gesetzt -- bei 10 Punkten sprang die Anzeige beim
+  // Druecken auf 40 % statt auf 0.
+  it('starts the charge bar at zero even with cooldown upgrades invested', () => {
+    const game = createGame();
+    const playerId = game.addPlayer('Investor');
+    const internals = game as unknown as Internals;
+    const player = internals.players.get(playerId);
+    player.upgrades.moduleCooldown = 10;
+    equipLoadout(game, playerId, 'dash', 'standard', 1000);
+    game.applyInput(playerId, { type: 'input', sequence: 1, move: { x: 1, y: 0 }, aim: { x: 500, y: 0 }, primary: false, secondary: false });
+    expect(activateModule(game, playerId, 2000)).toBe(true);
+
+    const cooldownMs = 10_000 * Math.pow(0.95, 10);
+    const direktDanach = game.snapshot(playerId, 2001) as any;
+    expect(direktDanach.gameplay[playerId].moduleCharge).toBeLessThan(0.01);
+    const halbzeit = game.snapshot(playerId, 2000 + cooldownMs / 2) as any;
+    expect(halbzeit.gameplay[playerId].moduleCharge).toBeCloseTo(0.5, 2);
+    const fertig = game.snapshot(playerId, 2000 + cooldownMs + 1) as any;
+    expect(fertig.gameplay[playerId].moduleCharge).toBe(1);
   });
 
   it('applies passive trade-offs through the central stat calculation', () => {

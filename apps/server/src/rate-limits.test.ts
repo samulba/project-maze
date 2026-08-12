@@ -68,7 +68,9 @@ describe('client ip extraction', () => {
   it('normalizes mapped, bracketed and ported addresses', () => {
     expect(normalizeIp('::ffff:203.0.113.9')).toBe('203.0.113.9');
     expect(normalizeIp('203.0.113.9:51234')).toBe('203.0.113.9');
-    expect(normalizeIp('[::1]:8080')).toBe('::1');
+    // Auch Loopback fällt in die /64-Kürzung -- entscheidend ist hier nur,
+    // dass Klammern und Port sauber abgestreift werden.
+    expect(normalizeIp('[::1]:8080')).toBe('0:0:0:0::/64');
     expect(normalizeIp('  198.51.100.7  ')).toBe('198.51.100.7');
   });
 
@@ -77,6 +79,32 @@ describe('client ip extraction', () => {
     const b = normalizeIp('2001:db8:85a3:8d3:ffff:ffff:ffff:0001');
     expect(a).toBe('2001:db8:85a3:8d3::/64');
     expect(a).toBe(b);
+  });
+
+  // Befund 69: Die Kürzung hing an der Schreibweise -- komprimierte Adressen
+  // ('…::5') blieben ungekürzt, jede Adresse aus demselben /64 bekam ihren
+  // eigenen Zähler, und das Verbindungslimit war gegen genau den Angreifer
+  // wirkungslos, für den es existiert.
+  it('buckets every spelling of the same address identically', () => {
+    const kurz = normalizeIp('2001:db8:85a3:8d3::5');
+    const kanonisch = normalizeIp('2001:db8:85a3:8d3:0:0:0:5');
+    const lang = normalizeIp('2001:0db8:85a3:08d3:0000:0000:0000:0005');
+    expect(kurz).toBe('2001:db8:85a3:8d3::/64');
+    expect(kanonisch).toBe(kurz);
+    expect(lang).toBe(kurz);
+  });
+
+  it('keeps the whole /64 in one bucket no matter which suffix the attacker picks', () => {
+    const buckets = new Set(
+      ['::1', '::2', '::abcd', ':aaaa:bbbb:cccc:dddd'].map((suffix) => normalizeIp(`2a02:8109:abcd:1234${suffix}`))
+    );
+    expect(buckets.size).toBe(1);
+    expect([...buckets][0]).toBe('2a02:8109:abcd:1234::/64');
+  });
+
+  it('leaves malformed IPv6 untouched instead of guessing a prefix', () => {
+    expect(normalizeIp('fe80::1%eth0')).toBe('fe80:0:0:0::/64');
+    expect(normalizeIp('nicht:einmal:annaehernd::eine:adresse')).toBe('nicht:einmal:annaehernd::eine:adresse');
   });
 });
 

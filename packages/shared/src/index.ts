@@ -838,6 +838,13 @@ export const xpAtLevelStart = (level:number):number => level <= 1 ? 0 : xpThresh
 export const upgradePointsAtLevel = (level:number):number => Math.max(0, Math.min(GAME.maxLevel, Math.floor(level)) - 1);
 export const respawnLevelFrom = (level:number):number => Math.max(1, Math.floor(level * 0.5));
 /**
+ * Score nach dem Respawn. Lebt in shared, damit Regel und Beschriftung aus
+ * derselben Quelle rechnen: Die Basisklasse trug lange 0,45, die aktive
+ * Tuning-Schicht 0,5 – gelaufen ist immer 0,5, und der Death-Screen soll
+ * exakt die Zahl nennen, die der Server gleich setzt.
+ */
+export const respawnScoreFrom = (score:number):number => Math.max(0, Math.floor(score * 0.5));
+/**
  * Klasse nach dem Respawn – **immer zurück auf den Anfang**.
  *
  * Vorher wurde nur auf die höchste noch legale Klasse zurückgestuft
