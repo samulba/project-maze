@@ -1,4 +1,4 @@
-import type { NetId, Vector2 } from './index.js';
+import { GAME, type NetId, type Vector2 } from './index.js';
 
 export const ACTIVE_MODULE_IDS = ['dash', 'repulse', 'barrier', 'repair'] as const;
 export type ActiveModuleId = (typeof ACTIVE_MODULE_IDS)[number];
@@ -268,7 +268,11 @@ export interface AchievementInfo {
 export const ACHIEVEMENT_CATALOG: Record<AchievementId, AchievementInfo> = {
   firstStreak5: { id: 'firstStreak5', name: 'Lauf ohne Ende', description: 'Erreiche eine Serie von fünf Abschüssen, ohne zu sterben.' },
   guardianSlayer: { id: 'guardianSlayer', name: 'Signal gebrochen', description: 'Erlege den neutralen Guardian des Hunter-Signal-Events.' },
-  maxLevel: { id: 'maxLevel', name: 'Ausgereizt', description: 'Erreiche Level 45.' },
+  // Aus den Daten gebaut, nicht abgeschrieben: Der Server formuliert denselben
+  // Satz aus `GAME.maxLevel` (`achievements.ts`). Als feste 45 stand hier eine
+  // Zahl, die seit der Anhebung auf 60 falsch war -- und zwar ueberall, wo der
+  // Katalog beschriftet: Popup, Profilkarte und die Profil-API des Servers.
+  maxLevel: { id: 'maxLevel', name: 'Ausgereizt', description: `Erreiche Level ${GAME.maxLevel}.` },
   threeFamilies: { id: 'threeFamilies', name: 'Allrounder', description: 'Spiele drei verschiedene Klassenfamilien in einer Verbindung.' },
   overchargeDuelist: { id: 'overchargeDuelist', name: 'Überladen', description: 'Besiege einen Gegner während Overcharge innerhalb der Eventzone.' },
   fractureFlanker: { id: 'fractureFlanker', name: 'Durch die Bresche', description: 'Besiege einen Gegner durch ein von Fracture aufgebrochenes Wandsegment.' },

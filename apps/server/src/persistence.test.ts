@@ -950,6 +950,30 @@ describe('leaderboard route', () => {
     stopPersistence(game);
   });
 
+  /**
+   * Der Cache-Schluessel war die Zeit, nicht das `limit`: Wer ihn fuellte,
+   * bestimmte 30 Sekunden lang die Listenlaenge fuer alle. Ein einziges
+   * `GET /leaderboard?limit=1` kuerzte damit jedem Startscreen die
+   * Bestenliste auf einen Eintrag -- der Handler kann fehlende Zeilen nicht
+   * nachholen, er schneidet nur zu.
+   */
+  it('laesst eine kurze Anfrage nicht die Liste aller anderen kuerzen', async () => {
+    const client = new FakeClient();
+    client.entries = Array.from({ length: 50 }, (_, index) => entry({ rank: index + 1, score: 9_000 - index }));
+    const game = withPersistence(client, { leaderboardCacheMs: 30_000 });
+
+    const kurz = await leaderboard(game, 1);
+    const voll = await leaderboard(game, 50);
+    const mittel = await leaderboard(game, 10);
+
+    expect(kurz).toHaveLength(1);
+    expect(voll).toHaveLength(50);
+    expect(mittel).toHaveLength(10);
+    // Und das alles aus einer einzigen Abfrage -- der Cache bleibt der Punkt.
+    expect(client.topCalls).toBe(1);
+    stopPersistence(game);
+  });
+
   it('collapses concurrent requests into a single database roundtrip', async () => {
     const client = new FakeClient();
     client.entries = [entry()];

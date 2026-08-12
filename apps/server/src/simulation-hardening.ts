@@ -23,6 +23,8 @@ interface GameInternals {
   damageShape(shape: RuntimeShape, damage: number, ownerId: string, now: number): void;
   fire(...args: unknown[]): void;
   resolvePlayerCollisions(now: number): void;
+  /** Naht aus der Basis; `tuneCombatScaling` ersetzt sie durch die gueltige Kurve. */
+  bodyDamageOf(player: RuntimePlayer): number;
   resolveShapeBodyCollisions(now: number): void;
   resolveProjectileCollisions(): void;
   stepProjectiles(dt: number, now: number): void;
@@ -45,10 +47,19 @@ const momentumMultiplier = (player: RuntimePlayer): number => {
   const ratio = Math.min(1, speed / Math.max(1, definition.moveSpeed));
   return 0.6 + ratio * 0.75;
 };
-const bodyDamage = (player: RuntimePlayer): number => {
-  const definition = CLASS_DEFINITIONS[player.playerClass];
-  return definition.bodyDamage * (1 + player.upgrades.bodyDamage * 0.1) * momentumMultiplier(player);
-};
+/**
+ * Körperschaden eines Tanks – **gelesen, nicht noch einmal gerechnet.**
+ *
+ * Hier stand die Aufwertungskurve ein drittes Mal woertlich im Code (`+10 %
+ * je Punkt`), neben `tunedStatsFor` in `combat-tuning.ts` und der alten
+ * Fassung in `game.ts` (`+13 %`). Weil diese Schicht `resolvePlayerCollisions`
+ * ERSETZT, entschied ausgerechnet die Kopie hier ueber jeden Rammtreffer –
+ * und dass sie mit der gueltigen Kurve uebereinstimmte, war eine Verabredung
+ * ohne Vertrag. Jetzt fragt sie die Naht `bodyDamageOf`, die `tuneCombatScaling`
+ * besetzt; ohne diese Schicht antwortet die Basis wie eh und je.
+ */
+const bodyDamage = (internals: GameInternals, player: RuntimePlayer): number =>
+  internals.bodyDamageOf(player) * momentumMultiplier(player);
 const inFixedView = (position: Vector2, center: Vector2, padding = 0): boolean =>
   Math.abs(position.x - center.x) <= GAME.visibleWorldWidth / 2 + padding &&
   Math.abs(position.y - center.y) <= GAME.visibleWorldHeight / 2 + padding;
@@ -105,8 +116,8 @@ export function hardenSimulation<T extends MazeGame>(game: T): T {
         if (isFree(nextA, GAME.playerRadius)) a.position = nextA;
         if (isFree(nextB, GAME.playerRadius)) b.position = nextB;
         if (!a.invulnerable && !b.invulnerable) {
-          internals.damagePlayer(a, bodyDamage(b) * dt * 3.2, b.id, now);
-          internals.damagePlayer(b, bodyDamage(a) * dt * 3.2, a.id, now);
+          internals.damagePlayer(a, bodyDamage(internals, b) * dt * 3.2, b.id, now);
+          internals.damagePlayer(b, bodyDamage(internals, a) * dt * 3.2, a.id, now);
         }
       }
     }
@@ -119,7 +130,7 @@ export function hardenSimulation<T extends MazeGame>(game: T): T {
       for (const shape of internals.shapes.values()) {
         if (distanceSquared(player.position, shape.position) > Math.pow(GAME.playerRadius + shape.radius, 2)) continue;
         internals.damagePlayer(player, SHAPE_CONFIG[shape.kind].bodyDamage * dt * 3.2, null, now);
-        internals.damageShape(shape, bodyDamage(player) * dt * 3.2, player.id, now);
+        internals.damageShape(shape, bodyDamage(internals, player) * dt * 3.2, player.id, now);
       }
     }
   };

@@ -53,6 +53,7 @@ import { tuneDrones } from './drone-tuning.js';
 import { tuneFamilyUpgrades, type SignatureFamily } from './family-upgrades.js';
 import { MazeGame } from './game.js';
 import { tuneInputAck } from './input-ack.js';
+import { tuneInputIdle } from './input-idle.js';
 import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system.js';
 import { tuneProgression } from './progression-tuning.js';
 import { tuneProjectileSpeed } from './projectile-speed.js';
@@ -508,7 +509,13 @@ const encodedGame = tuneSnapshotEncoding(
 // Snapshots leeren die Warteschlange (Telemetrie-Round-Robin bleibt außen vor).
 // Input-Quittung ganz außen: Dort ist `selfId` garantiert der Empfänger, auch
 // wenn der Snapshot inhaltlich aus der Perspektive des Killers gebaut wurde.
-const game = tuneInputAck(ACHIEVEMENTS_ENABLED ? attachAchievementSnapshots(encodedGame) : encodedGame);
+// Eingabe-Zeitfenster ganz aussen: Es liest jede Eingabe, die tatsaechlich
+// angenommen wurde, und raeumt bei Stille nur die drei Eingabefelder auf --
+// gegen den Geist-Tank, der nach einem stillen Verbindungsverlust weiterfuhr
+// und weiterfeuerte, bis der Heartbeat ihn fand.
+const game = tuneInputAck(
+  tuneInputIdle(ACHIEVEMENTS_ENABLED ? attachAchievementSnapshots(encodedGame) : encodedGame)
+);
 const socketPlayerIds = new WeakMap<WebSocket, string>();
 const socketAlive = new WeakMap<WebSocket, boolean>();
 
@@ -725,7 +732,17 @@ const heartbeatTimer = setInterval(() => {
     socketAlive.set(socket, false);
     socket.ping();
   }
-}, 30000);
+  /*
+   * Zehn Sekunden, nicht dreissig.
+   *
+   * Getrennt wird erst beim UEBERNAECHSTEN Durchlauf (erst `false` setzen und
+   * pingen, dann beim naechsten Lauf `terminate`) -- bei 30 s blieb ein
+   * stumm gewordener Client also 30 bis 60 Sekunden lang eingeloggt und
+   * belegte dabei einen Platz, waehrend der echte Spieler laengst unter neuer
+   * ID daneben stand. Mit 10 s sind es 10 bis 20. Der Preis ist ein Ping je
+   * Socket alle zehn Sekunden.
+   */
+}, 10_000);
 tickTimer.unref();
 snapshotTimer.unref();
 heartbeatTimer.unref();

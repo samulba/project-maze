@@ -22,9 +22,10 @@ import {
   type UpgradeSlotId
 } from './family-upgrades';
 import { royaleDeathText, royaleZoneOf } from './royale-hud';
+import { runDurationText, runSeconds } from './run-clock';
 import { signatureLabel, signatureRatio } from './signature';
 import { START_NAV } from './start-nav';
-import { spectatedName } from './spectator';
+import { spectatedName, spectatedPlayer } from './spectator';
 import { DEFAULT_THEME, applyTheme, type ClientThemeId } from './themes';
 
 export interface JoinOptions {
@@ -138,6 +139,8 @@ export class GameUI {
   private lastKillfeedKey = '';
   private lastStreak = 0;
   private runStartedAt = Date.now();
+  /** Zeitpunkt des Todes – die Laufzeit steht danach still. */
+  private runEndedAt: number | null = null;
   private wasDead = false;
 
   constructor(
@@ -541,13 +544,29 @@ export class GameUI {
     }
 
     this.points.textContent = String(self.availablePoints);
-    const noPoints = self.availablePoints <= 0 || self.dead;
-    this.upgrades.hidden = noPoints;
-    this.pointsBadge.hidden = noPoints;
+    const noPoints = self.availablePoints <= 0;
+    /*
+     * Das Panel bleibt stehen, auch wenn kein Punkt mehr offen ist.
+     *
+     * Die zehn Pips je Wert sind die EINZIGE Darstellung der investierten
+     * Punkte im ganzen Client – kein zweiter Ort rendert sie, das Rad zeigt
+     * ausdrücklich keine Werte, und die Wahlkarten zeigen die Basisklasse ohne
+     * die eigenen Punkte. Solange das Panel mit dem letzten Punkt verschwand,
+     * konnte niemand die Frage „was habe ich eigentlich gebaut?" beantworten.
+     * Die Knöpfe sind ohne Punkte ohnehin schon `disabled` (weiter unten) –
+     * es fehlte nur das Hinsehen.
+     */
+    this.upgrades.hidden = self.dead;
+    // Nur-Lese-Zustand: kein Punkt offen, das Panel steht als Bilanz da. Auf
+    // sehr flachen Fenstern blendet die CSS genau diesen Zustand wieder aus --
+    // dort ist der Platz die knappere Ressource (gemessen: 1280x430).
+    this.upgrades.classList.toggle('read-only', noPoints);
+    this.pointsBadge.hidden = self.dead;
     this.pointsBadgeCount.textContent = String(self.availablePoints);
     // Der letzte verteilte Punkt schließt das Sheet – sonst bliebe eine leere
-    // Fläche über den Sticks stehen.
-    if (noPoints) this.upgrades.classList.remove('sheet-open');
+    // Fläche über den Sticks stehen. Aufmachen darf man es danach weiter: Das
+    // Badge bleibt, und der Blick auf den eigenen Build ist genau der Grund.
+    if (noPoints || self.dead) this.upgrades.classList.remove('sheet-open');
 
     // Cast, bis 01 die beiden Familien-Slots in `shared` aufgenommen hat
     // (Muster wie bei `spectatorTargetId`). Danach fällt er ersatzlos weg.
@@ -599,7 +618,21 @@ export class GameUI {
     const healthRatio = self.health / Math.max(1, self.maxHealth);
     this.vignette.classList.toggle('active', !self.dead && healthRatio < 0.35);
 
-    if (this.wasDead && !self.dead) this.runStartedAt = Date.now();
+    /*
+     * Die Laufzeit wird beim Tod eingefroren, nicht bis in alle Ewigkeit
+     * weitergerechnet.
+     *
+     * `updateDeathScreen` rechnete `Date.now() - runStartedAt` bei JEDEM
+     * Snapshot neu – also zwanzigmal pro Sekunde, auch lange nach dem Tod. Im
+     * Battle Royale, wo es keinen Wiedereinstieg gibt und eine Runde rund zehn
+     * Minuten dauert, wurde aus „Überlebt 1m 30s" beim Zusehen „Überlebt
+     * 7m 30s". Die Kachel behauptete damit ein Vielfaches der echten Zeit.
+     */
+    if (this.wasDead && !self.dead) {
+      this.runStartedAt = Date.now();
+      this.runEndedAt = null;
+    }
+    if (!this.wasDead && self.dead) this.runEndedAt = Date.now();
     this.wasDead = self.dead;
 
     if (self.streak > this.lastStreak && [3, 5, 8, 12].includes(self.streak)) {
@@ -678,8 +711,7 @@ export class GameUI {
     // der Weg zum Startscreen bleiben dabei sichtbar und klickbar.
     this.deathScreen.classList.toggle('spectating', spectatedName(snapshot) !== null);
     const remaining = Math.max(0, self.canRespawnAt - snapshot.serverTime);
-    const aliveSeconds = Math.max(0, Math.round((Date.now() - this.runStartedAt) / 1000));
-    const aliveText = aliveSeconds >= 60 ? `${Math.floor(aliveSeconds / 60)}m ${aliveSeconds % 60}s` : `${aliveSeconds}s`;
+    const aliveText = runDurationText(runSeconds(this.runStartedAt, this.runEndedAt, Date.now()));
     this.deathKiller.textContent = `Eliminiert von ${self.killerName || 'Arena'}`;
     // Dieselben Zahlen in einer Zeile statt in sechs Kacheln.
     this.deathSummary.textContent = `LEVEL ${self.deathLevel} · ${self.kills} KILLS · ${self.score.toLocaleString('de-DE')} SCORE · ${aliveText}`;
@@ -775,9 +807,19 @@ export class GameUI {
     const { width, height } = this.minimap;
     const halfWorldWidth = GAME.visibleWorldWidth * 0.62;
     const halfWorldHeight = GAME.visibleWorldHeight * 0.72;
+    /*
+     * Mittelpunkt ist die KAMERA, nicht der eigene Tank.
+     *
+     * Beim Zuschauen ist der eigene Tank eine Leiche, und der Server baut den
+     * Snapshot aus der Perspektive des Killers: Culling, Wandauswahl und
+     * Sichtfenster hängen an dessen Position. Ein Radar um die Leiche zeigte
+     * deshalb eine Fläche, in der nichts mehr ist -- Wände, Zone und Gegner
+     * liegen alle ausserhalb. Der Renderer rechnet längst so; hier fehlte es.
+     */
+    const kamera = spectatedPlayer(snapshot) ?? self;
     const toRadar = (position: { x: number; y: number }): { x: number; y: number } => ({
-      x: width / 2 + ((position.x - self.position.x) / halfWorldWidth) * (width / 2),
-      y: height / 2 + ((position.y - self.position.y) / halfWorldHeight) * (height / 2)
+      x: width / 2 + ((position.x - kamera.position.x) / halfWorldWidth) * (width / 2),
+      y: height / 2 + ((position.y - kamera.position.y) / halfWorldHeight) * (height / 2)
     });
     context.clearRect(0, 0, width, height);
     context.fillStyle = 'rgba(7,10,18,.88)';

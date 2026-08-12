@@ -1,4 +1,4 @@
-import { CLASS_DEFINITIONS, UPGRADE_IDS, type PlayerClass, type UpgradeId } from '@project-maze/shared';
+import { CLASS_DEFINITIONS, PLAYER_CLASS_IDS, UPGRADE_IDS, type PlayerClass, type UpgradeId } from '@project-maze/shared';
 
 /**
  * Die beiden Familien-Upgrade-Slots (Klassen 3.0/KL4).
@@ -82,8 +82,24 @@ export function familyUpgradeLocked(playerClass: PlayerClass): boolean {
   return (CLASS_DEFINITIONS[playerClass]?.branch ?? 'core') === 'core';
 }
 
+/**
+ * Ab diesem Level steht die erste Familie zur Wahl – **aus den Daten gelesen,
+ * nicht aufgeschrieben.**
+ *
+ * Hier stand fest „Level 10", und das war falsch: Alle acht Familien-Starter
+ * haben `unlockLevel: 5`. Ein Spieler auf Level 6 las an seinen beiden
+ * gesperrten Plätzen also, er müsse noch vier Level warten – während die
+ * Klassenwahl längst offen stand. Wer sich einmal auf eine falsche Zahl
+ * verlässt, glaubt der nächsten auch nicht mehr.
+ */
+export const FAMILY_UNLOCK_LEVEL = Math.min(
+  ...PLAYER_CLASS_IDS
+    .filter((id) => CLASS_DEFINITIONS[id].branch !== 'core')
+    .map((id) => CLASS_DEFINITIONS[id].unlockLevel)
+);
+
 /** Erklärung am gesperrten Knopf – sagt, was fehlt, nicht nur dass etwas fehlt. */
-export const FAMILY_LOCK_HINT = 'Erst mit einer Familie ab Level 10';
+export const FAMILY_LOCK_HINT = `Erst mit einer Familie ab Level ${FAMILY_UNLOCK_LEVEL}`;
 
 /**
  * Tastenbeschriftung eines Slots. Der zehnte Platz liegt auf der **0**, nicht

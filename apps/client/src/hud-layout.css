@@ -833,3 +833,22 @@
      Telefon ist das genau der Knopf, den man am dringendsten trifft. */
   .death-screen.spectating .death-card button { height: auto; min-height: 44px; }
 }
+
+
+/* ------------------------------------------------------------------ *
+ * Upgrade-Panel ohne offene Punkte: sichtbar, aber nicht um jeden Preis
+ * ------------------------------------------------------------------ */
+/*
+ * Das Panel bleibt stehen, wenn alle Punkte vergeben sind – die zehn Pips je
+ * Wert sind die einzige Stelle im ganzen Client, an der ein Spieler seinen
+ * Build ablesen kann. Auf sehr flachen Fenstern kostet das aber mehr, als es
+ * bringt: Gemessen auf 1280 × 430 überlappte es den Modul-Knopf (42 × 56 px)
+ * und verdeckte das Event-Banner (164 × 31 px). Dort gilt wieder die alte
+ * Regel – sichtbar nur, wenn es etwas zu verteilen gibt.
+ *
+ * Der Schnitt liegt bei 480 px: 1280 × 600 und 1600 × 500 sind gemessen
+ * kollisionsfrei, 1280 × 430 nicht.
+ */
+@media (max-height: 480px) {
+  .upgrade-panel.read-only { display: none; }
+}

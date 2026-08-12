@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PlayerSnapshot, WorldSnapshot } from '@project-maze/shared';
-import { spectatedName } from './spectator';
+import { spectatedName, spectatedPlayer } from './spectator';
 
 /**
  * `spectatedName` entscheidet zwei Dinge: ob das Zuschauer-Band erscheint und
@@ -8,8 +8,8 @@ import { spectatedName } from './spectator';
  * Beides hängt an derselben Antwort, deshalb steht sie hier fest.
  */
 
-const spieler = (id: string, name: string): PlayerSnapshot =>
-  ({ id, name } as unknown as PlayerSnapshot);
+const spieler = (id: string, name: string, position = { x: 0, y: 0 }): PlayerSnapshot =>
+  ({ id, name, position } as unknown as PlayerSnapshot);
 
 const snapshot = (
   selfId: string | null,
@@ -40,5 +40,24 @@ describe('Zuschauer-Ziel', () => {
 
   it('meldet nichts bei leerem Namen', () => {
     expect(spectatedName(snapshot('1', [spieler('1', 'Ich'), spieler('7', '   ')], '7'))).toBeNull();
+  });
+
+  /**
+   * Der Radar rechnete gegen die eigene Leiche statt gegen die Kamera. Weil
+   * der Server den Snapshot eines Toten aus der Perspektive des Killers baut,
+   * lag dort nichts mehr -- ein leeres Rechteck an einer Stelle, an der
+   * niemand ist. `spectatedPlayer` ist derselbe Punkt, den auch der Renderer
+   * als Kamera nimmt.
+   */
+  it('nennt den beobachteten Spieler als Kamerapunkt, nicht die eigene Leiche', () => {
+    const ich = spieler('1', 'Ich', { x: 2000, y: 2000 });
+    const killer = spieler('7', 'Nova', { x: 6100, y: 3400 });
+    const welt = snapshot('1', [ich, killer], '7');
+    expect(spectatedPlayer(welt)?.position).toEqual({ x: 6100, y: 3400 });
+    // Ohne Zuschauen bleibt es beim eigenen Tank -- der Aufrufer faellt auf
+    // `self` zurueck, und genau dieses `null` ist das Signal dafuer.
+    expect(spectatedPlayer(snapshot('1', [ich]))).toBeNull();
+    expect(spectatedPlayer(snapshot('1', [ich], '1'))).toBeNull();
+    expect(spectatedPlayer(snapshot('1', [ich], '9'))).toBeNull();
   });
 });

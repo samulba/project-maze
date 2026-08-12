@@ -237,6 +237,47 @@ describe('Sitzungserfassung', () => {
     stopSessions(game);
   });
 
+  /**
+   * `flush` gibt einen bereits LAUFENDEN Durchlauf unveraendert zurueck. Faengt
+   * der periodische Flush kurz vor dem SIGTERM an, hat er seinen Batch schon
+   * aus der Queue genommen -- die Sitzungen, die `flushSessions` danach
+   * hineinlegt, waren in keinem Insert. Der Shutdown wartete auf den falschen
+   * Insert, meldete Erfolg und ging.
+   */
+  it('verliert keinen Besuch, wenn beim Herunterfahren schon ein Flush laeuft', async () => {
+    const client = fakeClient();
+    let freigeben: (() => void) | null = null;
+    const haengt = new Promise<void>((resolve) => { freigeben = resolve; });
+    const echtesInsert = client.insertSessions.bind(client);
+    let erster = true;
+    client.insertSessions = async (sessions) => {
+      if (erster) {
+        erster = false;
+        await haengt;
+      }
+      await echtesInsert(sessions);
+    };
+    const game = tuneSessions(new MazeGame(0), { client, flushIntervalMs: 300_000, log: () => {} });
+
+    // Ein abgeschlossener Besuch liegt im Puffer, sein Insert haengt.
+    const alt = game.addPlayer('Frueher');
+    beginSession(game, alt, 'a1b2c3d4e5f60718', 'Frueher', 0);
+    endSession(game, alt, 60_000);
+    const laufend = flushSessions(game, 60_000);
+
+    // Jetzt kommt der Deploy -- mit drei Leuten in der Arena.
+    for (const name of ['A', 'B', 'C']) {
+      const id = game.addPlayer(name);
+      beginSession(game, id, 'a1b2c3d4e5f60718', name, 0);
+    }
+    const shutdown = flushSessions(game, 120_000);
+    freigeben!();
+    await Promise.all([laufend, shutdown]);
+
+    expect(client.geschrieben.map((eintrag) => eintrag.playerName).sort()).toEqual(['A', 'B', 'C', 'Frueher']);
+    stopSessions(game);
+  });
+
   it('stoert das Spiel nicht, wenn die Datenbank dauerhaft weg ist', async () => {
     const { game, client } = spiele();
     client.fehler = true;

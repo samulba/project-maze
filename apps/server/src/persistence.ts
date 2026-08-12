@@ -642,12 +642,27 @@ export async function leaderboard(game: MazeGame, limit = DEFAULT_LEADERBOARD_LI
   const state = stateFor(game);
   if (!state.enabled || !state.client) return [];
   const now = Date.now();
-  if (state.cache && now - state.cache.fetchedAt < state.leaderboardCacheMs) return state.cache.entries;
+  const zuschneiden = (entries: LeaderboardEntry[]): LeaderboardEntry[] =>
+    entries.length <= limit ? entries : entries.slice(0, limit);
+  if (state.cache && now - state.cache.fetchedAt < state.leaderboardCacheMs) return zuschneiden(state.cache.entries);
   // Parallele Anfragen teilen sich einen einzigen Datenbank-Roundtrip.
-  if (state.cacheInFlight) return state.cacheInFlight;
+  if (state.cacheInFlight) return state.cacheInFlight.then(zuschneiden);
 
   const client = state.client;
-  state.cacheInFlight = client.topRuns(limit)
+  /*
+   * Geholt wird IMMER die volle Länge, egal wonach gefragt wurde.
+   *
+   * Der Cache-Schlüssel ist die Zeit, nicht das `limit`. Wer ihn füllte,
+   * bestimmte damit für 30 Sekunden die Listenlänge für alle: Ein einziges
+   * `GET /leaderboard?limit=1` – ungeschützt und einen Handgriff entfernt –
+   * kürzte jedem Startscreen die Bestenliste auf einen Eintrag, und der
+   * Handler kann fehlende Zeilen nicht nachholen, er schneidet nur zu
+   * (`entries.slice(0, limit)`). Nachgemessen mit einer Attrappe aus 50
+   * Zeilen: limit=1 füllt den Cache, danach liefert limit=50 genau einen
+   * Eintrag. Die volle Länge zu holen kostet eine Abfrage, die ohnehin
+   * gedeckelt ist – und `limit` bleibt die Sache des Handlers.
+   */
+  state.cacheInFlight = client.topRuns(DEFAULT_LEADERBOARD_LIMIT)
     .then((entries) => {
       state.cache = { entries, fetchedAt: Date.now() };
       return entries;
@@ -659,7 +674,7 @@ export async function leaderboard(game: MazeGame, limit = DEFAULT_LEADERBOARD_LI
       throw error instanceof Error ? error : new Error(String(error));
     })
     .finally(() => { state.cacheInFlight = null; });
-  return state.cacheInFlight;
+  return state.cacheInFlight.then(zuschneiden);
 }
 
 /**

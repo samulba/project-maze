@@ -406,6 +406,25 @@ export class MazeGame {
     for (const projectile of [...this.projectiles.values()]) if (projectile.integrity <= 0) this.projectiles.delete(projectile.id);
   }
 
+  /**
+   * Körperschaden eines Tanks – **eine ersetzbare Stelle statt einer zweiten
+   * Formel.**
+   *
+   * `resolvePlayerCollisions` wird von keiner Schicht ersetzt, nur umschlossen
+   * (perks, impact, specter, hardening). Innen stand deshalb weiter die alte
+   * Kurve aus `statsFor` (+13 % je Punkt), während der ganze übrige Server
+   * längst mit `tunedStatsFor` rechnete (+10 %). Gemessen an zwei Juggernauts
+   * auf Level 60 mit zehn Punkten in `bodyDamage`: 11,040 zugefügter Schaden
+   * gegen 9,600 nach der gültigen Kurve – 15 % zu viel, und der Slot war damit
+   * je Punkt 30 % stärker als das Balance-Modell annimmt.
+   *
+   * Als Methode kann `tuneCombatScaling` sie ersetzen wie jede andere Regel,
+   * ohne dass `game.ts` etwas über die Tuning-Schichten wissen muss.
+   */
+  protected bodyDamageOf(player: GamePlayer): number {
+    return statsFor(player).bodyDamage;
+  }
+
   private resolvePlayerCollisions(now: number): void {
     const players = [...this.players.values()].filter((player) => !player.dead);
     for (let index = 0; index < players.length; index += 1) {
@@ -424,8 +443,8 @@ export class MazeGame {
         if (isFree(aPosition, GAME.playerRadius)) a.position = aPosition;
         if (isFree(bPosition, GAME.playerRadius)) b.position = bPosition;
         if (!a.invulnerable && !b.invulnerable) {
-          this.damagePlayer(a, statsFor(b).bodyDamage * 0.08, b.id, now);
-          this.damagePlayer(b, statsFor(a).bodyDamage * 0.08, a.id, now);
+          this.damagePlayer(a, this.bodyDamageOf(b) * 0.08, b.id, now);
+          this.damagePlayer(b, this.bodyDamageOf(a) * 0.08, a.id, now);
         }
       }
     }
@@ -437,7 +456,7 @@ export class MazeGame {
       for (const shape of this.shapes.values()) {
         if (distanceSquared(player.position, shape.position) > Math.pow(GAME.playerRadius + shape.radius, 2)) continue;
         this.damagePlayer(player, SHAPE_CONFIG[shape.kind].bodyDamage * 0.08, null, now);
-        this.damageShape(shape, statsFor(player).bodyDamage * 0.08, player.id, now);
+        this.damageShape(shape, this.bodyDamageOf(player) * 0.08, player.id, now);
       }
     }
   }

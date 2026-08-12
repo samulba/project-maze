@@ -459,7 +459,34 @@ export async function flushSessions(game: MazeGame, now = Date.now()): Promise<v
   if (!state.enabled) return;
   // Wer beim Herunterfahren noch spielt, hat trotzdem einen Besuch gemacht.
   for (const playerId of [...state.open.keys()]) endSession(game, playerId, now);
-  await flush(state);
+  /*
+   * Mehrmals versuchen – wie `flushPersistence`, und aus demselben Grund.
+   *
+   * `flush` gibt einen bereits LAUFENDEN Flush unverändert zurück. Läuft beim
+   * SIGTERM gerade der periodische Durchlauf (alle 15 s), hat der seinen Batch
+   * schon aus der Queue genommen, bevor die `endSession`-Aufrufe hier
+   * überhaupt etwas hineingelegt haben. Ein einzelnes `await flush(state)`
+   * wartete dann auf einen Insert, der die neuen Zeilen gar nicht enthält,
+   * kehrte zurück, und der Prozess ging – mit allen laufenden Besuchen im
+   * Arbeitsspeicher und einer Erfolgsmeldung im Log. Derselbe Weg deckt
+   * nebenbei eine Queue über 200 Zeilen ab, die ohnehin mehrere Inserts
+   * braucht.
+   */
+  for (let versuch = 0; versuch < 3; versuch += 1) {
+    if (state.queue.length === 0) return;
+    const fehlerVorher = state.failedFlushes;
+    await flush(state);
+    /*
+     * Ein echt gescheiterter Schreibversuch beendet die Schleife.
+     *
+     * Sonst liefe der Shutdown bei einer toten Datenbank dreimal in denselben
+     * Fehler und meldete drei statt einem -- die Zeilen bleiben ohnehin im
+     * Puffer, genau dafuer ist er da. Wiederholt wird nur der Fall, um den es
+     * hier geht: Der erste `flush` war schon unterwegs und hat unsere Zeilen
+     * gar nicht gesehen.
+     */
+    if (state.failedFlushes > fehlerVorher) return;
+  }
 }
 
 interface SessionInternals {

@@ -9,6 +9,7 @@ import {
   unlockedAchievementsFor,
   type AchievementId
 } from './achievements';
+import { ACHIEVEMENT_CATALOG } from '@project-maze/shared/gameplay';
 import { arenaGuardianIdFor, fracturedWallIdsFor, tuneArenaEvents } from './arena-events';
 import { tuneArenaSystems } from './arena-systems';
 import { tuneClassMechanics } from './class-mechanics';
@@ -387,6 +388,27 @@ describe('achievement engine rules', () => {
       });
     }
     expect(results[0]).toEqual(results[1]);
+  });
+});
+
+/**
+ * Zwei Fassungen desselben Textes: Der Server formuliert ihn aus `GAME`, der
+ * Katalog in `shared` beschriftet damit Popup, Profilkarte und die Profil-API.
+ * Bei „Ausgereizt" liefen sie auseinander -- Server „Erreiche Level 60.",
+ * Katalog „Erreiche Level 45.", seit der Anhebung von 45 auf 60. Wer den
+ * Erfolg im Profil las, wartete auf ein Ziel, das es nicht mehr gab.
+ */
+describe('Katalog und Serverdefinition', () => {
+  it('sagen ueber jeden Erfolg dasselbe', () => {
+    const abweichungen: string[] = [];
+    for (const achievement of ACHIEVEMENTS) {
+      const katalog = ACHIEVEMENT_CATALOG[achievement.id];
+      if (katalog.name !== achievement.name) abweichungen.push(`${achievement.id}: Name`);
+      if (katalog.description !== achievement.description) {
+        abweichungen.push(`${achievement.id}: "${katalog.description}" vs "${achievement.description}"`);
+      }
+    }
+    expect(abweichungen).toEqual([]);
   });
 });
 

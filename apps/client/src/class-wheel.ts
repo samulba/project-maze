@@ -8,6 +8,7 @@ import {
   reachableFrom,
   type WheelNode
 } from './class-tree';
+import { FAMILY_UNLOCK_LEVEL } from './family-upgrades';
 
 /**
  * Das Rad als SVG (MASTERPLAN KL3).
@@ -358,7 +359,7 @@ export function renderClassCard(auswahl: WheelSelection): HTMLElement {
   } else {
     const hinweis = document.createElement('p');
     hinweis.className = 'wheel-card-text muted';
-    hinweis.textContent = 'Die Startklasse hat keine Signature – sie kommt mit der Familie auf Level 10.';
+    hinweis.textContent = `Die Startklasse hat keine Signature – sie kommt mit der Familie auf Level ${FAMILY_UNLOCK_LEVEL}.`;
     karte.append(hinweis);
   }
 

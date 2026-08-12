@@ -71,6 +71,7 @@ interface CombatInternals {
   spendBotPoints(player: RuntimePlayer): void;
   advanceBotClass(player: RuntimePlayer): void;
   safeSpawn(): Vector2;
+  bodyDamageOf(player: RuntimePlayer): number;
 }
 
 /**
@@ -236,6 +237,19 @@ export function tuneCombatScaling<T extends MazeGame>(game: T): T {
       player.cooldown = stats.reload;
     }
   };
+
+  /*
+   * Koerperschaden aus derselben Quelle wie alles andere.
+   *
+   * Die Kurve stand dreimal im Server: `statsFor` in der Basis (+13 % je
+   * Punkt), `tunedStatsFor` hier (+10 %) und noch einmal woertlich in
+   * `simulation-hardening.ts`. Gelten tut die von hardening -- die Schicht
+   * ERSETZT `resolvePlayerCollisions`, die Zeile in der Basis ist also
+   * unerreichbar, und der Rammschaden war zum Glueck nie falsch. Genau das ist
+   * aber die Falle: Drei Fassungen, von denen zwei unbemerkt auseinanderliefen.
+   * Mit dieser Naht gibt es eine.
+   */
+  internals.bodyDamageOf = (player: RuntimePlayer): number => tunedStatsFor(player).bodyDamage;
 
   internals.respawn = (player: RuntimePlayer, now: number): void => {
     const retainedLevel = Math.max(1, player.respawnLevel);

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { UPGRADE_IDS } from '@project-maze/shared';
+import { CLASS_DEFINITIONS, PLAYER_CLASS_IDS, UPGRADE_IDS } from '@project-maze/shared';
 import {
+  FAMILY_LOCK_HINT,
+  FAMILY_UNLOCK_LEVEL,
   FAMILY_UPGRADE_IDS,
   UPGRADE_SLOT_IDS,
   familyUpgradeLabel,
@@ -73,6 +75,29 @@ describe('Familien-Upgrade-Plätze (KL4)', () => {
     expect(familyUpgradeLocked('rammer')).toBe(false);
     expect(familyUpgradeLocked('sniper')).toBe(false);
     expect(familyUpgradeLocked('warden')).toBe(false);
+  });
+});
+
+/**
+ * Am gesperrten Knopf stand fest „Erst mit einer Familie ab Level 10" --
+ * die acht Familien-Starter haben aber `unlockLevel: 5`. Ein Spieler auf
+ * Level 6 las dort, er muesse noch vier Level warten, waehrend die Wahl
+ * laengst offen stand. Deshalb kommt die Zahl jetzt aus den Daten.
+ */
+describe('Freischaltstufe der Familien', () => {
+  it('nennt die Stufe, ab der wirklich eine Familie zur Wahl steht', () => {
+    const stufen = PLAYER_CLASS_IDS
+      .filter((id) => CLASS_DEFINITIONS[id].branch !== 'core')
+      .map((id) => CLASS_DEFINITIONS[id].unlockLevel);
+    expect(FAMILY_UNLOCK_LEVEL).toBe(Math.min(...stufen));
+    expect(FAMILY_LOCK_HINT).toContain(String(FAMILY_UNLOCK_LEVEL));
+  });
+
+  it('nennt keine Stufe, auf der noch gar nichts offen ist', () => {
+    const offenVorher = PLAYER_CLASS_IDS.filter(
+      (id) => CLASS_DEFINITIONS[id].branch !== 'core' && CLASS_DEFINITIONS[id].unlockLevel < FAMILY_UNLOCK_LEVEL
+    );
+    expect(offenVorher).toEqual([]);
   });
 });
 

@@ -53,9 +53,24 @@ export class SpectatorBanner {
  * (etwa direkt nach dem Verlassen), bleibt der Hinweis lieber aus.
  */
 export function spectatedName(snapshot: WorldSnapshot): string | null {
+  const name = spectatedPlayer(snapshot)?.name?.trim();
+  return name ? name.toUpperCase() : null;
+}
+
+/**
+ * Der beobachtete Spieler selbst – der Punkt, um den sich beim Zuschauen alles
+ * dreht.
+ *
+ * Der Renderer zieht daraus schon die richtige Konsequenz (`camera = spectatorId
+ * ?? self`). Der Radar tat es nicht: Er rechnete gegen `self.position`, also
+ * gegen die eigene **Leiche**. Der Server baut den Snapshot eines Toten aber
+ * aus der Perspektive des Killers – Culling und Sichtfenster hängen an dessen
+ * Position. Beides zusammen ergab einen Radar, der auf einer Stelle klebt, an
+ * der niemand mehr ist, und dessen Fläche leer bleibt, weil die gelieferten
+ * Entitäten alle woanders sind.
+ */
+export function spectatedPlayer(snapshot: WorldSnapshot): WorldSnapshot['players'][number] | null {
   const targetId = (snapshot as ExtendedSnapshot).spectatorTargetId;
   if (!targetId || targetId === snapshot.selfId) return null;
-  const target = snapshot.players.find((player) => player.id === targetId);
-  const name = target?.name?.trim();
-  return name ? name.toUpperCase() : null;
+  return snapshot.players.find((player) => player.id === targetId) ?? null;
 }
