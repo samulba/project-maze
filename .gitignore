@@ -15,3 +15,10 @@ balance-report.txt
 **/zz*.test.ts
 **/*.bench.test.ts
 *.tsbuildinfo
+# Messskripte, die während einer Analyse im Wurzelverzeichnis entstehen und dort
+# nur so lange leben, wie die Messung läuft (`drone-watch-tmp.mjs`,
+# `erstlauf.tmp.mjs`). Wer daraus ein Werkzeug macht, gibt ihm einen Namen und
+# legt es nach `scripts/` – so sind `first-run-probe` und `duo-probe`
+# entstanden.
+*-tmp.mjs
+*.tmp.mjs
