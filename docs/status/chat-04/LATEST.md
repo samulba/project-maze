@@ -35,8 +35,12 @@ Läufen wieder. Dazu die **Login-Zeile (55)** in Sams Wortlaut auf der
 Death-Karte bei neuem Rekord ab dem zweiten Lauf („Neuer Rekord. Mit Konto
 zählt er in der Bestenliste – auf jedem Gerät."); der ANMELDEN-Knopf folgt
 mit dem Login-Flow – heute gäbe es nichts zu öffnen, ein toter Knopf wäre
-gelogen. Offen aus Sams Bestellung: Bestenlisten-Zeitfenster (51) und
-Bericht 23 (Balance-Papier).
+gelogen. Dazu gebaut: die **Bestenlisten-Zeitfenster** HEUTE/WOCHE/EWIG (51,
+rollierend, je Fenster gecacht, ewig bleibt Standard) – und das
+**Balance-Vorschlagspapier** liegt vor:
+[`23-vorschlag-balance.md`](23-vorschlag-balance.md) (fünf Pakete entlang
+des Laufs, Empfehlung: erst spielen, dann Ankunfts-Paket). Damit ist
+jede Bestellung aus Sams Rückfragen abgearbeitet.
 | **Status** | **Alle 79 Befunde geprüft**: 43 behoben, 2 verworfen (2, 74), Rest bestätigt-aber-offen – Bots/Balance/Content bei Sam |
 
 Dieses Dokument ist der Einstieg für die nächste Sitzung. Der volle Bericht
