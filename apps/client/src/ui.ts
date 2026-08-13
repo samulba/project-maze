@@ -952,7 +952,8 @@ export class GameUI {
       const score = document.createElement('strong');
       rank.textContent = String(rangZahl);
       name.textContent = entry.name;
-      if (entry.isBot) { const bot = document.createElement('em'); bot.textContent = 'BOT'; name.append(bot); }
+      // Sam: Bots sollen nicht als solche erkennbar sein – keine „BOT"-Marke
+      // mehr in der Bestenliste (vormals hier per entry.isBot).
       details.textContent = `${CLASS_DEFINITIONS[entry.playerClass].label} · L${entry.level}`;
       score.textContent = entry.score.toLocaleString('de-DE');
       row.append(rank, name, details, score);

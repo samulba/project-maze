@@ -542,8 +542,12 @@ export class GameRenderer {
       const previous=view.snapshot;
       if(!player.dead&&!previous.dead&&player.health<previous.health-.01&&player.deaths===previous.deaths){
         view.flashUntil=now+130;
+        // Sam: „diese Zahlen wenn man iwas damaged auch kacke, raus damit" –
+        // keine Schadenszahl mehr über einem GEGNER, den man selbst trifft.
+        // Der eigene Lebensverlust bleibt sichtbar (Rand-Anzeige, das war ein
+        // anderer Punkt) – hier geht es nur um den Schaden, den man AUSTEILT.
         const amount=Math.round(previous.health-player.health);
-        if(amount>=1)this.numbers.spawn({x:view.current.x,y:view.current.y-26},`-${amount}`,isSelf?0xff8091:0xffe9b0,isSelf?14:12);
+        if(isSelf&&amount>=1)this.numbers.spawn({x:view.current.x,y:view.current.y-26},`-${amount}`,0xff8091,14);
         // Kandidat für die Treffer-Bestätigung – ob es ein EIGENER Treffer
         // war, entscheidet correlateOwnHits nach den Projektil-Syncs.
         if(!isSelf)this.pendingEnemyHits.push({position:{...view.current},at:now});
@@ -1098,11 +1102,12 @@ export class GameRenderer {
       view.signatureBar.roundRect(-25,38,50,2,1).fill({color:0x000000,alpha:.42});
       if(ratio>0)view.signatureBar.roundRect(-25,38,50*ratio,2,1).fill(view.isSelf?this.palette.self:signatureColor(player.playerClass)??this.palette.enemy);
     }
-    // Level im Schild (Befund 11): Ein Level-30-Rückkehrer im Core sieht sonst
-    // aus wie ein Anfänger – 242 statt 110 Leben bei identischer Silhouette,
-    // und der normierte Balken verrät es auch nicht. Die Zahl liegt für jeden
-    // Spieler im Snapshot, kostet also kein Byte.
-    view.name.text=view.isGuardian?GUARDIAN_NAME:`${player.name} · L${player.level}${player.isBot?' · BOT':''}`;
+    // Sam: „seinen eigenen Namen beim Tank muss man nicht sehen" und „kein
+    // Level direkt beim Tank, nur oben rechts im Leaderboard" – das Level
+    // (vormals hier, Befund 11) steht dort ohnehin schon (siehe ui.ts). Auch
+    // der Bot-Zusatz fällt weg (Sam: Bots sollen nicht erkennbar sein) –
+    // Gegner zeigen nur noch ihren Namen, der eigene Tank gar keinen.
+    view.name.text=view.isGuardian?GUARDIAN_NAME:view.isSelf?'':player.name;
     view.name.style.fill=view.isGuardian?GUARDIAN_COLOR:view.isSelf?this.palette.label:this.palette.enemy;
     view.name.style.fontSize=view.isGuardian?14:12;
     view.name.style.fontWeight=view.isGuardian?'800':'600';
