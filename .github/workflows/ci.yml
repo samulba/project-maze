@@ -3,6 +3,16 @@ name: Project Maze CI
 on:
   push:
     branches: [main]
+    # Reine Doku-Pushes lassen den Dienst unberührt – sie brauchen weder
+    # Testlauf noch Image-Bau noch Deploy-Wache. Am 13.08. waren 22 von 30
+    # Läufen genau das, und einer davon hat das Actions-Kontingent auf 90 %
+    # getrieben. Enthält ein Push AUCH Code, greift der Filter nicht und die
+    # CI läuft vollständig – GitHub prüft alle Dateien des Pushes.
+    paths-ignore:
+      - 'docs/**'
+      - 'supabase/**'
+      - '**/*.md'
+      - '.gitignore'
   pull_request:
   workflow_dispatch:
 
@@ -98,6 +108,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Volle Historie: Die Wache sucht per `git log` den jüngsten Commit,
+          # der etwas Deploybares anfasst (scripts/deploy-scope.mjs). Im
+          # flachen Standard-Klon (Tiefe 1) findet sie nur den Push selbst und
+          # fällt auf das alte, zu strenge Verhalten zurück.
+          fetch-depth: 0
 
       - name: Auf den erwarteten Commit in /health warten
         env:

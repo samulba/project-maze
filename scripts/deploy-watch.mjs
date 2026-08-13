@@ -19,9 +19,62 @@
  *
  * Bewusst ohne Abhängigkeiten und ohne Token: `/health` ist öffentlich und
  * ungebremst – daran hängt der Health-Check der Plattform.
+ *
+ * ## Nicht jeder Push ist ein Deploy (13.08.)
+ *
+ * Diese Wache hielt anfangs JEDEN Push auf `main` für einen Deploy. Railway
+ * deployt aber nur, was seine Watch-Paths abdecken – ein reiner Doku-Commit
+ * wird übersprungen, und zwar richtigerweise. Die Wache wartete trotzdem ihre
+ * vollen 15 Minuten und wurde rot: fünf von sechs Fehlschlägen in den letzten
+ * dreißig Läufen waren Commits ohne eine einzige Datei unter `apps/` oder
+ * `packages/`. Jeder kostete 15 Minuten Actions-Kontingent und eine
+ * Alarmmail – bis niemand die Mails mehr ernst nahm.
+ *
+ * Seitdem fragt die Wache zuerst `git log`, welcher Commit zuletzt etwas
+ * Deploybares angefasst hat (`deploy-scope.mjs`), und wartet auf DEN. Bei
+ * einem Doku-Push ist das der Stand, der ohnehin schon live ist: Die Wache ist
+ * dann nach einem Abgriff grün statt nach 15 Minuten rot – und meldet trotzdem
+ * weiter, wenn live etwas noch Älteres steht.
+ *
+ * Das setzt eine vollständige Historie voraus (`fetch-depth: 0` im Checkout).
+ * Fehlt sie, fällt die Wache auf das alte, strengere Verhalten zurück.
  */
+import { execFileSync } from 'node:child_process';
+import { DEPLOY_PATHS, erwarteterCommit } from './deploy-scope.mjs';
 
-const expected = (process.env.EXPECTED_COMMIT ?? '').trim();
+/**
+ * Jüngster Commit der Historie, der etwas Deploybares anfasst. `null`, wenn
+ * kein Git da ist, der Klon flach ist oder nichts passt – der Aufrufer fällt
+ * dann auf den gepushten Commit zurück.
+ */
+function letzterDeploybarerCommit() {
+  try {
+    const ausgabe = execFileSync(
+      'git',
+      ['log', '-1', '--format=%H', '--', ...DEPLOY_PATHS],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
+    ).trim();
+    return ausgabe || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Dateien des gepushten Commits – nur für die Begründung im Log. */
+function dateienVon(sha) {
+  try {
+    return execFileSync('git', ['show', '--name-only', '--format=', sha], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).split('\n').map((zeile) => zeile.trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+const gepusht = (process.env.EXPECTED_COMMIT ?? '').trim();
+const ziel = erwarteterCommit(gepusht, letzterDeploybarerCommit());
+const expected = ziel.commit;
 const healthUrl = (process.env.HEALTH_URL ?? 'https://www.mazers.de/health').trim();
 const timeoutMs = Number(process.env.TIMEOUT_SECONDS ?? 900) * 1_000;
 const intervalMs = Number(process.env.INTERVAL_SECONDS ?? 20) * 1_000;
@@ -93,7 +146,17 @@ let firstDeploymentId;
 let sawRestart = false;
 let sawNewDeployment = false;
 
-console.log(`Deploy-Wache: erwarte ${want} auf ${healthUrl}`);
+if (ziel.eigenerDeploy) {
+  console.log(`Deploy-Wache: erwarte ${want} auf ${healthUrl}`);
+} else {
+  // Kein Deploy zu erwarten – aber der zuletzt deployte Stand muss stehen.
+  const dateien = dateienVon(gepusht);
+  console.log(
+    `Deploy-Wache: ${ziel.grund}.\n` +
+      `  Gepusht: ${short(gepusht)}${dateien.length > 0 ? ` (${dateien.slice(0, 6).join(', ')}${dateien.length > 6 ? ', …' : ''})` : ''}\n` +
+      `  Geprüft wird deshalb, ob der letzte Code-Stand ${want} live steht.`
+  );
+}
 
 while (Date.now() - started < timeoutMs) {
   attempt += 1;
@@ -175,6 +238,10 @@ console.error(
     '\n  Der Auto-Deploy ist vermutlich stehengeblieben. Erste Verdächtige:\n' +
     '    1. Railway-Watch-Paths – ein Muster, das auf nichts passt, überspringt\n' +
     '       jeden Deploy stillschweigend ("No changes to watched files").\n' +
+    '       Deckt sich die Liste dort noch mit DEPLOY_PATHS in\n' +
+    '       scripts/deploy-scope.mjs? Weicht sie ab, wartet diese Wache auf\n' +
+    '       einen Deploy, den Railway bewusst überspringt – das war am 13.08.\n' +
+    '       die Ursache einer ganzen Serie von Fehlmails.\n' +
     '    2. Auto-Deploy für den Service aus, oder das GitHub-Repo abgehängt.\n' +
     '    3. Ein fehlgeschlagener Build: Railway behält dann den alten Stand.\n' +
     '\n  Prüfen lässt sich das nur in der Railway-Oberfläche: Deployments-Liste\n' +
