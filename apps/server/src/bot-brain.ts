@@ -11,7 +11,7 @@ import { bountyTargetIdFor } from './arena-systems.js';
 import { tunedStatsFor } from './combat-tuning.js';
 import { MazeGame } from './game.js';
 import { REPAIR_MOVE_LIMIT, activateModule, cancelRepairFor, equipLoadout } from './loadout-system.js';
-import { distanceSquared, normalize } from './physics.js';
+import { clamp, distanceSquared, normalize } from './physics.js';
 import { compensatedLeadFactor, projectileSpeedEnabled } from './projectile-speed.js';
 import { hasLineOfSight } from './world.js';
 
@@ -228,6 +228,9 @@ interface BotBrain {
   /** Letzter eigener Treffer: gegen wen und wann (stellt den Jagd-Timeout neu). */
   lastHitTargetId: string | null;
   lastHitAt: number;
+  /** Leerlauf-Richtung ohne Ziel (BO1) – gehalten bis wanderUntil, dann neu gewürfelt. */
+  wanderAngle: number;
+  wanderUntil: number;
 }
 
 interface GameBrainState {
@@ -249,6 +252,30 @@ const rotate = (vector: Vector2, angle: number): Vector2 => {
   const cosine = Math.cos(angle);
   const sine = Math.sin(angle);
   return { x: vector.x * cosine - vector.y * sine, y: vector.x * sine + vector.y * cosine };
+};
+
+/**
+ * Leerlauf-Richtung ohne Ziel (BO1) – Sam: „Die Bots bewegen sich sehr
+ * komisch und sehr random und bothaft, nicht wie echte Spieler."
+ *
+ * Vorher: `Math.cos(now / 1800) …` – ein Bot ohne Ziel driftete in einem
+ * mathematisch perfekten Kreis, ewig und ohne Beschleunigung. Gemessen
+ * (messung-bot-bewegung.mjs) betrifft das nur 2,5 % aller Bot-Ticks, aber
+ * genau dann fällt es am meisten auf: kein Mensch fährt einen exakten Kreis.
+ *
+ * Jetzt eine Richtung, gehalten für 1,4–3 s, dann neu gewürfelt – dieselbe
+ * „entscheiden, dann eine Weile dabei bleiben"-Form wie `bot.decisionAt` im
+ * Kampf, nur ohne Ziel. Die Richtung selbst bleibt Zufall (kein echtes
+ * Pathfinding durchs Labyrinth) – das wäre ein eigenes, größeres Paket –,
+ * aber sie hält lange genug, um wie eine Absicht statt wie ein Skript zu
+ * wirken.
+ */
+const wanderDirection = (brain: BotBrain, now: number): Vector2 => {
+  if (now >= brain.wanderUntil) {
+    brain.wanderAngle = Math.random() * Math.PI * 2;
+    brain.wanderUntil = now + 1400 + Math.random() * 1600;
+  }
+  return { x: Math.cos(brain.wanderAngle), y: Math.sin(brain.wanderAngle) };
 };
 
 /**
@@ -299,7 +326,9 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
       escapedId: null,
       escapedUntil: 0,
       lastHitTargetId: null,
-      lastHitAt: 0
+      lastHitAt: 0,
+      wanderAngle: 0,
+      wanderUntil: 0
     };
     state.brains.set(player.id, created);
     return created;
@@ -483,7 +512,13 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
         }
       }
       brain.currentAimError = (Math.random() - 0.5) * 2 * profile.aimError;
-      if (Math.random() < 0.22) bot.strafe *= -1;
+      // BO1 – Sam: „bewegen sich sehr komisch und sehr random." Gemessen
+      // (messung-bot-bewegung.mjs): Bei 22 % Umkehrchance je Entscheidung
+      // (alle 195–538 ms) drehte ein Bot seine Strafe-Richtung im Schnitt
+      // alle 2,2 s um – auf 24 Bots zusammen knapp elfmal pro Sekunde ein
+      // Richtungssprung, unabhängig vom Kampfgeschehen ausgewürfelt. 10 %
+      // hält dieselbe Streuung über die Zeit, aber seltener.
+      if (Math.random() < 0.1) bot.strafe *= -1;
       bot.decisionAt = now + bot.reactionMs * (0.75 + Math.random() * 0.5);
     }
 
@@ -510,8 +545,7 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
         bot.targetId = null;
         brain.lastSeenPosition = null;
         bot.decisionAt = 0;
-        const angle = now / 1800 + player.id.length;
-        player.move = { x: Math.cos(angle), y: Math.sin(angle) };
+        player.move = wanderDirection(brain, now);
         player.primary = false;
         player.secondary = false;
         return;
@@ -560,8 +594,12 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
     // Wand bekannte) echte Ort des Ziels – sonst zielte der Bot durch Mauern.
     const target = (enemy ? (enemyVisible ? enemy.position : pursuit) : null) ?? shape?.position;
     if (!target) {
-      const angle = now / 1800 + player.id.length;
-      player.move = { x: Math.cos(angle), y: Math.sin(angle) };
+      let wander = wanderDirection(brain, now);
+      // Dieselbe Ausweich-Erkennung wie im Kampf: Ohne sie lief ein
+      // Leerlauf-Bot, der sich in einer Wand verkeilt, dort einfach weiter
+      // gegen die Wand, statt auszuweichen wie in Bewegung mit Ziel.
+      if (brain.detourUntil > now) wander = rotate(wander, Math.PI / 2 * brain.detourSign);
+      player.move = wander;
       player.primary = false;
       player.secondary = false;
       return;
@@ -593,7 +631,18 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
 
     const badlyOutmatched = enemy !== undefined && enemy.level - player.level > 12 && healthRatio < 0.75;
     const fleeing = healthRatio < bot.fleeHealth || badlyOutmatched;
-    const radial = fleeing ? -1 : distance > bot.preferredDistance + 80 ? 1 : distance < bot.preferredDistance - 80 ? -0.7 : 0.05;
+    /*
+     * BO1 – der zweite, größere Anteil an den gemessenen Richtungssprüngen
+     * (messung-bot-bewegung.mjs): `radial` war eine Stufenfunktion mit zwei
+     * harten Kanten genau bei ±80 px um `preferredDistance`. Pendelt der
+     * Abstand knapp um eine dieser Kanten (durch die eigene Streu-Bewegung
+     * fast unvermeidlich), sprang `radial` jeden Tick zwischen 0,05 (fast
+     * reines Strafen) und ±1/−0,7 (fast reine An- oder Rückfahrt) – ein
+     * Vielfaches größerer Ausschlag in `move` als jeder Strafe-Wechsel. Eine
+     * einzige geklemmte Rampe trifft dieselben drei Eckwerte (−0,7 nah, ~0
+     * Mitte, 1 fern) ohne die Kante dazwischen.
+     */
+    const radial = fleeing ? -1 : clamp((distance - bot.preferredDistance) / 80, -0.7, 1);
     let move = normalize({
       x: direction.x * radial - direction.y * bot.strafe * 0.55,
       y: direction.y * radial + direction.x * bot.strafe * 0.55

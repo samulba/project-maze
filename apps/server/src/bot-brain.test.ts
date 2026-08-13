@@ -43,6 +43,7 @@ function freieMitte(): { x: number; y: number } {
 
 interface Internals {
   players: Map<string, any>;
+  shapes: Map<string, any>;
   updateBot(player: any, now: number): void;
   damagePlayer(target: any, damage: number, attackerId: string | null, now: number): void;
   killPlayer(target: any, attackerId: string | null, now: number, environmentName: string): void;
@@ -374,6 +375,66 @@ describe('Rechtsklick bei Drohnenbots', () => {
     bot.health = bot.maxHealth; // voll gesund, kein Fluchtgrund
     decide(internals, bot, 10_000);
     expect(bot.secondary, 'Rechtsklick trotz gesunder Flotte im Angriff').toBe(false);
+  });
+});
+
+/**
+ * BO1 – Sam: „Die Bots bewegen sich sehr komisch und sehr random und
+ * bothaft und nicht wie echte Spieler." Gemessen (messung-bot-bewegung.mjs):
+ * ein perfekter Leerlauf-Kreis ohne Ziel, häufige Strafe-Umkehr unabhängig
+ * vom Kampfgeschehen, und eine harte Kante in der Radial-Formel genau an der
+ * Vorzugsdistanz-Grenze.
+ */
+describe('Bot-Bewegung (BO1)', () => {
+  it('hält im Leerlauf eine Richtung, statt sich in einem Kreis zu drehen', () => {
+    const game = createGame(1);
+    const internals = game as unknown as Internals;
+    internals.shapes.clear();
+    const bot = [...internals.players.values()].find((player) => player.bot)!;
+    bot.position = { x: 4500, y: 3000 };
+    bot.invulnerable = false;
+    bot.invulnerableUntil = 0;
+
+    let now = 10_000;
+    internals.updateBot(bot, now);
+    expect(bot.bot.targetId, 'sollte keinen Gegner haben (einziger Spieler)').toBeNull();
+    expect(bot.bot.targetShapeId, 'Formen wurden geleert').toBeNull();
+    const erste = { ...bot.move };
+    expect(Math.hypot(erste.x, erste.y)).toBeGreaterThan(0.5);
+
+    // Position von Hand fortschreiben (kein game.step nötig, nur das Ausweich-
+    // Timing der Bewegungserkennung soll nicht anschlagen) – ein Sekundenlauf
+    // bei rund 250 px/s Bot-Tempo.
+    const tempo = 250;
+    for (let tick = 0; tick < 40; tick += 1) {
+      now += 25;
+      bot.position = { x: bot.position.x + bot.move.x * tempo * 0.025, y: bot.position.y + bot.move.y * tempo * 0.025 };
+      internals.updateBot(bot, now);
+    }
+    const nachher = { ...bot.move };
+    const winkel = Math.acos(Math.max(-1, Math.min(1, erste.x * nachher.x + erste.y * nachher.y)));
+    // Die alte Formel (`cos(now/1800)`) hätte sich in dieser Sekunde um rund
+    // 0,56 rad (32°) weitergedreht – gehalten bleibt sie innerhalb weniger Grad.
+    expect(winkel * 180 / Math.PI, 'Leerlauf-Richtung hat sich gedreht wie im alten Kreis').toBeLessThan(5);
+  });
+
+  it('dreht die Strafe-Richtung seltener um als vorher (gemessen: 22 % → 10 % je Entscheidung)', () => {
+    const { internals, hunter } = duel();
+    let now = 10_000;
+    let wechsel = 0;
+    let vorher = hunter.bot.strafe;
+    const DURCHLAEUFE = 400;
+    for (let i = 0; i < DURCHLAEUFE; i += 1) {
+      now += 300;
+      decide(internals, hunter, now);
+      if (Math.sign(hunter.bot.strafe) !== Math.sign(vorher)) wechsel += 1;
+      vorher = hunter.bot.strafe;
+    }
+    const rate = wechsel / DURCHLAEUFE;
+    // Erwartungswert 10 %, Standardabweichung bei 400 Würfen ≈ 1,5 Punkte –
+    // 17 % liegt weit genug weg, um weder gegen Rauschen noch gegen die alten
+    // 22 % zu verwechseln.
+    expect(rate, `Wechselrate ${(rate * 100).toFixed(1)} %`).toBeLessThan(0.17);
   });
 });
 
