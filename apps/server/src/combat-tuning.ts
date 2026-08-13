@@ -23,7 +23,7 @@ import {
 } from '@project-maze/shared/gameplay';
 import { MazeGame } from './game.js';
 import { moveVectorToward } from './physics.js';
-import { projectileFlightFor } from './projectile-speed.js';
+import { cappedLife, projectileFlightFor } from './projectile-speed.js';
 import { moveCircle } from './world.js';
 
 interface TunedStats {
@@ -115,7 +115,13 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
     // Slot) statt eines Nebeneffekts des Tempo-Upgrades. Multiplikativ auf die
     // fertige Lebenszeit, damit es mit beiden Tempo-Pfaden (alt und V2)
     // identisch zusammensetzt.
-    projectileLife: flight.life * (1 + player.upgrades.projectileRange * 0.06),
+    // Deckel ganz zum Schluss, NACH dem Reichweiten-Slot und dem Rahmen:
+    // Genau deren Multiplikation war der Grund, dass ein Lancer auf Level 60
+    // 7825 px weit schoss (projectile-speed.ts: DEFAULT_RANGE_CAP).
+    projectileLife: cappedLife(
+      flight.life * (1 + player.upgrades.projectileRange * 0.06),
+      flight.speed * modifier.projectileSpeedMultiplier
+    ),
     damage: base.damage * (1 + player.upgrades.damage * 0.07),
     projectileRadius: base.projectileRadius,
     penetration: base.penetration * (1 + player.upgrades.penetration * 0.085),

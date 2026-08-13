@@ -51,13 +51,14 @@ import {
 import { DEFAULT_BOT_PACING, tuneBotBrain } from './bot-brain.js';
 import { tuneDrones } from './drone-tuning.js';
 import { tuneFamilyUpgrades, type SignatureFamily } from './family-upgrades.js';
+import { tuneFireRecoil } from './fire-recoil.js';
 import { tuneHitDirection } from './hit-direction.js';
 import { MazeGame } from './game.js';
 import { tuneInputAck } from './input-ack.js';
 import { tuneInputIdle } from './input-idle.js';
 import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system.js';
 import { tuneProgression } from './progression-tuning.js';
-import { tuneProjectileSpeed } from './projectile-speed.js';
+import { DEFAULT_RANGE_CAP, setProjectileRangeCap, tuneProjectileSpeed } from './projectile-speed.js';
 import { tunePerks } from './perks.js';
 import { createRateLimiter, messageKindOf, rateLimitsEnabled } from './rate-limits.js';
 import { preflightMeldung, supabasePreflight, type PreflightErgebnis } from './supabase-preflight.js';
@@ -290,6 +291,14 @@ const FAMILY_UPGRADES_ENABLED = !['false', '0', 'off']
 const DASH_TRAVEL_ENABLED = !['false', '0', 'off']
   .includes((process.env.DASH_TRAVEL_ENABLED ?? '').trim().toLowerCase());
 /**
+ * Rueckstoss beim Feuern (Sams Spieltest vom 13.08.). Getragen ueber die
+ * Position, damit die Geschwindigkeits-Schwellen von SIEGE, Reparatur und
+ * Stillstands-Perk unberuehrt bleiben - siehe fire-recoil.ts.
+ * Opt-out: `false`/`0`/`off` stellt den Zustand ohne Rueckstoss her.
+ */
+const FIRE_RECOIL_ENABLED = !['false', '0', 'off']
+  .includes((process.env.FIRE_RECOIL_ENABLED ?? '').trim().toLowerCase());
+/**
  * Klassen 4.0, fuenfte Familie: Tarnung fuer SPECTER. Nicht schiessen baut
  * Tarnung auf, der Erstschlag aus voller Tarnung traegt Bonus. Opt-out.
  */
@@ -357,6 +366,18 @@ const REPULSE_TRAVEL_ENABLED = (process.env.REPULSE_TRAVEL_ENABLED ?? '').trim()
 const PROJECTILE_SPEED_V2 = !['false', '0', 'off']
   .includes((process.env.PROJECTILE_SPEED_V2 ?? '').trim().toLowerCase());
 /**
+ * Obergrenze der Schussreichweite in Weltpixeln (Sams "die Schuesse gehen noch
+ * immer zu weit"). `0` schaltet den Deckel ab. Begruendung der Standardzahl
+ * steht bei DEFAULT_RANGE_CAP in projectile-speed.ts.
+ */
+const PROJECTILE_RANGE_CAP = (() => {
+  const roh = (process.env.PROJECTILE_RANGE_CAP ?? '').trim();
+  if (roh === '') return DEFAULT_RANGE_CAP;
+  const zahl = Number(roh);
+  return Number.isFinite(zahl) && zahl >= 0 ? zahl : DEFAULT_RANGE_CAP;
+})();
+setProjectileRangeCap(PROJECTILE_RANGE_CAP);
+/**
  * Rate-Limits und Missbrauchsschutz. Standardmäßig an; `false` schaltet sie
  * vollständig ab (dann verhält sich der Server wie vor dem Modul).
  */
@@ -409,6 +430,11 @@ const encodedGame = tuneSnapshotEncoding(
           tuneRoyale(
           tuneArenaEvents(
             tuneArenaSystems(
+              // Rueckstoss ganz aussen um das Loadout-System: Weiter innen
+              // ginge der Stoss waehrend eines Dashs verloren, weil die
+              // Dash-Fahrt die Position aus einem vorher gemerkten Punkt neu
+              // rechnet und alles ueberschreibt, was innen dazukam.
+              tuneFireRecoil(
               tuneLoadoutSystem(
                 tuneProgression(
                   tuneArenaDirector(
@@ -514,6 +540,7 @@ const encodedGame = tuneSnapshotEncoding(
                 DASH_TRAVEL_ENABLED,
                 REPULSE_TRAVEL_ENABLED
               )
+              , FIRE_RECOIL_ENABLED)
             )
           )
           , {
@@ -828,7 +855,7 @@ const liveState = (): Record<string, unknown> => ({
   // Macht die Feature-Schalter von außen prüfbar – sonst sieht man einer
   // falsch geschriebenen ENV-Variable nie an, dass sie nicht greift.
   // Jedes Flag, das Spielgefühl verändert, gehört hier hinein.
-  features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, dashTravel: DASH_TRAVEL_ENABLED, repulseTravel: REPULSE_TRAVEL_ENABLED, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED, signatureSpecter: SIGNATURE_SPECTER_ENABLED, signatureTempest: SIGNATURE_TEMPEST_ENABLED, perks: PERKS_ENABLED, signatureSiege: SIGNATURE_SIEGE_ENABLED, signatureAegis: SIGNATURE_AEGIS_ENABLED },
+  features: { achievements: ACHIEVEMENTS_ENABLED, snapshotDeltas: SNAPSHOT_DELTAS, shortNetIds: SHORT_NET_IDS, arenaDirector: ARENA_DIRECTOR_ENABLED, rateLimits: RATE_LIMITS_ENABLED, spectator: SPECTATOR_ENABLED, signatureRapid: SIGNATURE_RAPID_ENABLED, signatureImpact: SIGNATURE_IMPACT_ENABLED, familyUpgrades: FAMILY_UPGRADES_ENABLED, familyUpgradeBranches: FAMILY_UPGRADE_BRANCHES, projectileSpeedV2: PROJECTILE_SPEED_V2, projectileRangeCap: PROJECTILE_RANGE_CAP, dashTravel: DASH_TRAVEL_ENABLED, repulseTravel: REPULSE_TRAVEL_ENABLED, fireRecoil: FIRE_RECOIL_ENABLED, signaturePrecision: SIGNATURE_PRECISION_ENABLED, signatureControl: SIGNATURE_CONTROL_ENABLED, signatureSpecter: SIGNATURE_SPECTER_ENABLED, signatureTempest: SIGNATURE_TEMPEST_ENABLED, perks: PERKS_ENABLED, signatureSiege: SIGNATURE_SIEGE_ENABLED, signatureAegis: SIGNATURE_AEGIS_ENABLED },
   // Wie gesund der Takt läuft. Im Portal die Zeile, an der man einen
   // überlasteten Server erkennt, bevor Spieler es melden.
   tick: telemetryTickHealth(game),

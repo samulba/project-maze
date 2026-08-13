@@ -252,6 +252,52 @@ export function setProjectileSpeedEnabled(next: boolean): boolean {
 }
 
 /**
+ * Wie weit eine Kugel höchstens fliegt (Sams Spieltest vom 13.08.: „die
+ * Schüsse gehen noch immer zu weit").
+ *
+ * Vorher gab es keine Obergrenze – und deshalb konnten sich vier Faktoren
+ * unbemerkt aufmultiplizieren: der Reichweiten-Slot (×1,60 bei Vollausbau),
+ * der Stabilizer-Rahmen (×1,10), die Klassenwerte und die Levelskalierung.
+ * Gemessen kam ein Lancer auf Level 60 mit vollem Reichweiten-Slot und
+ * Stabilizer auf **7825 px** – das Sichtfenster ist 1600 px breit. Er traf
+ * also aus fast fünf Bildschirmbreiten Entfernung, während sein Opfer ihn
+ * nicht einmal sehen konnte.
+ *
+ * 1400 px sind 1,75 halbe Bildbreiten. Die Zahl ist bewusst so gewählt, dass
+ * sie **oben abschneidet statt unten zu drücken**: Auf Level 20 ohne Upgrades
+ * betrifft sie nur die zehn Ausreißer der Präzisionslinie, ab Level 40 mit
+ * ausgebautem Reichweiten-Slot dann fast alle – genau dort, wo die
+ * Multiplikation aus dem Ruder lief.
+ *
+ * Über `PROJECTILE_RANGE_CAP` verstellbar; `0` schaltet den Deckel ab und
+ * stellt exakt den Stand davor her.
+ */
+export const DEFAULT_RANGE_CAP = 1400;
+let rangeCap = DEFAULT_RANGE_CAP;
+
+export const projectileRangeCap = (): number => rangeCap;
+
+/** Setzt den Deckel und gibt den vorherigen zurück – wie beim Tempo-Schalter. */
+export function setProjectileRangeCap(next: number): number {
+  const previous = rangeCap;
+  rangeCap = Number.isFinite(next) && next > 0 ? next : 0;
+  return previous;
+}
+
+/**
+ * Deckelt die Lebenszeit so, dass `tempo × leben` den Deckel nicht übersteigt.
+ *
+ * Gedeckelt wird die LEBENSZEIT, nicht das Tempo: Das Tempo entscheidet, wie
+ * lange ein Getroffener zum Ausweichen hat, und daran soll dieser Eingriff
+ * nichts ändern. Eine schnelle Kugel fliegt danach genauso schnell – nur nicht
+ * mehr so lange.
+ */
+export function cappedLife(life: number, speed: number): number {
+  if (rangeCap <= 0 || speed <= 0) return life;
+  return Math.min(life, rangeCap / speed);
+}
+
+/**
  * Hängt das neue Tempo ein. Steht der Vollständigkeit halber in der
  * Schichtkette in `index.ts`, damit die Reihenfolge dort weiter alles zeigt,
  * was das Spielgefühl verändert – die Wirkung entsteht aber über den Schalter,

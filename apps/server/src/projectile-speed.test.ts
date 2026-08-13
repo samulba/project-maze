@@ -12,6 +12,8 @@ import {
   BOT_LEAD_REFERENCE_FLIGHT,
   PROJECTILE_SPEED_CAP_HIGH,
   PROJECTILE_SPEED_CAP_LOW,
+  DEFAULT_RANGE_CAP,
+  setProjectileRangeCap,
   PROJECTILE_SPEED_DAMPER,
   PROJECTILE_SPEED_FLOOR,
   PROJECTILE_SPEED_PER_POINT,
@@ -40,7 +42,28 @@ const withProjectileSpeed = <T>(active: boolean, run: () => T): T => {
   }
 };
 
-afterEach(() => setProjectileSpeedEnabled(false));
+/**
+ * Dasselbe fuer den Reichweiten-Deckel.
+ *
+ * Die Tests in dieser Datei pruefen das TEMPO-Versprechen ("Reichweite bleibt
+ * konstant, nur Tempo und Flugzeit tauschen"). Der Reichweiten-Deckel ist eine
+ * spaetere, bewusst daruebergelegte Obergrenze (Sams "die Schuesse gehen noch
+ * immer zu weit") - er wuerde diese Aussage verdecken. Deshalb laufen die
+ * Tempo-Tests ohne Deckel; der Deckel hat seinen eigenen Block am Ende.
+ */
+const ohneDeckel = <T>(run: () => T): T => {
+  const previous = setProjectileRangeCap(0);
+  try {
+    return run();
+  } finally {
+    setProjectileRangeCap(previous);
+  }
+};
+
+afterEach(() => {
+  setProjectileSpeedEnabled(false);
+  setProjectileRangeCap(DEFAULT_RANGE_CAP);
+});
 
 const SHOOTERS = PLAYER_CLASS_IDS.filter((id) => CLASS_DEFINITIONS[id].projectileSpeed > 0);
 
@@ -61,7 +84,7 @@ const legacy = (playerClass: PlayerClass, speedPoints: number) => {
 
 describe('projektiltempo – ohne Schalter', () => {
   it('lässt Tempo und Lebensdauer jeder Klasse exakt wie vorher', () => {
-    withProjectileSpeed(false, () => {
+    ohneDeckel(() => withProjectileSpeed(false, () => {
       for (const id of SHOOTERS) {
         for (const points of [0, 4, GAME.maxUpgradeLevel]) {
           for (const level of [1, 24, GAME.maxLevel]) {
@@ -72,7 +95,7 @@ describe('projektiltempo – ohne Schalter', () => {
           }
         }
       }
-    });
+    }));
   });
 
   it('lässt den Vorhalt der Bots unangetastet', () => {
@@ -172,7 +195,7 @@ describe('projektiltempo – die drei Regeln', () => {
   });
 
   it('hält die Reichweite jeder Klasse exakt konstant', () => {
-    withProjectileSpeed(true, () => {
+    ohneDeckel(() => withProjectileSpeed(true, () => {
       for (const id of SHOOTERS) {
         const base = CLASS_DEFINITIONS[id];
         const reach = base.projectileSpeed * base.projectileLife;
@@ -184,7 +207,7 @@ describe('projektiltempo – die drei Regeln', () => {
           }
         }
       }
-    });
+    }));
   });
 
   it('nimmt Precision die Sonderbehandlung – dort war die Kugel am unfairsten', () => {
@@ -249,8 +272,10 @@ describe('projektiltempo – im laufenden Spiel', () => {
   };
 
   it('verschießt die Kugel wirklich langsamer – und ohne Schalter wie bisher', () => {
-    const before = withProjectileSpeed(false, () => fireOnce('lancer', 45, GAME.maxUpgradeLevel));
-    const after = withProjectileSpeed(true, () => fireOnce('lancer', 45, GAME.maxUpgradeLevel));
+    // Ohne Deckel: Dieser Test prueft den Tausch Tempo-gegen-Flugzeit, nicht
+    // die spaetere Obergrenze (die den Lancer sonst auf 1400 px kuerzt).
+    const before = ohneDeckel(() => withProjectileSpeed(false, () => fireOnce('lancer', 45, GAME.maxUpgradeLevel)));
+    const after = ohneDeckel(() => withProjectileSpeed(true, () => fireOnce('lancer', 45, GAME.maxUpgradeLevel)));
     expect(before).not.toBeNull();
     expect(after).not.toBeNull();
     expect(before!.speed).toBeCloseTo(legacy('lancer', GAME.maxUpgradeLevel).speed, 6);
@@ -266,5 +291,89 @@ describe('projektiltempo – im laufenden Spiel', () => {
     expect(after!.speed * after!.life).toBeGreaterThan(reach * 0.97);
     expect(after!.speed * after!.life).toBeLessThanOrEqual(reach);
     expect(before!.speed * before!.life).toBeGreaterThan(reach * 1.3);
+  });
+});
+
+/**
+ * Der Reichweiten-Deckel (Sams Spieltest vom 13.08.: „die Schüsse gehen noch
+ * immer zu weit").
+ *
+ * Vorher gab es keine Obergrenze, und vier Faktoren multiplizierten sich
+ * unbemerkt auf: Reichweiten-Slot (×1,60), Stabilizer-Rahmen (×1,10),
+ * Klassenwerte, Levelskalierung. Gemessen kam ein Lancer auf Level 60 auf
+ * 7825 px – bei einem Sichtfenster von 1600 px Breite.
+ */
+describe('Reichweiten-Deckel', () => {
+  const reichweite = (id: PlayerClass, level: number, upgrades: Partial<Record<string, number>> = {}, frame = 'standard') => {
+    const stats = tunedStatsFor({
+      playerClass: id, level, passiveModifier: frame as never,
+      upgrades: { ...EMPTY_UPGRADES(), ...upgrades } as never,
+      bot: null, move: { x: 0, y: 0 }, aim: { x: 0, y: 0 },
+      primary: false, secondary: false, cooldown: 0, lastDamageAt: 0, invulnerableUntil: 0
+    } as never);
+    return stats.projectileSpeed * stats.projectileLife;
+  };
+
+  it('hält jede Klasse in jeder Ausbaustufe unter dem Deckel', () => {
+    withProjectileSpeed(true, () => {
+      for (const id of SHOOTERS) {
+        for (const level of [1, 20, GAME.maxLevel]) {
+          for (const punkte of [{}, { projectileRange: GAME.maxUpgradeLevel, projectileSpeed: GAME.maxUpgradeLevel }]) {
+            for (const frame of ['standard', 'stabilizer']) {
+              const weite = reichweite(id, level, punkte, frame);
+              expect(weite, `${id} L${level} ${frame}`).toBeLessThanOrEqual(DEFAULT_RANGE_CAP + 0.001);
+            }
+          }
+        }
+      }
+    });
+  });
+
+  it('kürzt genau den Extremfall, der den Deckel nötig gemacht hat', () => {
+    withProjectileSpeed(true, () => {
+      const voll = { projectileRange: GAME.maxUpgradeLevel, projectileSpeed: GAME.maxUpgradeLevel };
+      // Ohne Deckel: 7825 px = fast fünf Bildschirmbreiten.
+      const ohne = ohneDeckel(() => reichweite('lancer', GAME.maxLevel, voll, 'stabilizer'));
+      expect(ohne).toBeGreaterThan(7000);
+      expect(reichweite('lancer', GAME.maxLevel, voll, 'stabilizer')).toBeCloseTo(DEFAULT_RANGE_CAP, 3);
+    });
+  });
+
+  it('lässt kurze Reichweiten in Ruhe – der Deckel schneidet oben ab, er drückt nicht', () => {
+    withProjectileSpeed(true, () => {
+      // Die Rammklassen liegen deutlich unter dem Deckel und dürfen sich nicht
+      // verändern; sonst wäre aus einer Obergrenze eine Angleichung geworden.
+      for (const id of ['juggernaut', 'comet', 'crusher'] as PlayerClass[]) {
+        const mit = reichweite(id, 20);
+        const ohne = ohneDeckel(() => reichweite(id, 20));
+        expect(mit, id).toBeCloseTo(ohne, 6);
+      }
+    });
+  });
+
+  it('deckelt die Lebenszeit, nicht das Tempo – die Ausweichzeit bleibt', () => {
+    withProjectileSpeed(true, () => {
+      const gedeckelt = tunedStatsFor({
+        playerClass: 'eclipse' as PlayerClass, level: 20, passiveModifier: 'standard' as never,
+        upgrades: EMPTY_UPGRADES() as never, bot: null, move: { x: 0, y: 0 }, aim: { x: 0, y: 0 },
+        primary: false, secondary: false, cooldown: 0, lastDamageAt: 0, invulnerableUntil: 0
+      } as never);
+      const frei = ohneDeckel(() => tunedStatsFor({
+        playerClass: 'eclipse' as PlayerClass, level: 20, passiveModifier: 'standard' as never,
+        upgrades: EMPTY_UPGRADES() as never, bot: null, move: { x: 0, y: 0 }, aim: { x: 0, y: 0 },
+        primary: false, secondary: false, cooldown: 0, lastDamageAt: 0, invulnerableUntil: 0
+      } as never));
+      // Gleiches Tempo – nur kürzer unterwegs.
+      expect(gedeckelt.projectileSpeed).toBeCloseTo(frei.projectileSpeed, 9);
+      expect(gedeckelt.projectileLife).toBeLessThan(frei.projectileLife);
+    });
+  });
+
+  it('lässt sich abschalten und stellt damit exakt den Stand davor her', () => {
+    withProjectileSpeed(true, () => {
+      const voll = { projectileRange: GAME.maxUpgradeLevel };
+      const aus = ohneDeckel(() => reichweite('eclipse', 40, voll));
+      expect(aus).toBeGreaterThan(DEFAULT_RANGE_CAP);
+    });
   });
 });
