@@ -301,6 +301,34 @@ export function erzeugeLabyrinth(mass: Labyrinthmass = LABYRINTH): Labyrinth {
     offen = sackgassen();
   }
 
+  // 4c. Randring öffnen – die äußerste Zellreihe/-spalte wird zur Schleife.
+  //
+  //     Sam, 13.08.: „an den RÄNDERN komplett darf keine MAUER sein das man
+  //     die ränder einmal durchrennen kann gefühlt." Ohne diesen Schritt
+  //     reicht so manches Wandsegment der äußersten Reihe bis an die
+  //     Weltkante (`kanteY(0)=0` bzw. `kanteY(zeilen)=worldHeight` in Schritt
+  //     6 unten) – ein Zacken, der von der Kante nach innen ragt und den Lauf
+  //     am Rand zwingt, ins Labyrinth auszuweichen statt am Rand zu bleiben.
+  //
+  //     Die Verbindungen ZWISCHEN benachbarten Randzellen (oben, unten, links,
+  //     rechts) werden hier hart geöffnet, unabhängig davon, was Spannbaum,
+  //     Verflechtung oder Sackgassen-Auflösung vorher entschieden haben – nach
+  //     innen bleibt das Labyrinth unverändert, nur der Rand selbst wird zur
+  //     freien Runde. Ecken sind automatisch mit dabei: Jede Eckzelle steht in
+  //     genau einer Zeilen- UND einer Spaltenschleife.
+  for (let spalte = 0; spalte + 1 < spalten; spalte += 1) {
+    senkrecht[sIdx(spalte, 0)] = false;
+    festeGrenzen.delete(`v${sIdx(spalte, 0)}`);
+    senkrecht[sIdx(spalte, zeilen - 1)] = false;
+    festeGrenzen.delete(`v${sIdx(spalte, zeilen - 1)}`);
+  }
+  for (let zeile = 0; zeile + 1 < zeilen; zeile += 1) {
+    waagerecht[wIdx(0, zeile)] = false;
+    festeGrenzen.delete(`h${wIdx(0, zeile)}`);
+    waagerecht[wIdx(spalten - 1, zeile)] = false;
+    festeGrenzen.delete(`h${wIdx(spalten - 1, zeile)}`);
+  }
+
   // 5. Grenzen zu Rechtecken – **überschneidungsfrei**.
   //
   //    Sam, 13.08.: „die Blöcke sollten sich nicht überschneiden, sondern

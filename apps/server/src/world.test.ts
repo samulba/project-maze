@@ -119,6 +119,37 @@ describe('world generation and collision', () => {
   });
 
   /**
+   * Sams Befund vom 13.08.: „an den RÄNDERN komplett darf keine MAUER sein
+   * das man die ränder einmal durchrennen kann gefühlt." Geprüft wird das
+   * Versprechen wörtlich: eine durchgehende Linie dicht an jeder der vier
+   * Kanten, kein Punkt darauf blockiert.
+   */
+  it('laesst den Rand einmal ganz herum frei durchrennen', () => {
+    const inset = BAHN / 2 - WANDDICKE; // Bandmitte einer Randzelle, sicher im Gang
+    const schritt = 20;
+    const linie = (punkte: { x: number; y: number }[]): number =>
+      punkte.filter((punkt) => !isFree(punkt, GAME.playerRadius)).length;
+
+    const oben: { x: number; y: number }[] = [];
+    const unten: { x: number; y: number }[] = [];
+    for (let x = GAME.playerRadius; x <= GAME.worldWidth - GAME.playerRadius; x += schritt) {
+      oben.push({ x, y: inset });
+      unten.push({ x, y: GAME.worldHeight - inset });
+    }
+    const links: { x: number; y: number }[] = [];
+    const rechts: { x: number; y: number }[] = [];
+    for (let y = GAME.playerRadius; y <= GAME.worldHeight - GAME.playerRadius; y += schritt) {
+      links.push({ x: inset, y });
+      rechts.push({ x: GAME.worldWidth - inset, y });
+    }
+
+    expect(linie(oben), 'obere Kante').toBe(0);
+    expect(linie(unten), 'untere Kante').toBe(0);
+    expect(linie(links), 'linke Kante').toBe(0);
+    expect(linie(rechts), 'rechte Kante').toBe(0);
+  });
+
+  /**
    * Sams „zwei Mainspots". Geprueft wird, was sie zu Plaetzen macht: Sie sind
    * wirklich offen (keine Wand darin), gross genug fuer einen Kampf, und beide
    * gleich – ein groesserer Platz waere ein Vorteil fuer die Seite, die naeher
