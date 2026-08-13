@@ -35,7 +35,13 @@ interface DroneArchetype {
   searchRadius: number;
 }
 
-const DRONE_ARCHETYPES: Partial<Record<PlayerClass, DroneArchetype>> = {
+/**
+ * Rohtabelle vor dem Tempo-Dämpfer (siehe `DROHNEN_TEMPO_SKALA` direkt
+ * danach). Die relative Abstufung zwischen den Klassen ist hier dokumentiert
+ * und bleibt unter dem Dämpfer erhalten – eine gleichmäßige Skalierung
+ * verändert keine Verhältnisse, nur die absolute Größe.
+ */
+const DRONE_ARCHETYPES_ROH: Partial<Record<PlayerClass, DroneArchetype>> = {
   drone: { health: 36, speed: 440, acceleration: 1450, radius: 12, orbitRadius: 82, searchRadius: 520 },
   warden: { health: 32, speed: 480, acceleration: 1650, radius: 10.5, orbitRadius: 88, searchRadius: 560 },
   factory: { health: 54, speed: 390, acceleration: 1250, radius: 13.5, orbitRadius: 86, searchRadius: 540 },
@@ -69,6 +75,38 @@ const DRONE_ARCHETYPES: Partial<Record<PlayerClass, DroneArchetype>> = {
   // carrier (432), wie es sich fuer eine Endstufe auf Level 42 gehoert.
   sovereign: { health: 66, speed: 430, acceleration: 1400, radius: 13.5, orbitRadius: 88, searchRadius: 640 }
 };
+
+/**
+ * Tempo- und Beschleunigungsdämpfer (Drohnen-Rework 2, Sam 13.08.):
+ * „Drohnen bewegen sich noch zu schnell" und „die Bewegung ist noch nicht so
+ * clean."
+ *
+ * Gemessen (`messung-drohnen-bewegung.mjs`) lag das Verhältnis
+ * Drohnentempo : Besitzertempo vorher bei 1,38–2,20× (Schnitt 1,79×) – eine
+ * Drohne war schneller als ein Sportwagen neben dem eigenen Panzer. 0,72
+ * drückt das auf 0,99–1,58× (Schnitt 1,25×). Das ist kein runder Wert,
+ * sondern der Punkt, an dem selbst die langsamste Klasse (sentinel) gerade
+ * noch mit dem eigenen Besitzer mithält – niedriger, und Wächter-Drohnen
+ * fielen beim Fahren hinter den eigenen Tank zurück.
+ *
+ * Die Beschleunigung sinkt STÄRKER (0,55). `moveVectorToward` rampt linear,
+ * die Zeit bis zum vollen Tempo ist also exakt Tempo/Beschleunigung – vorher
+ * 0,28–0,33 s, jetzt 0,37–0,44 s. Das ist der eigentliche Hebel gegen
+ * „ruckartig": nicht das Tempo selbst, sondern wie abrupt es erreicht wird.
+ */
+const DROHNEN_TEMPO_SKALA = 0.72;
+const DROHNEN_BESCHLEUNIGUNG_SKALA = 0.55;
+
+const DRONE_ARCHETYPES: Partial<Record<PlayerClass, DroneArchetype>> = Object.fromEntries(
+  Object.entries(DRONE_ARCHETYPES_ROH).map(([id, archetype]) => [
+    id,
+    {
+      ...archetype,
+      speed: archetype.speed * DROHNEN_TEMPO_SKALA,
+      acceleration: archetype.acceleration * DROHNEN_BESCHLEUNIGUNG_SKALA
+    }
+  ])
+) as Partial<Record<PlayerClass, DroneArchetype>>;
 
 interface RuntimePlayer extends PlayerSnapshot {
   aim: Vector2;
@@ -120,6 +158,34 @@ const bodyDamageFor = (player: RuntimePlayer): number => CLASS_DEFINITIONS[playe
  */
 const ABSTOSS_WEG = 260;
 /**
+ * Öffnungswinkel des Rechtsklick-Fächers – Sam: „Rechtsklick […] geht noch
+ * wesentlich smoother."
+ *
+ * Der erste Rechtsklick-Fix (D3) hat den alten Spiegel-Bug behoben, aber
+ * einen neuen Fehler eingeführt: Das Ziel wurde jeden Tick neu aus der
+ * AKTUELLEN Position der Drohne berechnet – 260 px vor ihr, in ihre eigene
+ * Fluchtrichtung. Das ist eine Möhre am Stock, keine Ankunft: Die Drohne
+ * beschleunigt auf Höchsttempo und bleibt dort, bis die Leine (`LEINE`)
+ * greift, statt sanft abzubremsen und stehenzubleiben.
+ *
+ * Jetzt ist das Ziel fest: `Besitzer + Richtung × ABSTOSS_WEG`, wobei die
+ * Richtung „weg vom Zeiger" ist – aber pro Drohne um einen Fächerwinkel
+ * gedreht, sonst laufen wieder alle auf denselben Punkt zusammen (genau der
+ * Fehler, den D3 beheben sollte). 150° Gesamtöffnung sind breit genug für
+ * eine sichtbare Front, eng genug, dass die Flotte klar „weg vom Zeiger"
+ * bleibt und nicht in Cursor-Richtung zurückfächert.
+ */
+const FAECHER_OEFFNUNG = Math.PI * (5 / 6);
+
+/**
+ * Schwellen für den Wandtod (Sam: „Alles was gegen Wände geht sollte
+ * kaputtgehen"). Beide relativ zum eigenen Archetyp-Tempo, nicht absolut –
+ * damit sie mit jeder künftigen Neuabstimmung von `DROHNEN_TEMPO_SKALA`
+ * mitwandern, statt still falsch zu werden.
+ */
+const WANDTOD_MIN_ANLAUF_ANTEIL = 0.5;
+const WANDTOD_REST_ANTEIL = 0.3;
+/**
  * Kein Zielpunkt liegt weiter vom Besitzer weg als `GAME.maxAimDistance` –
  * dieselbe Reichweite, die auch der Zeiger hat. Die Drohnen bleiben damit im
  * selben Kreis, in dem der Spieler zeigen kann.
@@ -129,6 +195,24 @@ const LEINE = GAME.maxAimDistance;
 const FORMATION_RING = 26;
 /** Über diese Zeit wird die Restdistanz abgebremst – gegen das Überschwingen. */
 const BREMS_SEKUNDEN = 0.18;
+
+interface Zielspeichereintrag {
+  id: string;
+  istSpieler: boolean;
+}
+
+/**
+ * Wie viel weiter als der Suchradius ein GEHALTENES Ziel noch gültig bleibt –
+ * Sam: „Auto-Modus […] geht noch wesentlich smoother."
+ *
+ * Ohne Gedächtnis wertet `sucheZiel` jeden Tick neu die kürzeste Distanz aus.
+ * Liegen zwei Kandidaten fast gleich weit weg, kippt die Rangfolge bei jeder
+ * kleinen Bewegung – die Flotte riss dann zwischen zwei Zielen hin und her,
+ * statt bei einem zu bleiben. Ein gehaltenes Ziel bekommt zusätzlich 20 %
+ * mehr Leine, damit es nicht schon beim ersten Pixel jenseits der Grenze
+ * fällt und dort dasselbe Flackern erzeugt.
+ */
+const ZIEL_HYSTERESE = 1.2;
 
 /**
  * Das nächste lohnende Ziel im Umkreis des BESITZERS – oder `null`.
@@ -141,15 +225,40 @@ const BREMS_SEKUNDEN = 0.18;
  * Geprüft wird am Ende genau EINE Sichtlinie (die des Siegers): Eine Drohne,
  * die auf eine Wand zufliegt, hinter der ihr Ziel steht, bleibt dort kleben –
  * und Sichtlinien sind das Teuerste an dieser Suche.
+ *
+ * `speicher` hält das zuletzt gewählte Ziel je Besitzer fest (siehe
+ * `ZIEL_HYSTERESE`) – eine Karte pro Spiel, in `tuneDrones` angelegt.
  */
 function sucheZiel(
   internals: DroneInternals,
   owner: RuntimePlayer,
-  searchRadius: number
+  searchRadius: number,
+  speicher: Map<string, Zielspeichereintrag>
 ): Vector2 | null {
   const reichweite = searchRadius * searchRadius;
+
+  const gehalten = speicher.get(owner.id);
+  if (gehalten) {
+    const position = gehalten.istSpieler
+      ? (() => {
+          const spieler = internals.players.get(gehalten.id);
+          return spieler && !spieler.dead && !spieler.invulnerable ? spieler.position : null;
+        })()
+      : internals.shapes.get(gehalten.id)?.position ?? null;
+    if (
+      position &&
+      distanceSquared(position, owner.position) <= reichweite * ZIEL_HYSTERESE * ZIEL_HYSTERESE &&
+      hasLineOfSight(owner.position, position)
+    ) {
+      return { ...position };
+    }
+    speicher.delete(owner.id);
+  }
+
   let bester: Vector2 | null = null;
   let besteEntfernung = Infinity;
+  let besteId: string | null = null;
+  let besteIstSpieler = false;
 
   for (const kandidat of internals.players.values()) {
     if (kandidat.id === owner.id || kandidat.dead || kandidat.invulnerable) continue;
@@ -157,6 +266,8 @@ function sucheZiel(
     if (entfernung > reichweite || entfernung >= besteEntfernung) continue;
     besteEntfernung = entfernung;
     bester = kandidat.position;
+    besteId = kandidat.id;
+    besteIstSpieler = true;
   }
   if (!bester) {
     for (const form of internals.shapes.values()) {
@@ -164,9 +275,12 @@ function sucheZiel(
       if (entfernung > reichweite || entfernung >= besteEntfernung) continue;
       besteEntfernung = entfernung;
       bester = form.position;
+      besteId = form.id;
+      besteIstSpieler = false;
     }
   }
-  if (!bester || !hasLineOfSight(owner.position, bester)) return null;
+  if (!bester || !besteId || !hasLineOfSight(owner.position, bester)) return null;
+  speicher.set(owner.id, { id: besteId, istSpieler: besteIstSpieler });
   return { x: bester.x, y: bester.y };
 }
 
@@ -182,6 +296,10 @@ function sucheZiel(
  */
 export function tuneDrones<T extends MazeGame>(game: T): T {
   const internals = game as unknown as DroneInternals;
+  // Eine Karte je Spiel – `tuneDrones` läuft genau einmal pro Instanz (wie
+  // die entsprechenden Karten in `perks.ts`), ein WeakMap-Umweg über das
+  // Spiel selbst ist hier nicht nötig.
+  const zielSpeicher = new Map<string, Zielspeichereintrag>();
 
   internals.spawnDrone = (owner: RuntimePlayer, slot: number): void => {
     const id = crypto.randomUUID();
@@ -246,19 +364,27 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
       let ziel = orbit;
       let formation = true;
       if (owner.secondary) {
-        // Weg vom Zeiger, nicht hinter den Tank. Steht die Drohne exakt auf dem
-        // Zeiger, liefert `normalize` (0,0) – dann weicht sie vom Besitzer weg,
-        // statt stehenzubleiben.
-        const weg = normalize({ x: drone.position.x - zeiger.x, y: drone.position.y - zeiger.y });
-        const richtung = weg.x === 0 && weg.y === 0
-          ? normalize({ x: drone.position.x - owner.position.x, y: drone.position.y - owner.position.y })
-          : weg;
-        ziel = { x: drone.position.x + richtung.x * ABSTOSS_WEG, y: drone.position.y + richtung.y * ABSTOSS_WEG };
+        // Weg vom Zeiger – aber als FESTER Punkt relativ zum Besitzer, nicht
+        // mehr relativ zur eigenen (wandernden) Position der Drohne. Die alte
+        // Fassung hat das Ziel jeden Tick neu 260 px vor der Drohne berechnet:
+        // eine Möhre am Stock, die nie ankam, sondern nur bis zur Leine
+        // beschleunigte (Sam: „Rechtsklick […] geht noch wesentlich
+        // smoother"). Der Fächerwinkel pro Slot verhindert dabei, dass die
+        // Flotte wieder auf einem einzigen Punkt zusammenläuft – genau der
+        // Fehler, den der vorige Rechtsklick-Fix schon einmal behoben hat.
+        const weg = normalize({ x: owner.position.x - zeiger.x, y: owner.position.y - zeiger.y });
+        const richtung = weg.x === 0 && weg.y === 0 ? { x: 1, y: 0 } : weg;
+        const basiswinkel = Math.atan2(richtung.y, richtung.x);
+        const faecher = definition.droneCount > 1
+          ? (drone.slot / (definition.droneCount - 1) - 0.5) * FAECHER_OEFFNUNG
+          : 0;
+        const winkel = basiswinkel + faecher;
+        ziel = { x: owner.position.x + Math.cos(winkel) * ABSTOSS_WEG, y: owner.position.y + Math.sin(winkel) * ABSTOSS_WEG };
         formation = false;
       } else if (owner.primary) {
         ziel = zeiger;
       } else {
-        const gesucht = sucheZiel(internals, owner, archetype.searchRadius);
+        const gesucht = sucheZiel(internals, owner, archetype.searchRadius, zielSpeicher);
         if (gesucht) ziel = gesucht;
         else formation = false;
       }
@@ -292,10 +418,39 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
         { x: direction.x * speed, y: direction.y * speed },
         archetype.acceleration * travelMultiplier * dt
       );
+      const anlaufTempo = Math.hypot(drone.velocity.x, drone.velocity.y);
       const moved = moveCircle(drone.position, drone.velocity, dt, radius);
       drone.position = moved.position;
       drone.velocity = moved.velocity;
       drone.angle = Math.atan2(drone.velocity.y, drone.velocity.x);
+
+      /*
+       * Wandtod – Sam: „Alles was gegen Wände geht sollte kaputtgehen
+       * (Drohnen etc.)."
+       *
+       * Nicht jede Wandberührung ist ein Absturz: Beim normalen Navigieren
+       * streift `moveCircle` ständig Wände (eine Achse blockiert, die andere
+       * trägt weiter) – das ist Gleiten, kein Aufprall. Gemessen im echten
+       * Labyrinth (`messung-drohnen-bewegung.mjs`): Ein Kopf-auf-Treffer
+       * (Restgeschwindigkeit unter 30 % des Anlaufs) kommt zwanzigmal
+       * seltener vor als ein solcher Streifschuss (0,21 % gegen 4,08 % aller
+       * Tempo-Vergleiche). Nur der Kopf-Treffer darf töten – sonst zerlegt
+       * sich die Flotte an jeder Kurve des neuen, engeren Labyrinths von
+       * selbst.
+       *
+       * Der Mindest-Anlauf (halbes Archetyp-Tempo) filtert außerdem den
+       * Fall heraus, in dem eine ohnehin fast stehende Drohne minimal an
+       * einer Wand hängt – da gibt es nichts, das „einschlagen" könnte.
+       */
+      if (moved.collided) {
+        const archetypTempo = archetype.speed * travelMultiplier;
+        const restTempo = Math.hypot(drone.velocity.x, drone.velocity.y);
+        if (anlaufTempo >= archetypTempo * WANDTOD_MIN_ANLAUF_ANTEIL && restTempo < anlaufTempo * WANDTOD_REST_ANTEIL) {
+          internals.drones.delete(drone.id);
+          internals.nextDroneSpawn.set(owner.id, now + Math.max(400, definition.droneRespawn * 1000));
+          continue;
+        }
+      }
       if (drone.contactCooldown > 0) continue;
 
       const shape = [...internals.shapes.values()].find(

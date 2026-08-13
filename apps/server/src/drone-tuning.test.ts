@@ -4,7 +4,7 @@ import { tuneCombatScaling } from './combat-tuning';
 import { droneArchetypes, tuneDrones } from './drone-tuning';
 import { MazeGame } from './game';
 import { messpunkt } from './messfeld';
-import { hasLineOfSight, isFree } from './world';
+import { WALLS, hasLineOfSight, isFree } from './world';
 
 /**
  * Drei der zehn Drohnenklassen hatten keinen eigenen Eintrag und fielen still
@@ -193,6 +193,53 @@ describe('Drohnen-Verhalten (Stufe 1)', () => {
     expect(flottenAbstand(interna, spieler.position)).toBeLessThan(archetyp.orbitRadius + 60);
   });
 
+  /**
+   * Zielgedächtnis (Drohnen-Rework 2, Sam: „Auto-Modus […] geht noch
+   * wesentlich smoother"). Ein Gegner pendelt knapp um die Suchradius-Grenze
+   * (520 px bei drone) – 20 px innerhalb, 20 px außerhalb, jeden Tick im
+   * Wechsel. Ohne Gedächtnis fällt das Ziel bei jedem „außerhalb"-Tick weg und
+   * die Flotte fällt zurück auf den Orbit (≈82 px vom Besitzer) – ein Sprung
+   * von hunderten Pixeln, jeden zweiten Tick.
+   *
+   * Gemessen an einer Gegenprobe (Gedächtnis testweise abgeschaltet): Die
+   * Spannweite des Abstands Flotte↔Besitzer über die letzten 60 Ticks lag bei
+   * 84 px. Mit Gedächtnis (20 % Toleranz über den Suchradius, `ZIEL_HYSTERESE`)
+   * bleibt der Gegner in JEDEM Tick innerhalb der erweiterten Grenze, die
+   * Flotte hält ihn – gemessen 5 px Spannweite.
+   */
+  it('hält ein Ziel, das knapp um die Suchradius-Grenze pendelt', () => {
+    const RAHMEN = { links: 60, rechts: 560, oben: 60, unten: 60 };
+    const feld = messpunkt(RAHMEN);
+    const game = tuneDrones(tuneCombatScaling(new MazeGame(0)));
+    const interna = game as unknown as Interna;
+    interna.shapes.clear();
+    const id = game.addPlayer('Controller');
+    const spieler = interna.players.get(id);
+    spieler.level = 45;
+    spieler.position = { ...feld };
+    spieler.invulnerable = false;
+    spieler.invulnerableUntil = 0;
+    expect(game.chooseClass(id, 'drone')).toBe(true);
+    game.step(1 / 40, 100_000);
+
+    const suchradius = droneArchetypes().drone!.searchRadius;
+    const { gegner } = gegnerBei(interna, game, { x: feld.x + suchradius, y: feld.y });
+
+    let now = 100_000;
+    const abstaende: number[] = [];
+    for (let tick = 0; tick < 200; tick += 1) {
+      const innen = tick % 2 === 0;
+      gegner.position = { x: feld.x + (innen ? suchradius - 20 : suchradius + 20), y: feld.y };
+      gegner.health = gegner.maxHealth;
+      game.step(1 / 40, (now += 25));
+      abstaende.push(flottenAbstand(interna, spieler.position));
+    }
+
+    const letzte = abstaende.slice(-60);
+    const spanne = Math.max(...letzte) - Math.min(...letzte);
+    expect(spanne, `Spannweite ${spanne.toFixed(0)} px über die letzten 60 Ticks`).toBeLessThan(30);
+  });
+
   it('stößt beim Rechtsklick vom Zeiger weg, nicht hinter den Tank', () => {
     const { game, interna, spieler } = aufbau();
     // Zeiger 300 px nach rechts; die Flotte muss sich VOM Zeiger entfernen.
@@ -241,5 +288,115 @@ describe('Drohnen-Verhalten (Stufe 1)', () => {
     // wieder gleich an – Sams Punkt 2.
     expect(tabelle.guardian!.searchRadius).toBeLessThan(tabelle.drone!.searchRadius);
     expect(tabelle.aviary!.searchRadius).toBeGreaterThan(tabelle.drone!.searchRadius);
+  });
+
+  /**
+   * Drohnen-Rework 2 (Sam, 13.08. abends): „Drohnen bewegen sich noch zu
+   * schnell." Gemessen (messung-drohnen-bewegung.mjs) lag das Verhältnis
+   * Drohne : Besitzer vorher bei 1,38–2,20×. Geprüft wird hier nur die
+   * Richtung der Korrektur und die neue Untergrenze – die genauen Zahlen
+   * stehen in der Messung, nicht im Test, damit ein künftiger Feinschliff
+   * nicht an einer zu engen Regel zerschellt.
+   */
+  it('bremst das Flottentempo auf höchstens das 1,6-fache des Besitzers', () => {
+    const roh = droneArchetypes();
+    for (const id of drohnenklassen) {
+      const archetyp = roh[id]!;
+      // 620 ist ein grosszuegiger, aber nicht beliebiger Bezug: Der
+      // langsamste Spielercharakter faehrt real nicht unter ~220 px/s, das
+      // 1,6-fache waere also niemals ueber 1,6 * 620 = 992 -- weit unter dem
+      // alten Hoechstwert (aviary: 545 roh, also weit ueber jedem Panzer).
+      expect(archetyp.speed, id).toBeLessThan(400);
+    }
+  });
+});
+
+/**
+ * Wandtod (Sam, 13.08. abends): „Alles was gegen Wände geht sollte
+ * kaputtgehen (Drohnen etc.)." Zwei Fälle, gegeneinander abgesetzt: ein
+ * Frontalaufprall MUSS eine Drohne kosten, ein Streifschuss beim normalen
+ * Navigieren darf keine kosten – sonst zerlegt sich die Flotte an jeder Kurve
+ * des Labyrinths von selbst.
+ */
+describe('Wandtod', () => {
+  interface Interna {
+    players: Map<string, any>;
+    shapes: Map<string, any>;
+    drones: Map<string, any>;
+  }
+
+  /** Eine lange, gerade Wand mit freiem Anlauf davor und Auslauf dahinter. */
+  const findeWand = () => {
+    for (const kandidat of WALLS) {
+      if (!kandidat.id.startsWith('v') || kandidat.height < 300) continue;
+      const mitteY = kandidat.y + kandidat.height / 2;
+      const anlauf = { x: kandidat.x - 320, y: mitteY };
+      const dahinter = { x: kandidat.x + kandidat.width + 400, y: mitteY };
+      if (isFree(anlauf, 40) && isFree(dahinter, 40)) return { wand: kandidat, anlauf, mitteY };
+    }
+    throw new Error('keine passende Wand gefunden');
+  };
+
+  it('zerstört eine Drohne beim Frontalaufprall auf eine Wand', () => {
+    const { wand, anlauf, mitteY } = findeWand();
+    const game = tuneDrones(tuneCombatScaling(new MazeGame(0)));
+    const interna = game as unknown as Interna;
+    interna.shapes.clear();
+    const id = game.addPlayer('Rammsonde');
+    const spieler = interna.players.get(id);
+    spieler.level = 45;
+    spieler.position = { ...anlauf };
+    spieler.invulnerable = false;
+    spieler.invulnerableUntil = 0;
+    expect(game.chooseClass(id, 'drone')).toBe(true);
+    game.step(1 / 40, 100_000);
+    const startbestand = interna.drones.size;
+    expect(startbestand).toBeGreaterThan(0);
+
+    // Zielpunkt weit hinter der Wand – die Flotte hat keine Ausweichmöglichkeit,
+    // die Wand steht quer zur ganzen Anlaufstrecke.
+    let now = 100_000;
+    for (let tick = 0; tick < 100; tick += 1) {
+      spieler.aim = { x: wand.x + wand.width + 400 - anlauf.x, y: 0 };
+      spieler.primary = true;
+      game.step(1 / 40, (now += 25));
+    }
+    expect(interna.drones.size, `${startbestand} Drohnen vorher, ${interna.drones.size} danach`).toBeLessThan(startbestand);
+    // Und keine der überlebenden (falls welche außerhalb der Anlaufbahn lagen)
+    // steckt IN der Wand – der Tod muss vor dem Durchdringen greifen.
+    for (const drohne of interna.drones.values()) {
+      const mitte = { x: wand.x + wand.width / 2, y: mitteY };
+      expect(Math.hypot(drohne.position.x - mitte.x, drohne.position.y - mitte.y)).toBeGreaterThan(wand.width / 2);
+    }
+  });
+
+  /**
+   * Die Gegenprobe: Im offenen Feld gibt es nichts, an dem eine Drohne
+   * zerschellen könnte. Über dieselbe Zahl Ticks wie oben darf keine einzige
+   * verschwinden – sonst wäre der Wandtod zu einem allgemeinen Verschleiß
+   * geworden.
+   */
+  it('verliert im offenen Feld keine einzige Drohne', () => {
+    const OFFEN = messpunkt({ links: 400, rechts: 400, oben: 400, unten: 400 });
+    const game = tuneDrones(tuneCombatScaling(new MazeGame(0)));
+    const interna = game as unknown as Interna;
+    interna.shapes.clear();
+    const id = game.addPlayer('Kontrolle');
+    const spieler = interna.players.get(id);
+    spieler.level = 45;
+    spieler.position = { ...OFFEN };
+    spieler.invulnerable = false;
+    spieler.invulnerableUntil = 0;
+    expect(game.chooseClass(id, 'drone')).toBe(true);
+    game.step(1 / 40, 100_000);
+    const startbestand = interna.drones.size;
+
+    let now = 100_000;
+    for (let tick = 0; tick < 100; tick += 1) {
+      spieler.aim = { x: 300, y: 0 };
+      spieler.primary = true;
+      game.step(1 / 40, (now += 25));
+    }
+    expect(interna.drones.size).toBe(startbestand);
   });
 });
