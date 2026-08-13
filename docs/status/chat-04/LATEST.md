@@ -21,6 +21,22 @@ verschafft einen Moment Luft." Der Schalter blieb unangetastet.
 **Vorschlagspapier** zum restlichen Bot-Schwierigkeits-Paket liegt vor:
 [`22-vorschlag-bot-schwierigkeit.md`](22-vorschlag-bot-schwierigkeit.md) –
 sechs Vorschläge mit Gegenproben, in drei spielbaren Schnitten.
+
+**Zweiter Nachtrag – Schnitt (a) ist gebaut und nachgemessen (Sams
+Freigabe per Rückfrage):** Der Aggressionswurf gilt der Aufnahme eines
+Gefechts, nicht seiner Fortsetzung (71), und Bots haben ein Zielgedächtnis
+mit letzter bekannter Position samt Feuerverbot ohne Sichtlinie (77).
+Gegenproben: Median-Episode je Stil **8,0 s** statt 0,38 s bei
+unveränderter Anwesenheits-Obergrenze (52–58 %); volle Arena: Zeit ohne
+Angreifer 59 % statt 81 %, Median-Episode 6,65 s; an der Ecke hält der Bot
+das Ziel im Median **6,55 s** statt 275 ms, nähert sich der Merkposition
+auf Median 109 px (Ziel: < 200) und findet den Versteckten in 9 von 10
+Läufen wieder. Dazu die **Login-Zeile (55)** in Sams Wortlaut auf der
+Death-Karte bei neuem Rekord ab dem zweiten Lauf („Neuer Rekord. Mit Konto
+zählt er in der Bestenliste – auf jedem Gerät."); der ANMELDEN-Knopf folgt
+mit dem Login-Flow – heute gäbe es nichts zu öffnen, ein toter Knopf wäre
+gelogen. Offen aus Sams Bestellung: Bestenlisten-Zeitfenster (51) und
+Bericht 23 (Balance-Papier).
 | **Status** | **Alle 79 Befunde geprüft**: 43 behoben, 2 verworfen (2, 74), Rest bestätigt-aber-offen – Bots/Balance/Content bei Sam |
 
 Dieses Dokument ist der Einstieg für die nächste Sitzung. Der volle Bericht

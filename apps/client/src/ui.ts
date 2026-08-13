@@ -135,6 +135,9 @@ export class GameUI {
   /** Abstand zur öffentlichen Bestenliste, geholt beim Tod (53-Rest). */
   private deathBoardLine: string | null = null;
   private readonly deathDistance: HTMLElement;
+  /** Neuer lokaler Rekord in diesem Lauf – zeigt das Login-Versprechen (Befund 55). */
+  private neuerRekord = false;
+  private readonly deathLogin: HTMLElement;
   private readonly respawnButton: HTMLButtonElement;
   private readonly respawnCountdown: HTMLElement;
   /** Rundenstand auf der Todeskarte – nur im Battle Royale sichtbar. */
@@ -338,6 +341,10 @@ export class GameUI {
               <!-- Rest von Befund 53: die Ernte des Laufs und die öffentliche Messlatte. -->
               <p class="death-record death-unlocks" id="death-unlocks" hidden></p>
               <p class="death-record death-distance" id="death-distance" hidden></p>
+              <!-- Befund 55 (Sams Wortlaut): das Login-Versprechen am Rekord-Moment.
+                   Der ANMELDEN-Knopf folgt mit dem Login-Flow – heute gäbe es
+                   nichts zu öffnen, und ein toter Knopf wäre gelogen. -->
+              <p class="death-record death-login" id="death-login" hidden></p>
               <!--
                 Der Weg zurück ins Spiel steht in einem eigenen Kasten, der am
                 unteren Rand der Karte klebt (hud-layout.css, position sticky).
@@ -417,6 +424,7 @@ export class GameUI {
     this.deathRecord = this.require('#death-record');
     this.deathUnlocks = this.require('#death-unlocks');
     this.deathDistance = this.require('#death-distance');
+    this.deathLogin = this.require('#death-login');
     this.respawnButton = this.require<HTMLButtonElement>('#respawn-button');
     this.respawnCountdown = this.require('#respawn-countdown');
     this.royaleDeathNote = this.require('#royale-death-note');
@@ -721,6 +729,9 @@ export class GameUI {
         seconds: runSeconds(this.runStartedAt, this.runEndedAt, Date.now())
       });
       this.lastRunVerdict = deathRecordLine(ergebnis, self.score);
+      // Login-Versprechen am Rekord-Moment (Befund 55, Sams Wortlaut). Erst ab
+      // dem zweiten Lauf – der erste ist immer ein „Rekord" und bewiese nichts.
+      this.neuerRekord = ergebnis.neuerBestScore && ergebnis.record.runs > 1;
       // Die öffentliche Messlatte (53-Rest): Die Karte steht sofort, die
       // Zeile füllt sich nach, sobald die Antwort da ist.
       void this.ladeBestenlistenAbstand(self.score);
@@ -864,6 +875,8 @@ export class GameUI {
     if (unlocks !== null) this.deathUnlocks.textContent = unlocks;
     this.deathDistance.hidden = this.deathBoardLine === null;
     if (this.deathBoardLine !== null) this.deathDistance.textContent = this.deathBoardLine;
+    this.deathLogin.hidden = !this.neuerRekord;
+    if (this.neuerRekord) this.deathLogin.textContent = 'Neuer Rekord. Mit Konto zählt er in der Bestenliste – auf jedem Gerät.';
     this.deathStats.innerHTML = `<div><span>Erreicht</span><b>Level ${self.deathLevel}</b></div><div><span>${respawnTileLabel(facts)}</span><b>${respawnTileValue(facts)}</b></div><div><span>Score</span><b>${self.score.toLocaleString('de-DE')}</b></div><div><span>Kills</span><b>${lifeKills}</b></div><div><span>Überlebt</span><b>${aliveText}</b></div><div><span>Beste Streak</span><b>${self.bestStreak}</b></div>`;
     /*
      * Im Battle Royale gibt es keinen Wiedereinstieg in die laufende Runde –
