@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { haelften, renderPortal, type ViewState } from './view';
+import { backlogBlock, haelften, renderPortal, type ViewState } from './view';
 import { dauer, kurzId, seit, trend } from './format';
 import type { DailyRow, Overview } from './types';
 
@@ -91,7 +91,7 @@ describe('Portal-Ausgabe', () => {
       unusedClasses: [],
       top: []
     } as unknown as Overview;
-    return { overview, players: [], playersTotal: 0, sortierung: 'new', tage: 7, aktualisiert: Date.parse('2026-08-07T12:00:00Z') };
+    return { overview, players: [], playersTotal: 0, sortierung: 'new', tage: 7, aktualisiert: Date.parse('2026-08-07T12:00:00Z'), backlog: null };
   };
 
   it('zeigt auf einer flachen Woche keinen Aufschwung', () => {
@@ -145,3 +145,48 @@ describe('Zahlen, wie man sie im Vorbeigehen liest', () => {
     expect(kurzId('kurz')).toBe('kurz');
   });
 });
+
+/**
+ * Sams Liste. Sie ist die Antwort auf „sonst vergessen wir immer zu viel und
+ * ich sag dir 30 mal, dass du das und das aendern sollst" – also muss sie das
+ * Offene zeigen, ohne das Erledigte zu verlieren.
+ */
+describe('Sams Liste im Portal', () => {
+  it('bleibt weg, solange die Liste nicht geladen ist – das Portal steht trotzdem', () => {
+    expect(backlogBlock(null)).toBe('');
+  });
+
+  it('zeigt Bilanz, Wortlaut, Stand und Nachweis', () => {
+    const html = backlogBlock({
+      zaehlung: { gesamt: 2, offen: 1, arbeit: 0, erledigt: 1, verworfen: 0, fortschritt: 0.5 },
+      gruppen: [{
+        bereich: 'karte',
+        eintraege: [
+          { id: 'K9', wunsch: 'Noch zu wenig Maze bitte.', bereich: 'karte', stand: 'offen', gemeldet: '2026-08-13' },
+          { id: 'K8', wunsch: 'Zwei Mainspots.', bereich: 'karte', stand: 'erledigt', gemeldet: '2026-08-13', nachweis: 'd471107' }
+        ]
+      }]
+    });
+    expect(html).toContain('1 von 2 erledigt');
+    expect(html).toContain('Noch zu wenig Maze bitte.');
+    expect(html).toContain('d471107');
+    // Der Stand steht als Klasse am Eintrag – daran haengt die Farbe links.
+    expect(html).toContain('class="wunsch offen"');
+    expect(html).toContain('class="wunsch erledigt"');
+    // Und die Gruppe nennt, wie viel dort noch offen ist.
+    expect(html).toContain('1 offen');
+  });
+
+  it('entschaerft Sonderzeichen aus dem Wortlaut', () => {
+    const html = backlogBlock({
+      zaehlung: { gesamt: 1, offen: 1, arbeit: 0, erledigt: 0, verworfen: 0, fortschritt: 0 },
+      gruppen: [{
+        bereich: 'ui',
+        eintraege: [{ id: 'X1', wunsch: '<script>alert(1)</script> das schaut kake aus', bereich: 'ui', stand: 'offen', gemeldet: '2026-08-13' }]
+      }]
+    });
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
+});
+

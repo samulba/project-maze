@@ -1,5 +1,6 @@
 import { dauer, komma, kurzId, seit, tag, trend, zahl, zeitpunkt } from './format';
 import type { ClassUsage, DailyRow, DeviceRow, Overview, Summary } from './types';
+import type { BacklogBereich, BacklogEintrag, BacklogStand, BacklogZaehlung } from '@project-maze/shared/backlog';
 
 /**
  * Die Ansicht des Portals.
@@ -219,6 +220,69 @@ export interface ViewState {
   sortierung: 'new' | 'active';
   tage: number;
   aktualisiert: number;
+  backlog: BacklogAntwort | null;
+}
+
+export interface BacklogAntwort {
+  zaehlung: BacklogZaehlung;
+  gruppen: Array<{ bereich: BacklogBereich; eintraege: BacklogEintrag[] }>;
+}
+
+const STAND_TEXT: Record<BacklogStand, string> = {
+  offen: 'offen',
+  arbeit: 'in Arbeit',
+  erledigt: 'erledigt',
+  verworfen: 'verworfen'
+};
+
+const BEREICH_TEXT: Record<BacklogBereich, string> = {
+  drohnen: 'Drohnen',
+  projektile: 'Projektile',
+  karte: 'Karte',
+  klassen: 'Klassen',
+  bots: 'Bots',
+  ui: 'Oberfläche',
+  bug: 'Fehler'
+};
+
+/**
+ * Sams Rückmeldungen mit Stand. „Ich will die Liste im Admin-Bereich sehen
+ * können und auch, was erledigt wurde, was noch offen ist."
+ *
+ * Offenes steht oben, in jeder Gruppe und über alle Gruppen hinweg – wer die
+ * Liste öffnet, will wissen, was noch fehlt, nicht was schon geht. Erledigtes
+ * bleibt trotzdem stehen: Es ist der Beleg, und es beantwortet die Frage
+ * „habe ich das schon einmal gesagt?".
+ */
+export function backlogBlock(antwort: BacklogAntwort | null): string {
+  if (!antwort) return '';
+  const { zaehlung, gruppen } = antwort;
+  const prozent = Math.round(zaehlung.fortschritt * 100);
+  const zeilen = gruppen.map((gruppe) => {
+    const punkte = gruppe.eintraege.map((eintrag) => `<li class="wunsch ${eintrag.stand}">
+      <span class="wunsch-kennung">${escape(eintrag.id)}</span>
+      <span class="wunsch-text">
+        <b>${escape(eintrag.wunsch)}</b>
+        ${eintrag.notiz ? `<i>${escape(eintrag.notiz)}</i>` : ''}
+      </span>
+      <span class="wunsch-stand">${escape(STAND_TEXT[eintrag.stand])}${eintrag.nachweis ? `<em>${escape(eintrag.nachweis)}</em>` : ''}</span>
+    </li>`).join('');
+    const offen = gruppe.eintraege.filter((e) => e.stand === 'offen' || e.stand === 'arbeit').length;
+    return `<div class="wunsch-gruppe">
+      <h3>${escape(BEREICH_TEXT[gruppe.bereich] ?? gruppe.bereich)} <span>${offen > 0 ? `${offen} offen` : 'alles erledigt'}</span></h3>
+      <ul class="wunsch-liste">${punkte}</ul>
+    </div>`;
+  }).join('');
+
+  return `<section class="block">
+    <h2>Sams Liste</h2>
+    <p class="wunsch-bilanz">
+      <b>${zaehlung.erledigt} von ${zaehlung.gesamt - zaehlung.verworfen} erledigt</b>
+      · ${zaehlung.offen} offen${zaehlung.arbeit > 0 ? ` · ${zaehlung.arbeit} in Arbeit` : ''}
+      <span class="wunsch-balken"><i style="width:${prozent}%"></i></span>
+    </p>
+    ${zeilen}
+  </section>`;
 }
 
 export function renderPortal(state: ViewState): string {
@@ -323,7 +387,7 @@ export function renderPortal(state: ViewState): string {
     ? ''
     : `<p class="warnung">${escape(overview.hint ?? 'Ohne Datenbank gibt es keinen Verlauf.')}</p>`;
 
-  return `${kopf}${warnung}${jetzt}${wachstum}${klassen}${spieler}${bestenliste}${technik}
+  return `${kopf}${warnung}${backlogBlock(state.backlog)}${jetzt}${wachstum}${klassen}${spieler}${bestenliste}${technik}
     <footer class="fuss">Zuletzt aktualisiert ${escape(zeitpunkt(new Date(state.aktualisiert).toISOString()))} · aktualisiert sich alle 20 Sekunden</footer>`;
 }
 

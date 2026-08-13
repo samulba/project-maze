@@ -23,6 +23,10 @@
     "./appearance": {
       "types": "./dist/appearance.d.ts",
       "default": "./dist/appearance.js"
+    },
+    "./backlog": {
+      "types": "./dist/backlog.d.ts",
+      "default": "./dist/backlog.js"
     }
   },
   "types": "./dist/index.d.ts",

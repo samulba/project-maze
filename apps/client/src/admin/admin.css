@@ -371,3 +371,48 @@ button.leise { color: var(--faint); background: transparent; }
   .kopf h1 { font-size: 30px; }
   .kachel-wert { font-size: 23px; }
 }
+
+/* ------------------------------------------------------------------ *
+ * Sams Liste
+ * ------------------------------------------------------------------ */
+/*
+ * „Ich will die Liste im Admin-Bereich sehen können und auch, was erledigt
+ * wurde, was noch offen ist." Sie steht ganz oben, weil sie die Frage
+ * beantwortet, mit der Sam das Portal öffnet – vor allen Betriebszahlen.
+ *
+ * Erledigtes bleibt sichtbar, tritt aber zurück (halbe Deckkraft, durch-
+ * gestrichene Kennung): Es ist Beleg, nicht Arbeit.
+ */
+.wunsch-bilanz { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; font-size: 12px; color: var(--muted, #9aa4b2); }
+.wunsch-bilanz b { color: var(--text, #e8edf4); }
+.wunsch-balken { flex: 1; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.wunsch-balken i { display: block; height: 100%; background: #65d39a; }
+
+.wunsch-gruppe { margin-bottom: 16px; }
+.wunsch-gruppe h3 {
+  display: flex; align-items: baseline; gap: 8px;
+  margin: 0 0 6px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+}
+.wunsch-gruppe h3 span { font-size: 10px; letter-spacing: 0; text-transform: none; color: var(--muted, #9aa4b2); font-weight: 500; }
+
+.wunsch-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.wunsch {
+  display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; align-items: start;
+  padding: 8px 10px; border-radius: 8px; background: rgba(255, 255, 255, .03);
+}
+.wunsch-kennung { font-variant-numeric: tabular-nums; font-size: 11px; color: var(--muted, #9aa4b2); }
+.wunsch-text b { display: block; font-size: 12px; font-weight: 600; line-height: 1.4; }
+.wunsch-text i { display: block; margin-top: 2px; font-size: 11px; font-style: normal; color: var(--muted, #9aa4b2); line-height: 1.4; }
+.wunsch-stand { font-size: 10px; text-align: right; white-space: nowrap; }
+.wunsch-stand em { display: block; font-style: normal; opacity: .6; font-size: 9px; }
+
+.wunsch.offen { border-left: 3px solid #f0a05e; }
+.wunsch.arbeit { border-left: 3px solid #5e9df0; }
+.wunsch.erledigt { border-left: 3px solid #65d39a; opacity: .55; }
+.wunsch.erledigt .wunsch-kennung { text-decoration: line-through; }
+.wunsch.verworfen { border-left: 3px solid #6b7280; opacity: .4; }
+
+@media (max-width: 700px) {
+  .wunsch { grid-template-columns: 34px minmax(0, 1fr); }
+  .wunsch-stand { grid-column: 2; text-align: left; }
+}

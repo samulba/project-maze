@@ -1,6 +1,6 @@
 import { AuthClient } from '../auth';
 import './admin.css';
-import { renderPortal, renderTor, type ViewState } from './view';
+import { renderPortal, renderTor, type BacklogAntwort, type ViewState } from './view';
 import type { AdminSession, Overview, PlayersResponse } from './types';
 
 /**
@@ -89,9 +89,12 @@ async function laden(): Promise<void> {
   if (!WURZEL || laeuft) return;
   laeuft = true;
   try {
-    const [overview, players] = await Promise.all([
+    const [overview, players, backlog] = await Promise.all([
       hole<Overview>(`/admin/api/overview?days=${tage}`),
-      hole<PlayersResponse>(`/admin/api/players?sort=${sortierung}&limit=50`)
+      hole<PlayersResponse>(`/admin/api/players?sort=${sortierung}&limit=50`),
+      // Die Liste darf das Portal nicht mitreissen, wenn sie einmal fehlt –
+      // sie ist eine Beigabe, kein Betriebswert.
+      hole<BacklogAntwort>('/admin/api/backlog').catch(() => null)
     ]);
     const state: ViewState = {
       overview,
@@ -99,7 +102,8 @@ async function laden(): Promise<void> {
       playersTotal: players.total,
       sortierung,
       tage,
-      aktualisiert: Date.now()
+      aktualisiert: Date.now(),
+      backlog
     };
     WURZEL.innerHTML = renderPortal(state);
     verdrahtePortal(state);

@@ -1,5 +1,6 @@
 import type { Request, RequestHandler, Response } from 'express';
 import { CLASS_DEFINITIONS, PLAYER_CLASS_IDS, type PlayerClass } from '@project-maze/shared';
+import { backlogNachBereich, zaehleBacklog } from '@project-maze/shared/backlog';
 import { authStatus, verifyAuthToken } from './auth.js';
 import { MazeGame } from './game.js';
 import { leaderboard, persistenceStats } from './persistence.js';
@@ -299,6 +300,7 @@ export function createAdminRoutes(options: AdminOptions): {
   session: RequestHandler;
   overview: RequestHandler;
   players: RequestHandler;
+  backlog: RequestHandler;
 } {
   const { game, live } = options;
   const cacheMs = options.cacheMs ?? DEFAULT_CACHE_MS;
@@ -313,6 +315,23 @@ export function createAdminRoutes(options: AdminOptions): {
     // aber ein Deckel kostet nichts und schließt die Frage.
     if (cache.size > 32) cache.delete([...cache.keys()][0]!);
     return value;
+  };
+
+  /**
+   * Sams Rückmeldungen mit Stand – „ich will die Liste im Admin-Bereich sehen
+   * können und auch, was erledigt wurde, was noch offen ist."
+   *
+   * Ohne Cache und ohne Datenbank: Die Liste steht in `shared` und ändert sich
+   * nur mit einem Deploy. Genau deshalb ist sie auch dann da, wenn die
+   * Persistenz gerade nicht erreichbar ist – eine Aufgabenliste, die mit der
+   * Datenbank ausfällt, wäre in dem Moment nutzlos, in dem man sie braucht.
+   */
+  const backlog: RequestHandler = (_request, response) => {
+    response.setHeader('Cache-Control', 'no-store');
+    response.json({
+      zaehlung: zaehleBacklog(),
+      gruppen: backlogNachBereich()
+    });
   };
 
   const session: RequestHandler = (request, response) => {
@@ -395,5 +414,5 @@ export function createAdminRoutes(options: AdminOptions): {
     });
   };
 
-  return { session, overview, players };
+  return { session, overview, players, backlog };
 }

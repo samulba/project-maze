@@ -921,6 +921,7 @@ const adminRoutes = createAdminRoutes({
 app.get('/admin/api/session', publicGuard, adminRoutes.session);
 app.get('/admin/api/overview', publicGuard, adminGuard, adminRoutes.overview);
 app.get('/admin/api/players', publicGuard, adminGuard, adminRoutes.players);
+app.get('/admin/api/backlog', publicGuard, adminGuard, adminRoutes.backlog);
 
 // Anonyme Perf-Berichte des Clients: kein Token, winziger Body, eigenes
 // Kostengewicht im IP-Budget. Höchstens ein Bericht pro Minute und Client.
