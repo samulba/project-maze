@@ -350,6 +350,38 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     gemeldet: '2026-08-13',
     nachweis: 'diese Datei + /admin/api/backlog',
     notiz: 'Eine Quelle für Server, Client und Berichte.'
+  },
+
+  // ---------------------------------------------------------------- Spieltest 13.08., dritte Runde
+  {
+    id: 'U11',
+    wunsch: 'Das Fenster für die neue Spezialisierung ist nichtmehr ganz rechts.',
+    bereich: 'ui',
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: 'a067377 – Wahl steht jetzt rechts oben statt links unten; Bestenliste weicht, solange eine Wahl ansteht',
+    notiz: 'Layout-Prüfstand über 23 Fenstergrößen/Zustände: 21/23 grün, zwei unverwandte Altbefunde bestehen unverändert.'
+  },
+  {
+    id: 'BAL1',
+    wunsch: 'Die Tanks sind noch immer viel zu unbalanced – als LVL 60 Vortex fühlt man sich unbesiegbar: mega schnell, mega viel HP, riesiger Spread, alles. Überall fehlt das komplette Balancing.',
+    bereich: 'klassen',
+    stand: 'offen',
+    gemeldet: '2026-08-13'
+  },
+  {
+    id: 'BAL2',
+    wunsch: 'Auch fairer gegen kleinere (niedrigstufige) Tanks: Hochstufige sollen sie nicht so schnell töten können, aber die kleinen sollen dafür schneller abhauen können.',
+    bereich: 'klassen',
+    stand: 'offen',
+    gemeldet: '2026-08-13'
+  },
+  {
+    id: 'K5',
+    wunsch: 'An den Rändern der Karte darf komplett keine Mauer sein – man soll das Gefühl haben, einmal am Rand entlang durchrennen zu können.',
+    bereich: 'karte',
+    stand: 'offen',
+    gemeldet: '2026-08-13'
   }
 ];
 
