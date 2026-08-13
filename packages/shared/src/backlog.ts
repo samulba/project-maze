@@ -321,8 +321,10 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'BO1',
     wunsch: 'Die Bots bewegen sich sehr komisch, sehr random und bothaft – nicht wie echte Spieler.',
     bereich: 'bots',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '52c5f40 – gemessen: perfekter Leerlauf-Kreis ersetzt, Strafe-Wechsel halbiert, Richtungssprünge 9,3°→~7°/Tick',
+    notiz: 'Die auffälligsten geometrischen/ruckartigen Muster behoben, kein echtes Pathfinding durchs Labyrinth – das wäre ein eigenes, größeres Paket.'
   },
   {
     id: 'BO2',
