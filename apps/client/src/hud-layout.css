@@ -65,6 +65,22 @@
 :root:has(.class-selection:not([hidden])) .arena-event-banner,
 :root:has(.class-selection:not([hidden])) .bounty-banner { opacity: 0; transition: none; }
 
+/*
+ * Die Bestenliste weicht ebenso (13.08., Umzug der Wahl auf die rechte Seite):
+ * Anders als Onboarding und Banner hat sie keine feste Höhe und wäre sonst mal
+ * 189, mal 300+ px hoch gewesen, je nach Spielerzahl – zu unvorhersehbar für
+ * einen festen Versatz, und mit voller Bestenliste blieb auf 1280×720 kaum
+ * Platz für eine einzige Klassenkarte, auch nur für die zugeklappte Leiste
+ * nicht zuverlässig auf kurzen Fenstern. Die Wahl übernimmt stattdessen
+ * einfach ihren Platz, solange sie ansteht (auf/zu spielt keine Rolle).
+ *
+ * Nur für Zeigergeräte: Auf Touch bleibt die Wahl in der linken Spalte
+ * (`mobile.css`) und kommt der Bestenliste rechts oben nie in die Quere.
+ */
+@media (pointer: fine) {
+  :root:has(.class-selection:not([hidden])) .leaderboard { opacity: 0; transition: none; }
+}
+
 /* ------------------------------------------------------------------ *
  * F3 – Klassenwahl und Upgrade-Panel kämpften um dieselbe Fläche
  * ------------------------------------------------------------------ */
@@ -453,22 +469,20 @@
  * in der Bildmitte behauptet, die Entscheidung sei jetzt fällig. Ist sie aber
  * nicht. Man kann als Rapid bis Level 60 spielen, ohne je zu spezialisieren.
  *
- * Deshalb jetzt: **linke Spalte, unter der Spielerkarte** – dieselbe Spalte,
- * in der ohnehin alles Eigene steht (Leben, Level, Upgrades). Zuklappbar auf
- * eine schmale Leiste, die stehen bleibt, bis man wählt. Die Bildmitte gehört
- * wieder der Arena.
+ * Erste Ecke war die linke Spalte unter der Spielerkarte. Sams Befund vom
+ * 13.08. („nichtmehr ganz rechts") macht daraus die rechte Spalte, oben –
+ * genau da, wo sonst die Bestenliste steht. Die weicht dafür (siehe F2 weiter
+ * oben): Ein fester Versatz unter ihr wäre nicht gegangen, sie ist mal 189,
+ * mal über 300 px hoch je nach Spielerzahl, und mit voller Liste blieb auf
+ * 1280×720 kaum Platz für eine einzige Klassenkarte. Zuklappbar bleibt sie auf
+ * beiden Seiten: eine schmale Leiste, die stehen bleibt, bis man wählt.
  */
 .class-selection {
-  --wahl-links: 0px;
-  --wahl-rechts: 0px;
-  /* Unter der Spielerkarte. Gemessen ist die 142 px hoch, mit Ladebalken 170
-     und auf 21:9 155 – plus 18 px Rand. 190 räumt den schlimmsten Fall. */
-  --wahl-oben: 190px;
-  /* Über der unteren Bedienreihe (Auto-Knopf, Minimap, Modul). */
-  --wahl-unten: 96px;
-  left: var(--edge-x);
-  right: auto;
-  top: calc(var(--edge-y) + var(--wahl-oben));
+  /* Über der unteren Bedienreihe (Auto-Knopf, Minimap, Modul, Zweitaktion). */
+  --wahl-unten: 214px;
+  left: auto;
+  right: var(--edge-x);
+  top: var(--edge-y);
   bottom: auto;
   height: fit-content;
   width: min(348px, calc(100% - 2 * var(--edge-x)));
@@ -479,14 +493,7 @@
    * das Panel hätte dort unter der Leiste geendet, genau auf dem Ziel-Stick.
    * Prozent folgt dem Kasten, in dem es wirklich liegt.
    */
-  /*
-   * Der Rand wird **einmal** abgezogen, nicht zweimal: Er steckt oben schon in
-   * `top: calc(var(--edge-y) + var(--wahl-oben))`. Der doppelte Abzug kostete
-   * auf dem iPad mini 114 px – dort ist `--edge-y` wegen Safe-Area und
-   * Sichtversatz groß – und schnitt zwei von acht Karten ab, obwohl 126 px
-   * Platz frei blieben.
-   */
-  max-height: calc(100% - var(--edge-y) - var(--wahl-oben) - var(--wahl-unten));
+  max-height: calc(100% - var(--edge-y) - var(--wahl-unten));
   margin: 0;
   translate: none;
   padding: 0;
@@ -496,7 +503,6 @@
   overflow-y: auto;
   scrollbar-width: thin;
 }
-
 /*
  * Die Leiste im zugeklappten Zustand. Sie bleibt sichtbar, bis gewählt wurde –
  * eine weggeklickte Wahl ist aufgeschoben, nicht verworfen.
@@ -667,52 +673,13 @@
 }
 
 /*
- * Das Upgrade-Panel steht in derselben Spalte – und hier stand der Fehler.
- *
- * Vorher trat es zurück, solange die Wahl aufgeklappt war: `opacity: 0` plus
- * `pointer-events: none`. Sams Befund vom 13.08.: „wenn man eine Klasse
- * aussuchen kann, kann man nicht mehr upgraden, solange man nicht eine neue
- * Klasse ausgesucht hat." Genau das war es. Nachgemessen mit
- * `scripts/bug-upgrade-probe.mjs`: Der Knopf war nicht `disabled`, der Server
- * hat nichts abgelehnt, und die **Zifferntasten funktionierten weiter** – nur
- * der Mausklick lief ins Leere, weil das Panel keine Zeiger mehr annahm. Ein
- * unsichtbarer, aber per Tastatur bedienbarer Knopf ist die verwirrendste
- * Variante von kaputt.
- *
- * Die Absicht dahinter war richtig: Seit „Klassen 4.2" steht die Wahl in
- * derselben linken Spalte, und übereinander passt beides nicht. Nur ist die
- * Antwort darauf, der Wahl **Platz zu geben**, statt die Upgrades
- * abzuschalten. Beides ist eine Bedienung, und die Upgrades sind die
- * häufigere.
- *
- * Reserviert wird nur, wenn es auch etwas zu verteilen gibt: Ohne offene
- * Punkte steht das Panel als reine Bilanz da (`read-only`) und wird auf
- * flachen Fenstern ohnehin ausgeblendet – dann gehört die Spalte der Wahl.
- *
- * Nur für Zeigergeräte: Auf Touch ist das Upgrade-Panel ein Bottom-Sheet und
- * liegt gar nicht in dieser Spalte (`mobile.css`).
+ * Das Upgrade-Panel stand einmal in derselben Spalte wie die Klassenwahl –
+ * dort brauchte es eine Seite-an-Seite-Regel, damit keins das andere deckt
+ * (Sams Befund vom 13.08.: „wenn man eine Klasse aussuchen kann, kann man
+ * nicht mehr upgraden"). Seit die Wahl auf die rechte Seite gezogen ist
+ * (13.08., zweite Rückmeldung), stehen beide ohnehin auf verschiedenen
+ * Seiten des Bildschirms – die Regel ist ersatzlos weg.
  */
-/*
- * Gelöst wird es **nebeneinander**, nicht übereinander – genau so, wie es die
- * F3-Regel weiter oben schon vorsah. Beim „Klassen 4.2"-Umbau ist dieser
- * Versatz verloren gegangen: Der neue Block setzt `left: var(--edge-x)` ohne
- * `--wahl-links`, seitdem standen beide in derselben Spalte.
- *
- * Der erste Reparaturversuch hat der Wahl stattdessen unten Platz weggenommen
- * (`--wahl-unten: 330px`). Der Prüfstand hat ihn widerlegt: Von acht
- * Klassenkarten waren nur noch zwei sichtbar, auf flachen Fenstern keine
- * einzige. Ein Panel abzuschalten und eines unlesbar zu machen sind derselbe
- * Fehler in zwei Größen.
- *
- * Der Versatz entspricht der Panelbreite aus `style.css` – dieselben Klammern,
- * damit beide zusammen wandern, wenn eine davon geändert wird.
- */
-@media (pointer: fine) {
-  :root:has(.upgrade-panel:not([hidden])) .class-selection {
-    left: calc(var(--edge-x) + var(--upgrade-breite, 300px) + 12px);
-    width: min(348px, calc(100% - 2 * var(--edge-x) - var(--upgrade-breite, 300px) - 12px));
-  }
-}
 
 /*
  * Touch: Dort liegt links unten der Bewegungs-Stick. Die Wahl rückt an den
@@ -725,6 +692,14 @@
     /* Über dem Bewegungs-Stick: der beginnt bei 302 px auf einem 500 px hohen
        Schirm, also 198 px vom unteren Rand. */
     --wahl-unten: 210px;
+    /* Touch bleibt links/oben – das Upgrade-Panel ist hier ein eigenes
+       Bottom-Sheet (`mobile.css`) und teilt sich die Spalte nie mit der Wahl,
+       der Umzug nach rechts vom 13.08. betrifft nur Zeigergeräte. */
+    left: var(--edge-x);
+    right: auto;
+    top: calc(var(--edge-y) + var(--wahl-oben));
+    bottom: auto;
+    max-height: calc(100% - var(--edge-y) - var(--wahl-oben) - var(--wahl-unten));
     width: min(300px, calc(100vw - 2 * var(--edge-x)));
   }
 }
