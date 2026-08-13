@@ -16,6 +16,7 @@ import {
 } from '@project-maze/shared';
 import type { ArenaEventSnapshot } from '@project-maze/shared/gameplay';
 import { GUARDIAN_COLOR, GUARDIAN_NAME, arenaEventStyle } from './arena-event-style';
+import { barrelHeightFor } from './barrel-geometry';
 import { ParticleField } from './particles';
 import { QUALITY_TIERS, type QualitySettings, type QualityTier } from './quality';
 import { type RecoilState, startRecoil, stepRecoil } from './recoil';
@@ -1139,7 +1140,7 @@ export class GameRenderer {
     if(definition.barrelCount<=0)return;
     const precision=definition.branch==='precision';
     const impact=definition.branch==='impact';
-    const height=precision?12:impact?16:14;
+    const height=barrelHeightFor(definition,playerClass);
     if(definition.barrelAngles){
       for(const angle of definition.barrelAngles){
         const start=impact?1:4;

@@ -246,16 +246,21 @@ export class GameplayEffects {
    * Royale-Zone: Der zeigt, wohin man WILL; der Bogen zeigt, was einen
    * gerade trifft. 600 ms Zerfall, damit Dauerbeschuss als stehender Bogen
    * lesbar bleibt, ein Einzeltreffer aber nicht nachleuchtet.
+   *
+   * U2 – Sam: „mega coole Anzeige, nur noch etwas dezenter und kleiner
+   * machen." Schmalerer Keil (0,38 → 0,28 Radiant Halböffnung), dünnerer
+   * Strich (7 → 5 px) und niedrigere Spitzenhelligkeit (0,72 → 0,52) – das
+   * Muster bleibt dasselbe, nur weniger dominant über dem Spielfeld.
    */
   private drawHitWedges(viewport: Viewport): void {
     const now = performance.now();
     this.hitWedges = this.hitWedges.filter((wedge) => wedge.until > now);
     if (this.hitWedges.length === 0) return;
     const center = { x: viewport.x + viewport.width / 2, y: viewport.y + viewport.height / 2 };
-    const radius = Math.min(viewport.width, viewport.height) * 0.42;
+    const radius = Math.min(viewport.width, viewport.height) * 0.4;
     for (const wedge of this.hitWedges) {
-      const alpha = 0.72 * clamp((wedge.until - now) / 600, 0, 1);
-      this.drawArc(center, radius, wedge.angle - 0.38, wedge.angle + 0.38, { color: 0xef5f6f, alpha, width: 7 });
+      const alpha = 0.52 * clamp((wedge.until - now) / 600, 0, 1);
+      this.drawArc(center, radius, wedge.angle - 0.28, wedge.angle + 0.28, { color: 0xef5f6f, alpha, width: 5 });
     }
   }
 
