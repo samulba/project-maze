@@ -368,7 +368,8 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     wunsch: 'Die Tanks sind noch immer viel zu unbalanced – als LVL 60 Vortex fühlt man sich unbesiegbar: mega schnell, mega viel HP, riesiger Spread, alles. Überall fehlt das komplette Balancing.',
     bereich: 'klassen',
     stand: 'offen',
-    gemeldet: '2026-08-13'
+    gemeldet: '2026-08-13',
+    notiz: 'Gemessen (siehe BAL2): Ein L60 Vortex mit ausgewogenem Punkteeinsatz trägt 273 statt 96 DPS (2,84x), aber nur 224 statt 118 Leben (1,9x) und 364 statt 280 Tempo (1,3x) gegenüber L1 – die Punkte-Ökonomie verstärkt Schaden deutlich stärker als Überleben oder Tempo. Die Levelabstand-Fairness aus BAL2 mildert das im direkten Duell, ändert aber nichts an gleichstufigen Duellen oder an einzelnen Klassenwerten (z. B. Vortex-Spread). Braucht eine konkretere Ansage, welche Klassen/Werte gemeint sind, um zielgerichtet statt pauschal zu ändern.'
   },
   {
     id: 'BAL2',

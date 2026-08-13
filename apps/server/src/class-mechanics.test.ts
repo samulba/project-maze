@@ -4,12 +4,14 @@ import { tuneClassMechanics } from './class-mechanics';
 import { tuneCombatScaling, tunedStatsFor } from './combat-tuning';
 import { applyDebugBuild } from './debug-lab';
 import { MazeGame } from './game';
+import { messfeld } from './messfeld';
 
 interface Internals {
   players: Map<string, any>;
   projectiles: Map<string, any>;
   damagePlayer(target: any, damage: number, attackerId: string | null, now: number): void;
   fire(player: any, stats: any): void;
+  stepPlayer(player: any, dt: number, now: number): void;
 }
 
 const createGame = (): MazeGame => tuneClassMechanics(tuneCombatScaling(new MazeGame(0)));
@@ -136,8 +138,13 @@ describe('class mechanics', () => {
     const attackerId = game.addPlayer('Deadeye');
     const targetId = game.addPlayer('Target');
     const internals = game as unknown as Internals;
-    const attacker = preparePlayer(game, attackerId, 'deadeye', 38);
-    const target = preparePlayer(game, targetId, 'core', 10);
+    // Levelabstand bewusst klein: Ab 15 Stufen Differenz greift die
+    // Fairness-Dämpfung gegen niedrigstufige Ziele (BAL2) – dieser Test prüft
+    // ausschließlich den Deadeye-Bonus, nicht deren Zusammenspiel. Deadeye
+    // schaltet erst ab Level 28 frei, daher steigt hier das Ziel mit, statt
+    // den Angreifer darunter zu drücken.
+    const attacker = preparePlayer(game, attackerId, 'deadeye', 30);
+    const target = preparePlayer(game, targetId, 'core', 18);
     attacker.position = { x: 2900, y: 2000 };
     target.position = { x: 3000, y: 2000 };
 
@@ -149,6 +156,150 @@ describe('class mechanics', () => {
     const before = target.health;
     internals.damagePlayer(target, 10, attackerId, Date.now() + 1);
     expect(before - target.health).toBeCloseTo(12.5, 4);
+  });
+
+  describe('Fairness gegen niedrigstufige Ziele (BAL2)', () => {
+    it('lässt kleine Levelabstände unangetastet', () => {
+      const game = createGame();
+      const attackerId = game.addPlayer('Attacker');
+      const targetId = game.addPlayer('Target');
+      const internals = game as unknown as Internals;
+      const attacker = preparePlayer(game, attackerId, 'core', 20);
+      const target = preparePlayer(game, targetId, 'core', 10);
+      internals.damagePlayer(target, 10, attackerId, Date.now());
+      // Differenz 10 liegt unter der freien Spanne (15) – exakt wie vorher.
+      expect(target.maxHealth - target.health).toBeCloseTo(10, 6);
+    });
+
+    it('dämpft den Schaden eines deutlich höherstufigen Angreifers, gedeckelt', () => {
+      const game = createGame();
+      const internals = game as unknown as Internals;
+
+      // Differenz 30 liegt zwischen frei (15) und voll (45): Faktor 0,5,
+      // also −0,5 × 35 % = −17,5 % → 8,25 statt 10 Schaden.
+      const naheId = game.addPlayer('Angreifer nah');
+      preparePlayer(game, naheId, 'core', 40);
+      const opferNaheId = game.addPlayer('Opfer nah');
+      const opferNahe = preparePlayer(game, opferNaheId, 'core', 10);
+      internals.damagePlayer(opferNahe, 10, naheId, Date.now());
+      expect(opferNahe.maxHealth - opferNahe.health).toBeCloseTo(8.25, 4);
+
+      // Differenz 59 liegt über dem Deckel (45): volle Wirkung, −35 % → 6,5.
+      const fernId = game.addPlayer('Angreifer fern');
+      preparePlayer(game, fernId, 'core', 60);
+      const opferFernId = game.addPlayer('Opfer fern');
+      const opferFern = preparePlayer(game, opferFernId, 'core', 1);
+      internals.damagePlayer(opferFern, 10, fernId, Date.now());
+      expect(opferFern.maxHealth - opferFern.health).toBeCloseTo(6.5, 4);
+    });
+
+    it('verstärkt einen niedrigstufigen Angreifer NICHT beim Treffer auf einen hochstufigen', () => {
+      const game = createGame();
+      const attackerId = game.addPlayer('Klein');
+      const targetId = game.addPlayer('Groß');
+      const internals = game as unknown as Internals;
+      preparePlayer(game, attackerId, 'core', 1);
+      const target = preparePlayer(game, targetId, 'core', 60);
+      internals.damagePlayer(target, 10, attackerId, Date.now());
+      // Umgekehrter Abstand: der Kleine trifft den Großen – keine Sonderregel.
+      expect(target.maxHealth - target.health).toBeCloseTo(10, 6);
+    });
+
+    it('gibt dem getroffenen Unterlegenen kurz mehr Tempo zur Flucht', () => {
+      // Vergleichend statt absolut gemessen: Das Original zieht velocity jeden
+      // Tick Richtung `move` zurück (hier 0 – also Abbremsen), der Flucht-Bonus
+      // multipliziert das Ergebnis erst danach. Ein zweiter, ungetroffener
+      // Spieler unter identischen Bedingungen liefert den Nenner für den
+      // reinen Bonusfaktor, unabhängig von der Bremsphysik.
+      const game = createGame();
+      const internals = game as unknown as Internals;
+      const attackerId = game.addPlayer('Groß');
+      preparePlayer(game, attackerId, 'core', 60);
+
+      const getroffenId = game.addPlayer('Klein getroffen');
+      const getroffen = preparePlayer(game, getroffenId, 'core', 1);
+      getroffen.velocity = { x: 100, y: 0 };
+      const ungetroffenId = game.addPlayer('Klein ungetroffen');
+      const ungetroffen = preparePlayer(game, ungetroffenId, 'core', 1);
+      ungetroffen.velocity = { x: 100, y: 0 };
+
+      const now = Date.now();
+      internals.damagePlayer(getroffen, 10, attackerId, now);
+      internals.stepPlayer(getroffen, 1 / 40, now + 10);
+      internals.stepPlayer(ungetroffen, 1 / 40, now + 10);
+      // Voller Abstand (59) → voller Flucht-Bonus (+30 %).
+      expect(getroffen.velocity.x / ungetroffen.velocity.x).toBeCloseTo(1.3, 4);
+
+      // Nach Ablauf der Dauer ist der Bonus wieder weg.
+      getroffen.velocity = { x: 100, y: 0 };
+      ungetroffen.velocity = { x: 100, y: 0 };
+      internals.stepPlayer(getroffen, 1 / 40, now + 3000);
+      internals.stepPlayer(ungetroffen, 1 / 40, now + 3000);
+      expect(getroffen.velocity.x / ungetroffen.velocity.x).toBeCloseTo(1, 6);
+    });
+
+    /**
+     * Regressionstest für einen echten Fehler, den erst `messung-bal2-
+     * fairness.mjs` über viele Ticks aufgedeckt hat: `velocity *= factor`
+     * JEDEN Tick (wie perks.ts es mit seinen eigenen Tempo-Faktoren macht)
+     * lief hier davon – gemessen 10 550 statt der beabsichtigten 351 px/s,
+     * weil die Multiplikation proportional zur aktuellen Geschwindigkeit
+     * wächst, während `moveVectorToward` nur eine feste Schrittweite
+     * zurückzieht. Ein einzelner Tick (der Test oben) hat das nie gezeigt.
+     */
+    it('läuft über viele Ticks nicht davon – Deckel statt Multiplikation', () => {
+      const game = createGame();
+      const internals = game as unknown as Internals;
+      const attackerId = game.addPlayer('Groß');
+      preparePlayer(game, attackerId, 'core', 60);
+      const targetId = game.addPlayer('Klein');
+      const target = preparePlayer(game, targetId, 'core', 1);
+      // Nachweislich freies Feld: Bei bis zu 351 px/s und 30 Ticks legt das
+      // Ziel höchstens rund 260 px zurück – 300 px Rand lassen keine Wand im
+      // Weg stehen (anders als eine zufällige Spawn-Position im Labyrinth,
+      // an der die erste Fassung dieses Tests scheinbar auf 0 gefallen war).
+      target.position = { ...messfeld(300) };
+      target.velocity = { x: 0, y: 0 };
+      target.move = { x: -1, y: 0 };
+      const stats = tunedStatsFor(target);
+
+      let now = Date.now();
+      internals.damagePlayer(target, 10, attackerId, now);
+      for (let tick = 0; tick < 30; tick += 1) {
+        now += 25;
+        internals.stepPlayer(target, 1 / 40, now);
+        const tempo = Math.hypot(target.velocity.x, target.velocity.y);
+        // Nie mehr als die Decke (Klassentempo × 1,3), mit kleiner Toleranz
+        // für Rundung – zu keinem Zeitpunkt, nicht erst im Mittel.
+        expect(tempo, `Tick ${tick}: ${tempo.toFixed(1)} px/s`).toBeLessThanOrEqual(stats.moveSpeed * 1.3 * 1.01);
+      }
+      // Und tatsächlich am Deckel angekommen, nicht irgendwo weit darunter.
+      const endTempo = Math.hypot(target.velocity.x, target.velocity.y);
+      expect(endTempo).toBeCloseTo(stats.moveSpeed * 1.3, 0);
+    });
+
+    it('lässt den Angreifer selbst unberührt – nur das Opfer bekommt den Bonus', () => {
+      // Wieder vergleichend: ein zweiter, an keinem Treffer beteiligter
+      // Angreifer unter identischen Bedingungen liefert den Nenner, damit die
+      // normale Abbrems-Physik (velocity Richtung `move` = 0) nicht als
+      // vermeintlicher Bonus durchgeht.
+      const game = createGame();
+      const internals = game as unknown as Internals;
+      const attackerId = game.addPlayer('Groß trifft');
+      const attacker = preparePlayer(game, attackerId, 'core', 60);
+      attacker.velocity = { x: 100, y: 0 };
+      const unbeteiligtId = game.addPlayer('Groß unbeteiligt');
+      const unbeteiligt = preparePlayer(game, unbeteiligtId, 'core', 60);
+      unbeteiligt.velocity = { x: 100, y: 0 };
+      const targetId = game.addPlayer('Klein');
+      const target = preparePlayer(game, targetId, 'core', 1);
+
+      const now = Date.now();
+      internals.damagePlayer(target, 10, attackerId, now);
+      internals.stepPlayer(attacker, 1 / 40, now + 10);
+      internals.stepPlayer(unbeteiligt, 1 / 40, now + 10);
+      expect(attacker.velocity.x / unbeteiligt.velocity.x).toBeCloseTo(1, 6);
+    });
   });
 
   it('keeps all class mechanic numbers finite', () => {
