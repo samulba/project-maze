@@ -119,22 +119,28 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'D4',
     wunsch: 'Drohnen brauchen noch ein Rework – die Bewegung ist noch nicht so clean, Rechtsklick und Auto-Modus gehen wesentlich smoother.',
     bereich: 'drohnen',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '69aecea',
+    notiz: 'Rechtsklick-Ziel fest statt wandernd (Fächer statt Einzelpunkt); Zielgedächtnis gegen Flackern an der Suchradius-Grenze (84 px → 5 px Spannweite).'
   },
   {
     id: 'D5',
     wunsch: 'Drohnen bewegen sich noch zu schnell.',
     bereich: 'drohnen',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '69aecea',
+    notiz: 'Tempo-Verhältnis Drohne:Besitzer 1,38–2,20× → 1,00–1,58×; Beschleunigungsrampe 0,28–0,33 s → 0,37–0,44 s.'
   },
   {
     id: 'D6',
     wunsch: 'Alles was gegen Wände geht sollte kaputtgehen (Drohnen etc.).',
     bereich: 'drohnen',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '69aecea',
+    notiz: 'Frontalaufprall (Restgeschwindigkeit < 30 % des Anlaufs) zerstört die Drohne; Streifschuss beim Navigieren (20× häufiger) bleibt folgenlos.'
   },
   {
     id: 'D7',
