@@ -146,8 +146,10 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'D7',
     wunsch: 'Die Bots benutzen bei Drohnen kein Rechtsklick.',
     bereich: 'bots',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: 'HASH_PLATZHALTER',
+    notiz: 'Rechtsklick jetzt an die Fluchterkennung gekoppelt (Schutzschild beim Rückzug) statt an blosse Nähe. Gemessen: 17,4 % der Ticks bei niedrigem Leben, 0,0 % bei gesunder Flotte.'
   },
   {
     id: 'D8',

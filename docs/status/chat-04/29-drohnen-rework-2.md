@@ -109,9 +109,40 @@ zurückgestellten Drohnen-Änderungen bestätigt: Das Flackern existierte schon
 vorher – nicht Teil dieses Pakets, aber notiert für die nächste
 Aufräumrunde.
 
+## 4. Bot-Rechtsklick – Sam: „Die Bots benutzen bei Drohnen kein Rechtsklick"
+
+Der Befund stimmte, aber nicht ganz aus dem vermuteten Grund: Die Bots
+lösten `secondary` durchaus aus – bei jedem Gegner unter 230 px, unabhängig
+davon, ob der Bot gerade angriff oder floh. Das drückte die eigene Flotte
+also auch dann vom Gegner weg, wenn Kontaktschaden am meisten gebracht
+hätte, und traf selten genau die Situation, in der ein Mensch selbst zum
+Rechtsklick greifen würde.
+
+Jetzt hängt der Klick an derselben Fluchterkennung, die auch die Bewegung
+umkehrt: Ein Bot, der wegläuft (Leben unter seinem Fluchtwert, oder deutlich
+unterlegen), schiebt seine Drohnen als Schutzschild zwischen sich und den
+Verfolger. `aim` zeigt zu diesem Zeitpunkt schon auf den Gegner, „weg vom
+Zeiger" trifft also die richtige Richtung. Im Angriff bleibt der Klick aus –
+dort erledigt die automatische Zielsuche (Stufe 1) den Kontakt von selbst.
+
+Gemessen im vollen Server-Stack (24 Bots, 90 s, `messung-bot-rechtsklick.mjs`):
+
+```
+Rechtsklick bei niedrigem Leben (< 50 %): 17,4 % der Ticks
+Rechtsklick bei gesunder Flotte:           0,0 % der Ticks
+```
+
+Zwei Tests sichern die Regel ab (Gegenprobe mit der alten Bedingung
+bestätigt: Der zweite Test – „kein Rechtsklick im Angriff" – schlägt ohne
+den Fix fehl).
+
+## Geprüft (gesamt)
+
+`npm run check` grün: 82 Dateien, 1133 Tests (+6 seit Bericht 28: vier aus
+Abschnitt 1–3, zwei aus Abschnitt 4).
+
 ## Offen aus Sams Liste (Drohnen)
 
-* **D7** – Bots benutzen bei Drohnen kein Rechtsklick.
 * **D8** – Factory ist noch keine Factory, sondern einfach Mini-Drohnen.
 
-Beide als Nächstes.
+Als Nächstes.

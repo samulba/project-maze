@@ -329,6 +329,54 @@ describe('bot brain', () => {
   });
 });
 
+/**
+ * Rechtsklick bei Drohnenklassen (Drohnen-Rework 2, Sam: „Die Bots benutzen
+ * bei Drohnen kein Rechtsklick"). Vorher löste `secondary` bei JEDEM nahen
+ * Gegner aus, egal ob der Bot angriff oder floh – das drückte die eigene
+ * Flotte genau dann vom Gegner weg, wenn Kontaktschaden am meisten brachte.
+ */
+describe('Rechtsklick bei Drohnenbots', () => {
+  const aufbau = () => {
+    const game = createGame(1);
+    const internals = game as unknown as Internals;
+    const bot = [...internals.players.values()].find((player) => player.bot);
+    if (!bot) throw new Error('kein Bot erzeugt');
+    bot.playerClass = 'drone';
+    bot.position = ORT;
+    bot.invulnerable = false;
+    bot.invulnerableUntil = 0;
+    bot.maxHealth = 200;
+    // Jäger hat als einziger Stil Angriffslust 1,0 (kein Würfelwurf) – ohne
+    // das entscheidet die Zielaufnahme selbst per Zufall, ob der Gegner
+    // überhaupt anvisiert wird, und der Test würde flackern statt das
+    // Rechtsklick-Verhalten zu prüfen.
+    bot.bot.style = 'hunter';
+
+    const feindId = game.addPlayer('Feind');
+    const feind = internals.players.get(feindId);
+    feind.position = { x: ORT.x + 150, y: ORT.y };
+    feind.invulnerable = false;
+    feind.invulnerableUntil = 0;
+    feind.level = 20;
+    return { game, internals, bot, feind };
+  };
+
+  it('schiebt die Flotte als Schutzschild weg, während der Bot flieht', () => {
+    const { internals, bot } = aufbau();
+    bot.health = bot.maxHealth * 0.1; // klar unter jedem fleeHealth-Wert (0,1-0,48)
+    decide(internals, bot, 10_000);
+    expect(bot.secondary, 'kein Rechtsklick trotz Flucht mit nahem Gegner').toBe(true);
+    expect(bot.primary).toBe(false);
+  });
+
+  it('lässt den Rechtsklick beim Angriff aus – dafür ist die automatische Zielsuche da', () => {
+    const { internals, bot } = aufbau();
+    bot.health = bot.maxHealth; // voll gesund, kein Fluchtgrund
+    decide(internals, bot, 10_000);
+    expect(bot.secondary, 'Rechtsklick trotz gesunder Flotte im Angriff').toBe(false);
+  });
+});
+
 describe('Bot-Bestand (Befund 75)', () => {
   /** Standardarena bauen, einen Tick laufen lassen (Gehirne entstehen), Bestand lesen. */
   const bestand = () => {

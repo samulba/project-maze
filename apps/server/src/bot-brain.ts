@@ -619,7 +619,23 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
     // Verfolgung, kein Beschuss der Wand (Befund 77).
     const mayFire = enemy === undefined || enemyVisible;
     if (isDroneClass) {
-      player.secondary = Boolean(enemy && enemyVisible && distance < 230);
+      /*
+       * Rechtsklick als Rückzugsschild – Sam: „Die Bots benutzen bei Drohnen
+       * kein Rechtsklick."
+       *
+       * Vorher löste `secondary` bei jedem nahen Gegner aus (< 230 px), egal
+       * ob der Bot gerade angriff oder floh. Das drückte die eigene Flotte
+       * genau dann vom Gegner weg, wenn Kontaktschaden am meisten brachte –
+       * die seltenste, am wenigsten sinnvolle Gelegenheit für den Knopf.
+       *
+       * Jetzt fällt die Entscheidung mit derselben Flucht-Erkennung, die auch
+       * die Bewegung umkehrt (`fleeing`, Zeile oben): Ein Bot, der wegläuft,
+       * schiebt seine Drohnen als Schild zwischen sich und den Verfolger –
+       * `aim` zeigt bereits auf den Gegner, „weg vom Zeiger" trifft also die
+       * richtige Richtung. Im Angriff bleibt der Klick aus; dort erledigt die
+       * automatische Zielsuche (Stufe 1) den Kontakt ohnehin von selbst.
+       */
+      player.secondary = Boolean(enemy && enemyVisible && distance < 300 && fleeing);
       player.primary = !player.secondary && distance < 900 && mayFire;
       return;
     }
