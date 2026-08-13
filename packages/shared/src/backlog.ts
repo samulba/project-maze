@@ -375,8 +375,10 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'BAL2',
     wunsch: 'Auch fairer gegen kleinere (niedrigstufige) Tanks: Hochstufige sollen sie nicht so schnell töten können, aber die kleinen sollen dafür schneller abhauen können.',
     bereich: 'klassen',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: 'c59e878 – Schadensabschlag (bis −35 %) und Flucht-Tempo (bis +30 %, 2,5 s) ab 15 Stufen Differenz, gedeckelt ab 45',
+    notiz: 'Gemessen: Vortex L60 (balanced) gegen unbewegliches L1 Core – TTK 0,49 s → 0,88 s (scripts/messungen/messung-bal2-fairness.mjs). Wirkt automatisch mit auf BAL1, deckt aber nicht dessen breitere Forderung "überall Balancing fehlt" ab.'
   },
   {
     id: 'K5',
