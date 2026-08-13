@@ -141,8 +141,66 @@ den Fix fehl).
 `npm run check` grün: 82 Dateien, 1133 Tests (+6 seit Bericht 28: vier aus
 Abschnitt 1–3, zwei aus Abschnitt 4).
 
-## Offen aus Sams Liste (Drohnen)
+## 5. Factory-Minions – Sam: „Factory ist noch keine Factory, sondern einfach Mini-Drohnen"
 
-* **D8** – Factory ist noch keine Factory, sondern einfach Mini-Drohnen.
+Vorher hatten `factory` und `carrier` nur einen größeren Körper – dasselbe
+Kontaktverhalten wie jede andere der zehn Drohnenklassen, nur mit mehr Leben
+und mehr Kontaktschaden. In Diep.io trägt ein Factory-Minion ein eigenes
+Geschütz; das war der fehlende Teil.
 
-Als Nächstes.
+Beide Klassen bekommen jetzt eine `minionWaffe` (Schaden, Nachladezeit,
+Geschosstempo, Lebensdauer, Geschossradius) – **zusätzlich** zum Kontakt,
+nicht statt ihm. Die übrigen acht Archetypen bleiben unverändert reine
+Kontaktkämpfer, ihre Klassenbeschreibung verspricht kein Geschütz.
+
+Drei Regeln, jede mit einem eigenen Test abgesichert:
+
+* Es feuert nur auf ein echtes Angriffsziel (Rechtsklick zählt nicht – eine
+  fliehende Drohne schießt nicht zurück).
+* Die Waffe hat eine eigene, kurze Reichweite (Tempo × Lebensdauer: 299 px
+  bei factory, 318 px bei carrier) – deutlich unter dem Suchradius (540 /
+  580), damit ein Minion erst kurz vor dem eigentlichen Kontakt zu schießen
+  beginnt und nicht quer durchs halbe Suchfeld feuert.
+* Sichtlinie wird von der DROHNE aus geprüft, nicht vom Besitzer – die
+  Formation kann eine Drohne an eine Stelle verschieben, an der eine Wand im
+  Weg steht, obwohl der Besitzer selbst freie Sicht hat.
+
+Die Geschosse laufen im selben Projektil-System wie jeder Spielerschuss
+(Kollision, Wandaufprall, Lebensdauer) – kein Parallelsystem, keine
+Sonderbehandlung bei Schadenszuweisung oder Killfeed.
+
+Gemessen (`messung-drohnen-minions.mjs`, Gegenprobe mit testweise
+abgeschalteter Waffe):
+
+```
+                80px    150px    250px    350px    450px
+factory   97,4→131,1  92,5→122,5  84,4→114,4  84,4→110,6   65→91,3 dps
+carrier    108→147,4   108→147,4   108→147,4    96→135,4  96→129,8 dps
+```
+
+Ein durchgängiges Plus von 25 bis 35 DPS über den ganzen gemessenen
+Abstandsbereich – nicht nur "bei Reichweite", weil die Flotte ohnehin fast
+immer bis zum Kontakt durchläuft, sondern als echter Bonus obendrauf.
+
+## Geprüft (gesamt, inkl. Factory-Minions)
+
+`npm run check` grün: 82 Dateien, 1137 Tests (+4 seit oben: ein
+Feuer-Nachweis, Reichweiten-Grenze, Sichtlinien-Grenze, Kontaktklassen
+unberührt). Gegenprobe (Waffe testweise abgeschaltet) bestätigt: Der erste
+der vier Tests schlägt ohne die Waffe fehl, die anderen drei sichern die
+Grenzen ab, die es sonst zu leicht zu überschreiten gäbe.
+
+Die bekannte, unabhängige Flake aus Abschnitt „Geprüft" trat in einem
+weiteren vollen Sammellauf diesmal in `arena-royale.test.ts` statt
+`arena-systems.test.ts` auf (dieselbe Ursache: eine driftende Form trifft
+zufällig einen ruhenden Testspieler, abhängig von der Zufallszahlenfolge
+über den ganzen Sammellauf) – isoliert zuverlässig grün, per Gegenprobe mit
+zurückgestelltem Drohnen-Paket bestätigt als vom Paket unabhängig.
+
+## Sams Liste (Drohnen) – Stand
+
+Alle Punkte aus dem Drohnen-Rework 2 (D4–D8) sind jetzt erledigt.
+
+Als Nächstes: die übrigen offenen Punkte aus dem Spieltest vom 13.08.
+(Minimap, UI-Feinschliff, Bot-Bewegung, Waffenoptik) – siehe `/admin`,
+Bereich-Übersicht.

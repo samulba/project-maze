@@ -33,6 +33,23 @@ interface DroneArchetype {
    * Hause, Schwärme greifen weit.
    */
   searchRadius: number;
+  /**
+   * Eigene Waffe der Drohne – Sam: „Factory ist noch keine Factory, sondern
+   * einfach Mini-Drohnen." Nur `factory` und `carrier` tragen das: In
+   * Diep.io sind Factory-„Minions" Einheiten mit einem eigenen Geschütz, kein
+   * größerer Körper mit demselben Kontaktverhalten wie jede andere
+   * Drohnenklasse. Optional, weil die übrigen acht Archetypen reine
+   * Kontaktkämpfer bleiben – ihre Beschreibung verspricht kein Geschütz.
+   */
+  minionWaffe?: MinionWaffe;
+}
+
+interface MinionWaffe {
+  damage: number;
+  reload: number;
+  projectileSpeed: number;
+  projectileLife: number;
+  projectileRadius: number;
 }
 
 /**
@@ -44,9 +61,21 @@ interface DroneArchetype {
 const DRONE_ARCHETYPES_ROH: Partial<Record<PlayerClass, DroneArchetype>> = {
   drone: { health: 36, speed: 440, acceleration: 1450, radius: 12, orbitRadius: 82, searchRadius: 520 },
   warden: { health: 32, speed: 480, acceleration: 1650, radius: 10.5, orbitRadius: 88, searchRadius: 560 },
-  factory: { health: 54, speed: 390, acceleration: 1250, radius: 13.5, orbitRadius: 86, searchRadius: 540 },
+  // Minion-Waffe (siehe `MinionWaffe`): moderates Tempo, kurze Reichweite –
+  // ein Vorstoß, kein Ersatz für die Hauptwaffe des Besitzers. Schaden und
+  // Nachladezeit gemessen gegen die reinen Kontaktarchetypen derselben Stufe
+  // in messung-drohnen-minions.mjs; Reichweite bewusst kleiner als der
+  // Suchradius, damit ein Minion erst kurz vor dem Kontakt zu schießen
+  // beginnt und nicht quer durchs halbe Suchfeld feuert.
+  factory: {
+    health: 54, speed: 390, acceleration: 1250, radius: 13.5, orbitRadius: 86, searchRadius: 540,
+    minionWaffe: { damage: 6, reload: 1.1, projectileSpeed: 460, projectileLife: 0.65, projectileRadius: 5 }
+  },
   overseer: { health: 28, speed: 510, acceleration: 1780, radius: 9.5, orbitRadius: 94, searchRadius: 620 },
-  carrier: { health: 72, speed: 350, acceleration: 1050, radius: 15.5, orbitRadius: 92, searchRadius: 580 },
+  carrier: {
+    health: 72, speed: 350, acceleration: 1050, radius: 15.5, orbitRadius: 92, searchRadius: 580,
+    minionWaffe: { damage: 7.5, reload: 1.2, projectileSpeed: 430, projectileLife: 0.74, projectileRadius: 5.5 }
+  },
   guardian: { health: 62, speed: 380, acceleration: 1200, radius: 13, orbitRadius: 62, searchRadius: 420 },
   hive: { health: 18, speed: 530, acceleration: 1900, radius: 7.5, orbitRadius: 100, searchRadius: 700 },
   /*
@@ -117,12 +146,26 @@ interface RuntimePlayer extends PlayerSnapshot {
 interface RuntimeDrone extends DroneSnapshot {
   slot: number;
   contactCooldown: number;
+  /** Nachladezeit der Minion-Waffe – nur an Drohnen mit `minionWaffe` gepflegt. */
+  fireCooldown?: number;
   gameplayRadius?: number;
+}
+interface RuntimeProjectile {
+  id: string;
+  ownerId: string;
+  position: Vector2;
+  velocity: Vector2;
+  radius: number;
+  integrity: number;
+  maxIntegrity: number;
+  damage: number;
+  life: number;
 }
 interface DroneInternals {
   players: Map<string, RuntimePlayer>;
   drones: Map<string, RuntimeDrone>;
   shapes: Map<string, ShapeSnapshot>;
+  projectiles: Map<string, RuntimeProjectile>;
   nextDroneSpawn: Map<string, number>;
   spawnDrone(owner: RuntimePlayer, slot: number): void;
   stepDrones(dt: number, now: number): void;
@@ -334,6 +377,7 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
       const reload = reloadFor(owner);
       const damage = damageFor(owner);
       drone.contactCooldown = Math.max(0, drone.contactCooldown - dt);
+      if (archetype.minionWaffe) drone.fireCooldown = Math.max(0, (drone.fireCooldown ?? 0) - dt);
 
       const aim = clampMagnitude(owner.aim, GAME.maxAimDistance);
       const orbitAngle = now / 850 + drone.slot * Math.PI * 2 / Math.max(1, definition.droneCount);
@@ -363,6 +407,11 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
        */
       let ziel = orbit;
       let formation = true;
+      // Für Minion-Waffen (siehe unten): der rohe Angriffspunkt VOR der
+      // Formations-Verschiebung, oder `null`, wenn dieser Tick kein Angriff
+      // ist (Rückzug, Orbit). Beim Rechtsklick nie gesetzt – eine fliehende
+      // Drohne feuert nicht zurück.
+      let kampfziel: Vector2 | null = null;
       if (owner.secondary) {
         // Weg vom Zeiger – aber als FESTER Punkt relativ zum Besitzer, nicht
         // mehr relativ zur eigenen (wandernden) Position der Drohne. Die alte
@@ -383,9 +432,10 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
         formation = false;
       } else if (owner.primary) {
         ziel = zeiger;
+        kampfziel = zeiger;
       } else {
         const gesucht = sucheZiel(internals, owner, archetype.searchRadius, zielSpeicher);
-        if (gesucht) ziel = gesucht;
+        if (gesucht) { ziel = gesucht; kampfziel = gesucht; }
         else formation = false;
       }
 
@@ -451,6 +501,45 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
           continue;
         }
       }
+      /*
+       * Minion-Waffe – Sam: „Factory ist noch keine Factory, sondern einfach
+       * Mini-Drohnen." Ein echtes Diep.io-Minion hat ein eigenes Geschütz,
+       * keinen bloß größeren Körper mit demselben Kontaktverhalten wie jede
+       * andere Drohnenklasse. Das Geschütz kommt zusätzlich zum Kontakt,
+       * nicht statt ihm – deshalb eigene Nachladezeit, eigene Bedingung, und
+       * bewusst VOR dem `contactCooldown`-Abbruch: Ein Minion, dessen letzter
+       * Rempler noch nachlädt, darf trotzdem schießen.
+       *
+       * `kampfziel` ist der rohe Angriffspunkt vor der Formations-Verschiebung
+       * (siehe oben) – beim Rückzug oder ohne Ziel bleibt er `null`, und es
+       * wird nicht geschossen. Sichtlinie wird von der DROHNE aus geprüft,
+       * nicht vom Besitzer: Die Formation kann eine Drohne an eine Stelle
+       * verschieben, an der eine Wand im Weg steht, obwohl der Besitzer freie
+       * Sicht hat.
+       */
+      if (archetype.minionWaffe && kampfziel && (drone.fireCooldown ?? 0) <= 0) {
+        const waffe = archetype.minionWaffe;
+        const zumZiel2 = { x: kampfziel.x - drone.position.x, y: kampfziel.y - drone.position.y };
+        const entfernung = Math.hypot(zumZiel2.x, zumZiel2.y);
+        const reichweite = waffe.projectileSpeed * waffe.projectileLife;
+        if (entfernung > 0.001 && entfernung <= reichweite && hasLineOfSight(drone.position, kampfziel)) {
+          const richtung = { x: zumZiel2.x / entfernung, y: zumZiel2.y / entfernung };
+          const id = crypto.randomUUID();
+          internals.projectiles.set(id, {
+            id,
+            ownerId: owner.id,
+            position: { x: drone.position.x + richtung.x * (radius + waffe.projectileRadius), y: drone.position.y + richtung.y * (radius + waffe.projectileRadius) },
+            velocity: { x: richtung.x * waffe.projectileSpeed, y: richtung.y * waffe.projectileSpeed },
+            radius: waffe.projectileRadius,
+            integrity: 1,
+            maxIntegrity: 1,
+            damage: waffe.damage,
+            life: waffe.projectileLife
+          });
+          drone.fireCooldown = waffe.reload;
+        }
+      }
+
       if (drone.contactCooldown > 0) continue;
 
       const shape = [...internals.shapes.values()].find(

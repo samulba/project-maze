@@ -400,3 +400,147 @@ describe('Wandtod', () => {
     expect(interna.drones.size).toBe(startbestand);
   });
 });
+
+/**
+ * Minion-Waffe (D8, Sam: „Factory ist noch keine Factory, sondern einfach
+ * Mini-Drohnen"). factory und carrier tragen jetzt ein eigenes Geschütz
+ * (`minionWaffe`), das zusätzlich zum Kontakt feuert – nicht statt ihm.
+ * Gemessen (`messung-drohnen-minions.mjs`, Gegenprobe mit abgeschalteter
+ * Waffe): +25 bis +35 DPS quer über alle gemessenen Abstände.
+ */
+describe('Minion-Waffe', () => {
+  interface Interna {
+    players: Map<string, any>;
+    shapes: Map<string, any>;
+    drones: Map<string, any>;
+    projectiles: Map<string, any>;
+  }
+
+  const OFFENES_FELD = messpunkt({ links: 400, rechts: 400, oben: 400, unten: 400 });
+
+  // Klassenbaum core -> drone -> factory -> carrier: chooseClass erlaubt nur
+  // den direkten Elternschritt, ein Sprung von core direkt auf factory
+  // scheitert. Also den ganzen Pfad durchlaufen.
+  const KLASSENPFAD: Record<'drone' | 'factory' | 'carrier', ('drone' | 'factory' | 'carrier')[]> = {
+    drone: ['drone'],
+    factory: ['drone', 'factory'],
+    carrier: ['drone', 'factory', 'carrier']
+  };
+
+  const aufbau = (klasse: 'factory' | 'carrier' | 'drone') => {
+    const game = tuneDrones(tuneCombatScaling(new MazeGame(0)));
+    const interna = game as unknown as Interna;
+    interna.shapes.clear();
+    const id = game.addPlayer('Controller');
+    const spieler = interna.players.get(id);
+    spieler.level = 45;
+    spieler.position = { ...OFFENES_FELD };
+    spieler.invulnerable = false;
+    spieler.invulnerableUntil = 0;
+    for (const schritt of KLASSENPFAD[klasse]) expect(game.chooseClass(id, schritt)).toBe(true);
+    game.step(1 / 40, 100_000);
+    return { game, interna, id, spieler };
+  };
+
+  const gegnerBei = (interna: Interna, game: MazeGame, position: { x: number; y: number }) => {
+    const id = game.addPlayer('Gegner');
+    const gegner = interna.players.get(id);
+    gegner.position = { ...position };
+    gegner.invulnerable = false;
+    gegner.invulnerableUntil = 0;
+    gegner.level = 45;
+    return { id, gegner };
+  };
+
+  it('feuert einen Minion-Schuss auf ein Ziel in Reichweite und Sichtlinie', () => {
+    const { game, interna } = aufbau('factory');
+    const { gegner } = gegnerBei(interna, game, { x: OFFENES_FELD.x + 150, y: OFFENES_FELD.y });
+
+    let now = 100_000;
+    let gefeuert = false;
+    for (let tick = 0; tick < 80 && !gefeuert; tick += 1) {
+      gegner.position = { x: OFFENES_FELD.x + 150, y: OFFENES_FELD.y };
+      game.step(1 / 40, (now += 25));
+      if (interna.projectiles.size > 0) gefeuert = true;
+    }
+    expect(gefeuert, 'kein Minion-Schuss innerhalb von 2 s').toBe(true);
+  });
+
+  /**
+   * factory: 460 px/s * 0,65 s Lebensdauer = 299 px Waffenreichweite. 450 px
+   * liegt innerhalb des Suchradius (540) – die Flotte läuft an –, aber weit
+   * jenseits der Waffenreichweite. Über die ersten 8 Ticks (0,2 s) kann die
+   * Flotte diese Lücke unmöglich schon geschlossen haben.
+   */
+  it('feuert nicht jenseits der eigenen Waffenreichweite', () => {
+    const { game, interna } = aufbau('factory');
+    const { gegner } = gegnerBei(interna, game, { x: OFFENES_FELD.x + 450, y: OFFENES_FELD.y });
+
+    let now = 100_000;
+    for (let tick = 0; tick < 8; tick += 1) {
+      gegner.position = { x: OFFENES_FELD.x + 450, y: OFFENES_FELD.y };
+      game.step(1 / 40, (now += 25));
+      expect(interna.projectiles.size, `Tick ${tick}: Schuss weit außerhalb der Waffenreichweite`).toBe(0);
+    }
+  });
+
+  /**
+   * Sichtlinie wird von der DROHNE aus geprüft, nicht vom Besitzer. Eine
+   * Wand zwischen Flotte und Ziel muss das Feuer unterbinden, auch wenn das
+   * Ziel geometrisch innerhalb der Waffenreichweite läge. Dieselbe Wand wie
+   * in „Wandtod" – die Flotte läuft bis zur Wand vor und bleibt dort hängen,
+   * das Ziel liegt knapp dahinter.
+   */
+  it('feuert nicht ohne Sichtlinie, auch wenn das Ziel geometrisch in Reichweite läge', () => {
+    const findeWand = () => {
+      for (const kandidat of WALLS) {
+        if (!kandidat.id.startsWith('v') || kandidat.width > 200 || kandidat.height < 300) continue;
+        const mitteY = kandidat.y + kandidat.height / 2;
+        const anlauf = { x: kandidat.x - 320, y: mitteY };
+        const dahinter = { x: kandidat.x + kandidat.width + 40, y: mitteY };
+        if (isFree(anlauf, 40) && isFree(dahinter, 40) && !hasLineOfSight(anlauf, dahinter)) {
+          return { wand: kandidat, anlauf, dahinter };
+        }
+      }
+      throw new Error('keine passende Wand gefunden');
+    };
+    const { anlauf, dahinter } = findeWand();
+
+    const game = tuneDrones(tuneCombatScaling(new MazeGame(0)));
+    const interna = game as unknown as Interna;
+    interna.shapes.clear();
+    const id = game.addPlayer('Controller');
+    const spieler = interna.players.get(id);
+    spieler.level = 45;
+    spieler.position = { ...anlauf };
+    spieler.invulnerable = false;
+    spieler.invulnerableUntil = 0;
+    expect(game.chooseClass(id, 'drone')).toBe(true);
+    expect(game.chooseClass(id, 'factory')).toBe(true);
+    game.step(1 / 40, 100_000);
+    gegnerBei(interna, game, dahinter);
+
+    let now = 100_000;
+    for (let tick = 0; tick < 100; tick += 1) {
+      game.step(1 / 40, (now += 25));
+      expect(interna.projectiles.size, `Tick ${tick}: Schuss ohne Sichtlinie durch die Wand`).toBe(0);
+    }
+  });
+
+  /**
+   * Reine Kontaktklassen (kein `minionWaffe`) sind vom Feature unberührt –
+   * niemals ein Eintrag in `projectiles`, egal wie nah der Gegner ist.
+   */
+  it('lässt reine Kontaktklassen unverändert – nie ein Minion-Schuss', () => {
+    const { game, interna } = aufbau('drone');
+    const { gegner } = gegnerBei(interna, game, { x: OFFENES_FELD.x + 150, y: OFFENES_FELD.y });
+
+    let now = 100_000;
+    for (let tick = 0; tick < 80; tick += 1) {
+      gegner.position = { x: OFFENES_FELD.x + 150, y: OFFENES_FELD.y };
+      gegner.health = gegner.maxHealth;
+      game.step(1 / 40, (now += 25));
+      expect(interna.projectiles.size, `Tick ${tick}: drone hat keine minionWaffe, darf nicht schießen`).toBe(0);
+    }
+  });
+});
