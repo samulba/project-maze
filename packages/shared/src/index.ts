@@ -225,6 +225,15 @@ export interface ClassDefinition {
   barrelLength: number;
   /** Feste Laufwinkel relativ zur Zielrichtung (z. B. Heckläufe). Ersetzt das Spread-Layout. */
   barrelAngles?: number[];
+  /**
+   * Salve statt Fächer (Klassen 4.2, Stufe 4 – Sam: „Der eine schießt drei
+   * nach vorne, der andere zwei.") – dieselben `barrelCount` Schüsse, aber
+   * nacheinander statt gleichzeitig, mit dieser Pause dazwischen. Unbesetzt
+   * (Standard): alle Läufe feuern in einem Frame, wie bisher. Bleibt klar
+   * innerhalb von `reload`, damit sich am Gesamtschaden pro Sekunde nichts
+   * ändert – nur am Gefühl.
+   */
+  burstDelay?: number;
   droneCount: number;
   droneRespawn: number;
 }
@@ -275,10 +284,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     droneCount: 0, droneRespawn: 0
   }),
   repeater: classDef({
-    id: 'repeater', label: 'Repeater', description: 'Drei kompakte Läufe bündeln Druck auf einen schmalen Bereich.', parent: 'rapid',
+    id: 'repeater', label: 'Repeater', description: 'Drei Läufe feuern im schnellen Stakkato statt auf einmal – ein Nachlade-Hebel spürbar in jedem Schuss.', parent: 'rapid',
     unlockLevel: 15, branch: 'rapid', maxHealth: 102, regen: 2, acceleration: 1640, moveSpeed: 286,
     reload: 0.34, projectileSpeed: 835, projectileLife: 1.45, damage: 8, projectileRadius: 6,
-    penetration: 14, bodyDamage: 10, barrelCount: 3, barrelSpread: 0.22, barrelLength: 32,
+    penetration: 14, bodyDamage: 10, barrelCount: 3, barrelSpread: 0.22, barrelLength: 32, burstDelay: 0.07,
     droneCount: 0, droneRespawn: 0
   }),
   railgun: classDef({
@@ -558,10 +567,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     droneCount: 0, droneRespawn: 0
   }),
   scorch: classDef({
-    id: 'scorch', label: 'Scorch', description: 'Brennt schnell heiß: dichter Feuerteppich in kurzen Fenstern.', parent: 'tempest',
+    id: 'scorch', label: 'Scorch', description: 'Brennt schnell heiß: zwei Läufe im Wimpernschlag-Abstand statt eines Fächers.', parent: 'tempest',
     unlockLevel: 15, branch: 'tempest', maxHealth: 110, regen: 2.2, acceleration: 1520, moveSpeed: 274,
     reload: 0.26, projectileSpeed: 800, projectileLife: 1.4, damage: 9.5, projectileRadius: 6,
-    penetration: 14, bodyDamage: 13, barrelCount: 2, barrelSpread: 0.18, barrelLength: 33,
+    penetration: 14, bodyDamage: 13, barrelCount: 2, barrelSpread: 0.18, barrelLength: 33, burstDelay: 0.05,
     droneCount: 0, droneRespawn: 0
   }),
   surge: classDef({
@@ -572,10 +581,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     droneCount: 0, droneRespawn: 0
   }),
   inferno: classDef({
-    id: 'inferno', label: 'Inferno', description: 'Drei Kehlen, ein Feuersturm – bis die Sicherung kommt.', parent: 'scorch',
+    id: 'inferno', label: 'Inferno', description: 'Drei Kehlen, ein Feuersturm im Stakkato – bis die Sicherung kommt.', parent: 'scorch',
     unlockLevel: 28, branch: 'tempest', maxHealth: 114, regen: 2.3, acceleration: 1490, moveSpeed: 268,
     reload: 0.29, projectileSpeed: 810, projectileLife: 1.4, damage: 7.5, projectileRadius: 6,
-    penetration: 12, bodyDamage: 13, barrelCount: 3, barrelSpread: 0.3, barrelLength: 32,
+    penetration: 12, bodyDamage: 13, barrelCount: 3, barrelSpread: 0.3, barrelLength: 32, burstDelay: 0.06,
     droneCount: 0, droneRespawn: 0
   }),
   overload: classDef({
@@ -662,10 +671,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     droneCount: 0, droneRespawn: 0
   }),
   retributor: classDef({
-    id: 'retributor', label: 'Retributor', description: 'Jeder Treffer auf ihn ist eine Anzahlung.', parent: 'reflector',
+    id: 'retributor', label: 'Retributor', description: 'Jeder Treffer auf ihn ist eine Anzahlung – drei Läufe zahlen sie in schneller Folge zurück, nicht auf einmal.', parent: 'reflector',
     unlockLevel: 28, branch: 'aegis', maxHealth: 168, regen: 3.3, acceleration: 1420, moveSpeed: 256,
     reload: 0.48, projectileSpeed: 811, projectileLife: 1.45, damage: 12, projectileRadius: 7,
-    penetration: 22, bodyDamage: 19, barrelCount: 3, barrelSpread: 0.26, barrelLength: 29,
+    penetration: 22, bodyDamage: 19, barrelCount: 3, barrelSpread: 0.26, barrelLength: 29, burstDelay: 0.09,
     droneCount: 0, droneRespawn: 0
   }),
   sanctum: classDef({

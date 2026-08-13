@@ -58,6 +58,7 @@ interface RuntimeStats {
   barrelSpread: number;
   barrelLength: number;
   barrelAngles?: number[] | undefined;
+  burstDelay?: number | undefined;
   droneCount: number;
   droneRespawn: number;
 }
@@ -95,6 +96,19 @@ interface GamePlayer extends PlayerSnapshot {
 }
 interface GameProjectile extends ProjectileSnapshot { damage: number; life: number; }
 interface GameDrone extends DroneSnapshot { slot: number; contactCooldown: number; }
+/** Ein noch fälliger Lauf einer Salve (Klassen 4.2, `queueBurstBarrel`). */
+interface BurstShot {
+  ownerId: string;
+  angle: number;
+  barrelLength: number;
+  projectileSpeed: number;
+  projectileLife: number;
+  projectileRadius: number;
+  penetration: number;
+  damage: number;
+  /** Sekunden bis zum Erscheinen; zählt in `stepBurstQueue` herunter. */
+  remaining: number;
+}
 
 /*
  * Vierundzwanzig Namen fuer achtzehn Bots.
@@ -196,6 +210,7 @@ function statsFor(player: GamePlayer): RuntimeStats {
     barrelSpread: base.barrelSpread,
     barrelLength: base.barrelLength,
     barrelAngles: base.barrelAngles,
+    burstDelay: base.burstDelay,
     droneCount: base.droneCount,
     droneRespawn: Math.max(0.35, base.droneRespawn * Math.pow(0.94, player.upgrades.reload))
   };
@@ -204,8 +219,8 @@ function statsFor(player: GamePlayer): RuntimeStats {
 /** Netzform eines Spielers ohne Serverinterna. Auch der Spectator baut damit den eigenen Eintrag. */
 export function playerSnapshot(player: GamePlayer): PlayerSnapshot {
   const { move: _move, aim: _aim, primary: _primary, secondary: _secondary, lastInput: _lastInput,
-    cooldown: _cooldown, lastDamageAt: _lastDamageAt, invulnerableUntil: _invulnerableUntil,
-    bot: _bot, ...snapshot } = player;
+    cooldown: _cooldown, lastDamageAt: _lastDamageAt,
+    invulnerableUntil: _invulnerableUntil, bot: _bot, ...snapshot } = player;
   return { ...snapshot, position: { ...player.position }, velocity: { ...player.velocity }, upgrades: { ...player.upgrades } };
 }
 
@@ -217,6 +232,8 @@ export class MazeGame {
   private readonly shapeRespawns: number[] = [];
   private readonly nextDroneSpawn = new Map<string, number>();
   private readonly killfeed: KillEvent[] = [];
+  /** Noch nicht erschienene Salven-Läufe (Klassen 4.2, `queueBurstBarrel`/`stepBurstQueue`). */
+  private burstQueue: BurstShot[] = [];
   private tick = 0;
   private eventId = 0;
 
@@ -320,6 +337,7 @@ export class MazeGame {
     this.resolvePlayerCollisions(now);
     this.resolveShapeBodyCollisions(now);
     this.stepDrones(safeDt, now);
+    this.stepBurstQueue(safeDt);
     this.stepProjectiles(safeDt, now);
     for (const player of this.players.values()) if (player.dead && now >= player.autoRespawnAt) this.respawn(player, now);
   }
@@ -360,7 +378,8 @@ export class MazeGame {
       availablePoints: 0, upgrades: EMPTY_UPGRADES(), score: 0, kills: 0, deaths: 0, streak: 0, bestStreak: 0, invulnerable: true,
       isBot, dead: false, deathLevel: 1, respawnLevel: 1, canRespawnAt: 0, autoRespawnAt: 0, killerName: '',
       move: { x: 0, y: 0 }, aim: { x: GAME.maxAimDistance, y: 0 }, primary: false, secondary: false,
-      lastInput: -1, cooldown: 0, lastDamageAt: Date.now(), invulnerableUntil: Date.now() + GAME.respawnInvulnerabilityMs, bot
+      lastInput: -1, cooldown: 0,
+      lastDamageAt: Date.now(), invulnerableUntil: Date.now() + GAME.respawnInvulnerabilityMs, bot
     };
     this.players.set(id, player);
     return id;
@@ -398,17 +417,72 @@ export class MazeGame {
   }
 
   private fire(player: GamePlayer, stats: RuntimeStats): void {
-    const baseAngle = Math.atan2(player.aim.y, player.aim.x);
-    for (let barrel = 0; barrel < stats.barrelCount; barrel += 1) {
-      const offset = stats.barrelAngles
-        ? stats.barrelAngles[barrel] ?? 0
-        : stats.barrelCount === 1 ? 0 : (barrel / (stats.barrelCount - 1) - 0.5) * stats.barrelSpread;
-      const angle = baseAngle + offset;
-      const direction = { x: Math.cos(angle), y: Math.sin(angle) };
-      const position = { x: player.position.x + direction.x * (GAME.playerRadius + stats.barrelLength), y: player.position.y + direction.y * (GAME.playerRadius + stats.barrelLength) };
-      const id = crypto.randomUUID();
-      this.projectiles.set(id, { id, ownerId: player.id, position, velocity: { x: direction.x * stats.projectileSpeed, y: direction.y * stats.projectileSpeed }, radius: stats.projectileRadius, integrity: stats.penetration, maxIntegrity: stats.penetration, damage: stats.damage, life: stats.projectileLife });
+    this.fireBarrel(player, stats, 0);
+    for (let barrel = 1; barrel < stats.barrelCount; barrel += 1) {
+      if (stats.burstDelay) this.queueBurstBarrel(player, stats, barrel);
+      else this.fireBarrel(player, stats, barrel);
     }
+  }
+
+  private fireBarrel(player: GamePlayer, stats: RuntimeStats, barrel: number): void {
+    const angle = Math.atan2(player.aim.y, player.aim.x) + this.barrelOffset(stats, barrel);
+    const direction = { x: Math.cos(angle), y: Math.sin(angle) };
+    const position = { x: player.position.x + direction.x * (GAME.playerRadius + stats.barrelLength), y: player.position.y + direction.y * (GAME.playerRadius + stats.barrelLength) };
+    const id = crypto.randomUUID();
+    this.projectiles.set(id, { id, ownerId: player.id, position, velocity: { x: direction.x * stats.projectileSpeed, y: direction.y * stats.projectileSpeed }, radius: stats.projectileRadius, integrity: stats.penetration, maxIntegrity: stats.penetration, damage: stats.damage, life: stats.projectileLife });
+  }
+
+  private barrelOffset(stats: RuntimeStats, barrel: number): number {
+    return stats.barrelAngles
+      ? stats.barrelAngles[barrel] ?? 0
+      : stats.barrelCount === 1 ? 0 : (barrel / (stats.barrelCount - 1) - 0.5) * stats.barrelSpread;
+  }
+
+  /**
+   * Salve statt Fächer (Klassen 4.2) – Sam: „Der eine schießt drei nach vorne,
+   * der andere zwei." Lauf 0 feuert sofort (im selben `fire`-Aufruf wie
+   * bisher – Rückstoß, Hitze, Perks & Co. hängen alle genau an diesem einen
+   * Aufruf und dürfen nicht öfter laufen, als eine Salve wirklich abgibt).
+   * Läufe 1..N-1 kommen stattdessen hier in eine Warteschlange und erscheinen
+   * `barrel * burstDelay` Sekunden später als eigenes Projektil – dieselbe
+   * Anzahl Kugeln wie im Fächer, nur zeitlich verteilt statt alle im selben
+   * Frame. `reload`/`cooldown` bleiben unberührt: Die Salve läuft NEBEN dem
+   * Nachladen, nicht zusätzlich dazu.
+   */
+  private queueBurstBarrel(player: GamePlayer, stats: RuntimeStats, barrel: number): void {
+    this.burstQueue.push({
+      ownerId: player.id,
+      angle: Math.atan2(player.aim.y, player.aim.x) + this.barrelOffset(stats, barrel),
+      barrelLength: stats.barrelLength,
+      projectileSpeed: stats.projectileSpeed,
+      projectileLife: stats.projectileLife,
+      projectileRadius: stats.projectileRadius,
+      penetration: stats.penetration,
+      damage: stats.damage,
+      remaining: barrel * stats.burstDelay!
+    });
+  }
+
+  /** Lässt die Warteschlange aus `queueBurstBarrel` altern und spawnt fällige Läufe. */
+  private stepBurstQueue(dt: number): void {
+    if (this.burstQueue.length === 0) return;
+    const remaining: BurstShot[] = [];
+    for (const shot of this.burstQueue) {
+      shot.remaining -= dt;
+      if (shot.remaining > 0) { remaining.push(shot); continue; }
+      // Der Besitzer kann in der Zwischenzeit gestorben oder gegangen sein –
+      // dann verschießt sich kein Geisterlauf mehr aus dem Nichts.
+      const owner = this.players.get(shot.ownerId);
+      if (!owner || owner.dead) continue;
+      const direction = { x: Math.cos(shot.angle), y: Math.sin(shot.angle) };
+      // Position VOM AKTUELLEN Standort des Besitzers, nicht vom Moment des
+      // Abzugs – wer sich während der Salve bewegt, feuert die späteren Läufe
+      // von dort, wo er gerade ist, genau wie ein echter Mehrlauf-Tank.
+      const position = { x: owner.position.x + direction.x * (GAME.playerRadius + shot.barrelLength), y: owner.position.y + direction.y * (GAME.playerRadius + shot.barrelLength) };
+      const id = crypto.randomUUID();
+      this.projectiles.set(id, { id, ownerId: shot.ownerId, position, velocity: { x: direction.x * shot.projectileSpeed, y: direction.y * shot.projectileSpeed }, radius: shot.projectileRadius, integrity: shot.penetration, maxIntegrity: shot.penetration, damage: shot.damage, life: shot.projectileLife });
+    }
+    this.burstQueue = remaining;
   }
 
   private stepProjectiles(dt: number, now: number): void {

@@ -42,6 +42,8 @@ interface TunedStats {
   barrelSpread: number;
   barrelLength: number;
   barrelAngles?: number[] | undefined;
+  /** Salve statt Fächer (Klassen 4.2) – muss mit `game.ts`s `RuntimeStats` mitgezogen werden, sonst feuert die Tuning-Schicht wieder alle Läufe gleichzeitig. */
+  burstDelay?: number | undefined;
   droneCount: number;
   droneRespawn: number;
 }
@@ -132,6 +134,7 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
     barrelCount: base.barrelCount,
     barrelSpread: base.barrelSpread,
     barrelLength: base.barrelLength,
+    burstDelay: base.burstDelay,
     barrelAngles: base.barrelAngles,
     droneCount: base.droneCount,
     droneRespawn: Math.max(0.4, base.droneRespawn * Math.pow(0.96, player.upgrades.reload))

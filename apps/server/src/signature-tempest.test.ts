@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type PlayerClass } from '@project-maze/shared';
+import { CLASS_DEFINITIONS, type PlayerClass } from '@project-maze/shared';
 import { messfeld } from './messfeld';
 import { tuneCombatScaling, tunedStatsFor } from './combat-tuning';
 import { MazeGame } from './game';
@@ -27,6 +27,7 @@ interface Internals {
   projectiles: Map<string, any>;
   shapes: Map<string, any>;
   stepPlayer(player: any, dt: number, now: number): void;
+  stepBurstQueue(dt: number): void;
 }
 
 const createGame = (enabled = true): MazeGame =>
@@ -97,7 +98,11 @@ describe('tempest signature – hitze', () => {
     expect(player.signature).toBeUndefined();
 
     let now = salvo(internals, player, 100_000);
-    // Scorch hat zwei Läufe: zwei Projektile, aber nur EIN Aufschlag.
+    // Scorch hat zwei Läufe: der erste feuert sofort, der zweite folgt als
+    // Salve statt Fächer (Klassen 4.2) einen Wimpernschlag später aus der
+    // Warteschlange – aber die ganze Salve trägt trotzdem nur EINEN Aufschlag.
+    expect(internals.projectiles.size).toBe(1);
+    internals.stepBurstQueue(CLASS_DEFINITIONS.scorch.burstDelay ?? 0);
     expect(internals.projectiles.size).toBe(2);
     expect(heatFor(game, id)).toBe(DEFAULT_HEAT.heatPerShot);
     expect(player.signature).toBe(DEFAULT_HEAT.heatPerShot);
