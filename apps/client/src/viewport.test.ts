@@ -175,9 +175,9 @@ describe('Grenzen gegen die Sichtweite des Servers', () => {
 });
 
 describe('Gespeicherte Wahl', () => {
-  it('bleibt ohne Wahl beim bisherigen Zustand', () => {
-    expect(readViewMode(null)).toBe('fest');
-    expect(readViewMode('irgendwas')).toBe('fest');
+  it('fällt ohne Wahl auf den bildschirmfüllenden Modus zurück (U4)', () => {
+    expect(readViewMode(null)).toBe('flaechengleich');
+    expect(readViewMode('irgendwas')).toBe('flaechengleich');
   });
 
   it('liest eine getroffene Wahl zurück', () => {

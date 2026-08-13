@@ -11,21 +11,26 @@ import { ENTITY_CULL_HALF, GAME } from '@project-maze/shared';
  *
  * ## Die beiden Modi
  *
- * `fest` ist der bisherige Zustand: ein starres 16:9-Rechteck, mittig, der Rest
- * bleibt schwarz. Der MASTERPLAN begründet das mit Fairness – wer breiter
+ * `fest` ist der ursprüngliche Zustand: ein starres 16:9-Rechteck, mittig, der
+ * Rest bleibt schwarz. Der MASTERPLAN begründet das mit Fairness – wer breiter
  * sieht, sieht Gegner früher. Auf einem 21:9-Schirm kostet das ein Viertel der
- * Fläche (2560×1080: je 320 px links und rechts).
+ * Fläche (2560×1080: je 320 px links und rechts) – Sam, U4: „wenn ich nicht
+ * F11-Fullscreen habe, gibt es links und rechts Ränder, weil es nicht
+ * responsive ist." Bleibt als Option wählbar, für später mit echten Ranglisten.
  *
  * `flaechengleich` behält die Fairness, ohne die Fläche zu verschenken: Nicht
  * die *Form* des Ausschnitts ist fest, sondern seine **Fläche**. Ein breiter
  * Schirm sieht weiter zur Seite und dafür weniger nach oben und unten; das
  * Produkt bleibt bei 1600 × 900 Einheiten. Bei 16:9 kommt exakt dieselbe Sicht
- * heraus wie bisher – nachgewiesen im Test, nicht nur behauptet.
+ * heraus wie bisher – nachgewiesen im Test, nicht nur behauptet. Seit U4 die
+ * Vorgabe: In der frühen Testphase (keine Ranglisten, die von einem festen FOV
+ * abhängen) wiegt „keine Ränder ohne Fullscreen" schwerer als die letzten
+ * Prozentpunkte Fairness auf einem breiten Monitor.
  */
 
 export type ViewMode = 'fest' | 'flaechengleich';
 
-export const DEFAULT_VIEW_MODE: ViewMode = 'fest';
+export const DEFAULT_VIEW_MODE: ViewMode = 'flaechengleich';
 
 export const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   fest: 'Fest 16:9',

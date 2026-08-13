@@ -8,7 +8,14 @@
 .core-loadout-heading { display:flex; justify-content:space-between; gap:12px; align-items:center; }
 .core-loadout-heading span { color:var(--text); font-size:10px; font-weight:800; letter-spacing:.12em; }
 .core-loadout-heading small { color:var(--faint); font-size:9px; }
-.core-loadout-fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+/*
+ * U5 – Sam: „das Widget mit Dropdown CORE LOADOUT ... man kann's eh kaum
+ * lesen." Nebeneinander (zwei Spalten in einer maximal 470 px breiten Karte)
+ * blieben rund 200 px je Auswahlfeld – Optionstexte wie „Repulse Pulse ·
+ * Kontrolle" oder „Projectile Stabilizer" liefen mit Auslassungspunkten ab.
+ * Untereinander bekommt jedes Feld die volle Kartenbreite.
+ */
+.core-loadout-fields { display:grid; grid-template-columns:1fr; gap:12px; margin-top:12px; }
 .core-loadout-fields label { display:grid; gap:6px; color:var(--faint); font-size:9px; font-weight:800; letter-spacing:.12em; }
 /* Das Aussehen der Auswahlfelder steht in controls.css. */
 .core-loadout-description { margin-top:12px; color:var(--muted); font-size:10px; line-height:1.45; }
@@ -123,7 +130,6 @@
 :root:has(.bounty-banner:not([hidden])) .toasts { top:calc(var(--top-stack) + var(--top-step)); }
 :root:has(.arena-event-banner:not([hidden])):has(.bounty-banner:not([hidden])) .toasts { top:calc(var(--top-stack) + 2 * var(--top-step)); }
 @media (max-width:700px) {
-  .core-loadout-fields { grid-template-columns:1fr; }
   .core-loadout-heading { align-items:flex-start; flex-direction:column; gap:5px; }
   .core-ability { left:auto; right:18px; bottom:148px; transform:none; width:76px; height:76px; border-radius:50%; grid-template-columns:1fr; grid-template-rows:1fr auto; }
   .core-ability-key { display:none; }

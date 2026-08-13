@@ -76,9 +76,7 @@
 .death-screen.spectating .death-stats { display: none; }
 .death-screen.spectating .death-summary { display: block; }
 .death-screen.spectating .death-card button { height: 38px; font-size: 11px; }
-.death-screen.spectating .death-card #exit-to-start { height: 32px; margin-top: 8px; font-size: 10px; }
-/* Der Countdown sitzt seit dem klebenden Fussbereich eine Ebene tiefer. */
-.death-screen.spectating .death-card #respawn-countdown { margin-top: 7px; }
+.death-screen.spectating .death-card #exit-to-start { height: 32px; font-size: 10px; }
 
 /* Nur in der Kompaktfassung sichtbar. */
 .death-summary {

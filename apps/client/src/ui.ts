@@ -927,6 +927,7 @@ export class GameUI {
       // Unten steht dasselbe noch einmal: Die Karte laesst sich scrollen, und
       // wer unten landet, soll dort nicht den alten Respawn-Text vorfinden.
       this.respawnCountdown.textContent = royaleText;
+      this.respawnCountdown.classList.remove('ready');
       return;
     }
     this.respawnButton.disabled = remaining > 0;
@@ -936,6 +937,8 @@ export class GameUI {
     this.respawnCountdown.textContent = remaining > 0
       ? `Respawn verfügbar in ${(remaining / 1000).toFixed(1)}s`
       : autoInSeconds <= 60 ? `Respawn bereit · automatisch in ${autoInSeconds}s` : 'Respawn bereit';
+    // U3 – „Respawn bereit" ist eine andere Botschaft als der Countdown davor.
+    this.respawnCountdown.classList.toggle('ready', remaining <= 0);
   }
 
   private renderLeaderboard(snapshot: WorldSnapshot): void {

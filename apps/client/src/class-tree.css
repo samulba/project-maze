@@ -266,11 +266,17 @@
  *
  * Der Schleier nimmt keine Klicks (`pointer-events` bleibt aus) und ist zur
  * Mitte hin dichter: Dort steht das Rad, außen bleibt die Arena erkennbar.
+ *
+ * U6 – dieselbe Rückmeldung noch einmal, nach dem Spieltest: „noch etwas
+ * CLEANER, aber man soll den Hintergrund noch sehen, um zu merken, wenn man
+ * angegriffen wird." Beide Stufen deshalb eine Spur dichter (97 → 98,5 %,
+ * 86 → 91 %) statt die Form zu ändern – der Rand bleibt sichtbar erkennbar
+ * heller als die Mitte, genau die Eigenschaft, die Sam behalten wollte.
  */
 .class-overlay:not([hidden]) {
   background: radial-gradient(circle at 50% 50%,
-    color-mix(in srgb, var(--bg) 97%, transparent) 0 46%,
-    color-mix(in srgb, var(--bg) 86%, transparent) 100%);
+    color-mix(in srgb, var(--bg) 98.5%, transparent) 0 46%,
+    color-mix(in srgb, var(--bg) 91%, transparent) 100%);
 }
 /*
  * Hier stand `backdrop-filter: blur(3px)`. Er ist wieder draußen, und der
