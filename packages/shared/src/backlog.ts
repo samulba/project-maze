@@ -281,8 +281,10 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'B2',
     wunsch: 'Beim Zuschauen sind ab und zu random gelbe Ringe im Screen.',
     bereich: 'bug',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '38e2e4b – drei Effekte prüften „ist das im Bild" gegen die eigene Leiche statt gegen den Killer',
+    notiz: 'Per Code-Diagnose gefunden und behoben (spectator.ts erklärt den Mechanismus selbst), nicht live im Browser nachgestellt – bitte beim nächsten Zuschauen gegenprüfen.'
   },
   {
     id: 'U7',
