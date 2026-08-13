@@ -21,6 +21,7 @@ import { QUALITY_TIERS, type QualitySettings, type QualityTier } from './quality
 import { type RecoilState, startRecoil, stepRecoil } from './recoil';
 import type { RenderQuality } from './perf-metrics';
 import { hullGeometry } from '@project-maze/shared/appearance';
+import { zeichneDrohnen } from './drone-draw';
 import { branchColor, signatureColor, signatureLabel, signatureRatio } from './signature';
 import { DEFAULT_VIEW_MODE, computeViewport, type ViewMode, type WorldView } from './viewport';
 import type { ClientThemeId } from './themes';
@@ -1037,25 +1038,21 @@ export class GameRenderer {
       this.projectiles.circle(view.current.x,view.current.y,view.snapshot.radius).fill(color).stroke({color:outline,alpha:.7,width:1.5});
       this.projectiles.circle(view.current.x-view.snapshot.radius*.22,view.current.y-view.snapshot.radius*.22,Math.max(1.2,view.snapshot.radius*.28)).fill({color:0xffffff,alpha:.48});
     }
+    // Das Zeichnen selbst liegt in `drone-draw.ts` – als reine Funktion, damit
+    // es Tests gibt. Sams Strich-Bug (arc ohne moveTo) konnte nur entstehen,
+    // weil keine einzige Client-Testdatei je einen Zeichenaufruf angefasst hat.
     this.drones.clear();
-    for(const view of this.droneViews.values()){
-      const color=this.ownerColor(view.snapshot.ownerId);
-      const angle=Math.atan2(view.velocity.y,view.velocity.x)||view.snapshot.angle;
-      const speed=Math.hypot(view.velocity.x,view.velocity.y);
-      if(speed>90)this.drones.moveTo(view.current.x-view.velocity.x/speed*16,view.current.y-view.velocity.y/speed*16).lineTo(view.current.x,view.current.y).stroke({color,alpha:.2,width:3});
+    zeichneDrohnen(this.drones,[...this.droneViews.values()].map(view=>({
+      position:view.current,
+      velocity:view.velocity,
+      angle:view.snapshot.angle,
       // Echte Größe statt Einheitsdreieck (Befund 41): Der Server rechnet mit
       // Radien von 7,5 (Hive) bis 15,5 (Carrier) – gezeichnet wurde immer 13.
-      // Eine Hive-Drohne erschien mit dreifacher Fläche, eine Carrier-Drohne
-      // traf durch sichtbare „Luft".
-      const radius=view.snapshot.gameplayRadius??13;
-      this.drones.poly(translated(polygon(3,radius,angle),view.current)).fill(color).stroke({color:0xffffff,alpha:.3,width:2});
-      // Lebensbogen ab 60 % Schaden (Befund 8): Eine Drohne bei 5 % Leben sah
-      // exakt aus wie eine frische, obwohl beide Zahlen im Snapshot liegen.
-      const ratio=view.snapshot.health/Math.max(1,view.snapshot.maxHealth);
-      if(ratio<.6){
-        this.drones.arc(view.current.x,view.current.y,radius+4,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.max(.05,ratio)).stroke({color:ratio>.3?0x65d39a:0xf05e72,alpha:.7,width:2});
-      }
-    }
+      radius:view.snapshot.gameplayRadius??13,
+      health:view.snapshot.health,
+      maxHealth:view.snapshot.maxHealth,
+      color:this.ownerColor(view.snapshot.ownerId)
+    })));
   }
 
   private createPlayerView(player:PlayerSnapshot,isSelf:boolean,now:number):PlayerView{
