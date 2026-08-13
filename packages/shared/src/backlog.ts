@@ -155,8 +155,9 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'D8',
     wunsch: 'Factory ist noch keine Factory, sondern einfach Mini-Drohnen.',
     bereich: 'drohnen',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '830d20c – eigenes Minion-Geschütz für factory/carrier (zusätzlich zum Kontakt), gemessen: +25 bis +35 DPS'
   },
   {
     id: 'U1',
