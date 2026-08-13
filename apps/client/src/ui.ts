@@ -236,6 +236,13 @@ export class GameUI {
               ${seitenkopf('Bestenliste')}
               <div class="start-page-body">
                 <div class="start-board" id="start-board">
+                  <!-- Zeitfenster (Befund 51, Sams Wahl: Reiter statt Dedup) –
+                       EWIG ist der bisherige Standard, heute/woche rollieren. -->
+                  <div class="start-board-tabs" data-board-tabs role="tablist">
+                    <button type="button" data-fenster="heute">HEUTE</button>
+                    <button type="button" data-fenster="woche">WOCHE</button>
+                    <button type="button" data-fenster="ewig" class="active">EWIG</button>
+                  </div>
                   <p class="start-board-distance" data-board-distance hidden></p>
                   <ol class="start-board-list" data-board-list></ol>
                   <p class="start-page-empty" data-board-empty>Die Bestenliste ist auf diesem Server noch nicht eingerichtet.</p>

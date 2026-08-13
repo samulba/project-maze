@@ -149,3 +149,12 @@ describe('Messlatte auf der Death-Karte (Rest von Befund 53)', () => {
     expect(deathDistanceLine([], 5_000)).toBeNull();
   });
 });
+
+describe('Zeitfenster-URL (Befund 51)', () => {
+  it('hängt das Fenster nur an, wenn es nicht das ewige ist', () => {
+    // Ältere Server kennen den Parameter nicht – EWIG bleibt die alte URL.
+    expect(leaderboardUrl(origin, false, 50, 'ewig')).toBe('https://www.mazers.de/leaderboard?limit=50');
+    expect(leaderboardUrl(origin, false, 50, 'heute')).toBe('https://www.mazers.de/leaderboard?limit=50&fenster=heute');
+    expect(leaderboardUrl(origin, false, 50, 'woche')).toBe('https://www.mazers.de/leaderboard?limit=50&fenster=woche');
+  });
+});

@@ -42,9 +42,20 @@ export const LEADERBOARD_VISIBLE = 10;
  * Spiegelt die Adresslogik der WebSocket-Verbindung: im Dev-Modus läuft der
  * Spielserver auf 2567 neben Vite, in Produktion auf derselben Origin.
  */
-export function leaderboardUrl(origin: OriginLike, dev: boolean, limit = LEADERBOARD_LIMIT): string {
+/** Zeitfenster der Liste (Befund 51) – muss zu `LEADERBOARD_FENSTER` im Server passen. */
+export type LeaderboardFenster = 'heute' | 'woche' | 'ewig';
+
+export function leaderboardUrl(
+  origin: OriginLike,
+  dev: boolean,
+  limit = LEADERBOARD_LIMIT,
+  fenster: LeaderboardFenster = 'ewig'
+): string {
   const base = dev ? `${origin.protocol}//${origin.hostname}:2567` : `${origin.protocol}//${origin.host}`;
-  return `${base}/leaderboard?limit=${limit}`;
+  // „ewig" bleibt die parameterlose URL – ein älterer Server kennt das
+  // Fenster nicht und soll dieselbe Anfrage sehen wie bisher.
+  const zusatz = fenster === 'ewig' ? '' : `&fenster=${fenster}`;
+  return `${base}/leaderboard?limit=${limit}${zusatz}`;
 }
 
 const numberFormat = new Intl.NumberFormat('de-DE');
@@ -146,6 +157,8 @@ export class StartLeaderboard {
   private readonly empty: HTMLElement | null;
   /** Der Abstandssatz über der Liste (Befund 56). */
   private readonly distance: HTMLElement | null;
+  /** Aktives Zeitfenster (Befund 51); EWIG ist der bisherige Standard. */
+  private fenster: LeaderboardFenster = 'ewig';
 
   constructor(root: HTMLElement) {
     this.panel = root.querySelector<HTMLElement>('#start-board')!;
@@ -153,6 +166,18 @@ export class StartLeaderboard {
     this.meta = root.querySelector<HTMLElement>('[data-board-meta]');
     this.empty = this.panel.querySelector<HTMLElement>('[data-board-empty]');
     this.distance = this.panel.querySelector<HTMLElement>('[data-board-distance]');
+    // Reiter HEUTE / WOCHE / EWIG: Klick wechselt das Fenster und lädt neu.
+    for (const button of this.panel.querySelectorAll<HTMLButtonElement>('[data-board-tabs] [data-fenster]')) {
+      button.addEventListener('click', () => {
+        const gewaehlt = button.dataset.fenster as LeaderboardFenster;
+        if (gewaehlt === this.fenster) return;
+        this.fenster = gewaehlt;
+        for (const other of this.panel.querySelectorAll('[data-board-tabs] [data-fenster]')) {
+          other.classList.toggle('active', other === button);
+        }
+        void this.load();
+      });
+    }
   }
 
   /**
@@ -164,10 +189,14 @@ export class StartLeaderboard {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 4000);
     try {
+      const fenster = this.fenster;
       const response = await fetchImpl(
-        leaderboardUrl(window.location, import.meta.env.DEV, LEADERBOARD_LIMIT),
+        leaderboardUrl(window.location, import.meta.env.DEV, LEADERBOARD_LIMIT, fenster),
         { signal: controller.signal, headers: { accept: 'application/json' } }
       );
+      // Reiter-Wechsel während des Ladens: Die alte Antwort ist nicht mehr
+      // gefragt und darf die neue Liste nicht überschreiben.
+      if (fenster !== this.fenster) return;
       /*
        * 404 heisst „gibt es hier nicht", alles andere heisst „gibt es, aber".
        *
@@ -182,7 +211,9 @@ export class StartLeaderboard {
       if (!response.ok) return;
       const eintraege = usableEntries(await response.json());
       if (eintraege.length === 0) {
-        this.zeigeLeer('Noch kein Lauf in der Bestenliste – deiner kann der erste sein.');
+        this.zeigeLeer(fenster === 'ewig'
+          ? 'Noch kein Lauf in der Bestenliste – deiner kann der erste sein.'
+          : 'In diesem Fenster ist noch kein Lauf gelandet.');
         return;
       }
       this.render(eintraege);
@@ -233,6 +264,10 @@ export class StartLeaderboard {
    * fehlende Einrichtung, sondern eine Einladung.
    */
   private zeigeLeer(text: string): void {
+    // Reiter-Wechsel von einer vollen in eine leere Liste: Die alten Zeilen
+    // und der Abstandssatz gehören nicht zum neuen Fenster.
+    this.list.replaceChildren();
+    if (this.distance) this.distance.hidden = true;
     if (this.empty) {
       this.empty.textContent = text;
       this.empty.hidden = false;

@@ -390,6 +390,21 @@
   background: color-mix(in srgb, var(--accent) 9%, transparent);
 }
 /* Der Abstandssatz über der Liste (Befund 56). */
+/* Zeitfenster-Reiter (Befund 51): drei kleine Schalter, EWIG ist Standard. */
+.start-board-tabs { display: flex; gap: 6px; margin: 0 0 10px; }
+.start-board-tabs button {
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .1em;
+  cursor: pointer;
+}
+.start-board-tabs button:hover { color: var(--text); border-color: var(--line-strong); }
+.start-board-tabs button.active { color: var(--text); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .start-board-distance { margin: 0 0 8px; color: var(--muted); font-size: 11px; font-weight: 650; }
 .start-board-distance[hidden] { display: none; }
 .start-board-list b { color: #6d748a; font-size: 11px; font-weight: 800; text-align: center; }

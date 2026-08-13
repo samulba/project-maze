@@ -144,10 +144,32 @@ export interface LeaderboardEntry {
   achievedAt: string;
 }
 
+/**
+ * Zeitfenster der Bestenliste (Befund 51, Sams Entscheidung: Reiter statt
+ * Dedup). „heute" und „woche" sind rollierende Fenster (24 h / 7 Tage), kein
+ * Kalendertag – ein Mitternachts-Reset wäre eine zweite Zeitzone-Diskussion,
+ * und die Frage des Spielers ist „was lief zuletzt", nicht „seit 0 Uhr".
+ * „ewig" ist die bisherige Liste und bleibt der Standard des Endpunkts.
+ */
+export const LEADERBOARD_FENSTER = ['heute', 'woche', 'ewig'] as const;
+export type LeaderboardFenster = (typeof LEADERBOARD_FENSTER)[number];
+
+const FENSTER_MS: Record<LeaderboardFenster, number | null> = {
+  heute: 24 * 60 * 60 * 1000,
+  woche: 7 * 24 * 60 * 60 * 1000,
+  ewig: null
+};
+
+/** ISO-Untergrenze für `created_at`, oder null für die ewige Liste. */
+export function fensterSeit(fenster: LeaderboardFenster, now = Date.now()): string | null {
+  const spanne = FENSTER_MS[fenster];
+  return spanne === null ? null : new Date(now - spanne).toISOString();
+}
+
 /** Schmale Naht zur Datenbank – im Test durch eine Attrappe ersetzbar. */
 export interface PersistenceClient {
   insertRuns(runs: readonly RunRecord[]): Promise<void>;
-  topRuns(limit: number): Promise<LeaderboardEntry[]>;
+  topRuns(limit: number, sinceIso?: string | null): Promise<LeaderboardEntry[]>;
   upsertProfiles(profiles: readonly ProfileRecord[]): Promise<void>;
   insertAchievements(unlocks: readonly AchievementRecord[]): Promise<void>;
   achievementsFor(userId: string): Promise<StoredAchievement[]>;
@@ -221,8 +243,8 @@ interface PersistenceState {
   flushPromise: Promise<void> | null;
   timer: NodeJS.Timeout | null;
   leaderboardCacheMs: number;
-  cache: { entries: LeaderboardEntry[]; fetchedAt: number } | null;
-  cacheInFlight: Promise<LeaderboardEntry[]> | null;
+  cache: Map<LeaderboardFenster, { entries: LeaderboardEntry[]; fetchedAt: number }>;
+  cacheInFlight: Map<LeaderboardFenster, Promise<LeaderboardEntry[]>>;
   /** Profil-Cache je Konto; `null` merkt sich auch „kenne ich nicht". */
   profileCache: Map<string, { profile: PublicProfile | null; fetchedAt: number }>;
   profileInFlight: Map<string, Promise<PublicProfile | null>>;
@@ -252,8 +274,8 @@ const createState = (): PersistenceState => ({
   flushPromise: null,
   timer: null,
   leaderboardCacheMs: DEFAULT_LEADERBOARD_CACHE_MS,
-  cache: null,
-  cacheInFlight: null,
+  cache: new Map(),
+  cacheInFlight: new Map(),
   profileCache: new Map(),
   profileInFlight: new Map(),
   log: () => {}
@@ -390,14 +412,18 @@ export function createSupabaseClient(config: PersistenceConfig): PersistenceClie
         achievements: unlocks
       };
     },
-    async topRuns(limit) {
+    async topRuns(limit, sinceIso = null) {
       const client = await clientPromise;
-      const { data, error } = await client
+      let query = client
         .from(RUNS_TABLE)
         .select('player_name, score, level, player_class, kills, best_streak, duration_seconds, created_at')
         .order('score', { ascending: false })
         .order('created_at', { ascending: true })
         .limit(limit);
+      // Zeitfenster (Befund 51): Untergrenze statt Kalenderrechnung – die
+      // Datenbank filtert, der Cache liegt je Fenster (siehe leaderboard()).
+      if (sinceIso) query = query.gte('created_at', sinceIso);
+      const { data, error } = await query;
       if (error) throw new Error(error.message);
       return (data ?? []).map((row, index) => ({
         rank: index + 1,
@@ -648,15 +674,23 @@ export function persistenceStats(game: MazeGame): PersistenceStats {
   };
 }
 
-export async function leaderboard(game: MazeGame, limit = DEFAULT_LEADERBOARD_LIMIT): Promise<LeaderboardEntry[]> {
+export async function leaderboard(
+  game: MazeGame,
+  limit = DEFAULT_LEADERBOARD_LIMIT,
+  fenster: LeaderboardFenster = 'ewig'
+): Promise<LeaderboardEntry[]> {
   const state = stateFor(game);
   if (!state.enabled || !state.client) return [];
   const now = Date.now();
   const zuschneiden = (entries: LeaderboardEntry[]): LeaderboardEntry[] =>
     entries.length <= limit ? entries : entries.slice(0, limit);
-  if (state.cache && now - state.cache.fetchedAt < state.leaderboardCacheMs) return zuschneiden(state.cache.entries);
-  // Parallele Anfragen teilen sich einen einzigen Datenbank-Roundtrip.
-  if (state.cacheInFlight) return state.cacheInFlight.then(zuschneiden);
+  // Cache und In-Flight-Bündelung liegen JE FENSTER (Befund 51): heute,
+  // woche und ewig sind drei verschiedene Abfragen, teilen sich aber
+  // dieselben Regeln – 30-s-Frische, ein Roundtrip für parallele Anfragen.
+  const cached = state.cache.get(fenster);
+  if (cached && now - cached.fetchedAt < state.leaderboardCacheMs) return zuschneiden(cached.entries);
+  const inFlight = state.cacheInFlight.get(fenster);
+  if (inFlight) return inFlight.then(zuschneiden);
 
   const client = state.client;
   /*
@@ -672,19 +706,21 @@ export async function leaderboard(game: MazeGame, limit = DEFAULT_LEADERBOARD_LI
    * Eintrag. Die volle Länge zu holen kostet eine Abfrage, die ohnehin
    * gedeckelt ist – und `limit` bleibt die Sache des Handlers.
    */
-  state.cacheInFlight = client.topRuns(DEFAULT_LEADERBOARD_LIMIT)
+  const anfrage = client.topRuns(DEFAULT_LEADERBOARD_LIMIT, fensterSeit(fenster, now))
     .then((entries) => {
-      state.cache = { entries, fetchedAt: Date.now() };
+      state.cache.set(fenster, { entries, fetchedAt: Date.now() });
       return entries;
     })
     .catch((error: unknown) => {
       noteError(state, 'Leaderboard-Abfrage fehlgeschlagen', error);
       // Lieber leicht veraltete Daten ausliefern als einen Fehler zeigen.
-      if (state.cache) return state.cache.entries;
+      const stale = state.cache.get(fenster);
+      if (stale) return stale.entries;
       throw error instanceof Error ? error : new Error(String(error));
     })
-    .finally(() => { state.cacheInFlight = null; });
-  return state.cacheInFlight.then(zuschneiden);
+    .finally(() => { state.cacheInFlight.delete(fenster); });
+  state.cacheInFlight.set(fenster, anfrage);
+  return anfrage.then(zuschneiden);
 }
 
 /**
@@ -702,13 +738,20 @@ export function leaderboardHandler(game: MazeGame): (request: Request, response:
     const limit = Number.isFinite(requested)
       ? Math.max(1, Math.min(DEFAULT_LEADERBOARD_LIMIT, requested))
       : DEFAULT_LEADERBOARD_LIMIT;
+    // Unbekanntes fällt auf „ewig" zurück – die bisherige Liste bleibt die
+    // Antwort für jeden Client, der das Fenster (Befund 51) nicht kennt.
+    const rohFenster = String(request.query.fenster ?? 'ewig');
+    const fenster: LeaderboardFenster = (LEADERBOARD_FENSTER as readonly string[]).includes(rohFenster)
+      ? (rohFenster as LeaderboardFenster)
+      : 'ewig';
 
-    void leaderboard(game, limit)
+    void leaderboard(game, limit, fenster)
       .then((entries) => {
-        const cachedAt = state.cache?.fetchedAt ?? Date.now();
+        const cachedAt = state.cache.get(fenster)?.fetchedAt ?? Date.now();
         response.setHeader('Cache-Control', `public, max-age=${Math.round(state.leaderboardCacheMs / 1000)}`);
         response.json({
           entries: entries.slice(0, limit),
+          fenster,
           cachedAt: new Date(cachedAt).toISOString(),
           cacheSeconds: Math.round(state.leaderboardCacheMs / 1000)
         });

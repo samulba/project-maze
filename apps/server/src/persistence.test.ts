@@ -9,6 +9,7 @@ import { initAuth, resetAuth } from './auth';
 import { achievementProgressFor, tuneAchievements } from './achievements';
 import {
   flushPersistence,
+  fensterSeit,
   leaderboard,
   leaderboardHandler,
   linkPlayerToUser,
@@ -1110,5 +1111,49 @@ describe('leaderboard route', () => {
     expect(body.cacheSeconds).toBe(30);
     expect(state.headers['Cache-Control']).toBe('public, max-age=30');
     stopPersistence(game);
+  });
+});
+
+describe('Bestenlisten-Zeitfenster (Befund 51)', () => {
+  it('reicht die Untergrenze an die Datenbank durch und cacht je Fenster', async () => {
+    const calls: Array<{ limit: number; since: string | null }> = [];
+    const game = new MazeGame(0);
+    tunePersistence(game, {
+      flushIntervalMs: 100_000,
+      log: () => {},
+      client: {
+        insertRuns: async () => {},
+        topRuns: async (limit: number, since: string | null = null) => {
+          calls.push({ limit, since });
+          return [];
+        },
+        upsertProfiles: async () => {},
+        insertAchievements: async () => {},
+        achievementsFor: async () => [],
+        profileFor: async () => null
+      }
+    });
+
+    await leaderboard(game, 10, 'ewig');
+    await leaderboard(game, 10, 'heute');
+    await leaderboard(game, 10, 'woche');
+    // Zweiter Zugriff je Fenster kommt aus dem Cache – kein weiterer Roundtrip.
+    await leaderboard(game, 10, 'heute');
+
+    expect(calls).toHaveLength(3);
+    expect(calls[0]!.since).toBeNull();
+    const heute = Date.parse(calls[1]!.since!);
+    const woche = Date.parse(calls[2]!.since!);
+    expect(Date.now() - heute).toBeGreaterThan(23 * 3_600_000);
+    expect(Date.now() - heute).toBeLessThan(25 * 3_600_000);
+    expect(Date.now() - woche).toBeGreaterThan(6.9 * 24 * 3_600_000);
+    expect(Date.now() - woche).toBeLessThan(7.1 * 24 * 3_600_000);
+  });
+
+  it('fensterSeit: ewig kennt keine Grenze, heute/woche rollieren', () => {
+    const now = Date.parse('2026-08-13T12:00:00.000Z');
+    expect(fensterSeit('ewig', now)).toBeNull();
+    expect(fensterSeit('heute', now)).toBe('2026-08-12T12:00:00.000Z');
+    expect(fensterSeit('woche', now)).toBe('2026-08-06T12:00:00.000Z');
   });
 });
