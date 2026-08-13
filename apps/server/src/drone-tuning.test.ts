@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLASS_DEFINITIONS, PLAYER_CLASS_IDS } from '@project-maze/shared';
+import { CLASS_DEFINITIONS, GAME, PLAYER_CLASS_IDS } from '@project-maze/shared';
 import { tuneCombatScaling } from './combat-tuning';
 import { droneArchetypes, tuneDrones } from './drone-tuning';
 import { MazeGame } from './game';
@@ -73,5 +73,150 @@ describe('Drohnen-Koerper', () => {
     for (const drone of snapshot.drones) {
       expect(drone.gameplayRadius).toBe(droneArchetypes().drone?.radius);
     }
+  });
+});
+
+/**
+ * Drohnen-Rework, Stufe 1 (Sams Spieltest vom 13.08.).
+ *
+ * Sam: „da müssen die Drohnen ja auch irgendwas angreifen. Das macht ja gar
+ * keinen Sinn, dass sie einfach um dich schweben und dann nix passiert."
+ * Gemessen stimmte das wörtlich – ein Gegner 200 px entfernt, kein Kommando,
+ * acht Sekunden, null Schaden. Es gab im ganzen Server keine Zeile, in der
+ * eine Drohne selbst ein Ziel suchte.
+ */
+describe('Drohnen-Verhalten (Stufe 1)', () => {
+  const OFFENES_FELD = { x: 2800, y: 2200 };
+
+  interface Interna {
+    players: Map<string, any>;
+    shapes: Map<string, any>;
+    drones: Map<string, any>;
+  }
+
+  /** Ein Controller auf freiem Feld, mit stehender Flotte. */
+  const aufbau = (klasse: 'drone' | 'guardian' | 'aviary' = 'drone') => {
+    const game = tuneDrones(tuneCombatScaling(new MazeGame(0)));
+    const interna = game as unknown as Interna;
+    // Formen weg: Sie sind gültige Ziele und würden jede Messung stören.
+    interna.shapes.clear();
+    const id = game.addPlayer('Controller');
+    const spieler = interna.players.get(id);
+    spieler.level = 45;
+    spieler.position = { ...OFFENES_FELD };
+    spieler.invulnerable = false;
+    spieler.invulnerableUntil = 0;
+    expect(game.chooseClass(id, klasse === 'drone' ? 'drone' : klasse)).toBe(true);
+    game.step(1 / 40, 100_000);
+    return { game, interna, id, spieler };
+  };
+
+  const gegnerBei = (interna: Interna, game: MazeGame, position: { x: number; y: number }) => {
+    const id = game.addPlayer('Gegner');
+    const gegner = interna.players.get(id);
+    gegner.position = { ...position };
+    gegner.invulnerable = false;
+    gegner.invulnerableUntil = 0;
+    gegner.level = 45;
+    return { id, gegner };
+  };
+
+  /** Mittlerer Abstand der Flotte zu einem Punkt. */
+  const flottenAbstand = (interna: Interna, ziel: { x: number; y: number }): number => {
+    const drohnen = [...interna.drones.values()];
+    expect(drohnen.length).toBeGreaterThan(0);
+    return drohnen.reduce((summe, d) => summe + Math.hypot(d.position.x - ziel.x, d.position.y - ziel.y), 0) / drohnen.length;
+  };
+
+  it('greift ohne Kommando einen Gegner in Reichweite an – vorher passierte nichts', () => {
+    const { game, interna } = aufbau();
+    const { gegner } = gegnerBei(interna, game, { x: OFFENES_FELD.x + 200, y: OFFENES_FELD.y });
+    const vorher = flottenAbstand(interna, gegner.position);
+
+    let now = 100_000;
+    for (let tick = 0; tick < 40; tick += 1) {
+      gegner.position = { x: OFFENES_FELD.x + 200, y: OFFENES_FELD.y };
+      gegner.health = gegner.maxHealth;
+      game.step(1 / 40, (now += 25));
+    }
+
+    // Die Flotte muss beim Gegner ankommen, nicht beim Besitzer kreisen.
+    expect(flottenAbstand(interna, gegner.position)).toBeLessThan(vorher);
+    expect(flottenAbstand(interna, gegner.position)).toBeLessThan(80);
+  });
+
+  it('fügt dem Gegner dabei wirklich Schaden zu (der eigentliche Befund)', () => {
+    const { game, interna } = aufbau();
+    const { gegner } = gegnerBei(interna, game, { x: OFFENES_FELD.x + 200, y: OFFENES_FELD.y });
+    const leben = gegner.health;
+
+    let now = 100_000;
+    for (let tick = 0; tick < 120; tick += 1) {
+      gegner.position = { x: OFFENES_FELD.x + 200, y: OFFENES_FELD.y };
+      game.step(1 / 40, (now += 25));
+    }
+    expect(gegner.health).toBeLessThan(leben);
+  });
+
+  it('bleibt beim Besitzer, wenn niemand in Reichweite ist', () => {
+    const { game, interna, spieler } = aufbau();
+    // Weit außerhalb jedes Suchradius (drone: 520).
+    gegnerBei(interna, game, { x: OFFENES_FELD.x + 1400, y: OFFENES_FELD.y });
+
+    let now = 100_000;
+    for (let tick = 0; tick < 60; tick += 1) game.step(1 / 40, (now += 25));
+
+    const archetyp = droneArchetypes().drone!;
+    expect(flottenAbstand(interna, spieler.position)).toBeLessThan(archetyp.orbitRadius + 60);
+  });
+
+  it('stößt beim Rechtsklick vom Zeiger weg, nicht hinter den Tank', () => {
+    const { game, interna, spieler } = aufbau();
+    // Zeiger 300 px nach rechts; die Flotte muss sich VOM Zeiger entfernen.
+    const zeiger = { x: OFFENES_FELD.x + 300, y: OFFENES_FELD.y };
+    spieler.aim = { x: 300, y: 0 };
+    spieler.secondary = true;
+
+    let now = 100_000;
+    const vorher = flottenAbstand(interna, zeiger);
+    for (let tick = 0; tick < 40; tick += 1) {
+      spieler.aim = { x: 300, y: 0 };
+      spieler.secondary = true;
+      game.step(1 / 40, (now += 25));
+    }
+    const nachher = flottenAbstand(interna, zeiger);
+    expect(nachher).toBeGreaterThan(vorher);
+    // Die alte Punktspiegelung hätte die Flotte auf EINEN Punkt hinter dem
+    // Tank gezogen – dort darf sie jetzt gerade nicht landen.
+    const spiegel = { x: OFFENES_FELD.x - 300, y: OFFENES_FELD.y };
+    const streuung = [...interna.drones.values()]
+      .map((d) => Math.hypot(d.position.x - spiegel.x, d.position.y - spiegel.y));
+    expect(Math.min(...streuung)).toBeGreaterThan(30);
+  });
+
+  it('hält die Flotte an der Leine – auch bei dauerhaft gehaltenem Rechtsklick', () => {
+    const { game, interna, spieler } = aufbau();
+    let now = 100_000;
+    for (let tick = 0; tick < 400; tick += 1) {
+      spieler.aim = { x: 300, y: 0 };
+      spieler.secondary = true;
+      game.step(1 / 40, (now += 25));
+    }
+    for (const drohne of interna.drones.values()) {
+      const weg = Math.hypot(drohne.position.x - spieler.position.x, drohne.position.y - spieler.position.y);
+      expect(weg, 'Drohne ist von der Leine gerissen').toBeLessThan(GAME.maxAimDistance + 120);
+    }
+  });
+
+  it('gibt jeder Klasse einen eigenen Suchradius – Wächter eng, Schwärme weit', () => {
+    const tabelle = droneArchetypes();
+    for (const id of drohnenklassen) {
+      expect(tabelle[id]?.searchRadius, `${id} ohne Suchradius`).toBeGreaterThan(0);
+    }
+    // Der Regler läuft mit dem Orbit mit: guardian verteidigt zu Hause,
+    // aviary schwärmt aus. Ohne diesen Unterschied fühlen sich zehn Klassen
+    // wieder gleich an – Sams Punkt 2.
+    expect(tabelle.guardian!.searchRadius).toBeLessThan(tabelle.drone!.searchRadius);
+    expect(tabelle.aviary!.searchRadius).toBeGreaterThan(tabelle.drone!.searchRadius);
   });
 });

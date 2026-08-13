@@ -110,7 +110,13 @@ export function hardenSimulation<T extends MazeGame>(game: T): T {
     const center = self.position;
     snapshot.players = snapshot.players.filter((player) => player.id === selfId || inFixedView(player.position, center));
     snapshot.projectiles = snapshot.projectiles.filter((projectile) => inFixedView(projectile.position, center));
-    snapshot.drones = snapshot.drones.filter((drone) => inFixedView(drone.position, center));
+    // Eigene Drohnen werden NIE weggeschnitten (Sams Drohnen-Rework, Stufe 1).
+    // Das Schnittfenster ist 848 x 498 px, die Drohnen duerfen aber bis zu
+    // 650 px in jede Richtung vom Tank weg – gemessen verschwanden die EIGENEN
+    // Drohnen ab 500 px senkrecht aus dem Bild, waehrend sie weiterkaempften.
+    // Wer seine Flotte nicht sieht, kann sie nicht fuehren; jede Verbesserung
+    // an Reichweite oder Zielsuche waere unsichtbar geblieben.
+    snapshot.drones = snapshot.drones.filter((drone) => drone.ownerId === selfId || inFixedView(drone.position, center));
     snapshot.shapes = snapshot.shapes.filter((shape) => inFixedView(shape.position, center));
     return snapshot;
   }) as T['snapshot'];

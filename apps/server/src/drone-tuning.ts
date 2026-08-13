@@ -14,7 +14,7 @@ import {
 } from '@project-maze/shared/gameplay';
 import { MazeGame } from './game.js';
 import { clampMagnitude, distanceSquared, moveVectorToward, normalize } from './physics.js';
-import { SHAPE_CONFIG, moveCircle } from './world.js';
+import { SHAPE_CONFIG, hasLineOfSight, moveCircle } from './world.js';
 
 interface DroneArchetype {
   health: number;
@@ -22,16 +22,27 @@ interface DroneArchetype {
   acceleration: number;
   radius: number;
   orbitRadius: number;
+  /**
+   * Wie weit die Drohne um ihren BESITZER herum nach einem Ziel sucht, wenn
+   * der Spieler nichts befiehlt (Drohnen-Rework, Stufe 1).
+   *
+   * Um den Besitzer, nicht um sich selbst: Sonst zieht eine Drohne die
+   * nächste hinter sich her, und die Flotte wandert aus. Die Zahl ist der
+   * Regler, an dem sich die zehn Klassen zum ersten Mal wirklich
+   * unterscheiden – sie läuft mit dem Orbitradius mit: Wächter bleiben zu
+   * Hause, Schwärme greifen weit.
+   */
+  searchRadius: number;
 }
 
 const DRONE_ARCHETYPES: Partial<Record<PlayerClass, DroneArchetype>> = {
-  drone: { health: 36, speed: 440, acceleration: 1450, radius: 12, orbitRadius: 82 },
-  warden: { health: 32, speed: 480, acceleration: 1650, radius: 10.5, orbitRadius: 88 },
-  factory: { health: 54, speed: 390, acceleration: 1250, radius: 13.5, orbitRadius: 86 },
-  overseer: { health: 28, speed: 510, acceleration: 1780, radius: 9.5, orbitRadius: 94 },
-  carrier: { health: 72, speed: 350, acceleration: 1050, radius: 15.5, orbitRadius: 92 },
-  guardian: { health: 62, speed: 380, acceleration: 1200, radius: 13, orbitRadius: 62 },
-  hive: { health: 18, speed: 530, acceleration: 1900, radius: 7.5, orbitRadius: 100 },
+  drone: { health: 36, speed: 440, acceleration: 1450, radius: 12, orbitRadius: 82, searchRadius: 520 },
+  warden: { health: 32, speed: 480, acceleration: 1650, radius: 10.5, orbitRadius: 88, searchRadius: 560 },
+  factory: { health: 54, speed: 390, acceleration: 1250, radius: 13.5, orbitRadius: 86, searchRadius: 540 },
+  overseer: { health: 28, speed: 510, acceleration: 1780, radius: 9.5, orbitRadius: 94, searchRadius: 620 },
+  carrier: { health: 72, speed: 350, acceleration: 1050, radius: 15.5, orbitRadius: 92, searchRadius: 580 },
+  guardian: { health: 62, speed: 380, acceleration: 1200, radius: 13, orbitRadius: 62, searchRadius: 420 },
+  hive: { health: 18, speed: 530, acceleration: 1900, radius: 7.5, orbitRadius: 100, searchRadius: 700 },
   /*
    * Klassen 4.0/4.1: drei Drohnenklassen kamen dazu, die Tabelle nicht.
    *
@@ -50,13 +61,13 @@ const DRONE_ARCHETYPES: Partial<Record<PlayerClass, DroneArchetype>> = {
   // „Drei schwere Waechter" – wenige, dicke Koerper im engen Orbit. Flotte 216,
   // also zwischen warden (192) und factory (270), aber auf drei Ziele verteilt.
 
-  sentinel: { health: 72, speed: 340, acceleration: 1020, radius: 15.5, orbitRadius: 70 },
+  sentinel: { health: 72, speed: 340, acceleration: 1020, radius: 15.5, orbitRadius: 70, searchRadius: 460 },
   // „Neun flinke Voegel" – leicht und schnell, zwischen hive (10 x 18) und
   // overseer (8 x 28). Flotte 207.
-  aviary: { health: 23, speed: 545, acceleration: 1850, radius: 8.5, orbitRadius: 104 },
+  aviary: { health: 23, speed: 545, acceleration: 1850, radius: 8.5, orbitRadius: 104, searchRadius: 720 },
   // Apex der Familie: „Sieben Waechter, ein Wille." Flotte 462 – oberhalb von
   // carrier (432), wie es sich fuer eine Endstufe auf Level 42 gehoert.
-  sovereign: { health: 66, speed: 430, acceleration: 1400, radius: 13.5, orbitRadius: 88 }
+  sovereign: { health: 66, speed: 430, acceleration: 1400, radius: 13.5, orbitRadius: 88, searchRadius: 640 }
 };
 
 interface RuntimePlayer extends PlayerSnapshot {
@@ -101,6 +112,63 @@ const reloadFor = (player: RuntimePlayer): number => Math.max(
   CLASS_DEFINITIONS[player.playerClass].reload * modifierFor(player).reloadMultiplier * Math.pow(0.95, player.upgrades.reload)
 );
 const bodyDamageFor = (player: RuntimePlayer): number => CLASS_DEFINITIONS[player.playerClass].bodyDamage * (1 + player.upgrades.bodyDamage * 0.1);
+
+/**
+ * Wie weit ein Rechtsklick die Drohnen vom Zeiger wegschiebt. Weit genug, dass
+ * die Flotte sichtbar auffächert, kurz genug, dass sie beim Loslassen sofort
+ * wieder da ist.
+ */
+const ABSTOSS_WEG = 260;
+/**
+ * Kein Zielpunkt liegt weiter vom Besitzer weg als `GAME.maxAimDistance` –
+ * dieselbe Reichweite, die auch der Zeiger hat. Die Drohnen bleiben damit im
+ * selben Kreis, in dem der Spieler zeigen kann.
+ */
+const LEINE = GAME.maxAimDistance;
+/** Radius des Rings, auf dem sich die Flotte um ihr gemeinsames Ziel verteilt. */
+const FORMATION_RING = 26;
+/** Über diese Zeit wird die Restdistanz abgebremst – gegen das Überschwingen. */
+const BREMS_SEKUNDEN = 0.18;
+
+/**
+ * Das nächste lohnende Ziel im Umkreis des BESITZERS – oder `null`.
+ *
+ * Gesucht wird um den Besitzer, nicht um die Drohne: Sonst zieht jede Drohne
+ * die nächste hinter sich her und die Flotte wandert aus dem Bild.
+ *
+ * Spieler schlagen Formen, auch wenn eine Form näher liegt – wer angegriffen
+ * wird, will nicht zusehen, wie seine Flotte nebenan ein Quadrat frisst.
+ * Geprüft wird am Ende genau EINE Sichtlinie (die des Siegers): Eine Drohne,
+ * die auf eine Wand zufliegt, hinter der ihr Ziel steht, bleibt dort kleben –
+ * und Sichtlinien sind das Teuerste an dieser Suche.
+ */
+function sucheZiel(
+  internals: DroneInternals,
+  owner: RuntimePlayer,
+  searchRadius: number
+): Vector2 | null {
+  const reichweite = searchRadius * searchRadius;
+  let bester: Vector2 | null = null;
+  let besteEntfernung = Infinity;
+
+  for (const kandidat of internals.players.values()) {
+    if (kandidat.id === owner.id || kandidat.dead || kandidat.invulnerable) continue;
+    const entfernung = distanceSquared(kandidat.position, owner.position);
+    if (entfernung > reichweite || entfernung >= besteEntfernung) continue;
+    besteEntfernung = entfernung;
+    bester = kandidat.position;
+  }
+  if (!bester) {
+    for (const form of internals.shapes.values()) {
+      const entfernung = distanceSquared(form.position, owner.position);
+      if (entfernung > reichweite || entfernung >= besteEntfernung) continue;
+      besteEntfernung = entfernung;
+      bester = form.position;
+    }
+  }
+  if (!bester || !hasLineOfSight(owner.position, bester)) return null;
+  return { x: bester.x, y: bester.y };
+}
 
 /**
  * Gives each control-class branch its own physical drone identity.
@@ -155,13 +223,70 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
         x: owner.position.x + Math.cos(orbitAngle) * archetype.orbitRadius,
         y: owner.position.y + Math.sin(orbitAngle) * archetype.orbitRadius
       };
-      let target = orbit;
-      if (owner.secondary) target = { x: owner.position.x - aim.x, y: owner.position.y - aim.y };
-      else if (owner.primary) target = { x: owner.position.x + aim.x, y: owner.position.y + aim.y };
+      /** Der Punkt unter dem Mauszeiger – das Gegenstück zum Diep.io-Cursor. */
+      const zeiger = { x: owner.position.x + aim.x, y: owner.position.y + aim.y };
 
+      /*
+       * Die vier Zustände einer Drohne (Drohnen-Rework, Stufe 1).
+       *
+       * Vorher waren es drei – Orbit, „flieg zum Zeiger", „flieg hinter den
+       * Tank" – und keiner davon griff je von selbst an. Sam im Spieltest:
+       * „da müssen die Drohnen ja auch irgendwas angreifen. Das macht ja gar
+       * keinen Sinn, dass sie einfach um dich schweben und dann nix passiert."
+       * Gemessen stimmte das wörtlich: ein Gegner 200 px entfernt, kein
+       * Kommando, acht Sekunden – null Schaden.
+       *
+       * 1. Rechtsklick: radial VOM Zeiger weg (Diep.io-Verhalten). Vorher war
+       *    es eine Punktspiegelung hinter den Tank – die ganze Flotte sammelte
+       *    sich auf einem Punkt, statt aufzufächern.
+       * 2. Linksklick (und Auto-Feuer): zum Zeiger.
+       * 3. Sonst: das nächste Ziel im Suchradius um den Besitzer angreifen.
+       * 4. Findet sich keins: der alte Orbit. Er bleibt die Nahverteidigung.
+       */
+      let ziel = orbit;
+      let formation = true;
+      if (owner.secondary) {
+        // Weg vom Zeiger, nicht hinter den Tank. Steht die Drohne exakt auf dem
+        // Zeiger, liefert `normalize` (0,0) – dann weicht sie vom Besitzer weg,
+        // statt stehenzubleiben.
+        const weg = normalize({ x: drone.position.x - zeiger.x, y: drone.position.y - zeiger.y });
+        const richtung = weg.x === 0 && weg.y === 0
+          ? normalize({ x: drone.position.x - owner.position.x, y: drone.position.y - owner.position.y })
+          : weg;
+        ziel = { x: drone.position.x + richtung.x * ABSTOSS_WEG, y: drone.position.y + richtung.y * ABSTOSS_WEG };
+        formation = false;
+      } else if (owner.primary) {
+        ziel = zeiger;
+      } else {
+        const gesucht = sucheZiel(internals, owner, archetype.searchRadius);
+        if (gesucht) ziel = gesucht;
+        else formation = false;
+      }
+
+      /*
+       * Formation statt Pulk: Jede Drohne bekommt ihren Slot-Winkel auch beim
+       * Angriff, fliegt also einen eigenen Punkt auf einem kleinen Ring um das
+       * gemeinsame Ziel an. Ohne das stapelt sich die ganze Flotte auf einer
+       * Koordinate und sieht aus wie eine Drohne.
+       */
+      if (formation && definition.droneCount > 1) {
+        const platz = drone.slot * Math.PI * 2 / definition.droneCount;
+        ziel = { x: ziel.x + Math.cos(platz) * FORMATION_RING, y: ziel.y + Math.sin(platz) * FORMATION_RING };
+      }
+      // Leine: Kein Zielpunkt liegt weiter vom Besitzer entfernt als sein
+      // Zeiger reichen kann. Ohne sie schiebt ein gehaltener Rechtsklick die
+      // Flotte bis an den Kartenrand, und sie käme nicht zurück.
+      const zumZiel = clampMagnitude({ x: ziel.x - owner.position.x, y: ziel.y - owner.position.y }, LEINE);
+      const target = { x: owner.position.x + zumZiel.x, y: owner.position.y + zumZiel.y };
+
+      const abstand = Math.hypot(target.x - drone.position.x, target.y - drone.position.y);
       const direction = normalize({ x: target.x - drone.position.x, y: target.y - drone.position.y });
       const travelMultiplier = modifier.moveMultiplier * modifier.projectileSpeedMultiplier;
-      const speed = archetype.speed * travelMultiplier;
+      // Ankommen statt Überschwingen: Auf den letzten Metern wird die
+      // Wunschgeschwindigkeit von der Reststrecke gedeckelt. Vorher pendelte
+      // eine Drohne am Zielpunkt mit bis zu 71 px Amplitude, weil sie mit
+      // vollem Tempo hineinfuhr und erst dahinter bremste.
+      const speed = Math.min(archetype.speed * travelMultiplier, abstand / BREMS_SEKUNDEN);
       drone.velocity = moveVectorToward(
         drone.velocity,
         { x: direction.x * speed, y: direction.y * speed },
