@@ -4,10 +4,12 @@ on:
   push:
     branches: [main]
     # Reine Doku-Pushes lassen den Dienst unberührt – sie brauchen weder
-    # Testlauf noch Image-Bau noch Deploy-Wache. Am 13.08. waren 22 von 30
-    # Läufen genau das, und einer davon hat das Actions-Kontingent auf 90 %
-    # getrieben. Enthält ein Push AUCH Code, greift der Filter nicht und die
-    # CI läuft vollständig – GitHub prüft alle Dateien des Pushes.
+    # Testlauf noch Image-Bau noch Deploy-Wache. Nachgezählt an den letzten
+    # 30 Commits auf main: 12 hätten hier gar keinen Lauf mehr ausgelöst,
+    # 2 weitere (scripts/, .github/) lösen einen Lauf aus, dessen Wache
+    # sofort grün ist, 16 tragen echten Code. Enthält ein Push AUCH Code,
+    # greift der Filter nicht und die CI läuft vollständig – GitHub prüft
+    # alle Dateien des Pushes, nicht nur die des letzten Commits.
     paths-ignore:
       - 'docs/**'
       - 'supabase/**'
