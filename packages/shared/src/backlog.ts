@@ -109,9 +109,10 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'C1',
     wunsch: 'Alle Klassen fühlen sich gleich an – der eine schießt drei nach vorne, der andere zwei.',
     bereich: 'klassen',
-    stand: 'offen',
+    stand: 'arbeit',
     gemeldet: '2026-08-13',
-    notiz: 'Stufe 4 des Plans: Salve statt Fächer, dann Pro-Lauf-Profile, dann fehlende Archetypen.'
+    nachweis: '7c92e34 – Repeater, Retributor, Scorch und Inferno feuern ihre Läufe im Stakkato statt im Fächer, Gesamtschaden/Sekunde unverändert',
+    notiz: 'Stufe 4, Schritt 1 (Salve statt Fächer) erledigt. Noch offen: Pro-Lauf-Profile und fehlende Archetypen (Schritt 2+3).'
   },
 
   // ---------------------------------------------------------------- Spieltest 13.08., zweite Runde
