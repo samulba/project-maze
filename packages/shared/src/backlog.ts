@@ -148,7 +148,7 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     bereich: 'bots',
     stand: 'erledigt',
     gemeldet: '2026-08-13',
-    nachweis: 'HASH_PLATZHALTER',
+    nachweis: '48b1afd',
     notiz: 'Rechtsklick jetzt an die Fluchterkennung gekoppelt (Schutzschild beim Rückzug) statt an blosse Nähe. Gemessen: 17,4 % der Ticks bei niedrigem Leben, 0,0 % bei gesunder Flotte.'
   },
   {
