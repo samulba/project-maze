@@ -163,8 +163,9 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'U1',
     wunsch: 'Die Minimap unten rechts sollte die GANZE Map zeigen und nicht nur, wo man gerade ist.',
     bereich: 'ui',
-    stand: 'offen',
+    stand: 'erledigt',
     gemeldet: '2026-08-13',
+    nachweis: '52a37c4 – GET /map liefert das ganze Kartenlayout einmal, Minimap steht jetzt auf Weltmitte statt Kamera',
     notiz: 'Macht zugleich die beiden Hauptplätze auffindbar.'
   },
   {
