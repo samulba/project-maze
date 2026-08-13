@@ -381,8 +381,10 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'K5',
     wunsch: 'An den Rändern der Karte darf komplett keine Mauer sein – man soll das Gefühl haben, einmal am Rand entlang durchrennen zu können.',
     bereich: 'karte',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: 'c3f7abb – Randzellen bilden jetzt eine durchgehende Schleife, gemessen 0/2984 Randpunkte blockiert',
+    notiz: 'Begehbare Fläche 71,8→74,0 %, weite Blicke 19,5→22,7 % – bleibt im Labyrinth-Korridor aus K1.'
   }
 ];
 
