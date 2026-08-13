@@ -230,8 +230,9 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'U2',
     wunsch: 'Von wo der Damage kam: mega coole Anzeige, nur noch etwas dezenter und kleiner machen.',
     bereich: 'ui',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '739b643 – Trefferkeil schmaler, dünner, dunkler; dasselbe Muster, weniger dominant'
   },
   {
     id: 'K4',
@@ -274,8 +275,9 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'C2',
     wunsch: 'Bei den Tanks könnte man die Schussröhre etwas dicker machen, von Tank zu Tank unterschiedlich – damit man mit dem Design spielen kann.',
     bereich: 'klassen',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '739b643 – barrelHeightFor leitet die Breite aus der Lauflänge ab, jede Klasse dicker als vorher, außer Sniper'
   },
   {
     id: 'B2',
@@ -306,9 +308,10 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'C3',
     wunsch: 'Bei SNIPER ist ein mini dünnes Rohr, aber lang, dafür eine richtig fette Kugel – die passt da ja gar nicht durch.',
     bereich: 'klassen',
-    stand: 'offen',
+    stand: 'erledigt',
     gemeldet: '2026-08-13',
-    notiz: 'Hängt mit C2 zusammen: Rohrbreite und Kugelgröße müssen zueinander passen.'
+    nachweis: '739b643 – barrelHeightFor sichert für jede Klasse eine Mindestbreite aus dem eigenen projectileRadius',
+    notiz: 'Hing mit C2 zusammen: Rohrbreite und Kugelgröße müssen zueinander passen. Dieselbe Funktion löst beides.'
   },
   {
     id: 'BO1',
