@@ -287,15 +287,17 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'U7',
     wunsch: 'Seinen eigenen Namen beim Tank muss man nicht sehen, das ist unnötig.',
     bereich: 'ui',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '3686266 – eigener Name zeigt am eigenen Tank nichts mehr an, Gegner behalten ihren Namen'
   },
   {
     id: 'U8',
     wunsch: 'Diese Zahlen, wenn man was damaged – auch kake, raus damit.',
     bereich: 'ui',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '3686266 – keine Schadenszahl mehr über einem Gegner, den man selbst trifft'
   },
   {
     id: 'C3',
@@ -316,15 +318,17 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'BO2',
     wunsch: 'Bei den Bots sollte man nicht sehen, dass es Bots sind.',
     bereich: 'bots',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '3686266 – keine "BOT"-Marke mehr am Tank-Namensschild oder in der Bestenliste (Bewegung selbst = BO1, bleibt offen)'
   },
   {
     id: 'U9',
     wunsch: 'Kein Level direkt beim Tank – nur oben rechts im Leaderboard.',
     bereich: 'ui',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '3686266 – Level nicht mehr am Tank, steht weiterhin in der Bestenliste'
   },
   {
     id: 'U10',
