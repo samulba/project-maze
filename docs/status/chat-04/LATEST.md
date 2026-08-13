@@ -138,8 +138,11 @@ wieder durchgerutscht.
 3. **Rest der Retention-Runde:** nur noch die Login-Zeile auf dem
    Death-Screen (55, Wortlaut mit Sam) – die restlichen 53er-Zeilen sind
    gebaut (Erfolge des Laufs + Bestenlisten-Messlatte auf der Death-Karte).
-4. **Der einzige echte Blocker bleibt Sams:** Migration `0005_sessions.sql`
-   und die Railway-Variablen – ohne sie misst die dreizehnte Zeile nicht.
+4. ~~Migration `0005_sessions.sql`~~ **Erledigt (13.08.): Sam hat die
+   Migration eingespielt** – der letzte Handgriff-Blocker ist weg. Nach
+   dem nächsten Deploy in `/health` unter `sessions` verifizieren, dass
+   die Schicht schreibt; Sam spielt gerade und bringt Feedback mit
+   (Prediction-A/B, Bot-Gefühl nach Schnitt a, neue Familien).
 
 ## 3. Die Lehre der Sitzung, in einem Satz
 

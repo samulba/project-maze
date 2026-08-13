@@ -87,14 +87,14 @@ einzige Stelle, an der das Spiel als Spiel geprüft wird.
 dieses Spiel in seinem heutigen Zustand gespielt. Die Dinge, die den Ausschlag
 geben, sind alle offen:
 
-1. Die **Supabase-Migration** (`0005_sessions.sql`) und die Railway-Variablen
-   sind nicht gesetzt – also misst das Portal nicht, ob Fremde wiederkommen.
-   Ohne diese Zahl bleibt die wichtigste Zeile der Tabelle blind. Das ist Sams
-   Handgriff; was ich dazu tun konnte, ist getan: Der Server sieht beim Start
-   nach, ob das Schema steht, und sagt im Log und in `/health`, welche Datei
-   fehlt. Vorher wäre eine vergessene Migration erst aufgefallen, wenn der
-   erste Spieler wieder *geht* – und dann als Portal voller Nullen, die
-   genauso aussehen wie „es war niemand da".
+1. ~~Die **Supabase-Migration** (`0005_sessions.sql`)~~ **Erledigt am
+   13.08.: Sam hat die Migration eingespielt.** Damit fällt der letzte
+   Handgriff-Blocker. Verifikation nach dem nächsten Deploy: `/health`
+   meldet unter `sessions`, ob die Schicht schreibt (der Server prüft das
+   Schema beim Start und nennt im Log, was fehlen sollte); danach misst
+   die Wiederkehr-Zeile erstmals echte Daten. Sollten die
+   Railway-Variablen noch nicht vollständig stehen, sagt dieselbe
+   /health-Zeile es.
 2. Ob sich **SIEGE gegen RAPID** wirklich unterschiedlich anfühlt, ist eine
    Behauptung aus acht Füllbedingungen im Code. Belegt ist, dass sie
    verschieden *rechnen*. Ob daraus Spielgefühl wird, entscheiden Daumen und
