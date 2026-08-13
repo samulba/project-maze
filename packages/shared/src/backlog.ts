@@ -247,29 +247,33 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'U3',
     wunsch: 'Unten links, wenn man eliminiert wurde: der Countdown und der „Respawn bereit"-Text schauen bisschen kake aus.',
     bereich: 'ui',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '0deb725 – eigene Meta-Typografie statt vererbtem Fließtext, "Respawn bereit" farblich abgesetzt'
   },
   {
     id: 'U4',
     wunsch: 'Wenn ich nicht F11-Fullscreen habe, gibt es links und rechts Ränder, weil es nicht responsive ist.',
     bereich: 'ui',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '0deb725 – bildschirmfüllender Modus ist jetzt die Vorgabe (Sams Wahl), fest 16:9 bleibt als Option'
   },
   {
     id: 'U5',
     wunsch: 'Unten links das Widget mit Dropdown „CORE LOADOUT" und den zwei Dingern geht cleaner – man kann es kaum lesen.',
     bereich: 'ui',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '0deb725 – Auswahlfelder untereinander statt nebeneinander, volle Kartenbreite je Feld'
   },
   {
     id: 'U6',
     wunsch: 'Das Klassenrad (Taste C) ist super, aber noch etwas CLEANER – und man soll den Hintergrund sehen, um zu merken, wenn man angegriffen wird.',
     bereich: 'ui',
-    stand: 'offen',
-    gemeldet: '2026-08-13'
+    stand: 'erledigt',
+    gemeldet: '2026-08-13',
+    nachweis: '0deb725 – Schleier eine Spur dichter (Mitte 97→98,5%, Rand 86→91%), Rand bleibt sichtbar heller'
   },
   {
     id: 'C2',
