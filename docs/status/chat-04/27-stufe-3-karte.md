@@ -186,6 +186,15 @@ Drei Möglichkeiten, in aufsteigendem Aufwand: die Plätze aufs Nahradar zeichne
 (billig, hilft nur in der Nähe), ein Richtungspfeil am Bildrand, oder eine
 echte Weltkarte auf Tastendruck. **Sag, welche.**
 
+## Geprüft
+
+`npm run check` grün: 81 Dateien, 1115 Tests (+16). Proben: `wire`, `maze`,
+`ffa`, `royale`, eine ganze Royale-Runde und `duo` grün. Die
+Fortschrittsschleife fiel im Sammellauf und war einzeln in 43 s grün – dasselbe
+Muster, das [Bericht 21](21-bericht-19-nachgemessen.md) schon festgehalten hat
+(„im Suite-Lauf einmal an der Container-Last gescheitert, einzeln
+reproduzierbar grün"). `proben.mjs` warnt im eigenen Kopfkommentar davor.
+
 ## Offen für dich
 
 * **Sichtweite**: Der Median liegt jetzt bei 400 px. Ist das zu eng? Es ist die
