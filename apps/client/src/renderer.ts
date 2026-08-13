@@ -438,11 +438,12 @@ export class GameRenderer {
     const jumped=!self||!this.lastSelfPosition
       ||Math.hypot(self.position.x-this.lastSelfPosition.x,self.position.y-this.lastSelfPosition.y)>400;
     if(this.wallsInitialized&&self&&!jumped){
+      const anchor=this.viewAnchor(self.position);
       for(const[id,wall]of this.knownWalls){
-        if(!next.has(id)&&this.wallWellInsideView(wall,self.position))this.flashWall(wall,false);
+        if(!next.has(id)&&this.wallWellInsideView(wall,anchor))this.flashWall(wall,false);
       }
       for(const[id,wall]of next){
-        if(!this.knownWalls.has(id)&&this.wallWellInsideView(wall,self.position))this.flashWall(wall,true);
+        if(!this.knownWalls.has(id)&&this.wallWellInsideView(wall,anchor))this.flashWall(wall,true);
       }
     }
     this.knownWalls=next;
@@ -482,7 +483,7 @@ export class GameRenderer {
     this.rings.push({position:{...position},life:.7,maxLife:.7,maxRadius:180,color:GUARDIAN_COLOR,width:5});
     this.rings.push({position:{...position},life:1,maxLife:1,maxRadius:280,color:0xffe3a0,width:2});
     const self=snapshot.players.find(player=>player.id===snapshot.selfId);
-    if(self&&this.wellInsideView(position,self.position))this.shake(4);
+    if(self&&this.wellInsideView(position,this.viewAnchor(self.position)))this.shake(4);
   }
 
   /**
@@ -669,7 +670,7 @@ export class GameRenderer {
     for(const[id,previous]of this.knownShapes){
       const current=shapes.get(id);
       if(current&&current.health<previous.health)this.particles.burst(current.position,this.shapeColor(current),3,85,.18);
-      if(!current&&!suppressed&&self&&this.wellInsideView(previous.position,self.position)){
+      if(!current&&!suppressed&&self&&this.wellInsideView(previous.position,this.viewAnchor(self.position))){
         const elite=previousElites.has(id);
         this.particles.burst(previous.position,elite?0xf4c866:this.shapeColor(previous),elite?22:10,elite?260:170,elite?.55:.38);
         if(elite)this.rings.push({position:{...previous.position},life:.55,maxLife:.55,maxRadius:110,color:0xf4c866,width:4});
@@ -688,6 +689,26 @@ export class GameRenderer {
   /** Deutlich innerhalb des Server-Cull-Rechtecks – Despawns an der Sichtkante zählen nicht als Kill. */
   private wellInsideView(position:Vector2,center:Vector2):boolean{
     return Math.abs(position.x-center.x)<=GAME.visibleWorldWidth/2-60&&Math.abs(position.y-center.y)<=GAME.visibleWorldHeight/2-60;
+  }
+
+  /**
+   * Bezugspunkt für „ist das gerade im Bild" – beim Zuschauen der beobachtete
+   * Spieler, sonst man selbst (B2, Sam: „beim Zuschauen sind ab und zu random
+   * gelbe Ringe im Screen").
+   *
+   * Der Server baut den Snapshot eines Toten aus der Perspektive des Killers
+   * (siehe spectator.ts): Culling und Sichtfenster hängen an dessen Position,
+   * die eigene Leiche bleibt aber an der Todesstelle liegen – oft weit weg von
+   * dem, was der Killer inzwischen sieht. Wer trotzdem gegen `self.position`
+   * rechnet, zeigt Effekte (Form-Ring, Wandblitz) mal zufällig, mal gar nicht
+   * – je nachdem, wie weit die eigene Leiche gerade vom Killer entfernt liegt,
+   * nicht danach, ob etwas wirklich im Bild passiert ist. Derselbe Kniff wie
+   * bei `camera` in `render()`, nur wiederverwendbar für Sync-Methoden ohne
+   * eigene Kamera-Variable.
+   */
+  private viewAnchor(self:Vector2):Vector2{
+    const spectated=this.spectatorId?this.playerViews.get(this.spectatorId):undefined;
+    return spectated?.current??self;
   }
 
   private render(delta:number):void{
