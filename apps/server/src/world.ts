@@ -1,4 +1,4 @@
-import { GAME, type ShapeKind, type ShapeSnapshot, type Vector2, type Wall, ARENA_MODES, type ArenaMode } from '@project-maze/shared';
+import { GAME, type MapInfo, type ShapeKind, type ShapeSnapshot, type Vector2, type Wall, ARENA_MODES, type ArenaMode } from '@project-maze/shared';
 import { clamp, normalize } from './physics.js';
 
 interface ShapeConfig { radius: number; health: number; reward: number; bodyDamage: number; drift: number; }
@@ -373,6 +373,19 @@ export const WALLS: Wall[] = labyrinth.waende;
  * aller Formen erscheint dort – das ist der Grund, überhaupt hinzugehen.
  */
 export const HAUPTPLAETZE: readonly Hauptplatz[] = labyrinth.plaetze;
+
+/**
+ * Antwort für `GET /map` (Sam: die Minimap soll die ganze Karte zeigen, nicht
+ * nur den aktuellen Ausschnitt). `WALLS`/`HAUPTPLAETZE` sind für die Laufzeit
+ * des Prozesses fest – eine reine Funktion statt einer weiteren Konstante,
+ * damit sie sich ohne Express-Objekte testen lässt.
+ */
+export function mapInfo(): MapInfo {
+  // `activeWalls`, nicht `WALLS`: In FFA gibt es keine Wände (siehe
+  // `refreshActiveWalls`) – die Minimap soll dieselbe leere Karte zeigen wie
+  // jeder andere Wandzugriff auch, nicht die ungenutzte Rohgeneration.
+  return { walls: activeWalls, plazas: [...HAUPTPLAETZE], worldWidth: GAME.worldWidth, worldHeight: GAME.worldHeight };
+}
 
 /**
  * Vom Fracture-Event temporär deaktivierte Wandsegmente. Eine deaktivierte Wand

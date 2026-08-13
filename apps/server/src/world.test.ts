@@ -10,6 +10,7 @@ import {
   hasLineOfSight,
   isFree,
   isWallDisabled,
+  mapInfo,
   moveCircle,
   randomSpawn,
   resetDisabledWalls,
@@ -294,5 +295,43 @@ describe('Arena-Modus', () => {
     expect(currentArenaMode()).toBe('maze');
     setArenaMode('ffa');
     expect(currentArenaMode()).toBe('ffa');
+  });
+});
+
+/**
+ * `GET /map` (Sam: die Minimap soll die ganze Karte zeigen, nicht nur den
+ * aktuellen Ausschnitt) – die reine Funktion hinter dem Endpunkt, ohne
+ * Express-Objekte.
+ */
+describe('mapInfo (GET /map)', () => {
+  afterEach(() => setArenaMode('maze'));
+
+  it('liefert die ganze Wandliste und beide Hauptplätze samt Weltmaßen', () => {
+    setArenaMode('maze');
+    const info = mapInfo();
+    expect(info.worldWidth).toBe(GAME.worldWidth);
+    expect(info.worldHeight).toBe(GAME.worldHeight);
+    expect(info.walls.length).toBe(WALLS.length);
+    expect(info.plazas.map((p) => p.id).sort()).toEqual(['ost', 'west']);
+    // Jede Wand muss innerhalb der Weltgrenzen liegen – sonst zeichnet die
+    // Minimap außerhalb ihres eigenen Rahmens.
+    for (const wand of info.walls) {
+      expect(wand.x).toBeGreaterThanOrEqual(0);
+      expect(wand.y).toBeGreaterThanOrEqual(0);
+      expect(wand.x + wand.width).toBeLessThanOrEqual(GAME.worldWidth);
+      expect(wand.y + wand.height).toBeLessThanOrEqual(GAME.worldHeight);
+    }
+  });
+
+  /**
+   * Dieselbe Regel wie bei jedem anderen Wandzugriff: FFA hat keine Wände.
+   * Eine Minimap, die in FFA trotzdem das Labyrinth zeigt, würde Deckung
+   * versprechen, die es im laufenden Modus gar nicht gibt.
+   */
+  it('zeigt in FFA eine leere Wandliste, wie jeder andere Wandzugriff auch', () => {
+    setArenaMode('ffa');
+    expect(mapInfo().walls).toHaveLength(0);
+    // Die Plätze bleiben – sie sind reine Ortsangaben, keine Wände.
+    expect(mapInfo().plazas).toHaveLength(2);
   });
 });

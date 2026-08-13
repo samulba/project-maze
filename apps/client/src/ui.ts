@@ -6,6 +6,7 @@ import {
   xpAtLevelStart,
   type PlayerClass,
   type UpgradeId,
+  type MapInfo,
   type PlayerSnapshot,
   type WorldSnapshot
 } from '@project-maze/shared';
@@ -32,6 +33,7 @@ import { LEADERBOARD_LIMIT, deathDistanceLine, leaderboardUrl, usableEntries } f
 import { START_NAV } from './start-nav';
 import { spectatedName, spectatedPlayer } from './spectator';
 import { DEFAULT_THEME, applyTheme, type ClientThemeId } from './themes';
+import { fetchMapInfo } from './world-map';
 
 export interface JoinOptions {
   name: string;
@@ -117,6 +119,8 @@ export class GameUI {
   private readonly autoFire: HTMLButtonElement;
   private readonly toastContainer: HTMLElement;
   private readonly minimap: HTMLCanvasElement;
+  /** Ganze Kartenlayout (U1) – `null`, solange der einmalige Abruf noch läuft oder fehlschlug. */
+  private karte: MapInfo | null = null;
   private readonly secondaryAction: HTMLButtonElement;
   private readonly classSelection: HTMLElement;
   private readonly classChoices: HTMLElement;
@@ -518,6 +522,14 @@ export class GameUI {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-class-choice]');
       if (button) onClassChoice(button.dataset.classChoice as PlayerClass);
     });
+
+    // Einmal pro Seitenaufruf, nicht pro Snapshot – die Karte ändert sich
+    // während einer laufenden Session nie (siehe world-map.ts).
+    void this.ladeKarte();
+  }
+
+  private async ladeKarte(): Promise<void> {
+    this.karte = await fetchMapInfo(window.location, import.meta.env.DEV);
   }
 
   /**
@@ -1003,10 +1015,21 @@ export class GameUI {
       arenaGuardianId?: string | null;
     };
     const { width, height } = this.minimap;
-    const halfWorldWidth = GAME.visibleWorldWidth * 0.62;
-    const halfWorldHeight = GAME.visibleWorldHeight * 0.72;
     /*
-     * Mittelpunkt ist die KAMERA, nicht der eigene Tank.
+     * U1 – Sam: „Die Minimap sollte die GANZE Map zeigen und nicht nur, wo
+     * man gerade ist." Mit geladener Vollkarte (`this.karte`, einmal via
+     * `GET /map` geholt) steht die Ansicht auf der WELTMITTE fest und wandert
+     * nicht mehr mit der Kamera mit – der eigene Punkt bewegt sich innerhalb
+     * einer ruhenden Karte, wie bei jedem echten Kartenüberblick. Ohne Karte
+     * (noch am Laden, kein Netz, alter Server) bleibt der alte Nahradar um
+     * die Kamera als Rückfallebene – lieber ein kleinerer Ausschnitt als eine
+     * leere Fläche.
+     */
+    const vollkarte = this.karte;
+    const halfWorldWidth = vollkarte ? vollkarte.worldWidth / 2 : GAME.visibleWorldWidth * 0.62;
+    const halfWorldHeight = vollkarte ? vollkarte.worldHeight / 2 : GAME.visibleWorldHeight * 0.72;
+    /*
+     * Ohne Vollkarte ist der Mittelpunkt die KAMERA, nicht der eigene Tank.
      *
      * Beim Zuschauen ist der eigene Tank eine Leiche, und der Server baut den
      * Snapshot aus der Perspektive des Killers: Culling, Wandauswahl und
@@ -1015,9 +1038,10 @@ export class GameUI {
      * liegen alle ausserhalb. Der Renderer rechnet längst so; hier fehlte es.
      */
     const kamera = spectatedPlayer(snapshot) ?? self;
+    const mitte = vollkarte ? { x: halfWorldWidth, y: halfWorldHeight } : kamera.position;
     const toRadar = (position: { x: number; y: number }): { x: number; y: number } => ({
-      x: width / 2 + ((position.x - kamera.position.x) / halfWorldWidth) * (width / 2),
-      y: height / 2 + ((position.y - kamera.position.y) / halfWorldHeight) * (height / 2)
+      x: width / 2 + ((position.x - mitte.x) / halfWorldWidth) * (width / 2),
+      y: height / 2 + ((position.y - mitte.y) / halfWorldHeight) * (height / 2)
     });
     context.clearRect(0, 0, width, height);
     context.fillStyle = 'rgba(7,10,18,.88)';
@@ -1027,7 +1051,7 @@ export class GameUI {
     context.rect(0, 0, width, height);
     context.clip();
     context.fillStyle = 'rgba(255,255,255,.13)';
-    for (const wall of snapshot.walls) {
+    for (const wall of vollkarte ? vollkarte.walls : snapshot.walls) {
       const topLeft = toRadar({ x: wall.x, y: wall.y });
       context.fillRect(topLeft.x, topLeft.y, (wall.width / halfWorldWidth) * (width / 2), (wall.height / halfWorldHeight) * (height / 2));
     }

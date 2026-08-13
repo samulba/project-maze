@@ -96,7 +96,7 @@ import { tuneSnapshotEncoding } from './snapshot-encoding.js';
 import { createGracefulShutdown, installSignalHandlers } from './shutdown.js';
 import { servePrecompressed } from './static-assets.js';
 import { metricsHandler, telemetryTickHealth, tuneTelemetry } from './telemetry.js';
-import { setArenaMode } from './world.js';
+import { mapInfo, setArenaMode } from './world.js';
 
 function integerEnvironment(name: string, fallback: number, minimum: number, maximum: number): number {
   const parsed = Number.parseInt(process.env[name] ?? '', 10);
@@ -903,6 +903,13 @@ app.get('/metrics', metricsHandler(game));
 const publicGuard = rateLimiter.httpGuard();
 app.get('/leaderboard', publicGuard, leaderboardHandler(game));
 app.get('/profile/:userId', publicGuard, profileHandler(game));
+// Statisches Kartenlayout (Sam: Minimap soll die ganze Karte zeigen). WALLS
+// und HAUPTPLAETZE aendern sich nie waehrend der Laufzeit des Prozesses -
+// lange Cache-Zeit, der Client holt es ohnehin nur einmal beim Start.
+app.get('/map', publicGuard, (_request: Request, response: Response) => {
+  response.setHeader('Cache-Control', 'public, max-age=3600');
+  response.json(mapInfo());
+});
 // Schreibzugriff: teurer im selben IP-Budget (rund 20/min) und mit engem
 // Body-Limit – ein einzelnes Textfeld braucht nie mehr als ein Kilobyte.
 app.post(

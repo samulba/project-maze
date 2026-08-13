@@ -764,6 +764,15 @@ export interface ProjectileSnapshot { id:string; ownerId:string; position:Vector
  */
 export interface DroneSnapshot { id:string; ownerId:string; position:Vector2; velocity:Vector2; angle:number; health:number; maxHealth:number; gameplayRadius?:number; }
 export interface Wall { id:string; x:number; y:number; width:number; height:number; }
+/**
+ * Antwort von `GET /map` – die STATISCHE Kartenlayout, einmal beim Start
+ * geholt statt bei jedem Snapshot (Sam: die Minimap soll die ganze Karte
+ * zeigen, nicht nur den aktuellen Ausschnitt; `WorldSnapshot.walls` liefert
+ * dafür nur die nahen Wände). `WALLS` und `HAUPTPLAETZE` ändern sich nie
+ * während der Laufzeit eines Prozesses, ein einziger Abruf reicht also.
+ */
+export interface MapPlaza { id:string; name:string; bereich:{x:number;y:number;width:number;height:number}; mitte:Vector2; }
+export interface MapInfo { walls:Wall[]; plazas:MapPlaza[]; worldWidth:number; worldHeight:number; }
 export interface ShapeSnapshot { id:string; kind:ShapeKind; position:Vector2; velocity:Vector2; radius:number; rotation:number; health:number; maxHealth:number; }
 export interface KillEvent { id:number; killer:string; victim:string; at:number; streak:number; }
 /**
