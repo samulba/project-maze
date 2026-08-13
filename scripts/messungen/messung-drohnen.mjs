@@ -18,10 +18,13 @@
  * Gemessen werden soll die Schadensrate, nicht wie schnell er stirbt.
  */
 import { buildGame } from './stack.mjs';
+import { messpunkt } from '../../apps/server/dist/messfeld.js';
 
 const DT = 0.025;
 const TICK = 25;
-const OFFENES_FELD = { x: 2800, y: 2200 };
+// Auf der Karte gesucht statt hingeschrieben (siehe messfeld.ts): Der Gegner
+// steht bis zu 600 px rechts, die Flotte muss die Bahn dorthin frei haben.
+const OFFENES_FELD = messpunkt({ links: 200, rechts: 700, oben: 300, unten: 300 });
 const SEKUNDEN = 8;
 const ABSTAENDE = [200, 400, 600];
 const KLASSEN = ['drone', 'warden', 'factory', 'overseer', 'carrier', 'guardian', 'hive', 'sentinel', 'aviary', 'sovereign'];

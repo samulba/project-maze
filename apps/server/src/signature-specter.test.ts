@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CLASS_DEFINITIONS, type PlayerClass } from '@project-maze/shared';
+import { messfeld } from './messfeld';
 import { tuneCombatScaling, tunedStatsFor } from './combat-tuning';
 import { MazeGame } from './game';
 import {
@@ -15,7 +16,10 @@ import { isFree } from './world';
 
 const DT = 0.025;
 /** Nachweislich freies Feld – auch die Flugbahn der Testschüsse ist frei. */
-const OPEN_GROUND = { x: 2800, y: 2200 };
+// Auf der Karte gesucht statt hingeschrieben (siehe messfeld.ts): Die feste
+// Koordinate stammte von einer aelteren Karte und hatte nach dem
+// Labyrinth-Umbau nur noch 200 px Luft.
+const OPEN_GROUND = messfeld(340);
 const FAR_AWAY = { x: 500, y: 500 };
 
 interface Internals {

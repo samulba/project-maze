@@ -12,11 +12,15 @@ import {
 } from './signature-aegis';
 import { tuneImpactSignature, wuchtFor } from './signature-impact';
 import { signatureStateFor } from './signature';
+import { messfeld } from './messfeld';
 import { isFree } from './world';
 
 const DT = 0.025;
 /** Nachweislich freies Feld – der Tank und seine Nachbarn stehen frei. */
-const OPEN_GROUND = { x: 2800, y: 2200 };
+// Auf der Karte gesucht statt hingeschrieben (siehe messfeld.ts): Die
+// Entladung wirkt radial, der Messpunkt braucht also den vollen Radius in
+// JEDE Richtung – sonst misst der Test eine Wand statt eines Abfalls.
+const OPEN_GROUND = messfeld(DEFAULT_SCHILD.dischargeRadius + 120);
 /** 120 Einheiten entfernt: genau der halbe Entladungsradius (240). */
 const NEAR = { x: OPEN_GROUND.x + 120, y: OPEN_GROUND.y };
 /** 300 Einheiten entfernt: sicher außerhalb des Radius. */

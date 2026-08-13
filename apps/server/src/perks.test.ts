@@ -4,19 +4,34 @@ import { perkFor, type PerkEffect } from '@project-maze/shared/perks';
 import { tuneCombatScaling, tunedStatsFor } from './combat-tuning';
 import { MazeGame } from './game';
 import { SPLITTER_SHARD_LIFE, tunePerks } from './perks';
+import { messpunkt } from './messfeld';
 import { isFree } from './world';
 
 const DT = 0.025;
 /**
- * Nachweislich freie Messpunkte (der Annahmen-Test belegt jeden einzelnen).
- * Alle weit genug auseinander, dass keine ungewollten Rempler entstehen.
+ * Messpunkte, auf der Karte GESUCHT statt hingeschrieben. Vorher standen hier
+ * feste Koordinaten von einer älteren Karte; beim Labyrinth-Umbau lagen drei
+ * davon in einer Wand, und die Tests meldeten daraufhin kaputte Perks. Der
+ * Rahmen sagt, wie viel Platz die Messung wirklich braucht: 400 px nach links
+ * für Gegner und Kontrolle, 400 px nach unten für die Kontrolle, 150 px nach
+ * rechts für die Flugbahn der Testschüsse – plus Panzerradius.
  */
-const TRAEGER = { x: 2800, y: 2200 };
-const GEGNER = { x: 2400, y: 2200 };
-const KONTROLLE = { x: 2400, y: 2600 };
-const ABSEITS = { x: 500, y: 500 };
+const TRAEGER = messpunkt({ links: 440, rechts: 190, oben: 40, unten: 440 });
+const GEGNER = { x: TRAEGER.x - 400, y: TRAEGER.y };
+const KONTROLLE = { x: TRAEGER.x - 400, y: TRAEGER.y + 400 };
+/** Weit genug weg, dass nichts vom Träger dorthin reicht. */
+const ABSEITS = messpunkt({ links: 40, rechts: 40, oben: 40, unten: 40 }, { fernVon: TRAEGER, mindestabstand: 2500 });
 /** Direkt am Träger – für gewollte Rempler. */
-const RAMMPUNKT = { x: 2810, y: 2200 };
+const RAMMPUNKT = { x: TRAEGER.x + 10, y: TRAEGER.y };
+/**
+ * Der Ricochet-Test braucht den WELTRAND, nicht irgendein freies Feld: Das
+ * Projektil soll dort abprallen. Also ein Punkt nahe der linken Kante, vor dem
+ * die Bahn bis x = 0 frei ist.
+ */
+const amRand = (fernVon?: { x: number; y: number }): { x: number; y: number } =>
+  messpunkt({ links: 150, rechts: 60, oben: 60, unten: 60 }, { hoechstensX: 260, fernVon, mindestabstand: 300 });
+const RAND_MIT_PERK = amRand();
+const RAND_OHNE_PERK = amRand(RAND_MIT_PERK);
 
 interface Internals {
   players: Map<string, any>;
@@ -120,10 +135,9 @@ describe('perks – klassen 4.0, welle B', () => {
     expect(isFree(RAMMPUNKT, 22)).toBe(true);
     // Flugbahn der Testschüsse (nach rechts) und die Ricochet-Startpunkte.
     expect(isFree({ x: TRAEGER.x + 150, y: TRAEGER.y }, 12)).toBe(true);
-    expect(isFree({ x: 150, y: 2200 }, 6)).toBe(true);
-    expect(isFree({ x: 150, y: 2600 }, 6)).toBe(true);
-    expect(isFree({ x: 2800, y: 2600 }, 6)).toBe(true);
-    expect(isFree({ x: 2460, y: 2200 }, 14)).toBe(true);
+    expect(isFree(RAND_MIT_PERK, 6)).toBe(true);
+    expect(isFree(RAND_OHNE_PERK, 6)).toBe(true);
+    expect(isFree({ x: GEGNER.x + 60, y: GEGNER.y }, 14)).toBe(true);
     // Die Mechanik-Zuordnung der Testklassen – driftet `PERKS`, soll es HIER
     // knallen und nicht kryptisch in einem Wirk-Test.
     expect(perkFor('twin')?.effect.kind).toBe('doubleSalvo');
@@ -351,9 +365,9 @@ describe('perks – klassen 4.0, welle B', () => {
         id: pid, ownerId, position: { ...position }, velocity: { ...velocity },
         radius: 6, integrity: 20, maxIntegrity: 20, damage: 5, life
       });
-    projectile('mit-perk', id, { x: 150, y: 2200 }, { x: -400, y: 0 }, 5);
-    projectile('ohne-perk', otherId, { x: 150, y: 2600 }, { x: -400, y: 0 }, 5);
-    projectile('lebenszeit', id, { x: 2800, y: 2600 }, { x: 50, y: 0 }, 0.05);
+    projectile('mit-perk', id, RAND_MIT_PERK, { x: -400, y: 0 }, 5);
+    projectile('ohne-perk', otherId, RAND_OHNE_PERK, { x: -400, y: 0 }, 5);
+    projectile('lebenszeit', id, TRAEGER, { x: 50, y: 0 }, 0.05);
 
     let now = 100_000;
     for (let tick = 0; tick < 30; tick += 1) {
@@ -418,7 +432,7 @@ describe('perks – klassen 4.0, welle B', () => {
     // außerhalb der Kontakt-Reichweite: Der Original-Step löscht sie am Ende
     // des Ticks – genau der Todespfad, den die Schicht erkennen muss.
     internals.drones.set('nova-drohne', {
-      id: 'nova-drohne', ownerId: id, position: { x: 2460, y: 2200 }, velocity: { x: 0, y: 0 },
+      id: 'nova-drohne', ownerId: id, position: { x: GEGNER.x + 60, y: GEGNER.y }, velocity: { x: 0, y: 0 },
       angle: 0, health: 0, maxHealth: 40, slot: 9, contactCooldown: 0
     });
     game.step(DT, 100_025);

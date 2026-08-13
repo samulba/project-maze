@@ -10,56 +10,275 @@ export const SHAPE_CONFIG: Record<ShapeKind, ShapeConfig> = {
 function seededRandom(seed: number): () => number { let state = seed >>> 0; return () => { state = (state * 1664525 + 1013904223) >>> 0; return state / 0x100000000; }; }
 const wall = (id: string, x: number, y: number, width: number, height: number): Wall => ({ id, x, y, width, height });
 /**
- * Kantenlänge einer Bahn. Das ist die eigentliche Design-Einheit des Labyrinths.
+ * Kantenlänge einer Labyrinth-Zelle. Das ist die Design-Einheit der Karte.
  *
- * Vorher standen hier feste Bahn-*Anzahlen* (4 Reihen, 6 Spalten). Solange die
- * Karte 6000 × 4000 war, hieß das 1000er-Bahnen. Als sie auf 9000 × 6000 wuchs,
- * blieben es vier Reihen – nur eben 1500 hoch, mit gleich großen Wänden darin:
- * Die Deckung fiel von 4,4 % auf 3,5 % der Fläche, das Labyrinth wurde also
- * spürbar offener, ohne dass das jemand entschieden hätte.
+ * Sams Befund vom 13.08.: „die Map ist noch zu wenig Maze […] dickere Wände,
+ * mehr Wände". Die Messung gab ihm recht: **90,3 % der Karte waren begehbar**
+ * und **46,4 % aller Blicke reichten weiter als eine halbe Bildbreite** – das
+ * ist ein Feld mit Pfosten, kein Labyrinth. Der alte Generator streute Balken
+ * in Bahnen; wo sie zufällig zusammentrafen, entstand Deckung, sonst nicht.
  *
- * Eine Wand ist als Deckung so viel wert, wie sie im Verhältnis zum *Spieler*
- * groß ist, nicht zur Karte. Deshalb bleibt die Wandgröße fest und die Zahl der
- * Bahnen wächst mit – so trägt jede Kartengröße dasselbe Labyrinth.
+ * Jetzt liegen die Wände auf einem Raster und bilden echte Gänge.
  *
- * Die Auslass-Wahrscheinlichkeiten unten (0,44 / 0,48, vorher 0,34 / 0,38)
- * gehören dazu: Mit mitwachsenden Bahnen allein lag die Deckung bei 5,2 %, also
- * 18 % über dem alten Wert. Jetzt sind es 4,53 % bei 89 Wänden – gegenüber
- * 4,4 % und 40 Wänden auf der 2,25-fach kleineren Karte. `world.test.ts` hält
- * den Korridor fest, damit die nächste Kartenänderung nicht wieder still am
- * Spielgefühl dreht.
+ * ## Warum 480
+ *
+ * Das ist die gemessene und nicht die geratene Zahl. Der erste Versuch stand
+ * bei 800, und `messung-karten-raster.mjs` hat ihn widerlegt: **Die Bahn
+ * bestimmt das Labyrinthgefühl fast allein, die Wanddicke kaum.** Bei Bahn 800
+ * blieben in jeder Variante 39–55 % der Blicke länger als eine halbe
+ * Bildbreite – also nicht besser als die alte Karte, teils schlechter, weil
+ * die Zelle einfach zu groß ist, um Gänge zu bilden.
+ *
+ * Gemessen über alle Kandidaten (Auszug, Anteil weiter Blicke):
+ *
+ * ```
+ * bahn 800  →  39–55 %      alte Karte: 46,4 %
+ * bahn 600  →  21–39 %
+ * bahn 480  →  15–28 %
+ * bahn 400  →   8–20 %
+ * ```
+ *
+ * 480 ist der Punkt, an dem die Karte deutlich zum Labyrinth wird, ohne eng zu
+ * werden: Der Gang ist `BAHN − WANDDICKE` = 320 px, also gut sieben
+ * Panzerbreiten, und im 1600 px breiten Fenster liegen fünf Gänge
+ * nebeneinander. Bei Bahn 400 wären es 280 px – spielbar, aber die Karte
+ * verliert mit 54 % begehbarer Fläche ihre Weite, und die Wandzahl steigt auf
+ * 259, was jeden `nearbyWalls`-Durchlauf verteuert.
+ *
+ * 480 ist ein Vielfaches des feinen Bodenrasters (80 px), aber nicht des
+ * betonten (400 px) – die Wandachsen liegen also auf Bodenlinien, nur nicht
+ * auf den kräftigen. Das ist der Preis dafür, dass die Bahn nach der Messung
+ * gewählt wurde und nicht nach dem Hintergrundbild.
+ *
+ * Die Karte (9000 × 6000) geht in keinem dieser Maße glatt auf. Der Rest
+ * bleibt bewusst an der rechten und unteren Kante liegen (Zelle 18 ist 840
+ * statt 480 breit, Zeile 12 ist 720 statt 480 hoch): ein etwas weiterer Umlauf
+ * am Rand. Die Alternative – ein verschobenes Raster – passte nirgends mehr
+ * zum Boden.
  */
-const BAHN = 1000;
+export const BAHN = 480;
 
-function generateWalls(): Wall[] {
-  const random = seededRandom(0x4d415a45); const walls: Wall[] = []; let id = 0;
-  const reihen = Math.max(1, Math.round(GAME.worldHeight / BAHN));
-  const spalten = Math.max(1, Math.round(GAME.worldWidth / BAHN));
-  for (let x = 650; x < GAME.worldWidth - 500; x += 650) {
-    for (let row = 0; row < reihen; row += 1) {
-      if (random() < 0.44) continue; const laneHeight = GAME.worldHeight / reihen; const height = 280 + random() * 390; const y = row * laneHeight + 110 + random() * Math.max(80, laneHeight - height - 180); walls.push(wall(`v${id++}`, x + (random() - 0.5) * 110, y, 54, height));
-    }
-  }
-  for (let y = 560; y < GAME.worldHeight - 430; y += 570) {
-    for (let column = 0; column < spalten; column += 1) {
-      if (random() < 0.48) continue; const laneWidth = GAME.worldWidth / spalten; const width = 320 + random() * 500; const x = column * laneWidth + 120 + random() * Math.max(80, laneWidth - width - 190); walls.push(wall(`h${id++}`, x, y + (random() - 0.5) * 95, width, 54));
-    }
-  }
-  // Sechs gesetzte Landmarken – als Anteil der Karte, damit sie beim Wachsen
-  // verteilt bleiben, statt sich in der oberen linken Ecke zu sammeln.
-  const px = (anteil: number): number => Math.round(GAME.worldWidth * anteil);
-  const py = (anteil: number): number => Math.round(GAME.worldHeight * anteil);
-  walls.push(
-    wall(`l${id++}`, px(0.458), py(0.428), 500, 54),
-    wall(`l${id++}`, px(0.496), py(0.371), 54, 500),
-    wall(`l${id++}`, px(0.192), py(0.195), 420, 54),
-    wall(`l${id++}`, px(0.742), py(0.773), 420, 54),
-    wall(`l${id++}`, px(0.142), py(0.713), 54, 420),
-    wall(`l${id++}`, px(0.845), py(0.170), 54, 420)
-  );
-  return walls.filter((candidate) => candidate.x >= 120 && candidate.y >= 120 && candidate.x + candidate.width <= GAME.worldWidth - 120 && candidate.y + candidate.height <= GAME.worldHeight - 120);
+/**
+ * Wanddicke. Vorher stand hier dreimal das Literal 54 – zehn Pixel mehr als ein
+ * Panzer dick ist (Durchmesser 44), also eine Wand, hinter der man kaum steht.
+ * Sams Wort dazu war „dickere Wände".
+ *
+ * 160 px ist knapp vier Panzerbreiten und liest sich als Mauer, nicht als
+ * Strich. Die Messung sagt, dass die Dicke fürs Labyrinthgefühl wenig tut
+ * (bei Bahn 480 kostet 80 → 200 nur 2 Punkte weite Blicke), fürs Bild aber
+ * viel: Sie ist der Unterschied zwischen einer Linie und etwas, hinter dem man
+ * steht. Deshalb dick, aber nicht so dick, dass der Gang leidet.
+ */
+export const WANDDICKE = 160;
+
+/**
+ * Anteil der nach dem Spannbaum noch geschlossenen Grenzen, der zusätzlich
+ * geöffnet wird.
+ *
+ * Ein reines Labyrinth (nur Spannbaum) hat zwischen zwei Punkten genau einen
+ * Weg – für ein Rätsel richtig, für einen Arena-Shooter tödlich: lauter
+ * Sackgassen, kein Umgehen, kein Entkommen. Das Verflechten macht daraus ein
+ * Netz mit Schleifen.
+ *
+ * Die Verflechtung hat genau diese eine Aufgabe, also ist sie daran gemessen
+ * worden – Sackgassen sind Zellen mit nur einem offenen Nachbarn:
+ *
+ * ```
+ * verfl 0,00  →  27 Sackgassen (12,5 %), 15,0 % weite Blicke
+ * verfl 0,12  →  21 Sackgassen ( 9,7 %), 17,3 %
+ * verfl 0,20  →  14 Sackgassen ( 6,5 %), 20,7 %
+ * verfl 0,45  →   5 Sackgassen ( 2,3 %), 36,5 %
+ * ```
+ *
+ * Der Tausch ist fast linear, es gibt also keinen „richtigen" Punkt, nur eine
+ * Entscheidung: 0,20 halbiert die Sackgassen und kostet dafür gut drei Punkte
+ * Labyrinthgefühl. In einem Spiel, in dem eine Sackgasse den Tod bedeutet,
+ * ist das der bessere Tausch – und mit 20,7 % gegenüber 46,4 % auf der alten
+ * Karte bleibt der Gewinn groß.
+ */
+const VERFLECHTUNG = 0.2;
+
+/** Die drei Maße, die das Labyrinth bestimmen – zusammen, weil sie zusammenhängen. */
+export interface Labyrinthmass {
+  /** Kantenlänge einer Zelle. */
+  bahn: number;
+  /** Wanddicke. */
+  dicke: number;
+  /** Anteil der nach dem Spannbaum geschlossenen Grenzen, der zusätzlich geöffnet wird. */
+  verflechtung: number;
 }
-export const WALLS: Wall[] = generateWalls();
+export const LABYRINTH: Labyrinthmass = { bahn: BAHN, dicke: WANDDICKE, verflechtung: VERFLECHTUNG };
+
+/** Kantenlänge eines Hauptplatzes in Zellen. */
+const PLATZ_ZELLEN = 2;
+/** Ein Tor je Himmelsrichtung – ein Platz ist eine Kreuzung, keine Festung und keine Falle. */
+const PLATZ_TORE_JE_SEITE = 1;
+
+export interface Hauptplatz {
+  id: string;
+  name: string;
+  /** Linke obere Zelle. */
+  spalte: number;
+  zeile: number;
+  /** Die offene Fläche in Weltkoordinaten – ohne die Randmauern. */
+  bereich: { x: number; y: number; width: number; height: number };
+  mitte: Vector2;
+}
+
+export interface Labyrinth {
+  waende: Wall[];
+  plaetze: Hauptplatz[];
+  spalten: number;
+  zeilen: number;
+}
+
+/**
+ * Erzeugt das Labyrinth. Die Maße sind Parameter, damit sie sich vermessen
+ * lassen, statt geraten zu werden: `scripts/messungen/messung-karte.mjs`
+ * fährt damit ein Raster aus Kandidaten durch und zeigt Deckung, begehbaren
+ * Anteil und Sichtweiten nebeneinander. So sind die drei Zahlen in
+ * `LABYRINTH` ausgewählt worden.
+ */
+export function erzeugeLabyrinth(mass: Labyrinthmass = LABYRINTH): Labyrinth {
+  const { bahn, dicke, verflechtung } = mass;
+  const spalten = Math.max(2, Math.floor(GAME.worldWidth / bahn));
+  const zeilen = Math.max(2, Math.floor(GAME.worldHeight / bahn));
+  // Die letzte Zelle nimmt den Rest der Karte auf (siehe BAHN).
+  const kanteX = (spalte: number): number => (spalte >= spalten ? GAME.worldWidth : spalte * bahn);
+  const kanteY = (zeile: number): number => (zeile >= zeilen ? GAME.worldHeight : zeile * bahn);
+
+  const platzZeile = Math.max(0, Math.min(zeilen - PLATZ_ZELLEN, Math.round((zeilen - PLATZ_ZELLEN) / 2)));
+  const platzSpalteLinks = Math.max(0, Math.round(spalten * 0.18));
+  const platzSpalteRechts = Math.max(platzSpalteLinks + PLATZ_ZELLEN, spalten - PLATZ_ZELLEN - platzSpalteLinks);
+  const machePlatz = (id: string, name: string, spalte: number, zeile: number): Hauptplatz => {
+    const x = kanteX(spalte) + dicke / 2;
+    const y = kanteY(zeile) + dicke / 2;
+    const width = kanteX(spalte + PLATZ_ZELLEN) - kanteX(spalte) - dicke;
+    const height = kanteY(zeile + PLATZ_ZELLEN) - kanteY(zeile) - dicke;
+    return { id, name, spalte, zeile, bereich: { x, y, width, height }, mitte: { x: x + width / 2, y: y + height / 2 } };
+  };
+  const plaetze: Hauptplatz[] = [
+    machePlatz('west', 'Westplatz', platzSpalteLinks, platzZeile),
+    machePlatz('ost', 'Ostplatz', platzSpalteRechts, platzZeile)
+  ];
+
+  const random = seededRandom(0x4d415a45);
+  // Grenzen zwischen benachbarten Zellen; `true` heißt zu.
+  const senkrecht = new Array<boolean>((spalten - 1) * zeilen).fill(true);
+  const waagerecht = new Array<boolean>(spalten * (zeilen - 1)).fill(true);
+  const sIdx = (spalte: number, zeile: number): number => spalte + zeile * (spalten - 1);
+  const wIdx = (spalte: number, zeile: number): number => spalte + zeile * spalten;
+
+  // 1. Spannbaum per randomisierter Tiefensuche. Danach ist jede Zelle von
+  //    jeder erreichbar – das ist die Erreichbarkeitsgarantie an der Wurzel,
+  //    nicht erst in der Prüfung.
+  const besucht = new Array<boolean>(spalten * zeilen).fill(false);
+  const stapel: number[] = [0];
+  besucht[0] = true;
+  while (stapel.length > 0) {
+    const zelle = stapel[stapel.length - 1]!;
+    const spalte = zelle % spalten;
+    const zeile = (zelle - spalte) / spalten;
+    const kandidaten: Array<{ nachbar: number; oeffne: () => void }> = [];
+    if (spalte > 0 && !besucht[zelle - 1]) kandidaten.push({ nachbar: zelle - 1, oeffne: () => { senkrecht[sIdx(spalte - 1, zeile)] = false; } });
+    if (spalte + 1 < spalten && !besucht[zelle + 1]) kandidaten.push({ nachbar: zelle + 1, oeffne: () => { senkrecht[sIdx(spalte, zeile)] = false; } });
+    if (zeile > 0 && !besucht[zelle - spalten]) kandidaten.push({ nachbar: zelle - spalten, oeffne: () => { waagerecht[wIdx(spalte, zeile - 1)] = false; } });
+    if (zeile + 1 < zeilen && !besucht[zelle + spalten]) kandidaten.push({ nachbar: zelle + spalten, oeffne: () => { waagerecht[wIdx(spalte, zeile)] = false; } });
+    if (kandidaten.length === 0) { stapel.pop(); continue; }
+    const gewaehlt = kandidaten[Math.floor(random() * kandidaten.length)]!;
+    gewaehlt.oeffne();
+    besucht[gewaehlt.nachbar] = true;
+    stapel.push(gewaehlt.nachbar);
+  }
+
+  // 2. Verflechten – Schleifen statt Sackgassen.
+  for (let index = 0; index < senkrecht.length; index += 1) if (senkrecht[index] && random() < verflechtung) senkrecht[index] = false;
+  for (let index = 0; index < waagerecht.length; index += 1) if (waagerecht[index] && random() < verflechtung) waagerecht[index] = false;
+
+  // 3. Hauptplätze aussparen: innen alles auf, am Rand je Seite ein Tor.
+  const festeGrenzen = new Set<string>();
+  for (const platz of plaetze) {
+    for (let zeile = platz.zeile; zeile < platz.zeile + PLATZ_ZELLEN; zeile += 1)
+      for (let spalte = platz.spalte; spalte + 1 < platz.spalte + PLATZ_ZELLEN; spalte += 1) senkrecht[sIdx(spalte, zeile)] = false;
+    for (let spalte = platz.spalte; spalte < platz.spalte + PLATZ_ZELLEN; spalte += 1)
+      for (let zeile = platz.zeile; zeile + 1 < platz.zeile + PLATZ_ZELLEN; zeile += 1) waagerecht[wIdx(spalte, zeile)] = false;
+
+    const seiten: Array<Array<{ art: 'v' | 'h'; index: number }>> = [[], [], [], []];
+    for (let zeile = platz.zeile; zeile < platz.zeile + PLATZ_ZELLEN; zeile += 1) {
+      if (platz.spalte > 0) seiten[0]!.push({ art: 'v', index: sIdx(platz.spalte - 1, zeile) });
+      if (platz.spalte + PLATZ_ZELLEN < spalten) seiten[1]!.push({ art: 'v', index: sIdx(platz.spalte + PLATZ_ZELLEN - 1, zeile) });
+    }
+    for (let spalte = platz.spalte; spalte < platz.spalte + PLATZ_ZELLEN; spalte += 1) {
+      if (platz.zeile > 0) seiten[2]!.push({ art: 'h', index: wIdx(spalte, platz.zeile - 1) });
+      if (platz.zeile + PLATZ_ZELLEN < zeilen) seiten[3]!.push({ art: 'h', index: wIdx(spalte, platz.zeile + PLATZ_ZELLEN - 1) });
+    }
+    for (const seite of seiten) {
+      if (seite.length === 0) continue;
+      // Erst alles zu – der Platz bekommt eine erkennbare Form –, dann je Seite
+      // die vorgesehene Zahl an Toren öffnen.
+      for (const grenze of seite) (grenze.art === 'v' ? senkrecht : waagerecht)[grenze.index] = true;
+      const uebrig = [...seite];
+      for (let tor = 0; tor < PLATZ_TORE_JE_SEITE && uebrig.length > 0; tor += 1) {
+        const gewaehlt = uebrig.splice(Math.floor(random() * uebrig.length), 1)[0]!;
+        (gewaehlt.art === 'v' ? senkrecht : waagerecht)[gewaehlt.index] = false;
+      }
+      for (const grenze of uebrig) festeGrenzen.add(`${grenze.art}${grenze.index}`);
+    }
+  }
+
+  // 4. Zusammenhang reparieren. Schritt 3 schließt Grenzen wieder, und die
+  //    können die einzige Verbindung einer Zelle gewesen sein. Union-Find über
+  //    die Zellen, dann so lange Grenzen öffnen, bis alles ein Gebiet ist –
+  //    Erreichbarkeit ist damit eine Eigenschaft des Generators, nicht eine
+  //    Hoffnung, die der Test nachträglich prüft.
+  const vater = new Array<number>(spalten * zeilen).fill(0).map((_, index) => index);
+  const finde = (zelle: number): number => { let wurzel = zelle; while (vater[wurzel] !== wurzel) wurzel = vater[wurzel]!; while (vater[zelle] !== wurzel) { const naechste = vater[zelle]!; vater[zelle] = wurzel; zelle = naechste; } return wurzel; };
+  const vereine = (a: number, b: number): boolean => { const wa = finde(a); const wb = finde(b); if (wa === wb) return false; vater[wa] = wb; return true; };
+  const alleGrenzen: Array<{ art: 'v' | 'h'; index: number; a: number; b: number }> = [];
+  for (let zeile = 0; zeile < zeilen; zeile += 1)
+    for (let spalte = 0; spalte + 1 < spalten; spalte += 1)
+      alleGrenzen.push({ art: 'v', index: sIdx(spalte, zeile), a: spalte + zeile * spalten, b: spalte + 1 + zeile * spalten });
+  for (let zeile = 0; zeile + 1 < zeilen; zeile += 1)
+    for (let spalte = 0; spalte < spalten; spalte += 1)
+      alleGrenzen.push({ art: 'h', index: wIdx(spalte, zeile), a: spalte + zeile * spalten, b: spalte + (zeile + 1) * spalten });
+  for (const grenze of alleGrenzen) if (!(grenze.art === 'v' ? senkrecht : waagerecht)[grenze.index]) vereine(grenze.a, grenze.b);
+  for (const grenze of alleGrenzen) {
+    if (!(grenze.art === 'v' ? senkrecht : waagerecht)[grenze.index]) continue;
+    if (!vereine(grenze.a, grenze.b)) continue;
+    (grenze.art === 'v' ? senkrecht : waagerecht)[grenze.index] = false;
+    festeGrenzen.delete(`${grenze.art}${grenze.index}`);
+  }
+
+  // 5. Grenzen zu Rechtecken. Bewusst ein Rechteck je Zellgrenze statt
+  //    verschmolzener Läufe: Das Fracture-Event öffnet ganze Wände, und ein
+  //    3200 px langes Stück wäre keine Bresche mehr, sondern ein Erdrutsch.
+  const walls: Wall[] = [];
+  let id = 0;
+  for (let zeile = 0; zeile < zeilen; zeile += 1) {
+    for (let spalte = 0; spalte + 1 < spalten; spalte += 1) {
+      if (!senkrecht[sIdx(spalte, zeile)]) continue;
+      const fest = festeGrenzen.has(`v${sIdx(spalte, zeile)}`);
+      walls.push(wall(`${fest ? 'l' : 'v'}${id++}`, kanteX(spalte + 1) - dicke / 2, kanteY(zeile), dicke, kanteY(zeile + 1) - kanteY(zeile)));
+    }
+  }
+  for (let zeile = 0; zeile + 1 < zeilen; zeile += 1) {
+    for (let spalte = 0; spalte < spalten; spalte += 1) {
+      if (!waagerecht[wIdx(spalte, zeile)]) continue;
+      const fest = festeGrenzen.has(`h${wIdx(spalte, zeile)}`);
+      walls.push(wall(`${fest ? 'l' : 'h'}${id++}`, kanteX(spalte), kanteY(zeile + 1) - dicke / 2, kanteX(spalte + 1) - kanteX(spalte), dicke));
+    }
+  }
+  return { waende: walls, plaetze, spalten, zeilen };
+}
+
+const labyrinth = erzeugeLabyrinth();
+export const WALLS: Wall[] = labyrinth.waende;
+/**
+ * Sams „zwei Mainspots": zwei benannte, offene Plätze auf halber Höhe, links
+ * und rechts. Der Generator spart sie aus, jeder hat vier Tore, und ein Drittel
+ * aller Formen erscheint dort – das ist der Grund, überhaupt hinzugehen.
+ */
+export const HAUPTPLAETZE: readonly Hauptplatz[] = labyrinth.plaetze;
 
 /**
  * Vom Fracture-Event temporär deaktivierte Wandsegmente. Eine deaktivierte Wand
@@ -141,13 +360,31 @@ export function randomSpawn(random = Math.random): Vector2 {
   return { x: 240, y: 240 };
 }
 function randomShapeKind(random: () => number): ShapeKind { const roll = random(); if (roll < 0.06) return 'pentagon'; if (roll < 0.3) return 'triangle'; return 'square'; }
+/**
+ * Anteil der Formen, die auf einem Hauptplatz erscheinen.
+ *
+ * Ohne das wäre ein Hauptplatz nur ein Loch im Labyrinth. Ein Drittel der
+ * Formen auf 8 % der Fläche macht ihn zu dem Ort, an dem man sich trifft, weil
+ * man dort etwas holen kann – und damit zu dem umkämpften Platz, den Sam mit
+ * „zwei Mainspots" gemeint hat.
+ */
+const PLATZ_FORMEN_ANTEIL = 0.33;
 export function createShape(id: string, random = Math.random): ShapeSnapshot {
   const kind = randomShapeKind(random); const config = SHAPE_CONFIG[kind];
-  for (let attempt = 0; attempt < 160; attempt += 1) { const position = { x: 100 + random() * (GAME.worldWidth - 200), y: 100 + random() * (GAME.worldHeight - 200) }; if (!isFree(position, config.radius + 12)) continue; const angle = random() * Math.PI * 2; const speed = config.drift * (0.45 + random() * 0.55); return { id, kind, position, velocity: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed }, radius: config.radius, rotation: random() * Math.PI * 2, health: config.health, maxHealth: config.health }; }
+  // Ohne Wände gibt es keine Plätze, nur eine Fläche – dann bleibt es beim Streuen.
+  const platz = ARENA_MODES[arenaMode].walls && random() < PLATZ_FORMEN_ANTEIL
+    ? HAUPTPLAETZE[Math.floor(random() * HAUPTPLAETZE.length)]
+    : undefined;
+  for (let attempt = 0; attempt < 160; attempt += 1) {
+    const position = platz
+      ? { x: platz.bereich.x + random() * platz.bereich.width, y: platz.bereich.y + random() * platz.bereich.height }
+      : { x: 100 + random() * (GAME.worldWidth - 200), y: 100 + random() * (GAME.worldHeight - 200) };
+    if (!isFree(position, config.radius + 12)) continue; const angle = random() * Math.PI * 2; const speed = config.drift * (0.45 + random() * 0.55); return { id, kind, position, velocity: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed }, radius: config.radius, rotation: random() * Math.PI * 2, health: config.health, maxHealth: config.health };
+  }
   return { id, kind, position: randomSpawn(random), velocity: { x: 0, y: 0 }, radius: config.radius, rotation: 0, health: config.health, maxHealth: config.health };
 }
 export function stepShape(shape: ShapeSnapshot, dt: number): void { shape.rotation += (shape.kind === 'triangle' ? -0.55 : shape.kind === 'pentagon' ? 0.22 : 0.38) * dt; const result = moveCircle(shape.position, shape.velocity, dt, shape.radius); shape.position = result.position; if (result.collided) { const direction = normalize({ x: -shape.velocity.x + (Math.random() - 0.5) * 18, y: -shape.velocity.y + (Math.random() - 0.5) * 18 }); const speed = Math.max(6, Math.hypot(shape.velocity.x, shape.velocity.y)); shape.velocity = { x: direction.x * speed, y: direction.y * speed }; } }
-function segmentIntersectsWall(start: Vector2, end: Vector2, candidate: Wall): boolean { const dx = end.x - start.x; const dy = end.y - start.y; let tMin = 0; let tMax = 1; const checks: Array<[number, number]> = [[-dx, start.x - candidate.x], [dx, candidate.x + candidate.width - start.x], [-dy, start.y - candidate.y], [dy, candidate.y + candidate.height - start.y]]; for (const [p, q] of checks) { if (Math.abs(p) < 0.00001) { if (q < 0) return false; continue; } const ratio = q / p; if (p < 0) tMin = Math.max(tMin, ratio); else tMax = Math.min(tMax, ratio); if (tMin > tMax) return false; } return true; }
+export function segmentIntersectsWall(start: Vector2, end: Vector2, candidate: Wall): boolean { const dx = end.x - start.x; const dy = end.y - start.y; let tMin = 0; let tMax = 1; const checks: Array<[number, number]> = [[-dx, start.x - candidate.x], [dx, candidate.x + candidate.width - start.x], [-dy, start.y - candidate.y], [dy, candidate.y + candidate.height - start.y]]; for (const [p, q] of checks) { if (Math.abs(p) < 0.00001) { if (q < 0) return false; continue; } const ratio = q / p; if (p < 0) tMin = Math.max(tMin, ratio); else tMax = Math.min(tMax, ratio); if (tMin > tMax) return false; } return true; }
 /**
  * Kreuzt die Strecke eines der genannten Wandsegmente? Anders als
  * `hasLineOfSight` zählen hier auch deaktivierte Segmente – nur so lässt sich

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GAME, type PlayerClass } from '@project-maze/shared';
 import { ACTIVE_MODULE_DEFINITIONS } from '@project-maze/shared/gameplay';
+import { messfeld } from './messfeld';
 import { DEFAULT_BOT_PACING, tuneBotBrain } from './bot-brain';
 import { tuneClassMechanics } from './class-mechanics';
 import { tuneCombatScaling } from './combat-tuning';
@@ -9,7 +10,10 @@ import { MazeGame } from './game';
 import { DASH_SPEED, activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system';
 
 const DT = 0.025;
-const OPEN_GROUND = { x: 2800, y: 2200 };
+// Auf der Karte gesucht statt hingeschrieben (siehe messfeld.ts): Die feste
+// Koordinate stammte von einer aelteren Karte und hatte nach dem
+// Labyrinth-Umbau nur noch 200 px Luft.
+const OPEN_GROUND = messfeld(340);
 const DASH = ACTIVE_MODULE_DEFINITIONS.dash;
 
 interface Internals {

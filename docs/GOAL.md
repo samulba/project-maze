@@ -46,7 +46,7 @@ ist, entscheidet, wer es spielt.
 | Regeln und Typen stimmen | `npm run check` grün | ✅ |
 | Keine UI, die sich überlappt oder aus dem Bild läuft | `scripts/ui-layout-check.mjs` 196/196 | ✅ |
 | Kein Tank ist Müll, keiner ist Pflicht | Balance-Korridore in `packages/shared/src/balance.test.ts` | ✅ |
-| Das Labyrinth bleibt ein Labyrinth | Wanddeckung 3,8–5,2 % der Fläche (`world.test.ts`) | ✅ 4,53 % |
+| Das Labyrinth bleibt ein Labyrinth | Wanddeckung 17–28 % der Fläche, Gang ≥ 7 Panzerbreiten, **eine** erreichbare Fläche (`world.test.ts`, `map-reachability.test.ts`) | ✅ 21,8 % · Gang 320 px · 1 Gebiet |
 | Kein Upgrade ohne Wirkung | `upgradeAppliesTo`, geprüft durch die **ganze** Tuning-Kette | ✅ |
 | Kein Knopf ohne Server-Antwort | Alle 8 Familien-Signatures serverseitig verdrahtet | ✅ |
 | Keine Serverlags bei voller Arena | Tick p95 < 25 ms **und ≤ 160 KB/s pro Spieler** | ✅ Maze 134,6 KB/s / p95 10,8 ms · Royale 140,3 KB/s / p95 7,2 ms (je 80 Spieler, neu gemessen am 12.08.) |

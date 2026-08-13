@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { messfeld } from './messfeld';
 import { tuneCombatScaling } from './combat-tuning';
 import { MazeGame } from './game';
 import { tuneHitDirection } from './hit-direction';
@@ -10,7 +11,10 @@ import { tuneHitDirection } from './hit-direction';
 
 const DT_NOW = 100_000;
 /** Freies Feld, gleiche Stelle wie im Aegis-Test – nachweislich ohne Wand. */
-const ORT = { x: 2800, y: 2200 };
+// Auf der Karte gesucht statt hingeschrieben (siehe messfeld.ts): Die feste
+// Koordinate stammte von einer aelteren Karte und hatte nach dem
+// Labyrinth-Umbau nur noch 200 px Luft.
+const ORT = messfeld(340);
 
 interface Internals {
   players: Map<string, any>;

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { GAME } from '@project-maze/shared';
+import { messfeld } from './messfeld';
 import { MazeGame } from './game';
 import { hardenSimulation } from './simulation-hardening';
+
+// Auf der Karte gesucht statt hingeschrieben (siehe messfeld.ts).
+const ORT = messfeld(240);
 
 type MutableGame = {
   players: Map<string, any>;
@@ -58,10 +62,10 @@ describe('simulation hardening', () => {
       const rammer = internals.players.get(ramId);
       const target = internals.players.get(targetId);
       rammer.playerClass = 'blitz';
-      rammer.position = { x: 2800, y: 2200 };
+      rammer.position = ORT;
       rammer.velocity = { x: velocityX, y: 0 };
       rammer.invulnerable = false;
-      target.position = { x: 2800 + GAME.playerRadius * 2 - 4, y: 2200 };
+      target.position = { x: ORT.x + GAME.playerRadius * 2 - 4, y: ORT.y };
       target.invulnerable = false;
       // Gleiche Zufallsquelle wie oben: Eine Shape am Messpunkt würde zusätzlichen
       // Körperschaden beisteuern und das Verhältnis verfälschen.

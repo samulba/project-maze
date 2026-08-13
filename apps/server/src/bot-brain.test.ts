@@ -9,9 +9,13 @@ import {
   type BotPacingConfig,
   tuneBotBrain
 } from './bot-brain';
+import { messfeld } from './messfeld';
 import { tuneCombatScaling } from './combat-tuning';
 import { MazeGame, botState } from './game';
 import { hasLineOfSight, isFree } from './world';
+
+// Auf der Karte gesucht statt hingeschrieben (siehe messfeld.ts).
+const ORT = messfeld(340);
 
 /** Die drei Angreifer-Plätze rund um den Menschen, je 100 Einheiten entfernt. */
 const RING_VERSATZ = [{ x: 0, y: -100 }, { x: 0, y: 100 }, { x: -100, y: 0 }];
@@ -64,8 +68,8 @@ const duel = (pacing: BotPacingConfig | null = DEFAULT_BOT_PACING) => {
   const hunter = botsByStyle(internals, 'hunter')[0];
   const victim = botsByStyle(internals, 'farmer')[0];
 
-  hunter.position = { x: 2800, y: 2200 };
-  human.position = { x: 2900, y: 2200 };
+  hunter.position = ORT;
+  human.position = { x: ORT.x + 100, y: ORT.y };
   human.level = 20;
   human.invulnerable = false;
   human.invulnerableUntil = 0;
@@ -90,8 +94,8 @@ describe('bot brain', () => {
     const hunter = botsByStyle(internals, 'hunter')[0];
     expect(hunter).toBeDefined();
 
-    hunter.position = { x: 2800, y: 2200 };
-    human.position = { x: 2900, y: 2200 };
+    hunter.position = ORT;
+    human.position = { x: ORT.x + 100, y: ORT.y };
     human.level = 1;
     human.invulnerable = false;
     human.invulnerableUntil = 0;
@@ -116,8 +120,8 @@ describe('bot brain', () => {
     const human = internals.players.get(humanId);
     const hunter = botsByStyle(internals, 'hunter')[0];
 
-    hunter.position = { x: 2800, y: 2200 };
-    human.position = { x: 2900, y: 2200 };
+    hunter.position = ORT;
+    human.position = { x: ORT.x + 100, y: ORT.y };
     human.velocity = { x: 0, y: 220 };
     human.level = 20;
     human.invulnerable = false;
@@ -136,7 +140,7 @@ describe('bot brain', () => {
     const humanId = game.addPlayer('Star');
     const internals = game as unknown as Internals;
     const human = internals.players.get(humanId);
-    human.position = { x: 2800, y: 2200 };
+    human.position = ORT;
     human.level = 20;
     human.invulnerable = false;
     human.invulnerableUntil = 0;
@@ -146,9 +150,11 @@ describe('bot brain', () => {
     for (const player of internals.players.values()) {
       if (player !== human && !aggressive.includes(player)) player.position = { x: 240, y: 240 };
     }
-    aggressive[0].position = { x: 2700, y: 2200 };
-    aggressive[1].position = { x: 2900, y: 2300 };
-    aggressive[2].position = { x: 2850, y: 2100 };
+    // Relativ zum gesuchten Ort, nicht absolut: Die drei standen als feste
+    // Koordinaten da und lagen nach dem Labyrinth-Umbau in einer Wand.
+    aggressive[0].position = { x: ORT.x - 100, y: ORT.y };
+    aggressive[1].position = { x: ORT.x + 100, y: ORT.y + 100 };
+    aggressive[2].position = { x: ORT.x + 50, y: ORT.y - 100 };
 
     let now = 10_000;
     for (const bot of aggressive) {

@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { GAME } from '@project-maze/shared';
 import { PASSIVE_MODIFIER_DEFINITIONS } from '@project-maze/shared/gameplay';
+import { messfeld } from './messfeld';
 import { tuneCombatScaling, tunedStatsFor } from './combat-tuning';
 import { MazeGame } from './game';
 import { activateModule, equipLoadout, tuneLoadoutSystem } from './loadout-system';
+
+// Auf der Karte gesucht statt hingeschrieben (siehe messfeld.ts).
+const ORT = messfeld(340);
 
 interface Internals {
   players: Map<string, any>;
@@ -20,7 +24,7 @@ describe('core modules and passive frames', () => {
     const playerId = game.addPlayer('Dasher');
     const internals = game as unknown as Internals;
     const player = internals.players.get(playerId);
-    player.position = { x: 2800, y: 2200 };
+    player.position = { ...ORT };
     expect(equipLoadout(game, playerId, 'dash', 'standard', 1000)).toBe(true);
     game.applyInput(playerId, { type: 'input', sequence: 1, move: { x: 1, y: 0 }, aim: { x: 500, y: 0 }, primary: false, secondary: false });
 
@@ -197,7 +201,7 @@ describe('core modules and passive frames', () => {
     expect(activateModule(game, playerId, 3000)).toBe(true);
 
     player.velocity = { x: 180, y: 0 };
-    player.position = { x: 2800, y: 2200 };
+    player.position = { ...ORT };
     game.step(1 / GAME.tickRate, 4000);
     const snapshot = game.snapshot(playerId, 4000) as any;
     expect(snapshot.gameplay[playerId].repairing).toBe(false);

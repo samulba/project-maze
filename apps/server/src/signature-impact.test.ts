@@ -14,11 +14,14 @@ import {
   wuchtFor
 } from './signature-impact';
 import { momentumFor, tuneRapidSignature } from './signature-rapid';
+import { messfeld } from './messfeld';
 import { isFree } from './world';
 
 const DT = 0.025;
-const OPEN_GROUND = { x: 2800, y: 2200 };
-const FAR_AWAY = { x: 500, y: 500 };
+// Auf der Karte gesucht statt hingeschrieben (siehe messfeld.ts).
+const OPEN_GROUND = messfeld(200);
+/** So weit weg, dass keine Signature-Schicht vom einen zum anderen reicht. */
+const FAR_AWAY = messfeld(60, 60, { fernVon: OPEN_GROUND, mindestabstand: 2000 });
 const IMPACT_CLASSES = PLAYER_CLASS_IDS.filter((id) => CLASS_DEFINITIONS[id].branch === 'impact');
 
 interface Internals {

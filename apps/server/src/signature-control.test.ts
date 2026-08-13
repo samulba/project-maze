@@ -6,6 +6,7 @@ import {
   PLAYER_CLASS_IDS,
   type PlayerClass
 } from '@project-maze/shared';
+import { messfeld } from './messfeld';
 import { tuneCombatScaling, tunedStatsFor } from './combat-tuning';
 import { tuneDrones } from './drone-tuning';
 import { tuneFamilyUpgrades } from './family-upgrades';
@@ -22,7 +23,10 @@ import {
 } from './signature-control';
 
 const DT = 0.025;
-const OPEN_GROUND = { x: 2800, y: 2200 };
+// Auf der Karte gesucht statt hingeschrieben (siehe messfeld.ts): Die feste
+// Koordinate stammte von einer aelteren Karte und hatte nach dem
+// Labyrinth-Umbau nur noch 200 px Luft.
+const OPEN_GROUND = messfeld(340);
 const CONTROL_CLASSES = PLAYER_CLASS_IDS.filter(
   (id) => CLASS_DEFINITIONS[id].branch === 'control' && CLASS_DEFINITIONS[id].droneCount > 0
 );

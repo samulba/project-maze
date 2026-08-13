@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { GAME } from '@project-maze/shared';
 import {
+  BAHN,
   FRACTURABLE_WALL_IDS,
+  HAUPTPLAETZE,
   WALLS,
+  WANDDICKE,
   createShape,
   hasLineOfSight,
   isFree,
@@ -32,20 +35,20 @@ describe('world generation and collision', () => {
   });
 
   /**
-   * Deckung ist das Wesen des Maze-Modus – und sie ist beim Vergroessern der
-   * Karte einmal still weggerutscht: Die Bahn-*Anzahlen* standen fest (4 Reihen,
-   * 6 Spalten), also wurden die Bahnen groesser statt zahlreicher, und die
-   * Deckung fiel von 4,4 % auf 3,5 % der Flaeche. Niemand haette das gemerkt,
-   * bis sich das Spiel offener anfuehlt und keiner sagen kann, warum.
+   * Deckung ist das Wesen des Maze-Modus. Der alte Korridor stand bei
+   * 3,8–5,2 % – gemessen 4,53 %, und genau das war Sams Befund vom 13.08.:
+   * „die Map ist noch zu wenig Maze". 90,3 % der Karte waren begehbar, das ist
+   * ein Feld mit Pfosten.
    *
-   * Der Korridor haelt beides fest: genug Waende, um Ecken und Hinterhalte zu
-   * haben, und nicht so viele, dass die Arena zur Enge wird.
+   * Der neue Korridor haelt das Ergebnis des Umbaus fest: Waende auf einem
+   * Raster, 21,8 % Deckung. Die Untergrenze ist die eigentliche Zusicherung –
+   * sie verhindert, dass die Karte wieder unbemerkt zum Feld wird.
    */
-  it('haelt die Wanddeckung unabhaengig von der Kartengroesse', () => {
+  it('haelt die Wanddeckung im Labyrinth-Korridor', () => {
     const wandflaeche = WALLS.reduce((summe, kandidat) => summe + kandidat.width * kandidat.height, 0);
     const anteil = wandflaeche / (GAME.worldWidth * GAME.worldHeight);
-    expect(anteil).toBeGreaterThanOrEqual(0.038);
-    expect(anteil).toBeLessThanOrEqual(0.052);
+    expect(anteil, `Deckung ${(anteil * 100).toFixed(2)} %`).toBeGreaterThanOrEqual(0.17);
+    expect(anteil, `Deckung ${(anteil * 100).toFixed(2)} %`).toBeLessThanOrEqual(0.28);
   });
 
   /**
@@ -55,8 +58,89 @@ describe('world generation and collision', () => {
    */
   it('skaliert die Zahl der Waende mit der Flaeche', () => {
     const proMillionPixel = WALLS.length / ((GAME.worldWidth * GAME.worldHeight) / 1e6);
-    expect(proMillionPixel).toBeGreaterThanOrEqual(1.3);
-    expect(proMillionPixel).toBeLessThanOrEqual(2.3);
+    expect(proMillionPixel).toBeGreaterThanOrEqual(2.2);
+    expect(proMillionPixel).toBeLessThanOrEqual(3.6);
+  });
+
+  /**
+   * Sams „dickere Waende": Vorher war eine Wand 54 px dick, ein Panzer 44 –
+   * man stand nicht dahinter, man stand daneben. Jede Wand ist jetzt
+   * mindestens drei Panzerbreiten dick.
+   */
+  it('macht jede Wand dick genug, um dahinter zu stehen', () => {
+    expect(WANDDICKE).toBeGreaterThanOrEqual(GAME.playerRadius * 2 * 3);
+    for (const kandidat of WALLS) {
+      expect(Math.min(kandidat.width, kandidat.height), kandidat.id).toBe(WANDDICKE);
+    }
+  });
+
+  /**
+   * Die Gegenrichtung, und die wichtigere: Ein Labyrinth aus dicken Waenden ist
+   * schnell eines, in dem man sich nicht mehr bewegen kann. Der Gang misst
+   * `BAHN − WANDDICKE`; sieben Panzerbreiten sind die Zusicherung, dass zwei
+   * Panzer aneinander vorbeikommen und ein Kampf darin stattfinden kann.
+   */
+  it('laesst die Gaenge breit genug zum Kaempfen', () => {
+    const gang = BAHN - WANDDICKE;
+    expect(gang).toBeGreaterThanOrEqual(GAME.playerRadius * 2 * 7);
+    // Und der Gang ist wirklich begehbar, nicht nur rechnerisch breit: eine
+    // Fahrt quer durch die Karte auf halber Gangbreite darf nirgends anecken.
+    const mitte = BAHN / 2;
+    let frei = 0;
+    for (let x = mitte; x < GAME.worldWidth - BAHN; x += 40) if (isFree({ x, y: mitte }, GAME.playerRadius)) frei += 1;
+    expect(frei).toBeGreaterThan(0);
+  });
+
+  /**
+   * Sams „zwei Mainspots". Geprueft wird, was sie zu Plaetzen macht: Sie sind
+   * wirklich offen (keine Wand darin), gross genug fuer einen Kampf, und beide
+   * gleich – ein groesserer Platz waere ein Vorteil fuer die Seite, die naeher
+   * dran spawnt.
+   */
+  it('spart zwei gleich grosse, wirklich offene Hauptplaetze aus', () => {
+    expect(HAUPTPLAETZE).toHaveLength(2);
+    const [west, ost] = HAUPTPLAETZE;
+    expect(west!.bereich.width).toBe(ost!.bereich.width);
+    expect(west!.bereich.height).toBe(ost!.bereich.height);
+    expect(west!.mitte.x).toBeLessThan(ost!.mitte.x);
+    for (const platz of HAUPTPLAETZE) {
+      // Gross genug, dass ein Kampf hineinpasst: mindestens eine halbe Bildbreite.
+      expect(platz.bereich.width, platz.id).toBeGreaterThanOrEqual(GAME.visibleWorldWidth / 2);
+      // Und wirklich leer – jeder Punkt darin ist begehbar.
+      for (let y = platz.bereich.y + 24; y < platz.bereich.y + platz.bereich.height - 24; y += 40) {
+        for (let x = platz.bereich.x + 24; x < platz.bereich.x + platz.bereich.width - 24; x += 40) {
+          expect(isFree({ x, y }, GAME.playerRadius), `${platz.id} bei (${x}, ${y})`).toBe(true);
+        }
+      }
+    }
+  });
+
+  /**
+   * Ein Platz mit einem Eingang ist eine Falle, einer mit keinem ist eine
+   * Kulisse. Geprueft wird das Ergebnis: Von der Mitte jedes Platzes fuehrt in
+   * jede der vier Himmelsrichtungen ein Weg hinaus.
+   */
+  it('gibt jedem Hauptplatz ein Tor in jede Richtung', () => {
+    for (const platz of HAUPTPLAETZE) {
+      const richtungen: Array<[string, number, number]> = [['links', -1, 0], ['rechts', 1, 0], ['oben', 0, -1], ['unten', 0, 1]];
+      for (const [name, dx, dy] of richtungen) {
+        // Quer durch die Randmauer hindurch: Irgendwo auf der Seite muss ein
+        // Punkt jenseits der Mauer frei und von innen erreichbar sein.
+        const laengs = dx === 0 ? platz.bereich.width : platz.bereich.height;
+        let gefunden = false;
+        for (let versatz = -laengs / 2 + 40; versatz <= laengs / 2 - 40 && !gefunden; versatz += 20) {
+          const start = {
+            x: platz.mitte.x + dx * (platz.bereich.width / 2 - 30) + (dx === 0 ? versatz : 0),
+            y: platz.mitte.y + dy * (platz.bereich.height / 2 - 30) + (dy === 0 ? versatz : 0)
+          };
+          const draussen = { x: start.x + dx * (WANDDICKE + 60), y: start.y + dy * (WANDDICKE + 60) };
+          if (!isFree(draussen, GAME.playerRadius)) continue;
+          const gefahren = moveCircle(start, { x: dx * 2000, y: dy * 2000 }, 0.4, GAME.playerRadius);
+          gefunden = Math.hypot(gefahren.position.x - start.x, gefahren.position.y - start.y) > WANDDICKE + 40;
+        }
+        expect(gefunden, `${platz.id} hat kein Tor nach ${name}`).toBe(true);
+      }
+    }
   });
 
   it('returns legal spawns and shapes', () => {
@@ -115,7 +199,8 @@ describe('deaktivierbare Wandsegmente', () => {
     expect(isFree(inside, 22)).toBe(true);
     expect(hasLineOfSight(left, right)).toBe(true);
     expect(wallsInView(inside).some((candidate) => candidate.id === wall.id)).toBe(false);
-    const crossed = moveCircle(left, { x: 900, y: 0 }, 0.2, 22);
+    // Schnell genug, um die ganze Wand zu durchqueren – sie ist WANDDICKE dick.
+    const crossed = moveCircle(left, { x: (WANDDICKE + 200) / 0.2, y: 0 }, 0.2, 22);
     expect(crossed.position.x).toBeGreaterThan(wall.x + wall.width);
   });
 

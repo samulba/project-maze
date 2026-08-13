@@ -3,6 +3,7 @@ import { GAME } from '@project-maze/shared';
 import { tuneCombatScaling } from './combat-tuning';
 import { RUECKSTOSS_TEMPO, offenerRueckstoss, tuneFireRecoil } from './fire-recoil';
 import { MazeGame } from './game';
+import { messfeld } from './messfeld';
 import { tuneLoadoutSystem } from './loadout-system';
 import { tuneSiegeSignature, stellungFor } from './signature-siege';
 import { isFree } from './world';
@@ -19,8 +20,12 @@ import { isFree } from './world';
  */
 
 const DT = 1 / 40;
-/** Nachweislich freies Feld – der Tank muss driften können, nicht anecken. */
-const OFFEN = { x: 2800, y: 2200 };
+/**
+ * Nachweislich freies Feld – der Tank muss driften können, nicht anecken.
+ * Auf der Karte gesucht statt hingeschrieben (siehe messfeld.ts): Die Drift
+ * läuft über mehrere Sekunden bei rund 25 px/s.
+ */
+const OFFEN = messfeld(240);
 
 interface Interna {
   players: Map<string, any>;

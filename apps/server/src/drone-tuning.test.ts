@@ -3,6 +3,8 @@ import { CLASS_DEFINITIONS, GAME, PLAYER_CLASS_IDS } from '@project-maze/shared'
 import { tuneCombatScaling } from './combat-tuning';
 import { droneArchetypes, tuneDrones } from './drone-tuning';
 import { MazeGame } from './game';
+import { messpunkt } from './messfeld';
+import { hasLineOfSight, isFree } from './world';
 
 /**
  * Drei der zehn Drohnenklassen hatten keinen eigenen Eintrag und fielen still
@@ -86,7 +88,28 @@ describe('Drohnen-Koerper', () => {
  * eine Drohne selbst ein Ziel suchte.
  */
 describe('Drohnen-Verhalten (Stufe 1)', () => {
-  const OFFENES_FELD = { x: 2800, y: 2200 };
+  // Auf der Karte gesucht statt hingeschrieben (siehe messfeld.ts). Der Rahmen
+  // deckt, was die Flotte wirklich braucht: 200 px zum Gegner, 260 px Abstoss
+  // vom Zeiger, dazu Streuung – in jede Richtung.
+  const OFFENES_FELD = messpunkt({ links: 380, rechts: 380, oben: 380, unten: 380 });
+
+  /**
+   * Ein Gegner weit ausserhalb jedes Suchradius (groesster: aviary mit 720),
+   * aber IN SICHTLINIE. Das ist der Unterschied zwischen „die Flotte bleibt zu
+   * Hause, weil er zu weit weg ist" und „…weil eine Wand dazwischensteht" –
+   * nur das Erste prueft der Test. Im Labyrinth gibt es keine freie Flaeche
+   * dieser Groesse mehr, also wird die Richtung gesucht, in der die Sicht reicht.
+   */
+  const AUSSER_REICHWEITE = (() => {
+    for (const abstand of [1400, 1200, 1000, 900]) {
+      for (let schritt = 0; schritt < 48; schritt += 1) {
+        const winkel = (schritt / 48) * Math.PI * 2;
+        const kandidat = { x: OFFENES_FELD.x + Math.cos(winkel) * abstand, y: OFFENES_FELD.y + Math.sin(winkel) * abstand };
+        if (isFree(kandidat, 40) && hasLineOfSight(OFFENES_FELD, kandidat)) return kandidat;
+      }
+    }
+    throw new Error('kein ferner Punkt in Sichtlinie');
+  })();
 
   interface Interna {
     players: Map<string, any>;
@@ -160,8 +183,8 @@ describe('Drohnen-Verhalten (Stufe 1)', () => {
 
   it('bleibt beim Besitzer, wenn niemand in Reichweite ist', () => {
     const { game, interna, spieler } = aufbau();
-    // Weit außerhalb jedes Suchradius (drone: 520).
-    gegnerBei(interna, game, { x: OFFENES_FELD.x + 1400, y: OFFENES_FELD.y });
+    // Weit außerhalb jedes Suchradius (drone: 520), aber in Sichtlinie.
+    gegnerBei(interna, game, AUSSER_REICHWEITE);
 
     let now = 100_000;
     for (let tick = 0; tick < 60; tick += 1) game.step(1 / 40, (now += 25));
