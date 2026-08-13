@@ -403,6 +403,21 @@ export class GameUI {
     this.leaderboard = this.require('#leaderboard');
     this.killfeed = this.require('#killfeed');
     this.upgrades = this.require('#upgrades');
+    /*
+     * Die echte Breite des Upgrade-Panels als CSS-Variable.
+     *
+     * Daneben steht die Klassenwahl (`hud-layout.css`), und sie muss wissen,
+     * wo das Panel aufhört. Zweimal habe ich versucht, die Breite in CSS
+     * nachzurechnen – und zweimal falsch: Sie ist je nach Fenster 270, 300,
+     * 340 oder 420 px, weil mehrere `clamp`-Regeln aus drei Dateien
+     * zusammenwirken. Gemessen ist sie exakt, und zwar ohne dass jemand die
+     * Formel pflegen muss.
+     */
+    const breiteMelden = (): void => {
+      document.documentElement.style.setProperty('--upgrade-breite', `${Math.round(this.upgrades.getBoundingClientRect().width)}px`);
+    };
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(breiteMelden).observe(this.upgrades);
+    breiteMelden();
     this.points = this.require('#upgrade-points');
     this.signatureRow = this.require('#signature-row');
     this.signatureLabelEl = this.require('#signature-label');

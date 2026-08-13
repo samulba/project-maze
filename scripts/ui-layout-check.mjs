@@ -487,7 +487,52 @@ function messenImBrowser() {
     }
   }
 
-  return { flaechen, ueberlappungen, verdeckt, ausserhalb, wahlKarten, rueckweg, imTod, innen, sticksTot,
+  /*
+   * Bedienbarkeit der Upgrades (Sams Befund vom 13.08.).
+   *
+   * „Wenn man eine Klasse aussuchen kann, kann man nicht mehr upgraden,
+   * solange man nicht eine neue Klasse ausgesucht hat." Die Ursache war
+   * `opacity: 0; pointer-events: none` auf dem Upgrade-Panel, solange die
+   * Wahl aufgeklappt stand – also dieselbe Fehlerklasse wie bei den Sticks:
+   * Ein Element, das da ist, aussieht wie da, und keine Klicks annimmt.
+   *
+   * Gemessen wird die HANDLUNG, nicht die Regel: Gibt es einen Punkt zu
+   * verteilen, muss ein Klick auf die Mitte des ersten Slots auch wirklich
+   * diesen Slot treffen.
+   */
+  let upgradesTot = null;
+  const panel = document.querySelector('.upgrade-panel');
+  const punkteOffen = Number(document.querySelector('#upgrade-points')?.textContent ?? '0') > 0;
+  /*
+   * Auf Touch ist das Panel ein Bottom-Sheet und liegt geschlossen mit Absicht
+   * unter dem Bildrand (`mobile.css`) – dort ist der Weg „Punkte-Badge tippen,
+   * dann Slot". Geprueft wird deshalb nur das offene Sheet; dass das Badge
+   * erreichbar ist, deckt die Flaechenpruefung ab.
+   */
+  const alsSheet = window.matchMedia('(pointer: coarse)').matches;
+  const sheetOffen = panel?.classList.contains('sheet-open');
+  if (panel && !panel.hidden && punkteOffen && !imTod && (!alsSheet || sheetOffen)) {
+    const stil = getComputedStyle(panel);
+    const gruende = [];
+    if (stil.pointerEvents === 'none') gruende.push('Panel nimmt keine Zeiger an');
+    if (Number(stil.opacity) < 0.05) gruende.push('Panel unsichtbar');
+    if (stil.display === 'none' || stil.visibility === 'hidden') gruende.push('Panel ausgeblendet');
+    const knopf = [...panel.querySelectorAll('[data-upgrade]')]
+      .find((b) => !b.hidden && !b.disabled && b.getBoundingClientRect().width > 1);
+    if (!knopf) {
+      if (gruende.length === 0) gruende.push('kein bedienbarer Slot trotz offenem Punkt');
+    } else {
+      const r = knopf.getBoundingClientRect();
+      if (r.top < -1 || r.bottom > window.innerHeight + 1) gruende.push('erster Slot ausserhalb des Bildes');
+      const oben = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (!(oben && (oben === knopf || knopf.contains(oben)))) {
+        gruende.push(`Klick trifft ${oben ? oben.tagName.toLowerCase() : 'nichts'} statt den Slot`);
+      }
+    }
+    if (gruende.length > 0) upgradesTot = gruende;
+  }
+
+  return { flaechen, ueberlappungen, verdeckt, ausserhalb, wahlKarten, rueckweg, imTod, innen, sticksTot, upgradesTot,
     _dbg: { radDa: Boolean(rad), radHidden: rad ? rad.hidden : null, kartenOpazitaet: spielerkarte ? getComputedStyle(spielerkarte).opacity : null, leseansicht },
     kompakterTod: Boolean(totenschirm && totenschirm.classList.contains('spectating')),
     totAnteil: raster > 0 ? +(tot / raster * 100).toFixed(1) : null };
@@ -1055,6 +1100,9 @@ async function main() {
       if (messung.rueckweg.respawn === null && messung.rueckweg.start === null) {
         zeile.push('Weg zurueck: GAR KEIN Knopf auf der Todeskarte');
       }
+    }
+    if (messung.upgradesTot) {
+      zeile.push(`Upgrades nicht bedienbar trotz offenem Punkt: ${messung.upgradesTot.join(', ')}`);
     }
     if (messung.sticksTot) {
       zeile.push(`Sticks lahmgelegt trotz Standardzustand: ${messung.sticksTot.join(', ')} (Befund 13)`);

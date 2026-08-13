@@ -28,7 +28,7 @@ import { MazeGame } from './game.js';
  *
  * | Regel | Aufgabe |
  * |---|---|
- * | **Dämpfer** `0.70` für alle Zweige | „overall zu schnell", Precision verliert die Sonderbehandlung |
+ * | **Dämpfer** (heute `0.62`) für alle Zweige | „overall zu schnell", Precision verliert die Sonderbehandlung |
  * | **Deckel**, fällt mit dem Level | „je stärker, desto langsamer" – trifft genau die Klassen, die zu schnell sind |
  * | **Boden** | keine Kugel wird langsamer, als sie ein fliehendes Ziel noch einholt |
  *
@@ -38,11 +38,15 @@ import { MazeGame } from './game.js';
  * Deckel auffrisst, wäre ein toter Slot.
  *
  * Die Reichweite bleibt exakt konstant: `projectileLife` wird im selben Maß
- * verlängert, wie das Tempo fällt. Das ist das etablierte Muster – und es
- * nimmt dem Upgrade den heutigen, unbeabsichtigten Reichweitenbonus. Der war
- * ohnehin fast wertlos: Zielen lässt sich nur bis `maxAimDistance` (650 px),
- * sehen nur bis `viewRadius` (1100 px), und schon eine Core-Kugel fliegt heute
- * 1271 px weit.
+ * verlängert, wie das Tempo fällt.
+ *
+ * **Nachtrag dritte Runde (13.08.): Genau dieser Satz war das Problem.** Die
+ * Reichweite konstant zu halten hieß, sie nie zu senken – und 1271 px für eine
+ * Core-Kugel sind bei 800 px halber Bildbreite zu weit. Sam hat es dreimal
+ * gemeldet, und dreimal hat ein Tempo-Paket alles verändert außer der Zahl, um
+ * die es ihm ging. Seit der dritten Runde skaliert `projektilReichweite` sie
+ * ausdrücklich; `speed × life` ergibt weiterhin exakt diese Reichweite, nur
+ * eben eine kleinere.
  */
 
 /*
@@ -73,8 +77,72 @@ import { MazeGame } from './game.js';
  *
  * Der Boden bleibt unangetastet: `min(heutiges Tempo, 1,25× Spielertempo)` –
  * keine dieser Senkungen kann eine Kugel unter das heutige Tempo ihrer Klasse
- * drücken.
+ * drücken. (Auch die dritte Runde lässt ihn stehen – der Abschlag greift nach
+ * ihm, siehe `PROJECTILE_SPEED_TRIM`. Gemessen holt weiterhin **jede** der 55
+ * schießenden Klassen einen Fliehenden ein; bei einem Abschlag von 0,72 wären
+ * es neun nicht mehr.)
  */
+
+/*
+ * Dritte Runde (13.08. abends). Sam, wörtlich: „das sag ich dir so oft aber da
+ * ändert sich nie was – die BULLETS fliegen zu WEIT direkt von Anfang an, also
+ * die ‚normalen', zu schnell, zu viel und zu klein, bzw. wenn man mehr levelt
+ * müssen die etwas größer werden wie in Diep.io."
+ *
+ * **Er hat buchstäblich recht, und die Messung zeigt auch, warum.** Der
+ * Reichweiten-Deckel aus Stufe 2 (1400 px) hat für die normalen Klassen
+ * **nie gegriffen** – er hat nur die Präzisionslinie beschnitten:
+ *
+ * ```
+ * Klasse     Lv     Tempo  Reichweite  in halben Bildbreiten
+ * core        1       574        1271                  1,59
+ * core       60       574        1271                  1,59   ← unverändert
+ * twin        1       595        1233                  1,54
+ * sniper      1       840        1400                  1,75   ← Deckel greift
+ * ```
+ *
+ * Eine halbe Bildbreite sind 800 px. Eine Core-Kugel fliegt also **das
+ * 1,6-fache dessen, was der Getroffene überhaupt sehen kann** – und zwar auf
+ * Stufe 1 genauso wie auf Stufe 60. Der Deckel war die richtige Idee an der
+ * falschen Stelle: Er schneidet oben ab, wo die Multiplikation entgleist, aber
+ * er senkt nicht die Grundreichweite, über die Sam spricht.
+ *
+ * Ebenso der Radius: `projectileRadius` war eine reine Klassenkonstante
+ * zwischen 5,5 und 11 px – gegen einen Panzerradius von 22. Die Kugel war ein
+ * Viertel des Panzers und **wuchs mit keinem einzigen Level**.
+ *
+ * Deshalb hier drei neue Regeln, jede gegen genau einen seiner Punkte:
+ *
+ * | Sams Wort | Regel |
+ * |---|---|
+ * | „zu weit" | `PROJECTILE_RANGE_SCALE` auf die Grundreichweite, danach der weiche Deckel |
+ * | „zu schnell" | `PROJECTILE_SPEED_TRIM` – Abschlag ganz am Ende, damit er nicht einebnet |
+ * | „zu klein" / „größer beim Leveln" | `projectileRadiusFor` – Grundgröße hoch, plus Levelrampe |
+ *
+ * „Zu viel" bekommt keine eigene Regel: Wie viele Kugeln gleichzeitig in der
+ * Luft sind, ist `Feuerrate × Flugzeit`. Die halbierte Reichweite halbiert die
+ * Flugzeit und damit die Zahl der Kugeln im Bild – gemessen in
+ * `messung-projektile.mjs`. Erst wenn das nicht reicht, ist die Feuerrate dran;
+ * die ist der teurere Eingriff, weil an ihr die halbe Klassenbalance hängt.
+ */
+
+/**
+ * **Abschlag ganz am Ende** – Sams „zu schnell", ohne die Klassen einzuebnen.
+ *
+ * Der naheliegende Weg wäre gewesen, den Dämpfer zu senken. Gemessen ist das
+ * falsch, und zwar aus einem Grund, den die zweite Runde schon einmal teuer
+ * gelernt hat: Ein kleinerer Dämpfer drückt immer mehr Klassen auf den
+ * **Boden**, und der Boden ist für alle derselbe Wert. Bei Dämpfer 0,62 hatten
+ * nur noch 42 der 55 schießenden Klassen ein eigenes Tempo statt 54 – dreizehn
+ * Klassen teilten sich eines mit einer anderen.
+ *
+ * Der Abschlag greift **nach** Dämpfer, Deckel und Boden und trifft damit alle
+ * gleich prozentual. Die Reihenfolge und die Abstände bleiben vollständig
+ * erhalten, alles wird langsamer. Gemessen: Core von 574 auf 488 px/s, die
+ * Ausweichzeit auf 400 px von 0,70 s auf 0,82 s – bei unveränderter
+ * Unterscheidbarkeit.
+ */
+export const PROJECTILE_SPEED_TRIM = 0.85;
 
 /** Dämpfer auf das Rohtempo, für alle Zweige gleich. */
 export const PROJECTILE_SPEED_DAMPER = 0.7;
@@ -127,6 +195,64 @@ export const PROJECTILE_SPEED_PER_POINT = 0.025;
 export const BOT_LEAD_REFERENCE_FLIGHT = 0.35;
 
 /**
+ * **Grundreichweite mal diesem Faktor.** Sams „zu weit direkt von Anfang an".
+ *
+ * Der Bezugspunkt ist die halbe Bildbreite (800 px): Was weiter fliegt, trifft
+ * jemanden, der den Schützen nicht sehen kann. Eine Core-Kugel lag bei 1271 px
+ * – dem 1,59-fachen. Mit 0,50 sind es 636 px, also 0,79 Bildbreiten: Der
+ * Schütze muss ins Bild seines Opfers, um es zu treffen.
+ */
+export const PROJECTILE_RANGE_SCALE = 0.5;
+/**
+ * Weicher Deckel auf die skalierte Reichweite, damit die Präzisionslinie ihren
+ * Vorteil behält, ohne ihn ins Absurde zu treiben. Hart gedeckelt hätten alle
+ * sieben Precision-Klassen exakt dieselbe Reichweite – derselbe Einebnungs-
+ * fehler, den der Tempo-Deckel schon einmal gemacht hat (siehe oben).
+ */
+export const PROJECTILE_RANGE_SOFT_CAP = 800;
+export const PROJECTILE_RANGE_SOFT_CAP_SOFTNESS = 0.11;
+
+/**
+ * Grundgröße der Kugel mal diesem Faktor – Sams „zu klein". Eine Core-Kugel
+ * hatte 7 px Radius gegen 22 px Panzerradius, war also nicht einmal ein
+ * Drittel so dick wie das, was sie trifft.
+ */
+export const PROJECTILE_RADIUS_SCALE = 1.35;
+/**
+ * Zuwachs des Radius von Stufe 1 bis `GAME.maxLevel` – Sams „wenn man mehr
+ * levelt müssen die etwas größer werden wie in Diep.io". Vorher war der Radius
+ * eine reine Klassenkonstante und auf Stufe 60 exakt so groß wie auf Stufe 1.
+ */
+export const PROJECTILE_RADIUS_PER_LEVEL = 0.55;
+
+/** Alle Stellschrauben an einem Ort – damit sie sich vermessen lassen. */
+export interface Projektilmass {
+  daempfer: number;
+  boden: number;
+  deckelHoch: number;
+  deckelTief: number;
+  abschlag: number;
+  reichweiteSkala: number;
+  reichweiteDeckel: number;
+  reichweiteWeichheit: number;
+  radiusSkala: number;
+  radiusProLevel: number;
+}
+
+export const PROJEKTIL: Projektilmass = {
+  daempfer: PROJECTILE_SPEED_DAMPER,
+  boden: PROJECTILE_SPEED_FLOOR,
+  deckelHoch: PROJECTILE_SPEED_CAP_HIGH,
+  deckelTief: PROJECTILE_SPEED_CAP_LOW,
+  abschlag: PROJECTILE_SPEED_TRIM,
+  reichweiteSkala: PROJECTILE_RANGE_SCALE,
+  reichweiteDeckel: PROJECTILE_RANGE_SOFT_CAP,
+  reichweiteWeichheit: PROJECTILE_RANGE_SOFT_CAP_SOFTNESS,
+  radiusSkala: PROJECTILE_RADIUS_SCALE,
+  radiusProLevel: PROJECTILE_RADIUS_PER_LEVEL
+};
+
+/**
  * Tempo des schnellsten überhaupt baubaren Spielers. Einmal aus den
  * Klassendefinitionen gerechnet statt als Zahl abgeschrieben – sonst wandert
  * der Bezugspunkt beim nächsten Balance-Eingriff still weg.
@@ -162,11 +288,48 @@ export const fastestPlayerSpeed = ((): number => {
 const legacySpeed = (base: ClassDefinition): number =>
   base.projectileSpeed * (base.branch === 'precision' ? 0.9 : 0.75);
 
+/** Anteil auf der Levelrampe: 0 auf Stufe 1, 1 auf `GAME.maxLevel`. */
+export const levelrampe = (level: number): number =>
+  (Math.max(1, Math.min(GAME.maxLevel, level)) - 1) / (GAME.maxLevel - 1);
+
 /** Obergrenze des Grundtempos auf einer Levelstufe. */
-export function projectileSpeedCapAt(level: number): number {
-  const clamped = Math.max(1, Math.min(GAME.maxLevel, level));
-  const ramp = (clamped - 1) / (GAME.maxLevel - 1);
-  return fastestPlayerSpeed * (PROJECTILE_SPEED_CAP_HIGH - (PROJECTILE_SPEED_CAP_HIGH - PROJECTILE_SPEED_CAP_LOW) * ramp);
+export function projectileSpeedCapAt(level: number, mass: Projektilmass = PROJEKTIL): number {
+  return fastestPlayerSpeed * (mass.deckelHoch - (mass.deckelHoch - mass.deckelTief) * levelrampe(level));
+}
+
+/**
+ * Weicher Deckel: unterhalb unverändert, oberhalb wird nur der Überschuss
+ * durchgelassen. Zwei verschiedene Rohwerte bleiben damit zwei verschiedene
+ * Werte, statt beide auf dem Deckel zu landen.
+ */
+export function weichGedeckelt(wert: number, deckel: number, weichheit: number): number {
+  return wert <= deckel ? wert : deckel + (wert - deckel) * weichheit;
+}
+
+/**
+ * Reichweite einer Klasse: Grundreichweite mal Skala, dann weich gedeckelt.
+ *
+ * Das ist die Zahl, an der Sams „zu weit" hängt – nicht das Tempo. Wie schnell
+ * eine Kugel fliegt, entscheidet über die Ausweichzeit; wie weit sie fliegt,
+ * entscheidet, ob man von jemandem getroffen wird, den man gar nicht sieht.
+ */
+export function projektilReichweite(base: ClassDefinition, mass: Projektilmass = PROJEKTIL): number {
+  const nominal = base.projectileSpeed * base.projectileLife;
+  if (nominal <= 0) return 0;
+  return weichGedeckelt(nominal * mass.reichweiteSkala, mass.reichweiteDeckel, mass.reichweiteWeichheit);
+}
+
+/**
+ * Radius der Kugel auf einer Levelstufe – Sams „zu klein" und „müssen beim
+ * Leveln größer werden".
+ */
+export function projectileRadiusFor(base: ClassDefinition, level: number, mass: Projektilmass = PROJEKTIL): number {
+  if (base.projectileRadius <= 0) return 0;
+  const gewachsen = base.projectileRadius * mass.radiusSkala * (1 + mass.radiusProLevel * levelrampe(level));
+  // Nie dicker als der Panzer, der sie verschiesst. Fortress waere sonst auf
+  // Stufe 60 bei 23 px gelandet – eine Kugel groesser als ihr eigener Lauf
+  // sieht nicht nach Wucht aus, sondern nach Fehler.
+  return Math.min(gewachsen, GAME.playerRadius);
 }
 
 /**
@@ -176,11 +339,13 @@ export function projectileSpeedCapAt(level: number): number {
  * Änderung darf keine Kugel schneller machen, als sie heute ist. Impact-Klassen
  * liegen schon heute unter dem Boden; für sie ändert sich damit gar nichts.
  */
-export function projectileBaseSpeed(base: ClassDefinition, level: number): number {
+export function projectileBaseSpeed(base: ClassDefinition, level: number, mass: Projektilmass = PROJEKTIL): number {
   if (base.projectileSpeed <= 0) return 0;
-  const damped = base.projectileSpeed * PROJECTILE_SPEED_DAMPER;
-  const floor = Math.min(legacySpeed(base), fastestPlayerSpeed * PROJECTILE_SPEED_FLOOR);
-  return Math.max(softCapped(damped, projectileSpeedCapAt(level)), floor);
+  const damped = base.projectileSpeed * mass.daempfer;
+  const floor = Math.min(legacySpeed(base), fastestPlayerSpeed * mass.boden);
+  // Der Abschlag ganz zum Schluss: Er soll alle gleich treffen, nicht den
+  // Boden verschieben – sonst ebnet er wieder ein (siehe PROJECTILE_SPEED_TRIM).
+  return Math.max(softCapped(damped, projectileSpeedCapAt(level, mass)), floor) * mass.abschlag;
 }
 
 /**
@@ -189,22 +354,28 @@ export function projectileBaseSpeed(base: ClassDefinition, level: number): numbe
  * werden damit wieder zwei verschiedene Werte statt zweimal derselbe.
  */
 export function softCapped(speed: number, cap: number): number {
-  return speed <= cap ? speed : cap + (speed - cap) * PROJECTILE_SPEED_CAP_SOFTNESS;
+  return weichGedeckelt(speed, cap, PROJECTILE_SPEED_CAP_SOFTNESS);
 }
 
 /** Tempo inklusive Upgrade. Das Upgrade rechnet **nach** dem Deckel. */
-export function projectileSpeedFor(base: ClassDefinition, level: number, speedPoints: number): number {
+export function projectileSpeedFor(base: ClassDefinition, level: number, speedPoints: number, mass: Projektilmass = PROJEKTIL): number {
   const points = Math.max(0, Math.min(GAME.maxUpgradeLevel, speedPoints));
-  return projectileBaseSpeed(base, level) * (1 + PROJECTILE_SPEED_PER_POINT * points);
+  return projectileBaseSpeed(base, level, mass) * (1 + PROJECTILE_SPEED_PER_POINT * points);
 }
 
 /**
- * Lebensdauer zum neuen Tempo. `speed × life` bleibt exakt die Reichweite der
- * Klassendefinition – auf jeder Stufe und mit jedem Upgrade.
+ * Lebensdauer zum Tempo, so dass `tempo × leben` genau `projektilReichweite`
+ * ergibt – auf jeder Stufe und mit jedem Upgrade.
+ *
+ * Vorher stand hier die *nominale* Reichweite der Klassendefinition. Genau
+ * darin lag Sams Befund: Das Tempo wurde gedämpft, die Lebenszeit im selben
+ * Maß verlängert, und die Reichweite blieb damit **unverändert bei 1271 px**.
+ * Alle Tempo-Pakete konnten an ihr nichts ändern, weil sie sie ausdrücklich
+ * konstant hielten.
  */
-export function projectileLifeFor(base: ClassDefinition, speed: number): number {
+export function projectileLifeFor(base: ClassDefinition, speed: number, mass: Projektilmass = PROJEKTIL): number {
   if (speed <= 0) return base.projectileLife;
-  return (base.projectileSpeed * base.projectileLife) / speed;
+  return projektilReichweite(base, mass) / speed;
 }
 
 /**
@@ -272,7 +443,7 @@ export function setProjectileSpeedEnabled(next: boolean): boolean {
  * Über `PROJECTILE_RANGE_CAP` verstellbar; `0` schaltet den Deckel ab und
  * stellt exakt den Stand davor her.
  */
-export const DEFAULT_RANGE_CAP = 1400;
+export const DEFAULT_RANGE_CAP = 1200;
 let rangeCap = DEFAULT_RANGE_CAP;
 
 export const projectileRangeCap = (): number => rangeCap;
@@ -314,9 +485,10 @@ export function projectileFlightFor(
   level: number,
   upgrades: UpgradeLevels,
   legacySpeedValue: number,
-  legacyLife: number
+  legacyLife: number,
+  mass: Projektilmass = PROJEKTIL
 ): { speed: number; life: number } {
   if (!enabled) return { speed: legacySpeedValue, life: legacyLife };
-  const speed = projectileSpeedFor(base, level, upgrades.projectileSpeed);
-  return { speed, life: projectileLifeFor(base, speed) };
+  const speed = projectileSpeedFor(base, level, upgrades.projectileSpeed, mass);
+  return { speed, life: projectileLifeFor(base, speed, mass) };
 }

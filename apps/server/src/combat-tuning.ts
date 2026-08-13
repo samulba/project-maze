@@ -23,7 +23,7 @@ import {
 } from '@project-maze/shared/gameplay';
 import { MazeGame } from './game.js';
 import { moveVectorToward } from './physics.js';
-import { cappedLife, projectileFlightFor } from './projectile-speed.js';
+import { cappedLife, projectileFlightFor, projectileRadiusFor } from './projectile-speed.js';
 import { moveCircle } from './world.js';
 
 interface TunedStats {
@@ -123,7 +123,10 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
       flight.speed * modifier.projectileSpeedMultiplier
     ),
     damage: base.damage * (1 + player.upgrades.damage * 0.07),
-    projectileRadius: base.projectileRadius,
+    // Sams „zu klein" und „beim Leveln groesser, wie in Diep.io": Der Radius
+    // war eine reine Klassenkonstante und auf Stufe 60 exakt so gross wie auf
+    // Stufe 1. Jetzt Grundgroesse mal Skala, plus Levelrampe.
+    projectileRadius: projectileRadiusFor(base, player.level ?? 1),
     penetration: base.penetration * (1 + player.upgrades.penetration * 0.085),
     bodyDamage: base.bodyDamage * (1 + player.upgrades.bodyDamage * 0.1),
     barrelCount: base.barrelCount,

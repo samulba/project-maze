@@ -667,14 +667,51 @@
 }
 
 /*
- * Das Upgrade-Panel steht in derselben Spalte. Aufgeklappt tritt es zurück:
- * Sie teilen sich 348 px Breite, und übereinander passt beides nur auf hohen
- * Schirmen. Zugeklappt ist es sofort wieder da – die Leiste ist 40 px hoch.
+ * Das Upgrade-Panel steht in derselben Spalte – und hier stand der Fehler.
+ *
+ * Vorher trat es zurück, solange die Wahl aufgeklappt war: `opacity: 0` plus
+ * `pointer-events: none`. Sams Befund vom 13.08.: „wenn man eine Klasse
+ * aussuchen kann, kann man nicht mehr upgraden, solange man nicht eine neue
+ * Klasse ausgesucht hat." Genau das war es. Nachgemessen mit
+ * `scripts/bug-upgrade-probe.mjs`: Der Knopf war nicht `disabled`, der Server
+ * hat nichts abgelehnt, und die **Zifferntasten funktionierten weiter** – nur
+ * der Mausklick lief ins Leere, weil das Panel keine Zeiger mehr annahm. Ein
+ * unsichtbarer, aber per Tastatur bedienbarer Knopf ist die verwirrendste
+ * Variante von kaputt.
+ *
+ * Die Absicht dahinter war richtig: Seit „Klassen 4.2" steht die Wahl in
+ * derselben linken Spalte, und übereinander passt beides nicht. Nur ist die
+ * Antwort darauf, der Wahl **Platz zu geben**, statt die Upgrades
+ * abzuschalten. Beides ist eine Bedienung, und die Upgrades sind die
+ * häufigere.
+ *
+ * Reserviert wird nur, wenn es auch etwas zu verteilen gibt: Ohne offene
+ * Punkte steht das Panel als reine Bilanz da (`read-only`) und wird auf
+ * flachen Fenstern ohnehin ausgeblendet – dann gehört die Spalte der Wahl.
+ *
+ * Nur für Zeigergeräte: Auf Touch ist das Upgrade-Panel ein Bottom-Sheet und
+ * liegt gar nicht in dieser Spalte (`mobile.css`).
  */
-:root:has(.class-selection:not([hidden])[data-collapsed='false']) .upgrade-panel {
-  opacity: 0;
-  pointer-events: none;
-  transition: none;
+/*
+ * Gelöst wird es **nebeneinander**, nicht übereinander – genau so, wie es die
+ * F3-Regel weiter oben schon vorsah. Beim „Klassen 4.2"-Umbau ist dieser
+ * Versatz verloren gegangen: Der neue Block setzt `left: var(--edge-x)` ohne
+ * `--wahl-links`, seitdem standen beide in derselben Spalte.
+ *
+ * Der erste Reparaturversuch hat der Wahl stattdessen unten Platz weggenommen
+ * (`--wahl-unten: 330px`). Der Prüfstand hat ihn widerlegt: Von acht
+ * Klassenkarten waren nur noch zwei sichtbar, auf flachen Fenstern keine
+ * einzige. Ein Panel abzuschalten und eines unlesbar zu machen sind derselbe
+ * Fehler in zwei Größen.
+ *
+ * Der Versatz entspricht der Panelbreite aus `style.css` – dieselben Klammern,
+ * damit beide zusammen wandern, wenn eine davon geändert wird.
+ */
+@media (pointer: fine) {
+  :root:has(.upgrade-panel:not([hidden])) .class-selection {
+    left: calc(var(--edge-x) + var(--upgrade-breite, 300px) + 12px);
+    width: min(348px, calc(100% - 2 * var(--edge-x) - var(--upgrade-breite, 300px) - 12px));
+  }
 }
 
 /*

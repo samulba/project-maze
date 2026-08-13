@@ -57,9 +57,35 @@ describe('world generation and collision', () => {
    * als Labyrinth aber wertlos – Deckung entsteht aus Ecken, nicht aus Masse.
    */
   it('skaliert die Zahl der Waende mit der Flaeche', () => {
-    const proMillionPixel = WALLS.length / ((GAME.worldWidth * GAME.worldHeight) / 1e6);
+    // Gezaehlt werden die SEGMENTE. Die Pfosten auf den Kreuzungen (`p*`) sind
+    // Bauteile, keine Deckung – sie mitzuzaehlen haette die Kennzahl still
+    // verdoppelt, ohne dass sich am Labyrinth etwas aendert.
+    const segmente = WALLS.filter((kandidat) => !kandidat.id.startsWith('p'));
+    const proMillionPixel = segmente.length / ((GAME.worldWidth * GAME.worldHeight) / 1e6);
     expect(proMillionPixel).toBeGreaterThanOrEqual(2.2);
     expect(proMillionPixel).toBeLessThanOrEqual(3.6);
+  });
+
+  /**
+   * Sams „die Bloecke sollten sich nicht ueberschneiden, sondern immer clean
+   * aneinanderreihen". Vorher lag an jeder Kreuzung ein 160 x 80 px grosses
+   * Ueberlappungsfeld; der Renderer zeichnet je Wand Schatten, Kontur und
+   * Glanzkante, und die liefen dort quer durcheinander.
+   */
+  it('setzt keine zwei Waende uebereinander', () => {
+    const ueberlappt = (a: typeof WALLS[number], b: typeof WALLS[number]): number => {
+      const breite = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+      const hoehe = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+      return breite > 0.001 && hoehe > 0.001 ? breite * hoehe : 0;
+    };
+    const treffer: string[] = [];
+    for (let i = 0; i < WALLS.length; i += 1) {
+      for (let j = i + 1; j < WALLS.length; j += 1) {
+        const flaeche = ueberlappt(WALLS[i]!, WALLS[j]!);
+        if (flaeche > 0) treffer.push(`${WALLS[i]!.id}/${WALLS[j]!.id} (${Math.round(flaeche)} px2)`);
+      }
+    }
+    expect(treffer, treffer.slice(0, 5).join(', ')).toHaveLength(0);
   });
 
   /**

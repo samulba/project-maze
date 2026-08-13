@@ -80,23 +80,33 @@ export const WANDDICKE = 160;
  * Sackgassen, kein Umgehen, kein Entkommen. Das Verflechten macht daraus ein
  * Netz mit Schleifen.
  *
- * Die Verflechtung hat genau diese eine Aufgabe, also ist sie daran gemessen
- * worden – Sackgassen sind Zellen mit nur einem offenen Nachbarn:
+ * **Sie ist aber das falsche Werkzeug gegen Sackgassen**, und das ist gemessen.
+ * Vor Schritt 4b sah der Tausch so aus:
  *
  * ```
  * verfl 0,00  →  27 Sackgassen (12,5 %), 15,0 % weite Blicke
- * verfl 0,12  →  21 Sackgassen ( 9,7 %), 17,3 %
  * verfl 0,20  →  14 Sackgassen ( 6,5 %), 20,7 %
  * verfl 0,45  →   5 Sackgassen ( 2,3 %), 36,5 %
  * ```
  *
- * Der Tausch ist fast linear, es gibt also keinen „richtigen" Punkt, nur eine
- * Entscheidung: 0,20 halbiert die Sackgassen und kostet dafür gut drei Punkte
- * Labyrinthgefühl. In einem Spiel, in dem eine Sackgasse den Tod bedeutet,
- * ist das der bessere Tausch – und mit 20,7 % gegenüber 46,4 % auf der alten
- * Karte bleibt der Gewinn groß.
+ * Um auf Sams „maximal 5 bis 7" zu kommen, hätte die Verflechtung auf 0,45
+ * gemusst – und damit das halbe Labyrinth gekostet. Der Grund: Sie öffnet
+ * Wände gleichmäßig überall, auch dort, wo gar keine Sackgasse war.
+ *
+ * Deshalb löst Schritt 4b die Sackgassen **gezielt** auf, und die Verflechtung
+ * macht nur noch das, wofür sie gut ist: Schleifen. Seitdem stehen bei jeder
+ * Einstellung exakt sechs Sackgassen, und 0,14 liefert 19,5 % weite Blicke bei
+ * 21,3 % Deckung – also beides besser als vorher.
  */
-const VERFLECHTUNG = 0.2;
+const VERFLECHTUNG = 0.14;
+
+/**
+ * So viele Sackgassen dürfen stehen bleiben – Sams „maximal 5 bis 7 ist ok,
+ * der Rest ist zu viel". Der Rest wird gezielt aufgelöst (Schritt 4b), statt
+ * die Verflechtung hochzudrehen: Die öffnet Wände auch dort, wo gar keine
+ * Sackgasse war, und kostet dafür das halbe Labyrinth.
+ */
+const SACKGASSEN_ZIEL = 6;
 
 /** Die drei Maße, die das Labyrinth bestimmen – zusammen, weil sie zusammenhängen. */
 export interface Labyrinthmass {
@@ -249,23 +259,107 @@ export function erzeugeLabyrinth(mass: Labyrinthmass = LABYRINTH): Labyrinth {
     festeGrenzen.delete(`${grenze.art}${grenze.index}`);
   }
 
-  // 5. Grenzen zu Rechtecken. Bewusst ein Rechteck je Zellgrenze statt
-  //    verschmolzener Läufe: Das Fracture-Event öffnet ganze Wände, und ein
-  //    3200 px langes Stück wäre keine Bresche mehr, sondern ein Erdrutsch.
+  // 4b. Sackgassen gezielt auflösen.
+  //
+  //     Sam, 13.08.: „man muss nur darauf achten, dass es nicht ZU VIELE
+  //     Sackgassen gibt – so maximal 5 bis 7 ist ok, der Rest ist zu viel."
+  //     Gemessen waren es 14.
+  //
+  //     Der naheliegende Weg wäre, die Verflechtung hochzudrehen. Gemessen ist
+  //     das der teure Weg: 0,45 lässt fünf Sackgassen übrig, kostet aber das
+  //     halbe Labyrinth (36,5 % weite Blicke statt 20,7 %), weil sie überall
+  //     Wände öffnet – auch dort, wo gar keine Sackgasse war.
+  //
+  //     Hier wird stattdessen genau die Zelle aufgemacht, die das Problem ist.
+  //     Das Öffnen einer Grenze kann keine neue Sackgasse erzeugen (es nimmt
+  //     keiner Zelle einen Nachbarn), die Zahl fällt also monoton.
+  const nachbarn = (zelle: number): Array<{ art: 'v' | 'h'; index: number }> => {
+    const spalte = zelle % spalten;
+    const zeile = (zelle - spalte) / spalten;
+    const liste: Array<{ art: 'v' | 'h'; index: number }> = [];
+    if (spalte > 0) liste.push({ art: 'v', index: sIdx(spalte - 1, zeile) });
+    if (spalte + 1 < spalten) liste.push({ art: 'v', index: sIdx(spalte, zeile) });
+    if (zeile > 0) liste.push({ art: 'h', index: wIdx(spalte, zeile - 1) });
+    if (zeile + 1 < zeilen) liste.push({ art: 'h', index: wIdx(spalte, zeile) });
+    return liste;
+  };
+  const offeneNachbarn = (zelle: number): number =>
+    nachbarn(zelle).filter((g) => !(g.art === 'v' ? senkrecht : waagerecht)[g.index]).length;
+  const sackgassen = (): number[] => {
+    const treffer: number[] = [];
+    for (let zelle = 0; zelle < spalten * zeilen; zelle += 1) if (offeneNachbarn(zelle) <= 1) treffer.push(zelle);
+    return treffer;
+  };
+  let offen = sackgassen();
+  while (offen.length > SACKGASSEN_ZIEL) {
+    const zelle = offen[Math.floor(random() * offen.length)]!;
+    const zu = nachbarn(zelle).filter((g) => (g.art === 'v' ? senkrecht : waagerecht)[g.index]);
+    if (zu.length === 0) break;
+    const gewaehlt = zu[Math.floor(random() * zu.length)]!;
+    (gewaehlt.art === 'v' ? senkrecht : waagerecht)[gewaehlt.index] = false;
+    festeGrenzen.delete(`${gewaehlt.art}${gewaehlt.index}`);
+    offen = sackgassen();
+  }
+
+  // 5. Grenzen zu Rechtecken – **überschneidungsfrei**.
+  //
+  //    Sam, 13.08.: „die Blöcke sollten sich nicht überschneiden, sondern
+  //    immer clean aneinanderreihen." Vorher lief ein senkrechtes Segment über
+  //    die volle Zellhöhe, während das waagerechte mittig auf derselben Linie
+  //    lag – an jeder Kreuzung überlappten sie in einem 160 × 80 px großen
+  //    Feld. Der Renderer zeichnet je Wand Schatten, Füllung, Kontur und
+  //    Glanzkante; übereinanderliegende Rechtecke ergeben dort Nahtlinien,
+  //    doppelte Schatten und Konturen quer durch die Fläche.
+  //
+  //    Jetzt gibt es zwei Bauteile: **Pfosten** auf den Kreuzungen und
+  //    **Segmente** dazwischen, die an den Pfosten enden. Nichts überlappt.
+  //
+  //    Ein Pfosten entsteht nur, wo mindestens zwei Grenzen zusammentreffen.
+  //    Bei genau einer endet das Segment einen halben Pfosten früher – das ist
+  //    eine zurückgesetzte Wandspitze, kein Loch. Bei zweien wäre das Weglassen
+  //    dagegen eine Lücke: durch die 160 px große Ecke käme ein Panzer
+  //    diagonal hindurch, und das Labyrinth hätte eine Abkürzung, die niemand
+  //    gebaut hat.
   const walls: Wall[] = [];
   let id = 0;
+  const zu = (art: 'v' | 'h', index: number): boolean => (art === 'v' ? senkrecht : waagerecht)[index] === true;
+  /** Steht an dieser Kreuzung ein Pfosten? */
+  const pfostenDa = (sx: number, zy: number): boolean => {
+    let anzahl = 0;
+    if (zy > 0 && zu('v', sIdx(sx - 1, zy - 1))) anzahl += 1;
+    if (zy < zeilen && zu('v', sIdx(sx - 1, zy))) anzahl += 1;
+    if (sx > 0 && zu('h', wIdx(sx - 1, zy - 1))) anzahl += 1;
+    if (sx < spalten && zu('h', wIdx(sx, zy - 1))) anzahl += 1;
+    return anzahl >= 2;
+  };
+
   for (let zeile = 0; zeile < zeilen; zeile += 1) {
     for (let spalte = 0; spalte + 1 < spalten; spalte += 1) {
       if (!senkrecht[sIdx(spalte, zeile)]) continue;
       const fest = festeGrenzen.has(`v${sIdx(spalte, zeile)}`);
-      walls.push(wall(`${fest ? 'l' : 'v'}${id++}`, kanteX(spalte + 1) - dicke / 2, kanteY(zeile), dicke, kanteY(zeile + 1) - kanteY(zeile)));
+      // Am Kartenrand gibt es keine Kreuzung – dort läuft das Segment bis an
+      // die Weltkante, sonst bliebe dort eine Lücke.
+      const oben = zeile === 0 ? 0 : kanteY(zeile) + (pfostenDa(spalte + 1, zeile) ? dicke / 2 : 0);
+      const unten = zeile === zeilen - 1 ? GAME.worldHeight : kanteY(zeile + 1) - (pfostenDa(spalte + 1, zeile + 1) ? dicke / 2 : 0);
+      walls.push(wall(`${fest ? 'l' : 'v'}${id++}`, kanteX(spalte + 1) - dicke / 2, oben, dicke, unten - oben));
     }
   }
   for (let zeile = 0; zeile + 1 < zeilen; zeile += 1) {
     for (let spalte = 0; spalte < spalten; spalte += 1) {
       if (!waagerecht[wIdx(spalte, zeile)]) continue;
       const fest = festeGrenzen.has(`h${wIdx(spalte, zeile)}`);
-      walls.push(wall(`${fest ? 'l' : 'h'}${id++}`, kanteX(spalte), kanteY(zeile + 1) - dicke / 2, kanteX(spalte + 1) - kanteX(spalte), dicke));
+      const links = spalte === 0 ? 0 : kanteX(spalte) + (pfostenDa(spalte, zeile + 1) ? dicke / 2 : 0);
+      const rechts = spalte === spalten - 1 ? GAME.worldWidth : kanteX(spalte + 1) - (pfostenDa(spalte + 1, zeile + 1) ? dicke / 2 : 0);
+      walls.push(wall(`${fest ? 'l' : 'h'}${id++}`, links, kanteY(zeile + 1) - dicke / 2, rechts - links, dicke));
+    }
+  }
+  // Die Pfosten. Eigenes Präfix `p`, damit das Fracture-Event sie nicht
+  // aufbrechen kann (`FRACTURABLE_WALL_IDS` nimmt nur `v` und `h`): Ein
+  // fehlender Pfosten wäre genau die diagonale Abkürzung von oben.
+  for (let zy = 1; zy < zeilen; zy += 1) {
+    for (let sx = 1; sx < spalten; sx += 1) {
+      if (!pfostenDa(sx, zy)) continue;
+      walls.push(wall(`p${id++}`, kanteX(sx) - dicke / 2, kanteY(zy) - dicke / 2, dicke, dicke));
     }
   }
   return { waende: walls, plaetze, spalten, zeilen };
