@@ -213,6 +213,8 @@ interface BotBrain {
   currentAimError: number;
   targetAcquiredAt: number;
   lastPosition: Vector2;
+  /** Letzte Position, an der das Ziel SICHTBAR war – die Verfolgung fährt dorthin (Befund 77). */
+  lastSeenPosition: Vector2 | null;
   lastMoveCheckAt: number;
   detourUntil: number;
   detourSign: number;
@@ -287,6 +289,7 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
       currentAimError: 0,
       targetAcquiredAt: 0,
       lastPosition: { ...player.position },
+      lastSeenPosition: null,
       lastMoveCheckAt: 0,
       detourUntil: 0,
       detourSign: 1,
@@ -440,19 +443,44 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
       // Stil entscheidet, wie leicht ein Bot vom Farmen ablässt. Vorher galten
       // pauschal 60 % für alle außer Hunter und Brawler – ein Farmer war damit
       // nur dem Namen nach friedlich.
-      const aggressive = wasAttacked || (pacing
+      //
+      // Der Wurf gilt der AUFNAHME eines Gefechts, nicht seiner Fortsetzung
+      // (Befund 71, Sams Entscheidung): Vorher wurde je Entscheidung
+      // (195–538 ms) neu gewürfelt – ein Farmer hielt ein Ziel im Median
+      // 0,38 s, es entstand nie ein Kampf, nur ein Flackern. Wer sein Ziel
+      // schon hat, behält es, bis huntTimeout, Sichtverlust, calmUntil oder
+      // der Tod es beenden – genau die Bedeutung, die der Kommentar an
+      // styleAggression („einen sichtbaren Gegner überhaupt anzugehen")
+      // immer schon behauptet hat. Gegenprobe: messung-71a/b.
+      const engaged = bestEnemy !== null && bot.targetId === bestEnemy.id;
+      const aggressive = engaged || wasAttacked || (pacing
         ? Math.random() < pacing.styleAggression[bot.style]
         : bot.style === 'hunter' || bot.style === 'brawler' || Math.random() > 0.4);
       if (bestEnemy && aggressive) {
         if (bot.targetId !== bestEnemy.id) brain.targetAcquiredAt = now;
         bot.targetId = bestEnemy.id;
         bot.targetShapeId = null;
+        brain.lastSeenPosition = { ...bestEnemy.position };
       } else {
-        const shape = [...internals.shapes.values()]
-          .filter((candidate) => hasLineOfSight(player.position, candidate.position))
-          .sort((a, b) => distanceSquared(a.position, player.position) - distanceSquared(b.position, player.position))[0];
-        bot.targetShapeId = shape?.id ?? null;
-        bot.targetId = null;
+        // Gedächtnis statt Wegfindung (Befund 77, Sams Entscheidung): Ein
+        // Schritt um die Ecke löschte den Kontakt im Median nach 275 ms
+        // ersatzlos – Deckung war ein Ausschalter, kein Zug im Duell. Wer
+        // sein Ziel nur aus den Augen verloren hat, behält es und fährt zur
+        // letzten bekannten Position (Bewegungsteil unten); erst das
+        // Jagd-Timeout, der Tod des Ziels oder das Erreichen des leeren
+        // Orts beenden die Verfolgung. Gegenprobe: messung-77.
+        const quarry = bot.targetId ? internals.players.get(bot.targetId) : undefined;
+        const verfolgt = Boolean(quarry && !quarry.dead && brain.lastSeenPosition
+          && now - Math.max(brain.targetAcquiredAt, brain.lastHitTargetId === bot.targetId ? brain.lastHitAt : 0)
+            <= (pacing?.huntTimeoutMs ?? 8_000));
+        if (!verfolgt) {
+          const shape = [...internals.shapes.values()]
+            .filter((candidate) => hasLineOfSight(player.position, candidate.position))
+            .sort((a, b) => distanceSquared(a.position, player.position) - distanceSquared(b.position, player.position))[0];
+          bot.targetShapeId = shape?.id ?? null;
+          bot.targetId = null;
+          brain.lastSeenPosition = null;
+        }
       }
       brain.currentAimError = (Math.random() - 0.5) * 2 * profile.aimError;
       if (Math.random() < 0.22) bot.strafe *= -1;
@@ -463,6 +491,32 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
     const shape = bot.targetShapeId ? internals.shapes.get(bot.targetShapeId) : undefined;
     const enemyDistance = enemy ? Math.hypot(enemy.position.x - player.position.x, enemy.position.y - player.position.y) : Infinity;
     const healthRatio = player.health / Math.max(1, player.maxHealth);
+    // Sichtlinie entscheidet zwischen Jagd auf den Tank und Fahrt zur letzten
+    // bekannten Position (Befund 77). Solange das Ziel sichtbar ist, wandert
+    // die Merkposition mit; ohne Sicht wird sie angefahren – und wer dort
+    // ankommt und niemanden vorfindet, gibt auf wie beim Jagd-Timeout.
+    const enemyVisible = enemy !== undefined && hasLineOfSight(player.position, enemy.position);
+    if (enemy && enemyVisible) brain.lastSeenPosition = { ...enemy.position };
+    let pursuit: Vector2 | null = null;
+    if (enemy && !enemyVisible) {
+      pursuit = brain.lastSeenPosition;
+      const arrived = pursuit !== null
+        && Math.hypot(pursuit.x - player.position.x, pursuit.y - player.position.y) < 90;
+      if (pursuit === null || arrived) {
+        if (pacing && !enemy.isBot) {
+          brain.escapedId = enemy.id;
+          brain.escapedUntil = now + pacing.huntGiveUpMs;
+        }
+        bot.targetId = null;
+        brain.lastSeenPosition = null;
+        bot.decisionAt = 0;
+        const angle = now / 1800 + player.id.length;
+        player.move = { x: Math.cos(angle), y: Math.sin(angle) };
+        player.primary = false;
+        player.secondary = false;
+        return;
+      }
+    }
 
     if (!player.invulnerable && now >= brain.nextModuleTryAt) {
       const loadout = BOT_LOADOUTS[bot.style];
@@ -502,7 +556,9 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
     brain.holdUntil = 0;
     bot.holdsStill = false;
 
-    const target = enemy?.position ?? shape?.position;
+    // Während der Verfolgung zählt die Merkposition, nicht der (durch die
+    // Wand bekannte) echte Ort des Ziels – sonst zielte der Bot durch Mauern.
+    const target = (enemy ? (enemyVisible ? enemy.position : pursuit) : null) ?? shape?.position;
     if (!target) {
       const angle = now / 1800 + player.id.length;
       player.move = { x: Math.cos(angle), y: Math.sin(angle) };
@@ -516,7 +572,7 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
     const direction = normalize(delta);
 
     let aimPoint = { ...target };
-    if (enemy && stats.projectileSpeed > 0) {
+    if (enemy && enemyVisible && stats.projectileSpeed > 0) {
       const travelTime = distance / Math.max(1, stats.projectileSpeed);
       // Langsamere Kugeln heißen längere Flugzeit – und der absolute
       // Vorhaltfehler eines Bots wächst linear mit ihr. Ohne Ausgleich träfen
@@ -559,15 +615,18 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
     if (brain.detourUntil > now) move = rotate(move, Math.PI / 2 * brain.detourSign);
     player.move = move;
 
+    // Ohne Sichtlinie wird nicht gefeuert – die Fahrt zur Merkposition ist
+    // Verfolgung, kein Beschuss der Wand (Befund 77).
+    const mayFire = enemy === undefined || enemyVisible;
     if (isDroneClass) {
-      player.secondary = Boolean(enemy && distance < 230);
-      player.primary = !player.secondary && distance < 900;
+      player.secondary = Boolean(enemy && enemyVisible && distance < 230);
+      player.primary = !player.secondary && distance < 900 && mayFire;
       return;
     }
     player.secondary = false;
     const range = Math.min(bot.style === 'kiter' ? 1150 : 900, stats.projectileSpeed * stats.projectileLife * 0.92 + 60);
     const reactionReady = !enemy || now - brain.targetAcquiredAt >= profile.reactionMs * 0.5;
-    player.primary = distance < range && reactionReady;
+    player.primary = distance < range && reactionReady && mayFire;
   };
 
   /*
