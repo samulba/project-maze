@@ -173,6 +173,30 @@ Dazu zwei Nähte statt Kopien: `damageDrone` in `game.ts` (drei Aufrufer statt
 dreier Fassungen derselben Buchführung) und `schiebeAuseinander` in
 `physics.ts`.
 
+## Ein blinder Fleck im Prüfstand – und was darunter lag
+
+`scripts/ui-layout-check.mjs` wartete für das Admin-Portal auf `.kopf`. Die
+Klasse heißt seit dem Portal-Umbau `.kopfleiste`. Der Prüfstand lief deshalb in
+seine 15-Sekunden-Grenze und meldete „kommt nicht hoch" – **alle acht
+Portal-Fälle, in jedem Lauf.** Gemeldet wurde damit kein Fehler, sondern ein
+blinder Fleck: Acht Layout-Fälle waren ungeprüft, und der Prüfstand endete
+verlässlich rot, was jede echte Meldung im Rauschen versteckt hätte.
+
+Der Selektor ist korrigiert. Darunter kommen **vier echte Befunde** zum
+Vorschein, alle im Admin-Portal auf kleinen Schirmen:
+
+| Fall | Befund |
+| --- | --- |
+| `portal-tablet` (820×1180) | `dt`/`dd`/`.mono` ragen seitlich aus dem Bild |
+| `portal-handy` (390×844) | dieselben, dazu `.navi-punkt` außerhalb |
+| `portal-handy-klein` (375×667) | dieselben |
+| `portal-handy-quer` (844×390) | dieselben |
+
+**Nicht in diesem Paket gefixt.** Das Admin-Portal hat mit Sams Spieltest
+nichts zu tun, und seine Handy-Ansicht zu richten ist eine eigene Aufgabe –
+sie hier mit hineinzunehmen würde zwei unabhängige Änderungen in einem Zweig
+vermischen. Der Prüfstand meldet sie ab sofort, statt sie zu verdecken.
+
 ## Zwei Testlücken, die dabei aufgefallen sind
 
 1. **`arena-royale.test.ts`** ließ im Schonfrist-Test die Formen stehen und

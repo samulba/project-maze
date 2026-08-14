@@ -58,3 +58,9 @@ Sams Worte im Original und die Begründung der Reihenfolge stehen in
   `/health` unter `sessions` prüfen, dass die Schicht wirklich schreibt.
 * **CI ist pausiert** (`2c90ca2`): GitHub-Actions-Minuten aufgebraucht. `npm run
   check` läuft lokal, der Prüfstand `ui-layout-check.mjs` von Hand.
+* **Admin-Portal auf kleinen Schirmen** – neu aufgedeckt, nicht gefixt: Der
+  Prüfstand wartete für das Portal auf eine Klasse, die es seit dem Umbau nicht
+  mehr gibt, und meldete acht Fälle als „kommt nicht hoch". Der Selektor ist
+  korrigiert; darunter liegen vier echte Befunde (Inhalt ragt seitlich aus dem
+  Bild, auf Tablet und Handy). Eigene Aufgabe – siehe
+  [Bericht 31](31-feedback-14-08-abgearbeitet.md).

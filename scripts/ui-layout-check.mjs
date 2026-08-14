@@ -1135,7 +1135,21 @@ async function main() {
         const fehler = [];
         page.on('pageerror', (e) => fehler.push(String(e).slice(0, 140)));
         await page.setContent(seite, { waitUntil: 'load' });
-        await page.waitForSelector('.kopf', { timeout: 15_000 });
+        /*
+         * `.kopfleiste`, nicht `.kopf`.
+         *
+         * Die Klasse hieß einmal `.kopf` und heißt seit dem Portal-Umbau
+         * `.kopfleiste`. Der Prüfstand wartete weiter auf die alte, lief in
+         * seine 15-Sekunden-Grenze und meldete „kommt nicht hoch" – **alle acht
+         * Portal-Fälle, in jedem Lauf.** Gemeldet wurde damit nicht ein Fehler,
+         * sondern ein blinder Fleck: Acht Layout-Fälle waren seither
+         * ungeprüft, und der Prüfstand endete verlässlich rot, was jede echte
+         * Meldung im Rauschen versteckt hätte.
+         *
+         * Gefunden beim Abarbeiten von Sams Feedback vom 14.08.; der Fehler
+         * liegt vor diesem Paket (auf `2c90ca2` nachgestellt).
+         */
+        await page.waitForSelector('.kopfleiste', { timeout: 15_000 });
         const messung = await page.evaluate(messenPortal);
         if (SHOTS) await page.screenshot({ path: `.probe/ui-${name}.png`, fullPage: true });
         await page.close();
