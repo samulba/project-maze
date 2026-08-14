@@ -369,11 +369,12 @@
   /* Welle B: Das Tankbild bleibt auch auf dem Handy - aber als Briefmarke.
      In voller Groesse schob es die Karten unter den Panelrand, und eine
      Klassenwahl, von der man keine Karte sieht, ist keine Wahl (Pruefstand:
-     0/6 sichtbar auf 844x390). Perk/Pfad-Zeilen sind hier ohnehin aus. */
+     0/6 sichtbar auf 844x390).
+     Rolle, Perk- und Pfadzeile stehen seit Sams Punkt 4 (14.08.) gar nicht mehr
+     auf der Karte, sondern im Tooltip – die Regeln, die sie hier ausgeblendet
+     haben, sind mit ihnen gegangen. */
   .class-choice-preview { height: 40px; margin-bottom: 4px; }
   .class-choice-preview svg { width: 36px; height: 36px; }
-  .class-choice-role { display: none; }
-  .class-choice-perk, .class-choice-leads { display: none; }
 }
 
 /* Auf kleinen Screens zählt nur die Spitze der Rangliste. Der Titel ist das

@@ -1,63 +1,60 @@
-# Stand 13.08. – Rework nach Sams Spieltest, Stufe 3 von 4
+# Stand 14.08. – Sams Spieltest vom 14.08. vollständig abgearbeitet
 
 | | |
 | --- | --- |
-| **Auftrag** | Sam, 13.08.: „Plan das einmal gescheit durch und fix alles Step by Step schön gründlich, damit die nächste Testversion wesentlich besser wird." |
-| **Branch** | `claude/validate-bericht-19-findings-85aiaz` (Sitzungs-Vorgabe; `main` wird auf Sams stehende Anweisung mitgezogen) |
-| **Basis** | `d471107` |
-| **Tests** | `npm run check` grün – 81 Dateien, 1115 Tests |
+| **Auftrag** | Sam, 14.08.: „das ist MEIN FEEDBACK, sortier den erstmal gescheit und lass das dann CLEAN step by step fixen / durcharbeiten! NIX DARF VERLOREN GEHEN & ALLES MUSS GEFIXT WERDEN! und das RICHTIG" |
+| **Branch** | `claude/mazers-feedback-testspiel-7y5cmj` |
+| **Basis** | `2c90ca2` |
+| **Tests** | `npm run check` grün – 93 Dateien, 1263 Tests (vorher 89 / 1214) |
+| **Layout** | `scripts/ui-layout-check.mjs` ohne Befund |
 
-## Wo der Rework steht
+## Alle neun Punkte erledigt
 
-| Stufe | Sams Punkt | Stand |
+| Stufe | Sams Punkte | Was sich geändert hat |
 | --- | --- | --- |
-| 0 – Strich-Bug | Drohnen zogen eine Linie zur Weltecke | ✅ `de63139` |
-| 1 – Drohnen | „das macht ja gar keinen Sinn, dass sie einfach um dich schweben und dann nix passiert" | ✅ `b6ef43b` |
-| 2 – Projektile + Rückstoß | „gehen noch immer zu weit", „es fehlt der Rückstoß" | ✅ `cb75f35` |
-| **3 – Karte** | „zu wenig Maze, dickere Wände, mehr Wände", „zwei Mainspots" | ✅ `d471107` → [Bericht 27](27-stufe-3-karte.md) |
-| 4 – Klassen | „alle Klassen fühlen sich gleich an" | offen – der größte Brocken |
+| 1 – Körper | 5 + 7 | Nur ein Kill schlägt durch; Drohnen sind Projektilziele und werden aus Formen und Panzern herausgeschoben |
+| 2 – Drohnen | 8 | Der Formationsplatz kreist um das Ziel, statt darauf zu parken (gemessen: 0,0 → 84–166 px/s) |
+| 3 – Kadenz & Mündung | 1 + 6a + 6b | Ein Klick = eine Salve; die Kugel entsteht IM Rohr; Rückstoß 25 → 4–11 px/s je nach Kugelgewicht |
+| 4 – was man sieht | 6c + 2 | Rohre werden aus derselben Quelle gezeichnet, aus der geschossen wird; Kugeln blenden aus statt zu verschwinden |
+| 5 – Oberfläche & Tempo | 4 + 3 + 9 | Wahlkarten tragen Bild und Name; Loadout-Kacheln statt Dropdowns; Tempo-Spitze weich gedeckelt |
 
-Der Plan mit Begründung der Reihenfolge steht in
-[Bericht 26](26-plan-rework.md), Sams Worte im Original in
-[Bericht 25](25-sams-spieltest-feedback.md).
+Sams Worte im Original und die Begründung der Reihenfolge stehen in
+[Bericht 30](30-feedback-14-08-sortiert.md), alle Messungen in
+[Bericht 31](31-feedback-14-08-abgearbeitet.md).
 
-## Stufe 3 in Zahlen
+## Die drei Zahlen, die den Unterschied machen
 
-| | vorher | jetzt |
-| --- | ---: | ---: |
-| Begehbare Fläche | 90,3 % | 72,3 % |
-| Wanddeckung | 4,53 % | 21,8 % |
-| Wände / Dicke | 89 / 54 px | 150 / 160 px |
-| Blicke weiter als eine halbe Bildbreite | 46,4 % | 20,9 % |
-| Erreichbare Gebiete | 1 (ungemessen) | 1 (jeden Testlauf geprüft) |
-| Hauptplätze | – | 2 × 800 × 800 px, je vier Tore |
+1. **Drohnen parkten mit 0,0 px/s** auf dem Zeiger – alle sechs Klassen, ohne
+   Ausnahme. Der Formationsplatz stand fest, und die Ankunftsbremse ergibt auf
+   einem festen Punkt null. Das war Sams „fühlt sich MEGA MEGA komisch an".
+2. **Ein voll ausgebauter Comet fuhr 541 px/s**, während das ganze
+   Projektilsystem gegen 447 px/s kalibriert ist. Die Zusage „jede Kugel holt
+   einen Fliehenden ein" war für die schnellsten Klassen falsch.
+3. **Die Lauf-Geometrie stand dreimal im Code** – Server, Renderer und
+   Wahlkarten-Vorschau –, und die drei Fassungen liefen auseinander: Storm
+   zeigte sechs parallele Rohre und feuerte einen 24°-Fächer.
 
-Die drei Maße sind **gemessen, nicht geraten**: Der erste Anlauf (Bahn 800) war
-nachweislich schlechter als die alte Karte, und erst der Kandidatenvergleich
-über 51 Varianten hat gezeigt, warum – die Bahn bestimmt das Labyrinthgefühl
-fast allein, die Wanddicke kaum. Details in [Bericht 27](27-stufe-3-karte.md).
+## Was Sam beim nächsten Test ansehen sollte
 
-## Was Sam entscheiden muss, bevor es weitergeht
+1. **Halbautomatik**: Sind 200 ms die richtige Grenze zwischen „Klick" und
+   „Halten"? Die einzige Zahl im Paket, die reine Geschmackssache ist.
+2. **Drohnen am Zeiger**: Kreist die Flotte so, wie er es aus Diep.io kennt –
+   oder ist der Ring zu weit, die Drehung zu schnell?
+3. **Rückstoß**: Jetzt zu wenig? Nach oben ist Luft, ohne dass die
+   Client-Vorhersage leidet.
+4. **Wahlkarten**: Reicht das Bild, oder fehlt der Rollenname auf der Karte
+   statt nur im Tooltip?
 
-1. **Wie findet man einen Hauptplatz?** Die Minikarte ist ein Nahradar, keine
-   Weltkarte. Die Plätze existieren und lohnen sich – aber von der anderen
-   Kartenseite findet man sie nur durch Laufen. Drei Wege, aufsteigend im
-   Aufwand: aufs Nahradar zeichnen · Richtungspfeil am Bildrand · Weltkarte auf
-   Tastendruck.
-2. **Ist die Sichtweite jetzt zu eng?** Median 400 px statt 760. Das ist die
-   Zahl, die „mehr Maze" ausmacht – und die, die sich zu weit gedreht anfühlen
-   könnte.
-3. **Projektil-Anfangstempo** (offen seit Stufe 2): Diep.io lässt Kugeln
-   schnell starten und abbremsen; Sam sagt „von Anfang an zu schnell", also das
-   Gegenteil. Die Zahlen liegen vor, die Entscheidung nicht.
-4. **Drohnen-Auto-Angriff**: sovereign macht ohne Kommando 165 DPS. Zu stark?
+## Offen aus früheren Sitzungen
 
-## Offene Altlasten aus früheren Sitzungen
-
-* **Migration `0005_sessions.sql`** ist eingespielt und nach `applied/`
-  verschoben. Nach dem nächsten Deploy in `/health` unter `sessions` prüfen,
-  dass die Schicht wirklich schreibt.
-* **CI-Fehlmeldungen sind weg** (`75e8730` und Vorlauf): `deploy-watch` wartete
-  auf einen Deploy, den Railway bei reinen Doku-Commits gar nicht startet, und
-  verbrannte je Push 17,5 Minuten Actions-Zeit. Der Lauf des Fix-Commits selbst
-  war nach 10 Sekunden grün.
+* **Klassen-Identität (Stufe 4 des Reworks vom 13.08.)** – Sams „alle Klassen
+  fühlen sich gleich an" aus [Bericht 26](26-plan-rework.md) ist weiterhin der
+  größte offene Brocken. Das Paket vom 14.08. hat davon zwei Ecken mitgenommen
+  (Rohr-Design, Rückstoß nach Kugelgewicht), aber nicht den Kern.
+* **Wie findet man einen Hauptplatz?** Die Minikarte ist ein Nahradar; die
+  Plätze existieren, aber man findet sie nur durch Laufen (offen seit
+  [Bericht 27](27-stufe-3-karte.md)).
+* **Migration `0005_sessions.sql`** ist eingespielt; nach dem nächsten Deploy in
+  `/health` unter `sessions` prüfen, dass die Schicht wirklich schreibt.
+* **CI ist pausiert** (`2c90ca2`): GitHub-Actions-Minuten aufgebraucht. `npm run
+  check` läuft lokal, der Prüfstand `ui-layout-check.mjs` von Hand.
