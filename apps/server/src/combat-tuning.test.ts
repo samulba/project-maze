@@ -30,17 +30,24 @@ describe('normalized combat upgrade scaling', () => {
     const upgrades = EMPTY_UPGRADES();
     upgrades.moveSpeed = 8;
     const maximum = tunedStatsFor(player('rapid', upgrades));
-    expect(maximum.moveSpeed / base.moveSpeed).toBeGreaterThan(1.2);
-    expect(maximum.moveSpeed / base.moveSpeed).toBeLessThan(1.3);
+    // BAL1 (Punkte-Ökonomie): 0,03 -> 0,05 je Punkt, damit volles Tempo nicht
+    // mehr das schwächste der drei Ziele ist (Schaden/Leben/Tempo).
+    expect(maximum.moveSpeed / base.moveSpeed).toBeGreaterThan(1.35);
+    expect(maximum.moveSpeed / base.moveSpeed).toBeLessThan(1.45);
   });
 
-  it('keeps maximum health growth below double base health', () => {
+  it('keeps maximum health growth inside the BAL1 corridor', () => {
     const base = tunedStatsFor(player('fortress'));
     const upgrades = EMPTY_UPGRADES();
     upgrades.maxHealth = 8;
     const maximum = tunedStatsFor(player('fortress', upgrades));
-    expect(maximum.maxHealth / base.maxHealth).toBeGreaterThan(1.65);
-    expect(maximum.maxHealth / base.maxHealth).toBeLessThan(1.8);
+    // BAL1 (Punkte-Ökonomie, Sam: „mega viel HP" als Teil von „unbesiegbar"):
+    // 0,09 -> 0,125 je Punkt. Volles Leben lag vorher bei 1,90x DPS-Investment
+    // gegenüber (damals) 2,84x - jetzt liegen beide nah beieinander
+    // (2,25x/2,21x bei vollen zehn statt acht Punkten hier), volle Absicht
+    // also über die alte "bleibt unter dem Doppelten"-Grenze hinaus.
+    expect(maximum.maxHealth / base.maxHealth).toBeGreaterThan(1.9);
+    expect(maximum.maxHealth / base.maxHealth).toBeLessThan(2.1);
   });
 });
 

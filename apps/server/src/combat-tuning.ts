@@ -110,12 +110,28 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
   );
   // Eine Quelle fuer Tempo und Beschleunigung – der Client rechnet dieselbe.
   const bewegung = movementStatsFor(base, player.upgrades.moveSpeed, modifier.moveMultiplier);
+  /*
+   * Punkte-Ökonomie (BAL1) – Sam: „als LVL 60 Vortex fühlt man sich
+   * unbesiegbar: mega schnell, mega viel HP … überall fehlt das komplette
+   * Balancing." Gemessen war der Grund kein Klassenwert, sondern die
+   * Punkte selbst: voll investiert bringt Schaden+Nachladen zusammen 2,84×
+   * DPS, aber volles Leben nur 1,90× und volles Tempo nur 1,30× – ein
+   * Offensiv-Build lohnt sich strukturell mehr als derselbe Punkteeinsatz in
+   * Überleben oder Flucht, weil DPS aus ZWEI Feldern zusammenmultipliziert
+   * (Schaden × Nachladen), Leben und Tempo aber je nur aus einem.
+   *
+   * Diese vier Werte hier bleiben die einzigen, an denen gedreht wird –
+   * spürbar näher beieinander (2,21× / 2,25× / 1,50×), aber nicht
+   * gleichgezogen: Ein Punkt bleibt ein Punkt, kein Ersatz für Balance
+   * zwischen einzelnen Klassenwerten (Vortex-Spread bleibt ein eigenes,
+   * noch offenes Thema).
+   */
   return {
-    maxHealth: Math.round(base.maxHealth * (1 + player.upgrades.maxHealth * 0.09) * modifier.healthMultiplier),
+    maxHealth: Math.round(base.maxHealth * (1 + player.upgrades.maxHealth * 0.125) * modifier.healthMultiplier),
     regen: base.regen + player.upgrades.regen * 0.5,
     acceleration: bewegung.acceleration,
     moveSpeed: bewegung.moveSpeed,
-    reload: Math.max(0.09, base.reload * modifier.reloadMultiplier * Math.pow(0.95, player.upgrades.reload)),
+    reload: Math.max(0.09, base.reload * modifier.reloadMultiplier * Math.pow(0.965, player.upgrades.reload)),
     projectileSpeed: flight.speed * modifier.projectileSpeedMultiplier,
     // Reichweite ist seit Klassen 4.0 eine bewusste Entscheidung (eigener
     // Slot) statt eines Nebeneffekts des Tempo-Upgrades. Multiplikativ auf die
@@ -128,7 +144,7 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
       flight.life * (1 + player.upgrades.projectileRange * 0.06),
       flight.speed * modifier.projectileSpeedMultiplier
     ),
-    damage: base.damage * (1 + player.upgrades.damage * 0.07),
+    damage: base.damage * (1 + player.upgrades.damage * 0.055),
     // Sams „zu klein" und „beim Leveln groesser, wie in Diep.io": Der Radius
     // war eine reine Klassenkonstante und auf Stufe 60 exakt so gross wie auf
     // Stufe 1. Jetzt Grundgroesse mal Skala, plus Levelrampe.

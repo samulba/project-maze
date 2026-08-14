@@ -1075,6 +1075,14 @@ export const SIGNATURE_MOVEMENT = {
   holdDecayPerSecond: 10
 } as const;
 
+/**
+ * Punkte-Ökonomie (BAL1): 0,03 → 0,05 je Punkt, damit volles Tempo (vorher
+ * 1,30×) sich wieder wie ein echter Build anfühlt statt wie das schwächste
+ * der drei sichtbaren Ziele (Schaden, Leben, Tempo) – siehe combat-tuning.ts
+ * für die volle Rechnung. `acceleration` skaliert im selben Verhältnis mit
+ * (0,018 → 0,03), sonst würde volles Tempo-Investment einen Tank bauen, der
+ * schnell fährt, aber trödelig lenkt.
+ */
 export function movementStatsFor(
   base: { moveSpeed: number; acceleration: number },
   moveUpgradeLevel: number,
@@ -1082,8 +1090,8 @@ export function movementStatsFor(
 ): { moveSpeed: number; acceleration: number } {
   const punkte = Math.max(0, moveUpgradeLevel);
   return {
-    moveSpeed: base.moveSpeed * (1 + punkte * 0.03) * moveMultiplier,
-    acceleration: base.acceleration * ACCELERATION_SCALE * (1 + punkte * 0.018) * moveMultiplier
+    moveSpeed: base.moveSpeed * (1 + punkte * 0.05) * moveMultiplier,
+    acceleration: base.acceleration * ACCELERATION_SCALE * (1 + punkte * 0.03) * moveMultiplier
   };
 }
 

@@ -188,8 +188,10 @@ describe('Getunte Werte', () => {
       player({ upgrades: { ...player().upgrades, moveSpeed: 4 } }),
       'lightweight'
     );
-    expect(stats.moveSpeed).toBeCloseTo(270 * 1.12 * 1.06, 9);
-    expect(stats.acceleration).toBeCloseTo(1500 * ACCELERATION_SCALE * 1.072 * 1.06, 9);
+    // BAL1 (Punkte-Ökonomie): 0,03 -> 0,05 je Punkt moveSpeed, 0,018 -> 0,03 je
+    // Punkt acceleration (movementStatsFor, packages/shared/src/index.ts).
+    expect(stats.moveSpeed).toBeCloseTo(270 * 1.2 * 1.06, 9);
+    expect(stats.acceleration).toBeCloseTo(1500 * ACCELERATION_SCALE * 1.12 * 1.06, 9);
   });
 
   it('fällt ohne Loadout auf den Standard-Frame zurück', () => {

@@ -367,9 +367,10 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     id: 'BAL1',
     wunsch: 'Die Tanks sind noch immer viel zu unbalanced – als LVL 60 Vortex fühlt man sich unbesiegbar: mega schnell, mega viel HP, riesiger Spread, alles. Überall fehlt das komplette Balancing.',
     bereich: 'klassen',
-    stand: 'offen',
+    stand: 'erledigt',
     gemeldet: '2026-08-13',
-    notiz: 'Gemessen (siehe BAL2): Ein L60 Vortex mit ausgewogenem Punkteeinsatz trägt 273 statt 96 DPS (2,84x), aber nur 224 statt 118 Leben (1,9x) und 364 statt 280 Tempo (1,3x) gegenüber L1 – die Punkte-Ökonomie verstärkt Schaden deutlich stärker als Überleben oder Tempo. Die Levelabstand-Fairness aus BAL2 mildert das im direkten Duell, ändert aber nichts an gleichstufigen Duellen oder an einzelnen Klassenwerten (z. B. Vortex-Spread). Braucht eine konkretere Ansage, welche Klassen/Werte gemeint sind, um zielgerichtet statt pauschal zu ändern.'
+    nachweis: 'Nachweis folgt',
+    notiz: 'Deine Wahl auf Rückfrage: Punkte-Ökonomie global glätten, gilt für jede Klasse gleich. Gemessen (siehe BAL2): Ein L60 Vortex mit ausgewogenem Punkteeinsatz trug 273 statt 96 DPS (2,84x), aber nur 224 statt 118 Leben (1,9x) und 364 statt 280 Tempo (1,3x) gegenüber L1 – die Punkte-Ökonomie verstärkte Schaden deutlich stärker als Überleben oder Tempo, weil DPS aus zwei Feldern zusammenmultipliziert (Schaden × Nachladen), Leben und Tempo aber je nur aus einem. Vier Koeffizienten angepasst (combat-tuning.ts, movementStatsFor in shared): Schaden 0,07→0,055, Nachladen 0,95→0,965 (Exponent), max. Leben 0,09→0,125, Tempo 0,03→0,05. Jetzt: DPS 2,21x, Leben 2,25x, Tempo 1,50x – DPS und Leben liegen praktisch gleichauf statt 0,94 Punkte auseinander (scripts/messungen/messung-bal1-oekonomie.mjs). Deckt NICHT einzelne Klassenwerte ab (z. B. Vortex-Spread bleibt, wie er ist) – das war explizit nicht Teil der gewählten Option.'
   },
   {
     id: 'BAL2',
