@@ -34,12 +34,89 @@ const EVENT_COPY: Partial<Record<string, { name: string; active: string; where: 
   fracture: { name: 'FRACTURE', active: 'einzelne Wände sind arenaweit aufgebrochen', where: 'arenaweit' }
 };
 
+/** Eine Kachel in einer `Wahlreihe`. */
+interface Wahlkachel<T extends string> {
+  id: T;
+  /** Kurzwort auf der Kachel – muss in eine Viertelbreite passen. */
+  label: string;
+  /** Zweite, leisere Zeile; leer lassen, wenn es nichts zu sagen gibt. */
+  note: string;
+  /** Vollständige Beschreibung, im Tooltip. */
+  title: string;
+}
+
+/**
+ * Eine Reihe Kacheln als Ersatz für ein Auswahlfeld (Sams Punkt 3 vom 14.08.).
+ *
+ * Warum eine eigene kleine Klasse und kein verstecktes `<select>` daneben: Ein
+ * unsichtbares Formularfeld neben einer eigenen Anzeige sind zwei Wahrheiten,
+ * die auseinanderlaufen können, sobald jemand nur eine davon setzt. Hier hält
+ * die Reihe ihren Wert selbst, und `setzen` ist der einzige Weg hinein.
+ *
+ * Tastatur: Die Kacheln sind `role="radio"` in einer `radiogroup`. Pfeiltasten
+ * wandern durch die Reihe, weil jede Kachel ein eigener Knopf ist und der
+ * Fokus damit ohnehin durchläuft – bewusst ohne eigene Tastensteuerung, die
+ * mitten im Spiel eine weitere Stelle wäre, an der Eingaben abgefangen werden.
+ */
+class Wahlreihe<T extends string> {
+  private auswahl: T;
+  private readonly knoepfe = new Map<T, HTMLButtonElement>();
+
+  constructor(wurzel: HTMLElement, kacheln: ReadonlyArray<Wahlkachel<T>>, start: T, beiWechsel: () => void) {
+    this.auswahl = start;
+    for (const kachel of kacheln) {
+      const knopf = document.createElement('button');
+      knopf.type = 'button';
+      knopf.setAttribute('role', 'radio');
+      knopf.dataset.wahl = kachel.id;
+      knopf.title = kachel.title;
+      knopf.innerHTML = `<b>${kachel.label}</b>${kachel.note ? `<small>${kachel.note}</small>` : ''}`;
+      knopf.addEventListener('click', () => {
+        if (this.auswahl === kachel.id) return;
+        this.setzen(kachel.id);
+        beiWechsel();
+      });
+      this.knoepfe.set(kachel.id, knopf);
+      wurzel.append(knopf);
+    }
+    this.zeichnen();
+  }
+
+  get wert(): T { return this.auswahl; }
+
+  /**
+   * Sperrt die Reihe, solange ein Wechsel nichts brächte – das Loadout gilt ab
+   * dem Respawn, mitten im Lauf ist es nicht umstellbar.
+   */
+  sperren(gesperrt: boolean): void {
+    for (const knopf of this.knoepfe.values()) knopf.disabled = gesperrt;
+  }
+
+  /** Setzt die Auswahl, ohne den Wechsel-Rückruf auszulösen. */
+  setzen(wert: T): void {
+    if (!this.knoepfe.has(wert) || this.auswahl === wert) return;
+    this.auswahl = wert;
+    this.zeichnen();
+  }
+
+  private zeichnen(): void {
+    for (const [id, knopf] of this.knoepfe) {
+      const aktiv = id === this.auswahl;
+      knopf.setAttribute('aria-checked', aktiv ? 'true' : 'false');
+      knopf.dataset.aktiv = aktiv ? 'true' : 'false';
+      // Nur die gewählte Kachel ist per Tab erreichbar – das ist das
+      // Tastaturverhalten einer Radiogruppe.
+      knopf.tabIndex = aktiv ? 0 : -1;
+    }
+  }
+}
+
 export class GameplayUI {
   private readonly root: HTMLElement;
   private readonly send: SendMessage;
   private readonly loadoutPanel: HTMLElement;
-  private readonly moduleSelect: HTMLSelectElement;
-  private readonly modifierSelect: HTMLSelectElement;
+  private readonly moduleChoices: Wahlreihe<ActiveModuleId>;
+  private readonly modifierChoices: Wahlreihe<PassiveModifierId>;
   private readonly abilityButton: HTMLButtonElement;
   private readonly abilityLabel: HTMLElement;
   private readonly abilityCooldown: HTMLElement;
@@ -57,38 +134,45 @@ export class GameplayUI {
     const initialModule = storedModule && ACTIVE_MODULE_IDS.includes(storedModule) ? storedModule : DEFAULT_ACTIVE_MODULE;
     const initialModifier = storedModifier && PASSIVE_MODIFIER_IDS.includes(storedModifier) ? storedModifier : DEFAULT_PASSIVE_MODIFIER;
 
+    /*
+     * Zwei Reihen Kacheln statt zweier Auswahlfelder – Sams Spieltest vom
+     * 14.08., Punkt 3:
+     *
+     * > „RUN-BEENDET-KARTE, LINKS UNTEN DROPDOWN richtig hässlich, muss viel
+     * > schöner gemacht werden."
+     *
+     * Das Panel wird beim Beitritt in die Todeskarte gehängt (`onWelcome`), und
+     * es brachte zwei native `<select>` mit. Ein Betriebssystem-Dropdown mitten
+     * in einer Glaskarte sieht zusammengesteckt aus, egal wie viel CSS man
+     * darauf legt – und es kostet zwei Klicks und eine aufklappende Liste, um
+     * unter vier Möglichkeiten eine zu wählen.
+     *
+     * Vier Module und vier Rahmen passen als Kachelreihe nebeneinander: ein
+     * Klick statt zwei, alles gleichzeitig sichtbar, und die Reihe trägt
+     * dieselbe Formsprache wie der Rest des HUD. Die `<select>` sind weg – nicht
+     * versteckt: Ein unsichtbares Formularfeld neben einer eigenen Anzeige wäre
+     * eine zweite Wahrheit, und genau davon lebt kein Fehler länger als von
+     * zweien, die auseinanderlaufen.
+     */
     const loadout = document.createElement('section');
     loadout.className = 'core-loadout';
     loadout.innerHTML = `
       <div class="core-loadout-heading"><span>CORE LOADOUT</span><small>1 Fähigkeit · 1 optionaler Trade-off</small></div>
       <div class="core-loadout-fields">
-        <label>AKTIVES MODUL<select data-module-select></select></label>
-        <label>FRAME<select data-modifier-select></select></label>
+        <div class="core-loadout-group">
+          <span class="core-loadout-label" id="core-loadout-module-label">AKTIVES MODUL</span>
+          <div class="core-loadout-choices" role="radiogroup" aria-labelledby="core-loadout-module-label" data-module-choices></div>
+        </div>
+        <div class="core-loadout-group">
+          <span class="core-loadout-label" id="core-loadout-frame-label">FRAME</span>
+          <div class="core-loadout-choices" role="radiogroup" aria-labelledby="core-loadout-frame-label" data-modifier-choices></div>
+        </div>
       </div>
       <div class="core-loadout-description" data-loadout-description></div>`;
     this.loadoutPanel = loadout;
 
     const playButton = root.querySelector('#join-button');
     playButton?.parentElement?.insertBefore(loadout, playButton);
-    this.moduleSelect = loadout.querySelector<HTMLSelectElement>('[data-module-select]')!;
-    this.modifierSelect = loadout.querySelector<HTMLSelectElement>('[data-modifier-select]')!;
-
-    for (const id of ACTIVE_MODULE_IDS) {
-      const definition = ACTIVE_MODULE_DEFINITIONS[id];
-      const option = document.createElement('option');
-      option.value = id;
-      option.textContent = `${definition.label} · ${definition.roleLabel}`;
-      this.moduleSelect.append(option);
-    }
-    for (const id of PASSIVE_MODIFIER_IDS) {
-      const definition = PASSIVE_MODIFIER_DEFINITIONS[id];
-      const option = document.createElement('option');
-      option.value = id;
-      option.textContent = definition.label;
-      this.modifierSelect.append(option);
-    }
-    this.moduleSelect.value = initialModule;
-    this.modifierSelect.value = initialModifier;
 
     const updateDescription = (): void => {
       const module = ACTIVE_MODULE_DEFINITIONS[this.selectedModule];
@@ -102,8 +186,29 @@ export class GameplayUI {
       updateDescription();
       if (this.connected && (this.self?.dead || this.self?.invulnerable)) this.sendLoadout();
     };
-    this.moduleSelect.addEventListener('change', changed);
-    this.modifierSelect.addEventListener('change', changed);
+
+    this.moduleChoices = new Wahlreihe(
+      loadout.querySelector<HTMLElement>('[data-module-choices]')!,
+      ACTIVE_MODULE_IDS.map((id) => ({
+        id,
+        label: ACTIVE_MODULE_DEFINITIONS[id].shortLabel,
+        note: ACTIVE_MODULE_DEFINITIONS[id].roleLabel,
+        title: `${ACTIVE_MODULE_DEFINITIONS[id].label} · ${ACTIVE_MODULE_DEFINITIONS[id].roleLabel}\n${ACTIVE_MODULE_DEFINITIONS[id].description}`
+      })),
+      initialModule,
+      changed
+    );
+    this.modifierChoices = new Wahlreihe(
+      loadout.querySelector<HTMLElement>('[data-modifier-choices]')!,
+      PASSIVE_MODIFIER_IDS.map((id) => ({
+        id,
+        label: PASSIVE_MODIFIER_DEFINITIONS[id].shortLabel,
+        note: PASSIVE_MODIFIER_DEFINITIONS[id].roleLabel,
+        title: `${PASSIVE_MODIFIER_DEFINITIONS[id].label}\n${PASSIVE_MODIFIER_DEFINITIONS[id].description}`
+      })),
+      initialModifier,
+      changed
+    );
     updateDescription();
 
     const hud = root.querySelector<HTMLElement>('#hud') ?? root;
@@ -154,8 +259,8 @@ export class GameplayUI {
     });
   }
 
-  get selectedModule(): ActiveModuleId { return this.moduleSelect.value as ActiveModuleId; }
-  get selectedModifier(): PassiveModifierId { return this.modifierSelect.value as PassiveModifierId; }
+  get selectedModule(): ActiveModuleId { return this.moduleChoices.wert; }
+  get selectedModifier(): PassiveModifierId { return this.modifierChoices.wert; }
 
   onWelcome(): void {
     this.connected = true;
@@ -197,8 +302,11 @@ export class GameplayUI {
 
     const gameplay = extended.gameplay?.[self.id];
     if (!gameplay) return;
-    if (this.moduleSelect.value !== gameplay.activeModule) this.moduleSelect.value = gameplay.activeModule;
-    if (this.modifierSelect.value !== gameplay.passiveModifier) this.modifierSelect.value = gameplay.passiveModifier;
+    // Der Server ist die Wahrheit: Was er meldet, steht in der Reihe. `setzen`
+    // löst bewusst KEIN `changed` aus – sonst schickte jede Bestätigung des
+    // Servers dieselbe Wahl gleich wieder zurück.
+    this.moduleChoices.setzen(gameplay.activeModule);
+    this.modifierChoices.setzen(gameplay.passiveModifier);
 
     const module = ACTIVE_MODULE_DEFINITIONS[gameplay.activeModule];
     const remaining = Math.max(0, gameplay.moduleReadyAt - snapshot.serverTime);
@@ -240,8 +348,8 @@ export class GameplayUI {
     }
 
     const canChange = self.dead || self.invulnerable;
-    this.moduleSelect.disabled = !canChange;
-    this.modifierSelect.disabled = !canChange;
+    this.moduleChoices.sperren(!canChange);
+    this.modifierChoices.sperren(!canChange);
   }
 
   /** Gibt zurück, ob die Fähigkeit tatsächlich ausgelöst wurde (für Haptik-Feedback). */

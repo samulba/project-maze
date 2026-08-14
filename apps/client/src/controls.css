@@ -10,17 +10,16 @@
 /* ------------------------------------------------------------------ *
  * Dropdowns
  * ------------------------------------------------------------------ */
-/* Gilt für alle Auswahlfelder auf dem Startscreen: Loadout, Grafikstufe und
-   Sichtfeld. Seit Befund 2 stehen die letzten beiden in `.setting-row` auf der
-   Einstellungsseite statt im alten Aufklapper. */
-.core-loadout-fields label,
+/* Gilt für die Auswahlfelder auf dem Startscreen: Grafikstufe und Sichtfeld.
+   Seit Befund 2 stehen sie in `.setting-row` auf der Einstellungsseite statt im
+   alten Aufklapper. Das Loadout hat seit Sams Punkt 3 (14.08.) keine Dropdowns
+   mehr, sondern Kachelreihen – siehe `gameplay-ui.css`. */
 .setting-select,
 .start-quality { position: relative; }
 .setting-select { display: block; }
 /* Ohne Breitenangabe misst sich das Feld am Inhalt – dann steht der eigene
    Pfeil neben dem Kasten statt darin. */
 .setting-select select { width: 100%; }
-.core-loadout-fields select,
 .setting-select select,
 .start-quality select {
   appearance: none;
@@ -39,10 +38,8 @@
   font: 650 11px inherit;
   transition: border-color .18s, box-shadow .18s;
 }
-.core-loadout-fields select:hover,
 .setting-select select:hover,
 .start-quality select:hover { border-color: var(--line-strong); }
-.core-loadout-fields select:focus-visible,
 .setting-select select:focus-visible,
 .start-quality select:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 70%, transparent);
@@ -51,7 +48,6 @@
 /* Die aufgeklappte Liste erbt unter Linux/Windows die Farben des Elements. */
 /* .start-quality kam mit 03s Qualitaetsstufen dazu und bleibt erhalten – nur die
    Farbe geht auf den Stand vor dem Diep-Umbau zurueck. */
-.core-loadout-fields option,
 .setting-select option,
 .start-quality option { color: var(--text); background: #0d101a; }
 
@@ -60,7 +56,6 @@
  * hohen Feldes liegt 21px über der Label-Unterkante – dort sitzt das gedrehte
  * Quadrat mit seiner Bounding-Box.
  */
-.core-loadout-fields label::after,
 .start-quality::after {
   content: '';
   position: absolute;

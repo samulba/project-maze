@@ -9,15 +9,78 @@
 .core-loadout-heading span { color:var(--text); font-size:10px; font-weight:800; letter-spacing:.12em; }
 .core-loadout-heading small { color:var(--faint); font-size:9px; }
 /*
- * U5 – Sam: „das Widget mit Dropdown CORE LOADOUT ... man kann's eh kaum
- * lesen." Nebeneinander (zwei Spalten in einer maximal 470 px breiten Karte)
- * blieben rund 200 px je Auswahlfeld – Optionstexte wie „Repulse Pulse ·
- * Kontrolle" oder „Projectile Stabilizer" liefen mit Auslassungspunkten ab.
- * Untereinander bekommt jedes Feld die volle Kartenbreite.
+ * Kachelreihen statt Auswahlfeldern – Sam, 14.08., Punkt 3: „RUN-BEENDET-KARTE,
+ * LINKS UNTEN DROPDOWN richtig hässlich, muss viel schöner gemacht werden."
+ *
+ * Das Panel hängt beim Beitritt in der Todeskarte, und dort saßen zwei native
+ * `<select>`. Ein Betriebssystem-Dropdown in einer Glaskarte sieht
+ * zusammengesteckt aus, egal wie viel CSS darauf liegt – und es kostet zwei
+ * Klicks und eine aufklappende Liste für eine Wahl unter vier.
+ *
+ * Vier Module und vier Rahmen passen als Reihe nebeneinander: ein Klick, alles
+ * gleichzeitig sichtbar, dieselbe Formsprache wie der Rest des HUD.
+ *
+ * (Der Vorlauf von U5 gilt weiter: Die beiden Reihen stehen UNTEREINANDER, nicht
+ * nebeneinander. Zwei Spalten in einer 470 px breiten Karte ließen je 200 px –
+ * darin ist keine Kachelreihe lesbar.)
  */
 .core-loadout-fields { display:grid; grid-template-columns:1fr; gap:12px; margin-top:12px; }
-.core-loadout-fields label { display:grid; gap:6px; color:var(--faint); font-size:9px; font-weight:800; letter-spacing:.12em; }
-/* Das Aussehen der Auswahlfelder steht in controls.css. */
+.core-loadout-group { display:grid; gap:6px; }
+.core-loadout-label { color:var(--faint); font-size:9px; font-weight:800; letter-spacing:.12em; }
+.core-loadout-choices { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
+.core-loadout-choices button {
+  display:grid;
+  gap:2px;
+  align-content:center;
+  min-width:0;
+  min-height:44px;
+  padding:7px 4px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:color-mix(in srgb, var(--strong) 72%, transparent);
+  color:var(--muted);
+  cursor:pointer;
+  text-align:center;
+  transition:border-color .16s, background .16s, color .16s;
+}
+.core-loadout-choices b {
+  display:block;
+  overflow:hidden;
+  color:inherit;
+  /* 9 px, nicht 10: „LIGHTWEIGHT" ist der längste Kachelname und lief bei 10 px
+     in einer Viertelbreite der Todeskarte (87 px) mit Auslassungspunkten ab. */
+  font-size:9px;
+  font-weight:850;
+  letter-spacing:.04em;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.core-loadout-choices small {
+  display:block;
+  overflow:hidden;
+  color:var(--faint);
+  font-size:8px;
+  font-weight:700;
+  letter-spacing:.05em;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.core-loadout-choices button:hover:not(:disabled) { border-color:var(--line-strong); color:var(--text); }
+.core-loadout-choices button:focus-visible {
+  outline:0;
+  border-color:color-mix(in srgb, var(--accent) 70%, transparent);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+/* Die gewählte Kachel trägt die Akzentfarbe – ein Blick genügt, ohne zu lesen. */
+.core-loadout-choices button[data-aktiv="true"] {
+  border-color:color-mix(in srgb, var(--accent) 62%, transparent);
+  background:color-mix(in srgb, var(--accent) 16%, var(--surface));
+  color:var(--text);
+}
+.core-loadout-choices button[data-aktiv="true"] small { color:color-mix(in srgb, var(--accent) 70%, var(--muted)); }
+/* Gesperrt heißt „gilt erst ab dem Respawn", nicht „kaputt": gedämpft, aber
+   die Wahl bleibt lesbar. */
+.core-loadout-choices button:disabled { cursor:not-allowed; opacity:.45; }
 .core-loadout-description { margin-top:12px; color:var(--muted); font-size:10px; line-height:1.45; }
 .core-ability {
   --charge:100%;

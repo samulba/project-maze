@@ -26,6 +26,18 @@ export interface ActiveModuleDefinition {
 export interface PassiveModifierDefinition {
   id: PassiveModifierId;
   label: string;
+  /**
+   * Kurzname für die Kachelreihe im Loadout (Sams Punkt 3 vom 14.08.).
+   *
+   * Der volle Name passt dort nicht: „Projectile Stabilizer" lief in einer
+   * Viertelbreite der Todeskarte als „Projectile …" ab. Die Module tragen aus
+   * demselben Grund seit jeher ein `shortLabel`; hier fehlte es, und die
+   * Kachel hätte sich sonst ihren eigenen Kurznamen ausdenken müssen – also
+   * eine zweite Quelle für denselben Namen.
+   */
+  shortLabel: string;
+  /** Was der Rahmen im Tausch bringt, in zwei Wörtern – die zweite Kachelzeile. */
+  roleLabel: string;
   description: string;
   healthMultiplier: number;
   moveMultiplier: number;
@@ -85,6 +97,8 @@ export const PASSIVE_MODIFIER_DEFINITIONS: Record<PassiveModifierId, PassiveModi
   standard: {
     id: 'standard',
     label: 'Standard Frame',
+    shortLabel: 'STANDARD',
+    roleLabel: 'neutral',
     description: 'Keine Veränderung. Empfohlene Basis.',
     healthMultiplier: 1,
     moveMultiplier: 1,
@@ -94,6 +108,8 @@ export const PASSIVE_MODIFIER_DEFINITIONS: Record<PassiveModifierId, PassiveModi
   lightweight: {
     id: 'lightweight',
     label: 'Lightweight Frame',
+    shortLabel: 'LIGHTWEIGHT',
+    roleLabel: '+Tempo',
     description: '+6 % Bewegungs- und Drohnentempo, -8 % maximales Leben.',
     healthMultiplier: 0.92,
     moveMultiplier: 1.06,
@@ -103,6 +119,8 @@ export const PASSIVE_MODIFIER_DEFINITIONS: Record<PassiveModifierId, PassiveModi
   stabilizer: {
     id: 'stabilizer',
     label: 'Projectile Stabilizer',
+    shortLabel: 'STABILIZER',
+    roleLabel: '+Kugeltempo',
     description: '+10 % Projektil- oder Drohnentempo, -8 % Feuer- bzw. Kontaktrate.',
     healthMultiplier: 1,
     moveMultiplier: 1,
@@ -112,6 +130,8 @@ export const PASSIVE_MODIFIER_DEFINITIONS: Record<PassiveModifierId, PassiveModi
   reinforced: {
     id: 'reinforced',
     label: 'Reinforced Core',
+    shortLabel: 'REINFORCED',
+    roleLabel: '+Leben',
     description: '+10 % maximales Leben und Drohnenleben, -6 % Bewegungs- und Drohnentempo.',
     healthMultiplier: 1.1,
     moveMultiplier: 0.94,

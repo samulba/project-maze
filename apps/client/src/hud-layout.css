@@ -290,6 +290,22 @@
   .class-selection > p { display: none; }
 }
 
+/*
+ * Handy im Querformat (844 × 390 – die einzige Ausrichtung, in der auf dem
+ * Handy gespielt wird). Dort deckelt `max-height: 30vh` das Panel auf 117 px,
+ * und ein 72-px-Bild plus Name passt nicht mehr hinein: Der Prüfstand meldete
+ * „Inhalt läuft 5 px über die Breite" und „Bild deckt den Namen".
+ *
+ * Statt das Bild ganz wegzunehmen wird es klein – Sams Punkt 4 gilt auch hier,
+ * nur ist der Platz ein anderer.
+ */
+@media (max-height: 460px) {
+  .class-choice-preview { height: 40px; margin-bottom: 3px; }
+  .class-choice-preview svg { width: 38px; height: 38px; }
+  .class-choices button[data-enhanced="true"] { padding: 6px 4px; }
+  .class-choices button[data-enhanced="true"] strong { font-size: 10px; letter-spacing: .03em; }
+}
+
 /* ================================================================== *
  * Runde 7: der Prüfstand über den Rest
  * ================================================================== */
@@ -591,53 +607,56 @@
   padding-top: 8px;
 }
 
-/* Die Karte quer: Bild links, Name und Rolle rechts. */
+/*
+ * Die Karte hochkant: Bild oben, Name darunter – Sams Punkt 4 vom 14.08.
+ *
+ * > „RECHTS oben NEUE SPEZIALISIERUNG: reicht nur die BILDER und evtl. NAME
+ * > (z.B. RAPID etc.), aber nicht auch noch Beschreibung, klaut zu viel Platz,
+ * > und so können wir die BILDER größer machen!"
+ *
+ * Vorher stand das Bild mit 32 px LINKS neben dem Namen, daneben noch die
+ * Rolle – eine Briefmarke in einer Zeile Text. Hochkant bekommt es die volle
+ * Kartenbreite und wächst auf 56 px, ohne dass die Karte höher wird als vorher.
+ *
+ * Die 56 sind gerechnet, nicht geraten: Auf 1280×720 bleiben dem Panel
+ * 720 − 12 (Rand) − 214 (untere Bedienreihe) = 494 px, davon rund 66 für
+ * Überschrift und Zeile darüber. Vier Reihen zu je 107 px (Karte 86 + 7 Lücke)
+ * passen genau hinein – bei 56 px Bild plus Name plus Innenabstand.
+ */
 .class-selection .class-choices button {
   display: grid;
   min-width: 0;
-  grid-template-columns: 34px minmax(0, 1fr);
-  grid-template-areas: 'bild name' 'bild rolle';
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
   align-content: center;
-  align-items: center;
-  column-gap: 9px;
-  row-gap: 0;
+  row-gap: 4px;
   min-height: 0;
-  padding: 8px 9px;
-  text-align: left;
+  padding: 8px 6px;
+  text-align: center;
   overflow: hidden;
 }
 .class-selection .class-choice-preview {
-  grid-area: bild;
-  height: 32px;
+  height: 56px;
+  width: 100%;
   align-self: center;
   margin: 0;
 }
-.class-selection .class-choice-preview svg { width: 32px; height: 32px; }
+.class-selection .class-choice-preview svg { width: 54px; height: 54px; }
 .class-selection .class-choices strong {
-  grid-area: name;
-  align-self: end;
-  font-size: 12px;
-  line-height: 1.2;
+  font-size: 11px;
+  line-height: 1.15;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
-.class-selection .class-choice-role {
-  grid-area: rolle;
-  position: static;
-  align-self: start;
-  font-size: 8px;
+/* Auf hohen Fenstern ist Platz für mehr Bild – dieselbe Rechnung, nur mit
+   mehr Zeilenhöhe je Reihe. */
+@media (min-height: 900px) {
+  .class-selection .class-choice-preview { height: 76px; }
+  .class-selection .class-choice-preview svg { width: 74px; height: 74px; }
+  .class-selection .class-choices strong { font-size: 12px; }
 }
-/*
- * Was in der Ecke keinen Platz hat, steht im Rad (Taste C): Beschreibung,
- * Perk, Balken, Zielliste. Die Karte hier trägt genau so viel, wie man zum
- * Wiedererkennen braucht – Form, Name, Rolle.
- */
-.class-selection .class-choices button > span:not([class]),
-.class-selection .class-choice-perk,
-.class-selection .class-choice-bars,
-.class-selection .class-choices small,
-.class-selection .class-choice-leads { display: none; }
 
 /* Flache Fenster: die erklärende Zeile über den Karten fällt weg. */
 @media (max-height: 640px) {
