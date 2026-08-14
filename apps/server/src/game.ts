@@ -60,6 +60,7 @@ interface RuntimeStats {
   barrelAngles?: number[] | undefined;
   barrels?: Array<{ angle: number; damageScale?: number; speedScale?: number }> | undefined;
   burstDelay?: number | undefined;
+  trapAfter?: number | undefined;
   droneCount: number;
   droneRespawn: number;
 }
@@ -95,7 +96,14 @@ interface GamePlayer extends PlayerSnapshot {
   invulnerableUntil: number;
   bot: BotState | null;
 }
-interface GameProjectile extends ProjectileSnapshot { damage: number; life: number; }
+/**
+ * `plantAtLife` (stehendes Projektil, Trapper): Schwelle in `life`, unterhalb
+ * derer das Projektil steht statt fliegt. Bewusst ein Rest-Lebenswert und
+ * kein Zeitstempel – `life` zählt in `stepProjectiles` ohnehin jeden Substep
+ * herunter, ein zweiter, unabhängig laufender Zähler wäre nur eine weitere
+ * Uhr, die aus dem Takt geraten kann.
+ */
+interface GameProjectile extends ProjectileSnapshot { damage: number; life: number; plantAtLife?: number | undefined; }
 interface GameDrone extends DroneSnapshot { slot: number; contactCooldown: number; }
 /** Ein noch fälliger Lauf einer Salve (Klassen 4.2, `queueBurstBarrel`). */
 interface BurstShot {
@@ -107,6 +115,7 @@ interface BurstShot {
   projectileRadius: number;
   penetration: number;
   damage: number;
+  plantAtLife?: number | undefined;
   /** Sekunden bis zum Erscheinen; zählt in `stepBurstQueue` herunter. */
   remaining: number;
 }
@@ -213,6 +222,7 @@ function statsFor(player: GamePlayer): RuntimeStats {
     barrelAngles: base.barrelAngles,
     barrels: base.barrels,
     burstDelay: base.burstDelay,
+    trapAfter: base.trapAfter,
     droneCount: base.droneCount,
     droneRespawn: Math.max(0.35, base.droneRespawn * Math.pow(0.94, player.upgrades.reload))
   };
@@ -412,7 +422,10 @@ export class MazeGame {
     player.cooldown = Math.max(0, player.cooldown - dt);
     if (now - player.lastDamageAt > 4000 && player.health < player.maxHealth) player.health = Math.min(player.maxHealth, player.health + stats.regen * dt);
     if (stats.droneCount > 0) this.maintainDrones(player, stats, now);
-    else if (player.primary && player.cooldown <= 0) {
+    // barrelCount 0 bei einer Nicht-Drohnen-Klasse (rohrloser Smasher): kein
+    // Rohr, also nichts zu feuern - sonst legte fire() ueber fireBarrel(0)
+    // trotzdem ein Geister-Projektil mit Tempo/Lebenszeit 0 an.
+    else if (stats.barrelCount > 0 && player.primary && player.cooldown <= 0) {
       this.fire(player, stats);
       player.cooldown = stats.reload;
     }
@@ -432,7 +445,16 @@ export class MazeGame {
     const speed = this.barrelSpeed(stats, barrel);
     const position = { x: player.position.x + direction.x * (GAME.playerRadius + stats.barrelLength), y: player.position.y + direction.y * (GAME.playerRadius + stats.barrelLength) };
     const id = crypto.randomUUID();
-    this.projectiles.set(id, { id, ownerId: player.id, position, velocity: { x: direction.x * speed, y: direction.y * speed }, radius: stats.projectileRadius, integrity: stats.penetration, maxIntegrity: stats.penetration, damage: this.barrelDamage(stats, barrel), life: stats.projectileLife });
+    this.projectiles.set(id, { id, ownerId: player.id, position, velocity: { x: direction.x * speed, y: direction.y * speed }, radius: stats.projectileRadius, integrity: stats.penetration, maxIntegrity: stats.penetration, damage: this.barrelDamage(stats, barrel), life: stats.projectileLife, plantAtLife: this.plantAtLifeFor(stats) });
+  }
+
+  /**
+   * Stehendes Projektil (Trapper): Restlebenszeit, unterhalb derer der Schuss
+   * in `stepProjectiles` einfriert. `undefined` ohne `trapAfter` – Schüsse
+   * fliegen dann bis zum Ende ihrer Lebenszeit, wie jede andere Klasse.
+   */
+  private plantAtLifeFor(stats: RuntimeStats): number | undefined {
+    return stats.trapAfter !== undefined ? Math.max(0, stats.projectileLife - stats.trapAfter) : undefined;
   }
 
   private barrelOffset(stats: RuntimeStats, barrel: number): number {
@@ -477,6 +499,7 @@ export class MazeGame {
       projectileRadius: stats.projectileRadius,
       penetration: stats.penetration,
       damage: this.barrelDamage(stats, barrel),
+      plantAtLife: this.plantAtLifeFor(stats),
       remaining: barrel * stats.burstDelay!
     });
   }
@@ -498,7 +521,7 @@ export class MazeGame {
       // von dort, wo er gerade ist, genau wie ein echter Mehrlauf-Tank.
       const position = { x: owner.position.x + direction.x * (GAME.playerRadius + shot.barrelLength), y: owner.position.y + direction.y * (GAME.playerRadius + shot.barrelLength) };
       const id = crypto.randomUUID();
-      this.projectiles.set(id, { id, ownerId: shot.ownerId, position, velocity: { x: direction.x * shot.projectileSpeed, y: direction.y * shot.projectileSpeed }, radius: shot.projectileRadius, integrity: shot.penetration, maxIntegrity: shot.penetration, damage: shot.damage, life: shot.projectileLife });
+      this.projectiles.set(id, { id, ownerId: shot.ownerId, position, velocity: { x: direction.x * shot.projectileSpeed, y: direction.y * shot.projectileSpeed }, radius: shot.projectileRadius, integrity: shot.penetration, maxIntegrity: shot.penetration, damage: shot.damage, life: shot.projectileLife, plantAtLife: shot.plantAtLife });
     }
     this.burstQueue = remaining;
   }
@@ -511,6 +534,12 @@ export class MazeGame {
       for (const projectile of [...this.projectiles.values()]) {
         projectile.life -= subDt;
         if (projectile.life <= 0) { this.projectiles.delete(projectile.id); continue; }
+        // Stehendes Projektil (Trapper): einmal unter der Schwelle, bleibt es
+        // liegen. Trefferlogik darunter läuft unveraendert weiter - eine
+        // Falle mit Tempo 0 ist einfach ein Projektil, das nirgendwo hinkommt.
+        if (projectile.plantAtLife !== undefined && projectile.life <= projectile.plantAtLife) {
+          projectile.velocity = { x: 0, y: 0 };
+        }
         const next = { x: projectile.position.x + projectile.velocity.x * subDt, y: projectile.position.y + projectile.velocity.y * subDt };
         if (!isFree(next, projectile.radius)) { this.projectiles.delete(projectile.id); continue; }
         projectile.position = next;

@@ -46,6 +46,8 @@ interface TunedStats {
   barrels?: Array<{ angle: number; damageScale?: number; speedScale?: number }> | undefined;
   /** Salve statt Fächer (Klassen 4.2) – muss mit `game.ts`s `RuntimeStats` mitgezogen werden, sonst feuert die Tuning-Schicht wieder alle Läufe gleichzeitig. */
   burstDelay?: number | undefined;
+  /** Stehendes Projektil (Trapper) – muss mit `game.ts`s `RuntimeStats` mitgezogen werden, sonst fliegen ihre Fallen einfach bis zum Lebensende weiter. */
+  trapAfter?: number | undefined;
   droneCount: number;
   droneRespawn: number;
 }
@@ -132,11 +134,21 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
     // Stufe 1. Jetzt Grundgroesse mal Skala, plus Levelrampe.
     projectileRadius: projectileRadiusFor(base, player.level ?? 1),
     penetration: base.penetration * (1 + player.upgrades.penetration * 0.085),
-    bodyDamage: base.bodyDamage * (1 + player.upgrades.bodyDamage * 0.1),
+    /*
+     * Smasher (rohrloser Nahkämpfer, Klassen 4.2 Schritt 3) hat keinen
+     * Schuss, den der `damage`-Punkt treffen könnte – ohne diese Ausnahme
+     * wäre er der einzige Platz von zwölf, der bei dieser einen Klasse
+     * nichts täte (genau das Muster, das die Projektil-Upgrade-Sperre für
+     * rohrlose Klassen schon einmal beheben musste). Er wirkt hier
+     * stattdessen zusätzlich zum eigenen bodyDamage-Slot auf den Körperschaden.
+     */
+    bodyDamage: base.bodyDamage * (1 + player.upgrades.bodyDamage * 0.1)
+      * (player.playerClass === 'smasher' ? 1 + player.upgrades.damage * 0.07 : 1),
     barrelCount: base.barrelCount,
     barrelSpread: base.barrelSpread,
     barrelLength: base.barrelLength,
     burstDelay: base.burstDelay,
+    trapAfter: base.trapAfter,
     barrelAngles: base.barrelAngles,
     barrels: base.barrels,
     droneCount: base.droneCount,
@@ -255,7 +267,11 @@ export function tuneCombatScaling<T extends MazeGame>(game: T): T {
       player.health = Math.min(player.maxHealth, player.health + (stats.regen + chillRegen) * dt);
     }
     if (stats.droneCount > 0) internals.maintainDrones(player, stats, now);
-    else if (player.primary && player.cooldown <= 0) {
+    // barrelCount 0 bei einer Nicht-Drohnen-Klasse (Klassen 4.2, Stufe 4,
+    // Schritt 3 – der rohrlose Smasher): kein Rohr, also nichts zu feuern.
+    // Ohne diese Wache riefe `fire()` trotzdem `fireBarrel` fuer Lauf 0 auf
+    // und legte ein Geister-Projektil mit Tempo 0 und Lebenszeit 0 an.
+    else if (stats.barrelCount > 0 && player.primary && player.cooldown <= 0) {
       internals.fire(player, stats);
       player.cooldown = stats.reload;
     }

@@ -198,7 +198,17 @@ const HULLS: Record<PlayerClass, DrawOp[]> = {
   sentinel: [hull(polygonPoints(3, 23, Math.PI)), orbit(29)],
   aviary: [hull(polygonPoints(3, 22, Math.PI)), orbit(28), orbit(33), core(6)],
   rampart: [hull([20, -21, 26, 0, 20, 21, -20, 19, -20, -19]), ...plates(2, 24, 29, 0.3, Math.PI / 2)],
-  behemoth: [hull([21, -23, 28, 0, 21, 23, -22, 21, -22, -21]), ...plates(4, 26, 32, 0.26), voidCore(7)]
+  behemoth: [hull([21, -23, 28, 0, 21, 23, -22, 21, -22, -21]), ...plates(4, 26, 32, 0.26), voidCore(7)],
+
+  // ---- Klassen 4.2, Stufe 4, Schritt 3: die fehlenden Archetypen ---------
+  // Smasher (IMPACT, rohrlos): flache Front statt Spitze - eine Ramme, kein
+  // Keil. Kein core()/voidCore() vorn, wo bei jeder anderen Klasse das Rohr
+  // säße; die Wucht liegt sichtbar auf der Frontplatte.
+  smasher: [hull([24, -16, 24, 16, -18, 20, -18, -20]), ...plates(1, 24, 30, 0.55, 0), ...rearFins(18, 10, 9)],
+  // Trapper (SIEGE): dieselbe Lafette wie die Familie, aber der Hohlkern
+  // sitzt HINTEN statt vorn - dort, wo die Falle den Lauf verlässt und liegen
+  // bleibt, statt in Schussrichtung zu verschwinden.
+  trapper: [hull([19, -17, 19, 17, -21, 17, -21, -17]), ...plates(2, 19, 25, 0.3, Math.PI / 2), voidCore(7, -13)]
 };
 
 /** Zeichenbefehle einer Klasse – Renderer und Vorschau lesen NUR hier. */

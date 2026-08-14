@@ -81,6 +81,37 @@ describe('simulation hardening', () => {
     expect(fullSpeed / standing).toBeCloseTo(1.35 / 0.6, 1);
   });
 
+  /**
+   * Smasher (Klassen 4.2, Stufe 4, Schritt 3): der rohrlose Nahkämpfer trägt
+   * dieselbe Rammkurve wie Blitz/Comet – sein GESAMTER Schaden hängt daran,
+   * wo Blitz/Comet nur einen Teil ihrer Bedrohung darüber ausspielen.
+   */
+  it('scales Smasher body damage with momentum', () => {
+    const measureRamDamage = (velocityX: number): number => {
+      const game = hardenSimulation(new MazeGame(0));
+      const ramId = game.addPlayer('Smasher');
+      const targetId = game.addPlayer('Target');
+      const internals = game as unknown as MutableGame;
+      const rammer = internals.players.get(ramId);
+      const target = internals.players.get(targetId);
+      rammer.playerClass = 'smasher';
+      rammer.position = ORT;
+      rammer.velocity = { x: velocityX, y: 0 };
+      rammer.invulnerable = false;
+      target.position = { x: ORT.x + GAME.playerRadius * 2 - 4, y: ORT.y };
+      target.invulnerable = false;
+      internals.shapes.clear();
+      const before = target.health;
+      internals.resolvePlayerCollisions(Date.now());
+      return before - target.health;
+    };
+
+    const standing = measureRamDamage(0);
+    const fullSpeed = measureRamDamage(305);
+    expect(standing).toBeGreaterThan(0);
+    expect(fullSpeed / standing).toBeCloseTo(1.35 / 0.6, 1);
+  });
+
   it('resolves a projectile pair only once', () => {
     const game = hardenSimulation(new MazeGame(0));
     const internals = game as unknown as MutableGame;

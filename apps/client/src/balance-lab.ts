@@ -84,7 +84,9 @@ const abilityText: Record<PlayerClass, string> = {
   sentinel: 'Drei schwere Wächter statt eines Schwarms.',
   aviary: 'Neun flinke Vögel – der Himmel gehört ihm.',
   rampart: 'Rollt unbeirrt und trägt schwer.',
-  behemoth: 'Was ihm in den Weg kommt, war vorher da.'
+  behemoth: 'Was ihm in den Weg kommt, war vorher da.',
+  smasher: 'Kein Rohr, nur Aufprall – Körperschaden wächst mit dem Tempo (0,6× bis 1,35×).',
+  trapper: 'Der Schuss fliegt kurz, bleibt dann liegen und wirkt als Falle.'
 };
 
 const clampPercent = (value: number): number => Math.max(4, Math.min(100, Math.round(value)));

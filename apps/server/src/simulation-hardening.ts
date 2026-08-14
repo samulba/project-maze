@@ -13,7 +13,7 @@ import { SpatialHash, distanceSquared, projectileSubstepCount, resolveProjectile
 import { SHAPE_CONFIG, isFree } from './world.js';
 
 type RuntimePlayer = PlayerSnapshot & { bot?: unknown; velocity: Vector2 };
-type RuntimeProjectile = ProjectileSnapshot & { damage: number; life: number };
+type RuntimeProjectile = ProjectileSnapshot & { damage: number; life: number; plantAtLife?: number };
 type RuntimeShape = ShapeSnapshot;
 interface GameInternals {
   players: Map<string, RuntimePlayer>;
@@ -39,8 +39,8 @@ const hitSet = (projectile: object): Set<string> => {
   projectileHits.set(projectile, created);
   return created;
 };
-/** Blitz/Comet: Körperschaden skaliert mit dem aktuellen Tempo (0,6× im Stand bis 1,35× bei Vollgas). */
-const MOMENTUM_CLASSES = new Set(['blitz', 'comet']);
+/** Blitz/Comet/Smasher: Körperschaden skaliert mit dem aktuellen Tempo (0,6× im Stand bis 1,35× bei Vollgas). */
+const MOMENTUM_CLASSES = new Set(['blitz', 'comet', 'smasher']);
 const momentumMultiplier = (player: RuntimePlayer): number => {
   if (!MOMENTUM_CLASSES.has(player.playerClass)) return 1;
   const definition = CLASS_DEFINITIONS[player.playerClass];
@@ -174,6 +174,11 @@ export function hardenSimulation<T extends MazeGame>(game: T): T {
       for (const projectile of [...internals.projectiles.values()]) {
         projectile.life -= subDt;
         if (projectile.life <= 0) { internals.projectiles.delete(projectile.id); continue; }
+        // Stehendes Projektil (Trapper): siehe game.ts, dieselbe Regel.
+        // Stehendes Projektil (Trapper): siehe game.ts, dieselbe Regel.
+        if (projectile.plantAtLife !== undefined && projectile.life <= projectile.plantAtLife) {
+          projectile.velocity = { x: 0, y: 0 };
+        }
         const next = { x: projectile.position.x + projectile.velocity.x * subDt, y: projectile.position.y + projectile.velocity.y * subDt };
         if (!isFree(next, projectile.radius)) { internals.projectiles.delete(projectile.id); continue; }
         projectile.position = next;

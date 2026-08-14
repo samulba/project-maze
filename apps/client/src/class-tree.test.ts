@@ -24,9 +24,11 @@ describe('Aufbau des Rades', () => {
 
   it('verteilt die Klassen auf fuenf Ringe nach Freischalt-Level', () => {
     // Klassen 4.1: 8 Familien (L5), 24 Wege (L15), 24 Endklassen (L28),
-    // 8 Apex (L42) - je Familie einer.
+    // 8 Apex (L42) - je Familie einer. Klassen 4.2 Schritt 3 legt je einen
+    // weiteren Weg (Trapper, L15) und eine weitere Endklasse (Smasher, L28)
+    // dazu.
     const proRing = [0, 1, 2, 3, 4].map((ring) => rad.filter((k) => k.ring === ring).length);
-    expect(proRing).toEqual([1, 8, 24, 24, 8]);
+    expect(proRing).toEqual([1, 8, 25, 25, 8]);
     for (const knoten of rad) expect(knoten.ring).toBe(ringOf(knoten.unlockLevel));
   });
 

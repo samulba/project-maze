@@ -55,7 +55,10 @@ export const PLAYER_CLASS_IDS = [
   'vanguard', 'hailstorm',
   'ballista', 'siegebreaker',
   'sentinel', 'aviary',
-  'rampart', 'behemoth'
+  'rampart', 'behemoth',
+  // Klassen 4.2, Stufe 4, Schritt 3: die beiden fehlenden Archetypen.
+  // Anhaengen statt einsortieren, aus demselben Grund wie oben.
+  'smasher', 'trapper'
 ] as const;
 
 export type PlayerClass = (typeof PLAYER_CLASS_IDS)[number];
@@ -247,6 +250,15 @@ export interface ClassDefinition {
    * ändert – nur am Gefühl.
    */
   burstDelay?: number;
+  /**
+   * Stehendes Projektil (Klassen 4.2, Stufe 4, Schritt 3 – Trapper): Sekunden
+   * Flugzeit, nach denen ein Schuss auf der Stelle stehen bleibt (Tempo 0)
+   * statt weiterzufliegen – die verbleibende `projectileLife` läuft als
+   * liegengebliebene Falle weiter, mit derselben Trefferlogik wie jedes
+   * andere Projektil. Unbesetzt (Standard): Schüsse fliegen bis zum Ende
+   * ihrer Lebenszeit, wie bisher.
+   */
+  trapAfter?: number;
   droneCount: number;
   droneRespawn: number;
 }
@@ -476,6 +488,24 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 12, bodyDamage: 44, barrelCount: 1, barrelSpread: 0, barrelLength: 22,
     droneCount: 0, droneRespawn: 0
   }),
+  /*
+   * Klassen 4.2, Stufe 4, Schritt 3 – der rohrlose Smasher: kein Rohr, keine
+   * Reichweite, nur Aufprall. `barrelCount: 0` bei einer Nicht-Drohnen-Klasse
+   * ist neu (game.ts/combat-tuning.ts feuern seitdem nur noch, wenn
+   * `barrelCount > 0`) – bisher hatte jede Nahkampfklasse trotzdem ein
+   * kleines Rohr. Läuft auf Blitz/Comets Rammkurve mit (`MOMENTUM_CLASSES`
+   * in simulation-hardening.ts): 0,6× Körperschaden im Stand bis 1,35× bei
+   * Vollgas. Damit der `damage`-Punkt kein toter Platz wird (er wirkt sonst
+   * nur auf Schuss-Schaden, den es hier nicht gibt), verstärkt er bei dieser
+   * einen Klasse stattdessen den Körperschaden mit – siehe combat-tuning.ts.
+   */
+  smasher: classDef({
+    id: 'smasher', label: 'Smasher', description: 'Kein Rohr, kein Ausweichen nötig – nur der Aufprall zählt.', parent: 'blitz',
+    unlockLevel: 28, branch: 'impact', maxHealth: 195, regen: 3.4, acceleration: 1900, moveSpeed: 305,
+    reload: 0, projectileSpeed: 0, projectileLife: 0, damage: 0, projectileRadius: 0,
+    penetration: 0, bodyDamage: 52, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
+    droneCount: 0, droneRespawn: 0
+  }),
   // ------------------------------------------------------------------
   // Klassen 4.0, Welle A - Apex-Klassen der Altfamilien (L42)
   // ------------------------------------------------------------------
@@ -631,6 +661,21 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     unlockLevel: 5, branch: 'siege', maxHealth: 124, regen: 2.5, acceleration: 1180, moveSpeed: 232,
     reload: 0.62, projectileSpeed: 881, projectileLife: 1.3, damage: 28, projectileRadius: 9,
     penetration: 30, bodyDamage: 12, barrelCount: 1, barrelSpread: 0, barrelLength: 44,
+    droneCount: 0, droneRespawn: 0
+  }),
+  /*
+   * Klassen 4.2, Stufe 4, Schritt 3 – Trapper, das stehende Projektil: Der
+   * Schuss fliegt kurz (trapAfter, siehe ClassDefinition), bleibt dann liegen
+   * und wirkt für den Rest seiner Lebenszeit als Falle – dieselbe Treffer-
+   * und Durchschlagslogik wie jedes andere Projektil, nur ohne weitere
+   * Bewegung. Passt zu Siege: „Stillstand baut Stellung auf" gilt jetzt auch
+   * für das, was man abschießt.
+   */
+  trapper: classDef({
+    id: 'trapper', label: 'Trapper', description: 'Der Schuss bleibt liegen, wo er landet – eine Falle statt einer Kugel.', parent: 'siege',
+    unlockLevel: 15, branch: 'siege', maxHealth: 128, regen: 2.6, acceleration: 1150, moveSpeed: 224,
+    reload: 1.1, projectileSpeed: 620, projectileLife: 2.3, damage: 20, projectileRadius: 12,
+    penetration: 34, bodyDamage: 13, barrelCount: 1, barrelSpread: 0, barrelLength: 40, trapAfter: 0.28,
     droneCount: 0, droneRespawn: 0
   }),
   bombard: classDef({

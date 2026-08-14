@@ -43,12 +43,17 @@ describe('progression and input rules', () => {
     expect(availableClassChoices('guardian', 28)).toEqual(['hive']);
     expect(availableClassChoices('crusher', 28)).toEqual(['juggernaut']);
     expect(availableClassChoices('bulwark', 28)).toEqual(['fortress']);
-    expect(availableClassChoices('blitz', 28)).toEqual(['comet']);
+    // Blitz ist der einzige Knoten mit zwei L28-Kindern: Comet (Rohr, Tempo)
+    // und Smasher (rohrlos, reiner Aufprall) - zwei Auspraegungen derselben
+    // Rammkurve statt einer.
+    expect(availableClassChoices('blitz', 28)).toEqual(['comet', 'smasher']);
     expect(availableClassChoices('wraith', 28)).toEqual(['mirage']);
     expect(availableClassChoices('shade', 28)).toEqual(['revenant']);
     expect(availableClassChoices('scorch', 28)).toEqual(['inferno']);
     expect(availableClassChoices('surge', 28)).toEqual(['overload']);
-    expect(availableClassChoices('siege', 15)).toEqual(['bombard', 'mortar']);
+    // Trapper ist der dritte L15-Weg der Familie – stehendes Projektil statt
+    // Fächer/Einzelbrocken (Klassen 4.2, Schritt 3).
+    expect(availableClassChoices('siege', 15)).toEqual(['bombard', 'mortar', 'trapper']);
     expect(availableClassChoices('aegis', 15)).toEqual(['bulwarker', 'reflector']);
     expect(availableClassChoices('vanguard', 28)).toEqual(['hailstorm']);
     expect(availableClassChoices('ballista', 28)).toEqual(['siegebreaker']);
@@ -74,10 +79,10 @@ describe('progression and input rules', () => {
     expect(availableClassChoices('vortex', 60)).not.toContain('vortex');
   });
 
-  it('contains exactly 65 unique class definitions', () => {
-    expect(PLAYER_CLASS_IDS).toHaveLength(65);
-    expect(new Set(PLAYER_CLASS_IDS).size).toBe(65);
-    expect(Object.keys(CLASS_DEFINITIONS)).toHaveLength(65);
+  it('contains exactly 67 unique class definitions', () => {
+    expect(PLAYER_CLASS_IDS).toHaveLength(67);
+    expect(new Set(PLAYER_CLASS_IDS).size).toBe(67);
+    expect(Object.keys(CLASS_DEFINITIONS)).toHaveLength(67);
   });
 
   it('keeps the class tree structurally valid', () => {
