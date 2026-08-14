@@ -22,7 +22,8 @@ export type IconName =
   | 'kopieren'
   | 'google'
   | 'puls'
-  | 'menue';
+  | 'menue'
+  | 'wiederkehr';
 
 const PFADE: Record<IconName, string> = {
   // Tachometer – „läuft es gerade?"
@@ -40,7 +41,9 @@ const PFADE: Record<IconName, string> = {
   // Bewusst gefüllt statt gestrichelt: das Google-G ist eine Marke, keine Ikone.
   google: '<path fill="currentColor" stroke="none" d="M21.6 12.2c0-.7-.06-1.35-.18-2H12v3.9h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.74 3-4.3 3-7.4Z"/><path fill="currentColor" stroke="none" d="M12 22c2.7 0 4.96-.9 6.6-2.4l-3.2-2.5c-.9.6-2.05.96-3.4.96-2.6 0-4.8-1.76-5.6-4.13H3.1v2.6A10 10 0 0 0 12 22Z"/><path fill="currentColor" stroke="none" d="M6.4 13.93a6 6 0 0 1 0-3.84V7.5H3.1a10 10 0 0 0 0 9l3.3-2.57Z"/><path fill="currentColor" stroke="none" d="M12 5.98c1.47 0 2.79.5 3.83 1.5l2.84-2.84C16.95 2.99 14.7 2 12 2A10 10 0 0 0 3.1 7.5l3.3 2.59C7.2 7.73 9.4 5.98 12 5.98Z"/>',
   puls: '<path d="M3 12.5h4l2.2-5.5 4 11 2.4-5.5H21"/>',
-  menue: '<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h10"/>'
+  menue: '<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h10"/>',
+  // Ein Pfeil, der umkehrt – „kommt wieder".
+  wiederkehr: '<path d="M4 12.5a8 8 0 1 0 2.3-5.6"/><path d="M4 4.5v5h5"/><path d="m10 12.5 2 2 3.5-4"/>'
 };
 
 /** Ein Symbol, 24×24, in der Farbe seiner Umgebung. */

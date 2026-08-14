@@ -4,6 +4,7 @@ import { backlogNachBereich, zaehleBacklog } from '@project-maze/shared/backlog'
 import { authStatus, verifyAuthToken } from './auth.js';
 import { MazeGame } from './game.js';
 import { leaderboard, persistenceStats } from './persistence.js';
+import { wiederkehr } from './retention.js';
 import { sessionsClient, sessionsStats, type ClassDayRow, type DailyRow } from './sessions.js';
 
 /**
@@ -41,6 +42,17 @@ const MAX_DAYS = 180;
 const DEFAULT_DAYS = 30;
 /** Obergrenze der Spielerliste – die Antwort soll klein bleiben. */
 const MAX_PLAYER_ROWS = 200;
+/**
+ * Obergrenze der Wiederkehr-Abfrage.
+ *
+ * Anders als die Spielerliste wird hier nichts angezeigt, sondern gerechnet –
+ * eine Stichprobe von 50 Geräten ergäbe eine Quote, die bei jedem Neuladen
+ * springt. Fünftausend Zeilen mit vier Spalten sind rund 400 kB in der
+ * Datenbankantwort und einmal alle 15 Sekunden zu haben; bis MAZERS mehr als
+ * fünftausend Geräte im Monat sieht, gehört diese Rechnung ohnehin in eine
+ * View. Wird der Deckel erreicht, sagt die Antwort das (`abgeschnitten`).
+ */
+const MAX_COHORT_ROWS = 5_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
@@ -301,6 +313,7 @@ export function createAdminRoutes(options: AdminOptions): {
   overview: RequestHandler;
   players: RequestHandler;
   backlog: RequestHandler;
+  retention: RequestHandler;
 } {
   const { game, live } = options;
   const cacheMs = options.cacheMs ?? DEFAULT_CACHE_MS;
@@ -414,5 +427,38 @@ export function createAdminRoutes(options: AdminOptions): {
     });
   };
 
-  return { session, overview, players, backlog };
+  /**
+   * „Fremde kommen wieder" – die letzte offene Zeile aus `docs/GOAL.md`.
+   *
+   * Eigene Route und nicht Teil von `overview`: Die Abfrage ist die teuerste
+   * des Portals (bis zu 5.000 Zeilen), und sie wird nur gebraucht, wenn jemand
+   * die Tafel auch ansieht. Fällt sie aus, steht der Rest des Portals trotzdem.
+   */
+  const retention: RequestHandler = (request: Request, response: Response) => {
+    const days = dayParameter(request.query['days']);
+    response.setHeader('Cache-Control', 'no-store');
+    void (async () => {
+      const client = sessionsClient(game);
+      if (!client) {
+        response.json({ database: false, days, wiederkehr: null });
+        return;
+      }
+      const geraete = await cached(
+        `kohorten:${days}`,
+        () => client.cohortDevices(sinceIso(days), MAX_COHORT_ROWS)
+      );
+      response.json({
+        database: true,
+        days,
+        wiederkehr: wiederkehr(geraete, Date.now(), days, geraete.length >= MAX_COHORT_ROWS)
+      });
+    })().catch((error: unknown) => {
+      response.status(502).json({
+        error: 'database-failed',
+        message: error instanceof Error ? error.message : String(error)
+      });
+    });
+  };
+
+  return { session, overview, players, backlog, retention };
 }

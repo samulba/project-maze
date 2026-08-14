@@ -128,3 +128,42 @@ export interface PlayersResponse {
   players: DeviceRow[];
   total: number;
 }
+
+/**
+ * Wiederkehr (`apps/server/src/retention.ts`).
+ *
+ * `quote: null` heißt **nicht** „null Prozent", sondern „noch nicht
+ * beantwortbar" – kein Gerät ist alt genug für diese Stufe. Der Unterschied ist
+ * der ganze Witz der Kennzahl, deshalb steht er auch hier im Typ.
+ */
+export interface Reifestufe {
+  tage: number;
+  reif: number;
+  geblieben: number;
+  quote: number | null;
+}
+
+export interface Kohorte {
+  start: string;
+  neu: number;
+  wieder: number;
+  quote: number | null;
+  juengstesAlter: number;
+}
+
+export interface Wiederkehr {
+  betrachtet: number;
+  frisch: number;
+  einmal: number;
+  wieder: number;
+  quote: number | null;
+  stufen: Reifestufe[];
+  kohorten: Kohorte[];
+  abgeschnitten: boolean;
+}
+
+export interface RetentionResponse {
+  database: boolean;
+  days: number;
+  wiederkehr: Wiederkehr | null;
+}

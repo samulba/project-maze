@@ -19,8 +19,9 @@ die Fragen, und man beantwortet immer nur eine:
 
 | Tafel | Frage | Was darauf steht |
 | --- | --- | --- |
-| **Übersicht** | Läuft es, und wachsen wir? | Live-Kennzahlen, heute, Zeitraum mit Verlaufsdiagramm |
-| **Spieler** | Wer war da, wer kommt wieder? | Geräteliste mit Suche, Bestenliste |
+| **Übersicht** | Läuft es, und wachsen wir? | Nordstern, Live-Kennzahlen, heute, Zeitraum mit Verlaufsdiagramm |
+| **Wiederkehr** | Kommen Fremde wieder? | Reifestufen, Wochenkohorten – siehe unten |
+| **Spieler** | Wer war da, und wie oft? | Geräteliste mit Suche, Bestenliste |
 | **Klassen** | Wie wird gespielt? | Verteilungsring, Klassentabelle, nie gespielte Klassen |
 | **Sams Liste** | Was ist offen? | Rückmeldungen mit Stand und Filter |
 | **Betrieb** | Was meldet der Server über sich? | Puffer, Takt, Login, Feature-Schalter, Auslieferung |
@@ -135,6 +136,62 @@ genau einem Tag neu.
 
 ---
 
+## Wiederkehr – die letzte offene Zeile des Ziels
+
+`docs/GOAL.md` führt zwölf technische Zeilen, die alle grün sind, und eine
+dreizehnte:
+
+> | **Fremde kommen wieder** | Admin-Portal: wiederkehrende `device_id` über 7 Tage |
+
+Kein Test kann sie beantworten. Die Tafel **Wiederkehr** ist das Messgerät
+dafür; die Rechnung steht in `apps/server/src/retention.ts` und kommt
+vollständig aus der Tabelle `devices` – **keine zusätzliche Migration nötig**.
+
+### Die zwei Regeln, die alles entscheiden
+
+**1. Wer noch nicht wiederkommen konnte, zählt nicht mit.** Jede Stufe misst
+nur Geräte, die überhaupt schon so alt sind. Ein Gerät von heute fehlt in
+Zähler **und** Nenner. Ohne diese Regel sänke die Quote mit jedem neuen
+Spieler – eine erfolgreiche Werbeaktion sähe aus wie ein Einbruch.
+
+Deshalb steht in der Anzeige **„–" und nicht „0 %"**, solange kein Gerät reif
+ist: „noch niemand konnte wiederkommen" ist etwas anderes als „niemand kam
+wieder".
+
+**2. Gerechnet wird in Kalendertagen, nicht in 24-Stunden-Blöcken.** Wer
+abends um 20 Uhr anfängt und am nächsten Abend um 19 Uhr wiederkommt, war
+23 Stunden weg – nach Stundenrechnung „nicht wiedergekommen", nach
+menschlichem Verständnis sehr wohl. Der Rest des Portals rechnet ebenfalls in
+UTC-Tagen (`admin_daily`, `sinceIso`).
+
+Folge daraus: **Zwei Besuche am selben Tag sind keine Wiederkehr.** Ein
+Reconnect nach einem Verbindungsabbruch soll die Quote nicht schönen.
+
+### Was auf der Tafel steht
+
+| Element | Bedeutung |
+| --- | --- |
+| **Kamen am nächsten Tag wieder** | Die Kennzahl der Zielzeile: Anteil der reifen Geräte mit einem Besuch an einem späteren Tag |
+| **Nach N Tagen noch da** | Anteil der Geräte mit Alter ≥ N, deren letzter Besuch ≥ N Tage nach dem ersten liegt. Kumulativ – nicht „aktiv an Tag N" |
+| **Einmal und nie wieder** | Reife Geräte ohne zweiten Tag. Die Zahl, die es zu senken gilt |
+| **Woche für Woche** | Kohorten nach Woche des ersten Besuchs (Montag, UTC). Zeigt, ob die Quote sich über die Jahrgänge bewegt |
+
+Der Nenner steht an **jeder** Stufe, weil er bei jeder ein anderer ist. „Nach
+30 Tagen nur 12 %" liest sich anders, wenn daneben „7 von 58" steht.
+
+### Grenzen
+
+- Gemessen wird das **Gerät**, nicht die Person. Wer den Browser wechselt oder
+  die Website-Daten löscht, ist ein neuer Fremder. Das ist dieselbe Zusage wie
+  überall sonst im Portal – lieber untertreiben als einen Fingerabdruck bauen.
+- Die Abfrage ist auf **5.000 Geräte** je Zeitraum gedeckelt und sortiert
+  aufsteigend nach erstem Besuch: Greift der Deckel, fallen die *jüngsten*
+  Geräte heraus, also die, die zur Frage ohnehin nichts beitragen. Passiert
+  das, schreibt die Tafel es hin. Ab dieser Größenordnung gehört die Rechnung
+  in eine Datenbank-View.
+
+---
+
 ## Routen
 
 | Route | Zugang | Antwort |
@@ -144,6 +201,7 @@ genau einem Tag neu.
 | `GET /admin/api/overview?days=N` | Allowlist | Live, Tageswerte, Klassen, Bestenliste |
 | `GET /admin/api/players?sort=new\|active&limit=N` | Allowlist | Geräteliste |
 | `GET /admin/api/backlog` | Allowlist | Sams Liste mit Stand je Eintrag |
+| `GET /admin/api/retention?days=N` | Allowlist | Wiederkehr: Reifestufen und Wochenkohorten |
 
 `/admin/api/session` steht bewusst **vor** dem Torwächter – sie ist der einzige
 Weg zur eigenen Konto-ID und verrät nur, wer der Fragende selbst ist.

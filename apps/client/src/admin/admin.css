@@ -255,18 +255,17 @@ code, .mono {
 .kopf-titel p { margin: 2px 0 0; color: var(--leise); font-size: 12.5px; }
 .kopf-werkzeuge { display: flex; align-items: center; gap: 9px; }
 
-/* Nur der Titel der offenen Tafel steht da – die anderen liegen bereit. */
-.portal[data-offen='uebersicht'] [data-titel]:not([data-titel='uebersicht']),
-.portal[data-offen='spieler'] [data-titel]:not([data-titel='spieler']),
-.portal[data-offen='klassen'] [data-titel]:not([data-titel='klassen']),
-.portal[data-offen='liste'] [data-titel]:not([data-titel='liste']),
-.portal[data-offen='betrieb'] [data-titel]:not([data-titel='betrieb']) { display: none; }
-
-/* Der Zeitraum steuert nur Übersicht und Klassen – auf den übrigen Tafeln
-   wäre er ein Schalter ohne Wirkung, und der ist schlimmer als keiner. */
-.portal[data-offen='spieler'] .zeitraum,
-.portal[data-offen='liste'] .zeitraum,
-.portal[data-offen='betrieb'] .zeitraum { display: none; }
+/*
+ * Der Zeitraum steuert nur die Tafeln, die ihn auch verwenden – auf den
+ * übrigen wäre er ein Schalter ohne Wirkung, und der ist schlimmer als keiner.
+ *
+ * Ob er gilt, steht als **eine** Eigenschaft am Rahmen und nicht als Liste von
+ * Tafelnamen im Stylesheet. Die erste Fassung zählte hier jede Tafel einzeln
+ * auf – und beim Hinzufügen der sechsten stand prompt der falsche Titel da,
+ * weil niemand ans Nachtragen dachte. Welche Tafel welchen Schalter braucht,
+ * ist eine Eigenschaft der Tafel (`TAFELN` in `view.ts`), nicht des Aussehens.
+ */
+.portal[data-zeitraum='aus'] .zeitraum { display: none; }
 
 .knopf {
   display: inline-flex;
@@ -349,6 +348,9 @@ code, .mono {
  * ------------------------------------------------------------------ */
 .block { display: grid; gap: 12px; min-width: 0; }
 .block-kopf { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+/* Ohne `flex: 1` bemisst sich die Titelspalte am laengsten Wort und bricht die
+   Hinweiszeile mitten im Satz um, obwohl rechts daneben nichts steht. */
+.block-kopf > div:first-child { flex: 1 1 340px; min-width: 0; }
 .block-kopf h2 {
   margin: 0;
   font-size: 15px;
@@ -424,6 +426,91 @@ code, .mono {
 .funke-flaeche { fill: color-mix(in srgb, var(--akzent) 13%, transparent); stroke: none; }
 .funke.gut .funke-linie { stroke: var(--gut); }
 .funke.gut .funke-flaeche { fill: color-mix(in srgb, var(--gut) 12%, transparent); }
+
+/* ------------------------------------------------------------------ *
+ * Nordstern
+ * ------------------------------------------------------------------ *
+ * Die einzige Kachel des Portals mit eigener Gestalt. `docs/GOAL.md` fuehrt
+ * zwoelf technische Zeilen, die alle gruen sind, und eine dreizehnte, die kein
+ * Test beantworten kann: ob Fremde wiederkommen. Wenn eine Zahl im Portal
+ * anders aussehen darf als alle anderen, dann diese.
+ */
+.nordstern {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 26px;
+  padding: 20px 24px;
+  border-radius: var(--r-l);
+  background:
+    radial-gradient(120% 180% at 0% 0%, color-mix(in srgb, var(--akzent) 24%, transparent), transparent 58%),
+    linear-gradient(168deg, var(--flaeche-hoch), var(--flaeche));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--akzent) 26%, transparent), var(--schatten-m);
+}
+.nordstern-text { flex: 1; min-width: 220px; }
+.nordstern-label { display: flex; align-items: center; gap: 8px; color: var(--akzent); font-size: 12.5px; font-weight: 700; }
+.nordstern-text p { margin: 4px 0 0; color: var(--leise); font-size: 12.5px; }
+.nordstern-wert { display: grid; gap: 2px; }
+.nordstern-wert strong { font-size: 38px; font-weight: 750; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+.nordstern-wert small { max-width: 34ch; color: var(--leise); font-size: 11.5px; line-height: 1.4; }
+
+/* ------------------------------------------------------------------ *
+ * Wiederkehr: die Treppe
+ * ------------------------------------------------------------------ */
+.treppe {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--r-l);
+  background: var(--linie);
+  box-shadow: var(--schatten-m);
+  list-style: none;
+}
+.stufe {
+  display: grid;
+  grid-template-columns: 128px minmax(90px, 1fr) 76px 190px;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 18px;
+  background: var(--flaeche);
+}
+.stufe-name { color: var(--gedaempft); font-size: 13px; font-weight: 600; }
+.stufe-balken { height: 8px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .06); }
+.stufe-balken b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--akzent), var(--akzent-2));
+  transition: width .5s cubic-bezier(.32, .72, 0, 1);
+}
+.stufe-quote { font-size: 16px; font-weight: 750; text-align: right; font-variant-numeric: tabular-nums; }
+/* Der Nenner steht an JEDER Zeile: Er ist bei jeder Stufe ein anderer, und das
+   ist die Stelle, an der man beim Ueberfliegen einen Denkfehler macht. */
+.stufe-nenner { color: var(--leise); font-size: 11.5px; text-align: right; font-variant-numeric: tabular-nums; }
+.stufe.zu-jung .stufe-quote { color: var(--leise); font-weight: 650; }
+.stufe.zu-jung .stufe-balken { opacity: .4; }
+
+.notiz.regel {
+  align-items: flex-start;
+  padding: 12px 15px;
+  border-radius: var(--r-m);
+  background: rgba(255, 255, 255, .028);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.notiz.regel .icon { margin-top: 2px; color: var(--akzent); }
+.notiz.regel b { color: var(--gedaempft); font-weight: 650; }
+.notiz.warn { color: var(--warn); }
+
+@media (max-width: 860px) {
+  .stufe { grid-template-columns: minmax(0, 1fr) 72px; grid-template-areas: 'name quote' 'balken balken' 'nenner nenner'; gap: 6px 12px; }
+  .stufe-name { grid-area: name; }
+  .stufe-quote { grid-area: quote; }
+  .stufe-balken { grid-area: balken; }
+  .stufe-nenner { grid-area: nenner; text-align: left; }
+}
 
 /* ------------------------------------------------------------------ *
  * Verlauf
