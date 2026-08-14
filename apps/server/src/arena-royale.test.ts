@@ -178,7 +178,12 @@ describe('Battle-Royale-Zone', () => {
    */
   it('teilt ueber eine Sekunde ungefaehr den Sekundenschaden aus', () => {
     setArenaMode('royale');
-    const game = createGame();
+    // ohneFormen: siehe Kommentar oben an der Definition. Fehlte hier – eine
+    // vorbeidriftende Form traf den festgehaltenen Spieler gelegentlich
+    // zusaetzlich zur Zone (gemessen: 11,6 statt hoechstens 5,2 Schaden/s in
+    // 1 von 40 isolierten Laeufen), und genau das machte den Test im vollen
+    // Sammellauf ab und zu rot.
+    const game = ohneFormen(createGame());
     const id = game.addPlayer('Randlaeufer');
     const player = (game as unknown as Internals).players.get(id);
     const start = Date.now();

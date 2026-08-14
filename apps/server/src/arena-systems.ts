@@ -110,6 +110,18 @@ function eventCenter(internals: ArenaInternals, radius: number): Vector2 {
 
   const anker = auswahl[Math.floor(Math.random() * auswahl.length)]!;
   const rand = radius + 260;
+  /*
+   * Kein Versuch unter den 24 geräumig genug (>= 6/8 Richtungen frei)? Dann
+   * NICHT auf die Kartenmitte zurückfallen – das war genau das Verhalten,
+   * das diese Funktion eigentlich ablöst (siehe Kommentar oben), und seit dem
+   * dichteren Labyrinth (K1/K5) schlägt der Sechs-von-Acht-Test in engen
+   * Ecken oft genug fehl, dass Events regelmäßig quer über die Karte
+   * sprangen (gemessen: 66 % Rückfallquote an einer Testposition). Der
+   * offenste Punkt in Spielernähe ist immer noch näher an der Absicht als
+   * ein Punkt, der nur zufällig in der Mitte liegt.
+   */
+  let besterKandidat: Vector2 | null = null;
+  let besteOffenheit = -1;
   for (let versuch = 0; versuch < 24; versuch += 1) {
     const winkel = Math.random() * Math.PI * 2;
     const abstand = radius * (1.2 + Math.random() * 0.8);
@@ -117,26 +129,35 @@ function eventCenter(internals: ArenaInternals, radius: number): Vector2 {
       x: Math.min(GAME.worldWidth - rand, Math.max(rand, anker.position.x + Math.cos(winkel) * abstand)),
       y: Math.min(GAME.worldHeight - rand, Math.max(rand, anker.position.y + Math.sin(winkel) * abstand))
     };
-    if (istFreiePlatz(kandidat)) return kandidat;
+    const offenheit = offenheitVon(kandidat);
+    if (offenheit >= 6) return kandidat;
+    if (offenheit > besteOffenheit) {
+      besteOffenheit = offenheit;
+      besterKandidat = kandidat;
+    }
   }
-  return kartenMitte();
+  return besterKandidat ?? kartenMitte();
 }
 
 /**
- * Taugt dieser Punkt als Mittelpunkt einer Event-Zone?
+ * Wie viele der acht Richtungen um diesen Punkt sind frei? -1, wenn schon der
+ * Punkt selbst in einer Wand liegt.
  *
- * Es reicht nicht, dass er begehbar ist. Ein Event in einem engen Gang sieht
- * auf der Karte aus wie eines auf freiem Feld, spielt sich aber völlig anders:
- * Die Hälfte der Bonus-Formen findet keinen Platz, und der Guardian des
- * Hunter-Signals steht in seiner eigenen Wand statt im Weg – gemessen an einem
- * Test, der ihn dann in der Hälfte der Läufe gar nicht erst schießen sah.
+ * Es reicht nicht, dass ein Zentrum begehbar ist. Ein Event in einem engen
+ * Gang sieht auf der Karte aus wie eines auf freiem Feld, spielt sich aber
+ * völlig anders: Die Hälfte der Bonus-Formen findet keinen Platz, und der
+ * Guardian des Hunter-Signals steht in seiner eigenen Wand statt im Weg –
+ * gemessen an einem Test, der ihn dann in der Hälfte der Läufe gar nicht
+ * erst schießen sah.
  *
- * Deshalb muss ringsum Platz sein. Sechs von acht Richtungen frei ist bewusst
- * nicht „alle acht": Ein Platz darf an eine Wand grenzen, er darf nur kein
- * Schlauch sein.
+ * `eventCenter` verlangt sechs von acht Richtungen frei, bewusst nicht „alle
+ * acht": Ein Platz darf an eine Wand grenzen, er darf nur kein Schlauch sein.
+ * Der genaue Zählwert bleibt aber sichtbar, damit `eventCenter` auch dann
+ * noch den am wenigsten schlechten Kandidaten kennt, wenn keiner die Sechs
+ * erreicht.
  */
-function istFreiePlatz(punkt: Vector2): boolean {
-  if (!isFree(punkt, 40)) return false;
+function offenheitVon(punkt: Vector2): number {
+  if (!isFree(punkt, 40)) return -1;
   let frei = 0;
   for (let richtung = 0; richtung < 8; richtung += 1) {
     const winkel = (richtung / 8) * Math.PI * 2;
@@ -146,7 +167,7 @@ function istFreiePlatz(punkt: Vector2): boolean {
     };
     if (isFree(probe, 40)) frei += 1;
   }
-  return frei >= 6;
+  return frei;
 }
 
 function shapePositionInZone(center: Vector2, radius: number): Vector2 | null {
