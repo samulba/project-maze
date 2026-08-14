@@ -1,21 +1,38 @@
 name: Project Maze CI
 
+#
+# PAUSIERT (14.08., Sam): Die GitHub-Actions-Minuten des Accounts sind
+# aufgebraucht – jeder Job startet seit Tagen ohne zugewiesenen Runner und
+# scheitert in Sekunden (0 ms abgerechnete Zeit, siehe Actions-Log), meldet
+# das aber trotzdem als "failed" per E-Mail. Bei jedem Push (auch von
+# parallel laufenden Sessions) kam dadurch etwa alle drei Minuten eine
+# Fehler-Mail, ohne dass irgendein Job je wirklich lief.
+#
+# `push`/`pull_request` deshalb entfernt, nur `workflow_dispatch` bleibt
+# (manuell über den "Run workflow"-Knopf im Actions-Tab). Sobald das
+# Kontingent wieder da ist: `push:`-Block unten wieder einkommentieren
+# (Inhalt unverändert stehen gelassen) – und dabei gleich klären, ob
+# wirklich alle drei Jobs (verify/Deployment images/Kommt der Stand live
+# an?) gebraucht werden oder ob die Hosting-Plattform manches schon selbst
+# abdeckt.
+#
+# on:
+#   push:
+#     branches: [main]
+#     # Reine Doku-Pushes lassen den Dienst unberührt – sie brauchen weder
+#     # Testlauf noch Image-Bau noch Deploy-Wache. Nachgezählt an den letzten
+#     # 30 Commits auf main: 12 hätten hier gar keinen Lauf mehr ausgelöst,
+#     # 2 weitere (scripts/, .github/) lösen einen Lauf aus, dessen Wache
+#     # sofort grün ist, 16 tragen echten Code. Enthält ein Push AUCH Code,
+#     # greift der Filter nicht und die CI läuft vollständig – GitHub prüft
+#     # alle Dateien des Pushes, nicht nur die des letzten Commits.
+#     paths-ignore:
+#       - 'docs/**'
+#       - 'supabase/**'
+#       - '**/*.md'
+#       - '.gitignore'
+#   pull_request:
 on:
-  push:
-    branches: [main]
-    # Reine Doku-Pushes lassen den Dienst unberührt – sie brauchen weder
-    # Testlauf noch Image-Bau noch Deploy-Wache. Nachgezählt an den letzten
-    # 30 Commits auf main: 12 hätten hier gar keinen Lauf mehr ausgelöst,
-    # 2 weitere (scripts/, .github/) lösen einen Lauf aus, dessen Wache
-    # sofort grün ist, 16 tragen echten Code. Enthält ein Push AUCH Code,
-    # greift der Filter nicht und die CI läuft vollständig – GitHub prüft
-    # alle Dateien des Pushes, nicht nur die des letzten Commits.
-    paths-ignore:
-      - 'docs/**'
-      - 'supabase/**'
-      - '**/*.md'
-      - '.gitignore'
-  pull_request:
   workflow_dispatch:
 
 # Ein laufender Check pro Branch reicht; ältere Läufe werden abgebrochen.
