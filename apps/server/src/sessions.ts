@@ -1,6 +1,7 @@
 import { sanitizePlayerName } from '@project-maze/shared';
 import { MazeGame } from './game.js';
 import { persistenceConfig, type PersistenceConfig } from './persistence.js';
+import type { KohortenGeraet } from './retention.js';
 
 /**
  * Sitzungserfassung – die Datenbasis des Admin-Portals.
@@ -123,6 +124,20 @@ export interface SessionsClient {
   daily(sinceIso: string): Promise<DailyRow[]>;
   classDaily(sinceIso: string): Promise<ClassDayRow[]>;
   devices(order: 'first_seen' | 'last_seen', limit: number): Promise<DeviceRow[]>;
+  /**
+   * Geräte mit erstem Besuch ab `sinceIso`, für die Wiederkehr-Rechnung.
+   *
+   * Vier Spalten statt `*`: Die Antwort geht über die Leitung und wird zu einer
+   * Handvoll Prozentzahlen verrechnet – Bestscore und Spielername haben daran
+   * keinen Anteil.
+   *
+   * **Aufsteigend** sortiert, und das ist keine Geschmacksfrage: Greift das
+   * Limit, fallen die Zeilen am Ende weg. Bei absteigender Sortierung wären das
+   * die ältesten – also genau die, die als einzige beantworten können, ob
+   * jemand nach dreißig Tagen wiederkam. Aufsteigend fallen die jüngsten
+   * heraus, und die tragen ohnehin nichts zur Frage bei.
+   */
+  cohortDevices(sinceIso: string, limit: number): Promise<KohortenGeraet[]>;
   countDevices(): Promise<number>;
   countSessions(sinceIso: string): Promise<number>;
 }
@@ -314,6 +329,22 @@ export function createSessionsClient(config: PersistenceConfig): SessionsClient 
         bestLevel: number(row['best_level']),
         lastUserId: row['last_user_id'] ? text(row['last_user_id']) : null,
         lastName: row['last_name'] ? text(row['last_name']) : null
+      }));
+    },
+    async cohortDevices(sinceIso, limit) {
+      const client = await clientPromise;
+      const { data, error } = await client
+        .from(DEVICES_TABLE)
+        .select('device_id,first_seen,last_seen,sessions')
+        .gte('first_seen', sinceIso)
+        .order('first_seen', { ascending: true })
+        .limit(limit);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((row: Record<string, unknown>) => ({
+        deviceId: text(row['device_id']),
+        firstSeen: text(row['first_seen']),
+        lastSeen: text(row['last_seen']),
+        sessions: number(row['sessions'])
       }));
     },
     async countDevices() {

@@ -2,7 +2,7 @@ import { escape, klassen } from './html';
 import { icon } from './icons';
 import { funke, leer, ring } from './charts';
 import { dauer, farbton, initialen, komma, kurzId, seit, trend, zahl, zeitpunkt } from './format';
-import type { ClassUsage, DeviceRow, Overview, TopRun } from './types';
+import type { ClassUsage, DeviceRow, Kohorte, Overview, Reifestufe, TopRun } from './types';
 import type { BacklogBereich, BacklogEintrag, BacklogStand, BacklogZaehlung } from '@project-maze/shared/backlog';
 
 /**
@@ -262,6 +262,72 @@ export function betrieb(overview: Overview): string {
   </article>`).join('');
 
   return `<div class="betrieb">${karten}</div>${schalter(live.features)}`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Wiederkehr
+ * ------------------------------------------------------------------ */
+
+/** Eine Quote, die auch „noch nicht beantwortbar" sagen kann. */
+export const quoteText = (quote: number | null): string => (quote === null ? '–' : `${komma(quote)} %`);
+
+/**
+ * Die Treppe: eine Zeile je Reifestufe.
+ *
+ * Der Nenner steht an **jeder** Zeile, nicht einmal darüber. Er ist bei jeder
+ * Stufe ein anderer – das ist der Kern der Rechnung und genau die Stelle, an
+ * der man beim Überfliegen einen Denkfehler macht („nach 30 Tagen nur 12 %?"
+ * … gemessen an sieben Geräten, die überhaupt so alt sind).
+ */
+export function treppe(stufen: readonly Reifestufe[]): string {
+  if (stufen.length === 0) return leer('Noch keine Stufe auswertbar.');
+  const zeilen = stufen.map((stufe) => {
+    const jung = stufe.reif === 0;
+    const breite = stufe.quote === null ? 0 : Math.max(stufe.quote > 0 ? 1.5 : 0, stufe.quote);
+    return `<li class="${klassen('stufe', jung && 'zu-jung')}">
+      <span class="stufe-name">nach ${stufe.tage} ${stufe.tage === 1 ? 'Tag' : 'Tagen'}</span>
+      <span class="stufe-balken"><b style="width:${breite.toFixed(1)}%"></b></span>
+      <strong class="stufe-quote">${quoteText(stufe.quote)}</strong>
+      <small class="stufe-nenner">${jung
+        ? 'noch kein Gerät so alt'
+        : `${zahl(stufe.geblieben)} von ${zahl(stufe.reif)}`}</small>
+    </li>`;
+  }).join('');
+  return `<ul class="treppe">${zeilen}</ul>`;
+}
+
+/** Kohorten nach Woche des ersten Besuchs – jüngste oben. */
+export function kohortenTabelle(kohorten: readonly Kohorte[]): string {
+  if (kohorten.length === 0) {
+    return leer('Noch keine Woche mit neuen Geräten.', 'Jede Woche mit einem ersten Besuch wird hier zu einer Zeile.');
+  }
+  const groesste = Math.max(...kohorten.map((k) => k.neu));
+  const zeilen = kohorten.map((kohorte) => `<tr>
+    <td>${escape(woche(kohorte.start))}</td>
+    <td class="zahl">${zahl(kohorte.neu)}</td>
+    <td class="anteil">
+      <span class="anteil-balken"><b style="width:${Math.max(2, (kohorte.neu / groesste) * 100).toFixed(1)}%"></b></span>
+    </td>
+    <td class="zahl">${zahl(kohorte.wieder)}</td>
+    <td class="zahl stark">${quoteText(kohorte.quote)}</td>
+    <td class="leise">${kohorte.juengstesAlter < 1 ? 'läuft noch' : `${zahl(kohorte.juengstesAlter)} Tage reif`}</td>
+  </tr>`).join('');
+  return `<div class="tabellen-rahmen">
+    <table class="tabelle">
+      <thead><tr>
+        <th>Woche des ersten Besuchs</th><th class="zahl">Neue Geräte</th><th>Größe</th>
+        <th class="zahl">Kamen wieder</th><th class="zahl">Quote</th><th>Reife</th>
+      </tr></thead>
+      <tbody>${zeilen}</tbody>
+    </table>
+  </div>`;
+}
+
+/** „2026-08-10" → „ab Mo 10.8." */
+function woche(iso: string): string {
+  const stamp = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(stamp.getTime())) return iso;
+  return `ab Mo ${stamp.getUTCDate()}.${stamp.getUTCMonth() + 1}.`;
 }
 
 /* ------------------------------------------------------------------ *

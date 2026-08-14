@@ -9,11 +9,14 @@ import {
   block,
   kachel,
   klassenTabelle,
+  kohortenTabelle,
+  quoteText,
   spielerTabelle,
   spielerWerkzeuge,
+  treppe,
   type BacklogAntwort
 } from './panels';
-import type { DailyRow, DeviceRow, Overview, Summary } from './types';
+import type { DailyRow, DeviceRow, Overview, Summary, Wiederkehr } from './types';
 
 export { backlogBlock, type BacklogAntwort };
 
@@ -39,15 +42,29 @@ export { backlogBlock, type BacklogAntwort };
  * irgendwer sich etwas merken müsste.
  */
 
-export type TafelName = 'uebersicht' | 'spieler' | 'klassen' | 'liste' | 'betrieb';
+export type TafelName = 'uebersicht' | 'wiederkehr' | 'spieler' | 'klassen' | 'liste' | 'betrieb';
 
-export const TAFELN: ReadonlyArray<{ name: TafelName; titel: string; unter: string; symbol: IconName }> = [
-  { name: 'uebersicht', titel: 'Übersicht', unter: 'Läuft es gerade, und wachsen wir?', symbol: 'uebersicht' },
-  { name: 'spieler', titel: 'Spieler', unter: 'Wer war da, und wer kommt wieder?', symbol: 'spieler' },
-  { name: 'klassen', titel: 'Klassen', unter: 'Wie wird gespielt – und was spielt niemand?', symbol: 'klassen' },
-  { name: 'liste', titel: 'Sams Liste', unter: 'Was ist offen, was ist erledigt?', symbol: 'liste' },
-  { name: 'betrieb', titel: 'Betrieb', unter: 'Was meldet der Server über sich selbst?', symbol: 'betrieb' }
+export interface Tafel {
+  name: TafelName;
+  titel: string;
+  unter: string;
+  symbol: IconName;
+  /** Verwendet diese Tafel den Zeitraum-Schalter? Steuert, ob er sichtbar ist. */
+  zeitraum: boolean;
+}
+
+export const TAFELN: readonly Tafel[] = [
+  { name: 'uebersicht', titel: 'Übersicht', unter: 'Läuft es gerade, und wachsen wir?', symbol: 'uebersicht', zeitraum: true },
+  { name: 'wiederkehr', titel: 'Wiederkehr', unter: 'Kommen Fremde wieder? Die letzte offene Zeile des Ziels.', symbol: 'wiederkehr', zeitraum: true },
+  { name: 'spieler', titel: 'Spieler', unter: 'Wer war da, und wie oft?', symbol: 'spieler', zeitraum: false },
+  { name: 'klassen', titel: 'Klassen', unter: 'Wie wird gespielt – und was spielt niemand?', symbol: 'klassen', zeitraum: true },
+  { name: 'liste', titel: 'Sams Liste', unter: 'Was ist offen, was ist erledigt?', symbol: 'liste', zeitraum: false },
+  { name: 'betrieb', titel: 'Betrieb', unter: 'Was meldet der Server über sich selbst?', symbol: 'betrieb', zeitraum: false }
 ];
+
+/** Nachschlag mit Rückfall auf die Übersicht – ein unbekannter Name aus der Adresse darf nichts umwerfen. */
+export const tafelInfo = (name: TafelName): Tafel =>
+  TAFELN.find((eintrag) => eintrag.name === name) ?? TAFELN[0]!;
 
 export interface ViewState {
   overview: Overview;
@@ -57,6 +74,8 @@ export interface ViewState {
   tage: number;
   aktualisiert: number;
   backlog: BacklogAntwort | null;
+  /** `null`, solange die Route nicht geantwortet hat oder keine Datenbank hängt. */
+  wiederkehr?: Wiederkehr | null;
   /** Welche Tafel offen ist. Fehlt sie, ist es die Übersicht. */
   tafel?: TafelName;
   /** Name des angemeldeten Kontos, für den Fuß der Seitenleiste. */
@@ -143,15 +162,16 @@ function seitenleiste(state: ViewState, offeneWuensche: number): string {
   </aside>`;
 }
 
-function kopfleiste(state: ViewState): string {
+function kopfleiste(state: ViewState, offen: Tafel): string {
   const auswahl = [7, 14, 30, 90].map((d) => `<button type="button" data-tage="${d}" class="${d === state.tage ? 'an' : ''}" aria-pressed="${d === state.tage}">${d}&thinsp;T</button>`).join('');
+  // Nur der Titel der offenen Tafel steht im Dokument; beim Wechsel schreibt
+  // `main.ts` ihn um. Vorher lagen alle sechs da und wurden per CSS versteckt –
+  // eine Regel je Tafel, die beim Hinzufügen der sechsten prompt fehlte.
   return `<header class="kopfleiste">
     <button id="navi-auf" type="button" class="nur-schmal" aria-label="Bereiche öffnen">${icon('menue')}</button>
     <div class="kopf-titel">
-      ${TAFELN.map((tafel) => `<div data-titel="${tafel.name}">
-        <h1>${escape(tafel.titel)}</h1>
-        <p>${escape(tafel.unter)}</p>
-      </div>`).join('')}
+      <h1 id="tafel-titel">${escape(offen.titel)}</h1>
+      <p id="tafel-unter">${escape(offen.unter)}</p>
     </div>
     <div class="kopf-werkzeuge">
       <div class="segmente zeitraum" role="group" aria-label="Zeitraum">${auswahl}</div>
@@ -173,6 +193,25 @@ function tafelUebersicht(state: ViewState): string {
   const online = Number(live.humans ?? 0);
   const takt = Number(live.tick?.averageMs ?? 0);
   const last = Math.round(Number(live.tick?.busyRatio ?? 0) * 100);
+
+  // Der Nordstern steht ganz oben und ist die einzige Kachel im Portal mit
+  // eigener Gestalt: `docs/GOAL.md` nennt zwölf technische Zeilen, die alle
+  // grün sind, und eine dreizehnte, die keine Prüfung beantworten kann.
+  const nordstern = state.wiederkehr
+    ? `<section class="nordstern">
+        <div class="nordstern-text">
+          <span class="nordstern-label">${icon('wiederkehr')}Fremde kommen wieder</span>
+          <p>Die letzte offene Zeile des Ziels – und die einzige, die kein Test beantwortet.</p>
+        </div>
+        <div class="nordstern-wert">
+          <strong>${escape(quoteText(state.wiederkehr.quote))}</strong>
+          <small>${state.wiederkehr.quote === null
+            ? 'noch kein Gerät alt genug'
+            : `von ${zahl(state.wiederkehr.betrachtet - state.wiederkehr.frisch)} Geräten kamen ${zahl(state.wiederkehr.wieder)} am nächsten Tag zurück`}</small>
+        </div>
+        <button type="button" class="knopf" data-ziel="wiederkehr">Aufschlüsseln</button>
+      </section>`
+    : '';
 
   const jetzt = block('Jetzt in der Arena', `<div class="kacheln">
     ${kachel({
@@ -243,7 +282,74 @@ function tafelUebersicht(state: ViewState): string {
   </div>
   ${verlauf(daily)}`, '', vergleich ? 'Der Trend vergleicht die zweite Hälfte des Zeitraums mit der ersten.' : 'Für einen Trendvergleich fehlen noch Tage.');
 
-  return `${jetzt}${heuteBlock}${zeitraum}`;
+  return `${nordstern}${jetzt}${heuteBlock}${zeitraum}`;
+}
+
+/**
+ * Die Tafel zur letzten offenen Zeile aus `docs/GOAL.md`.
+ *
+ * Sie steht direkt hinter der Übersicht und vor allem anderen, weil sie die
+ * einzige Frage beantwortet, die kein Test beantworten kann. Alle anderen
+ * Tafeln sagen, dass etwas läuft; diese sagt, ob es jemanden interessiert.
+ */
+function tafelWiederkehr(state: ViewState): string {
+  const w = state.wiederkehr;
+  if (!w) {
+    return `<div class="leer">
+      <strong>Noch keine Wiederkehr-Zahlen.</strong>
+      <span>Ohne Datenbank (Migration 0005) gibt es keine Geräte, die wiederkommen könnten.</span>
+    </div>`;
+  }
+
+  const sieben = w.stufen.find((stufe) => stufe.tage === 7);
+  const kopf = block('Kommen sie wieder?', `<div class="kacheln">
+    ${kachel({
+      label: 'Kamen am nächsten Tag wieder',
+      wert: quoteText(w.quote),
+      fuss: w.quote === null
+        ? 'noch kein Gerät alt genug für die Frage'
+        : `${zahl(w.wieder)} von ${zahl(w.betrachtet - w.frisch)} Geräten, die es konnten`,
+      ton: w.quote === null ? undefined : w.quote >= 25 ? 'gut' : 'warn'
+    })}
+    ${kachel({
+      label: 'Nach 7 Tagen noch da',
+      wert: quoteText(sieben?.quote ?? null),
+      fuss: sieben && sieben.reif > 0
+        ? `${zahl(sieben.geblieben)} von ${zahl(sieben.reif)} Geräten, die schon 7 Tage alt sind`
+        : 'noch kein Gerät sieben Tage alt',
+      ton: (sieben?.quote ?? 0) >= 10 ? 'gut' : undefined
+    })}
+    ${kachel({
+      label: 'Einmal und nie wieder',
+      wert: zahl(w.einmal),
+      fuss: 'Geräte, die die Chance hatten und sie nicht genutzt haben',
+      ton: 'warn'
+    })}
+    ${kachel({
+      label: 'Betrachtete Geräte',
+      wert: zahl(w.betrachtet),
+      fuss: w.frisch > 0
+        ? `${zahl(w.frisch)} davon von heute – sie zählen noch nirgends mit`
+        : 'alle alt genug für mindestens eine Stufe'
+    })}
+  </div>`, '', `Erster Besuch in den letzten ${state.tage} Tagen. Gezählt wird das Gerät, nicht die Person.`);
+
+  // Die Regel steht als Text auf der Tafel und nicht nur im Quelltext: Wer die
+  // Zahl weitergibt, muss sagen können, worauf sie sich bezieht.
+  const regel = `<p class="notiz regel">${icon('warnung')}<span>Jede Stufe zählt nur Geräte, die <b>alt genug</b> sind, um die Frage zu beantworten.
+    Wer heute zum ersten Mal da war, fehlt in Zähler und Nenner – sonst ließe ein guter Tag mit vielen Neuen die Quote einbrechen.
+    Gerechnet wird in Kalendertagen: Wer abends anfängt und am nächsten Abend wiederkommt, ist wiedergekommen.</span></p>`;
+
+  const stufen = block('Wie lange bleiben sie?', `${treppe(w.stufen)}${regel}`);
+
+  const kohorten = block('Woche für Woche', kohortenTabelle(w.kohorten), '',
+    'Jede Zeile ist ein Jahrgang: alle Geräte, die in dieser Woche zum ersten Mal da waren.');
+
+  const fussnote = w.abgeschnitten
+    ? `<p class="notiz warn">${icon('warnung')}<span>Die Abfrage hat ihr Zeilenlimit erreicht – die jüngsten Geräte des Zeitraums fehlen in dieser Rechnung.</span></p>`
+    : '';
+
+  return `${kopf}${stufen}${kohorten}${fussnote}`;
 }
 
 function tafelSpieler(state: ViewState): string {
@@ -305,6 +411,7 @@ export function renderPortal(state: ViewState): string {
 
   const inhalte: Record<TafelName, string> = {
     uebersicht: tafelUebersicht(state),
+    wiederkehr: tafelWiederkehr(state),
     spieler: tafelSpieler(state),
     klassen: tafelKlassen(state),
     liste: tafelListe(state),
@@ -316,10 +423,11 @@ export function renderPortal(state: ViewState): string {
     ${inhalte[eintrag.name]}
   </section>`).join('');
 
-  return `<div class="${klassen('portal')}" data-offen="${tafel}">
+  const offen = tafelInfo(tafel);
+  return `<div class="${klassen('portal')}" data-offen="${tafel}" data-zeitraum="${offen.zeitraum ? 'an' : 'aus'}">
     ${seitenleiste({ ...state, tafel }, offeneWuensche)}
     <div class="haupt">
-      ${kopfleiste(state)}
+      ${kopfleiste(state, offen)}
       <main class="inhalt">${tafeln}</main>
       <footer class="fuss">
         <span>Zuletzt aktualisiert ${escape(zeitpunkt(new Date(state.aktualisiert).toISOString()))}</span>

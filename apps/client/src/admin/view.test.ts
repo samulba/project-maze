@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { backlogBlock, haelften, renderPortal, renderTor, TAFELN, type ViewState } from './view';
+import { backlogBlock, haelften, renderPortal, renderTor, TAFELN, tafelInfo, type ViewState } from './view';
 import { dauer, initialen, kompakt, kurzId, seit, trend } from './format';
 import { nettesMaximum } from './charts';
-import type { DailyRow, DeviceRow, Overview } from './types';
+import { quoteText, treppe } from './panels';
+import type { DailyRow, DeviceRow, Overview, Wiederkehr } from './types';
 
 /**
  * Die ersten Tests des Admin-Portals -- und sie gehoeren genau hierher.
@@ -283,6 +284,98 @@ describe('Tafeln statt Endlosrolle', () => {
     }));
     expect(html).not.toContain('<img src=x');
     expect(html).toContain('&lt;img src=x');
+  });
+});
+
+/**
+ * Die Wiederkehr traegt die letzte offene Zeile aus `docs/GOAL.md`. Die
+ * Rechnung steht auf dem Server (`retention.test.ts`); hier wird geprueft, dass
+ * die Darstellung sie nicht verfaelscht -- vor allem den Unterschied zwischen
+ * „null Prozent" und „noch nicht beantwortbar".
+ */
+describe('Wiederkehr im Portal', () => {
+  const w = (extra: Partial<Wiederkehr> = {}): Wiederkehr => ({
+    betrachtet: 120, frisch: 20, einmal: 60, wieder: 40, quote: 40,
+    stufen: [
+      { tage: 1, reif: 100, geblieben: 40, quote: 40 },
+      { tage: 7, reif: 50, geblieben: 9, quote: 18 },
+      { tage: 30, reif: 0, geblieben: 0, quote: null }
+    ],
+    kohorten: [{ start: '2026-08-10', neu: 30, wieder: 12, quote: 40, juengstesAlter: 0 }],
+    abgeschnitten: false,
+    ...extra
+  });
+
+  const zustand = (wieder: Wiederkehr | null, tafel: 'uebersicht' | 'wiederkehr' = 'wiederkehr'): ViewState => ({
+    overview: {
+      live: { humans: 1, features: {} }, persistence: {}, sessions: {}, days: 30, database: true,
+      today: { players: 0, newPlayers: 0, sessions: 0, accounts: 0, runs: 0, kills: 0, totalSeconds: 0, avgSessionSeconds: 0 },
+      window: { players: 0, newPlayers: 0, sessions: 0, accounts: 0, runs: 0, kills: 0, totalSeconds: 0, avgSessionSeconds: 0 },
+      daily: [], classes: [], unusedClasses: [], top: []
+    } as unknown as Overview,
+    players: [], playersTotal: 0, sortierung: 'active', tage: 30,
+    aktualisiert: Date.parse('2026-08-14T09:00:00Z'), backlog: null, wiederkehr: wieder, tafel
+  });
+
+  it('schreibt „–" statt „0 %", wo noch nichts zu messen ist', () => {
+    // Der ganze Witz der Kennzahl: „noch niemand konnte wiederkommen" ist etwas
+    // anderes als „niemand kam wieder". Eine 0 an dieser Stelle waere gelogen.
+    expect(quoteText(null)).toBe('–');
+    expect(quoteText(0)).toBe('0,0 %');
+    const html = renderPortal(zustand(w({ quote: null, wieder: 0 })));
+    expect(html).toContain('noch kein Gerät alt genug für die Frage');
+  });
+
+  it('nennt an jeder Stufe ihren eigenen Nenner', () => {
+    // Ohne den Nenner liest man „nach 7 Tagen 18 %" als Aussage ueber alle
+    // Geraete -- gemessen sind aber nur die 50, die so alt sind.
+    const html = treppe(w().stufen);
+    expect(html).toContain('40 von 100');
+    expect(html).toContain('9 von 50');
+    expect(html).toContain('noch kein Gerät so alt');
+    expect(html).toContain('class="stufe zu-jung"');
+  });
+
+  it('stellt den Nordstern auf die Uebersicht, sobald die Zahl da ist', () => {
+    const html = renderPortal(zustand(w(), 'uebersicht'));
+    expect(html).toContain('Fremde kommen wieder');
+    expect(html).toContain('data-ziel="wiederkehr"');
+  });
+
+  it('laesst den Nordstern weg, solange die Route nicht geantwortet hat', () => {
+    // Das Portal steht auch ohne die teuerste seiner Abfragen.
+    const html = renderPortal(zustand(null, 'uebersicht'));
+    expect(html).not.toContain('Fremde kommen wieder');
+    expect(html).toContain('Jetzt in der Arena');
+  });
+
+  it('sagt es, wenn die Abfrage ihr Zeilenlimit erreicht hat', () => {
+    // Eine gedeckelte Zahl, die sich fuer vollstaendig ausgibt, ist schlimmer
+    // als gar keine.
+    expect(renderPortal(zustand(w({ abgeschnitten: true })))).toContain('Zeilenlimit erreicht');
+    expect(renderPortal(zustand(w()))).not.toContain('Zeilenlimit erreicht');
+  });
+
+  it('erklaert die Reifeegel auf der Tafel, nicht nur im Quelltext', () => {
+    // Wer die Zahl weitergibt, muss sagen koennen, worauf sie sich bezieht.
+    const html = renderPortal(zustand(w()));
+    expect(html).toContain('alt genug');
+    expect(html).toContain('Kalendertagen');
+  });
+});
+
+describe('Tafeln sind an einer Stelle beschrieben', () => {
+  it('nennt fuer jede Tafel Titel, Symbol und ob der Zeitraum gilt', () => {
+    // Der Zeitraum-Schalter stand frueher als Liste von Tafelnamen im
+    // Stylesheet -- beim Hinzufuegen der sechsten Tafel fehlte er prompt.
+    for (const tafel of TAFELN) {
+      expect(tafel.titel.length).toBeGreaterThan(0);
+      expect(typeof tafel.zeitraum).toBe('boolean');
+    }
+    expect(tafelInfo('spieler').zeitraum).toBe(false);
+    expect(tafelInfo('wiederkehr').zeitraum).toBe(true);
+    // Ein unbekannter Name aus der Adresse darf nichts umwerfen.
+    expect(tafelInfo('quatsch' as never).name).toBe('uebersicht');
   });
 });
 

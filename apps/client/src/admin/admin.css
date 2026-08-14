@@ -5,53 +5,72 @@
  * `html, body { height: 100%; overflow: hidden }` – richtig für eine Arena, die
  * den ganzen Bildschirm füllt, falsch für eine Seite, die gescrollt wird.
  *
- * Die Umarbeitung folgt vier Regeln, jede gegen einen konkreten Befund:
+ * ## Dritter Anlauf bei der Farbwelt: Trennung vom Spiel
  *
- * 1. **Eine Frage je Bildschirm.** Vorher acht Abschnitte in einer Rolle, alle
- *    im selben Gewicht. Jetzt fünf Tafeln und eine Navigation, die die Fragen
- *    benennt.
- * 2. **Ein einziger Weg, Aufmerksamkeit zu lenken – Größe.** Vorher trugen
- *    Überschriften, Kachelbeschriftungen, Tabellenköpfe, Schalter und Marken
- *    alle dasselbe: 10 px, fett, Versalien, weit gesperrt. Wenn alles schreit,
- *    hört man nichts. Versalien gibt es jetzt nur noch an einer Stelle, der
- *    Wortmarke.
- * 3. **Flächen statt Kästen.** Vorher jedes Element mit 1-px-Rand in
- *    Weiß-10 %, was auf dunklem Grund ein Gitternetz ergibt. Jetzt trägt die
- *    Fläche selbst (Verlauf plus innere Lichtkante), Ränder nur dort, wo etwas
- *    wirklich abgegrenzt wird.
- * 4. **Zahlen dürfen nicht springen.** Alles Numerische in `tabular-nums`,
- *    damit die Spalte beim Nachladen alle 20 Sekunden ruhig steht.
+ * Sams Ansage: Die Farben des Portals sollen **nichts** mit denen des Spiels
+ * zu tun haben – „super basic modern schwarz weiß mit einer Akzentfarbe".
+ * Der zweite Anlauf (Violett→Cyan-Duotone mit Aurora) war hübsch, aber er
+ * spielte in derselben Liga wie die Spiel-Themes und damit im falschen Trikot:
+ * Das Spiel darf leuchten, das Werkzeug daneben soll nüchtern sein.
+ *
+ * Die Regeln dieser Fassung:
+ *
+ * 1. **Monochrom.** Neutrales Schwarz, Weiß, Grau – kein Farbstich im Grund,
+ *    keine Aurora, kein Raster. Flächen sind fast schwarz mit
+ *    Haarlinien-Kontur; Hierarchie entsteht aus Helligkeit und Größe.
+ *
+ * 2. **Eine Akzentfarbe: Signalblau.** Sie markiert Interaktion und das
+ *    Wichtigste – aktive Navigation, Primärknopf, Fokus, Nordstern, die
+ *    „neu"-Serie im Diagramm. Blau, weil es im Spiel nicht vorkommt (dort
+ *    Indigo/Violett, Lime, Cyan, Magenta) und die Trennung damit sichtbar
+ *    ist. Grün, Gelb und Rot bleiben reine Bedeutungsfarben der Ampel.
+ *
+ * 3. **Daten dürfen Farbe tragen, Chrom nicht.** Die Zweigfarben der Klassen
+ *    und die Avatare bleiben bunt – sie unterscheiden Dinge und sind damit
+ *    Information. Rahmen, Schalter und Flächen bleiben grau.
+ *
+ * Was aus den ersten Umbauten bestehen bleibt, weil es Befunde repariert hat:
+ * Größe als Hierarchie-Kanal, `tabular-nums` auf allem Numerischen, eine
+ * Frage je Bildschirm, und genau eine Versalien-Ausnahme: winzige
+ * Mono-Etiketten für Werte (Kachel-Beschriftung, Tabellenkopf).
  */
 
 :root {
-  /* Grundtöne: drei Ebenen statt zwei – Seite, Fläche, gehobene Fläche. */
-  --grund: #07080d;
-  --flaeche: #0e1118;
-  --flaeche-hoch: #161a24;
-  --flaeche-tief: #0a0c12;
+  /* Neutrales Fast-Schwarz, bewusst ohne Farbstich – die Trennung vom Spiel
+     beginnt beim Grundton. Drei Flächenebenen darüber. */
+  --grund: #0a0a0b;
+  --flaeche: #111113;
+  --flaeche-hoch: #18181b;
+  --flaeche-tief: #070708;
 
-  --linie: rgba(255, 255, 255, .07);
-  --linie-stark: rgba(255, 255, 255, .13);
-  --licht: rgba(255, 255, 255, .045);
+  --linie: rgba(255, 255, 255, .08);
+  --linie-stark: rgba(255, 255, 255, .15);
+  --licht: rgba(255, 255, 255, .05);
 
-  --text: #eef0f7;
-  --gedaempft: #a8b0c4;
-  --leise: #767e93;
+  --text: #fafafa;
+  --gedaempft: #a5a6ad;
+  --leise: #6f7078;
 
-  --akzent: #7b8cff;
-  --akzent-2: #c07cf5;
-  --gut: #3fcf8e;
-  --warn: #f5b544;
-  --schlecht: #ff6b81;
+  /* Die eine Akzentfarbe. Wer sie tauschen will, tauscht genau diese Zeile. */
+  --akzent: #4e8cff;
+
+  /* Die zwei Serien des Verlaufsdiagramms: Bestand grau, Neues im Akzent.
+     Grau ist hier keine Verlegenheit – „wiederkehrend" ist der Sockel,
+     „neu" die Nachricht. */
+  --serie-alt: #9d9fa8;
+  --serie-neu: var(--akzent);
+
+  --gut: #34d17e;
+  --warn: #f5b942;
+  --schlecht: #f16277;
 
   --r-s: 10px;
   --r-m: 14px;
-  --r-l: 20px;
-  --r-xl: 28px;
+  --r-l: 18px;
+  --r-xl: 26px;
 
-  --schatten-s: 0 2px 8px rgba(0, 0, 0, .3);
-  --schatten-m: 0 12px 32px -12px rgba(0, 0, 0, .6);
-  --schatten-l: 0 40px 90px -30px rgba(0, 0, 0, .8);
+  --schatten-m: 0 16px 40px -20px rgba(0, 0, 0, .8);
+  --schatten-l: 0 40px 90px -30px rgba(0, 0, 0, .9);
 
   --seitenleiste: 244px;
   --takt: .18s cubic-bezier(.32, .72, 0, 1);
@@ -59,6 +78,16 @@
   color-scheme: dark;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-synthesis-weight: none;
+}
+
+/* Das Etikett: die eine erlaubte Versalien-Stimme. Mono, winzig, gesperrt –
+   markiert „hier steht ein Wert", nirgendwo sonst im Einsatz. */
+.etikett, .kachel-label, .tabelle thead th, .stufe-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
 }
 
 * { box-sizing: border-box; }
@@ -72,24 +101,10 @@ body.admin {
   -webkit-font-smoothing: antialiased;
 }
 
-/*
- * Der Hintergrund ist kein Schmuck, sondern Tiefe: Zwei sehr schwache
- * Farbwolken oben links und oben rechts geben der Seite einen Horizont, damit
- * die Flächen darauf schweben statt zu kleben. `fixed`, damit sie beim Scrollen
- * stehen bleiben – eine mitscrollende Wolke wäre eine Animation, die niemand
- * bestellt hat.
- */
-body.admin::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background:
-    radial-gradient(900px 520px at 12% -8%, color-mix(in srgb, var(--akzent) 13%, transparent), transparent 62%),
-    radial-gradient(760px 460px at 88% -12%, color-mix(in srgb, var(--akzent-2) 10%, transparent), transparent 60%);
-  pointer-events: none;
-}
+::selection { background: color-mix(in srgb, var(--akzent) 45%, transparent); }
 
+/* Kein Hintergrundbild, keine Aurora, kein Raster: Der Grund ist eine
+   Fläche, nicht ein Motiv – „super basic". */
 #admin-root { position: relative; z-index: 1; }
 
 button, select, input { font: inherit; color: inherit; }
@@ -103,6 +118,27 @@ code, .mono {
 }
 
 .icon { width: 18px; height: 18px; flex: none; }
+
+/* Schmale, dunkle Rollbalken – die Standardbalken sind auf Schwarz ein
+   hellgrauer Fremdkörper. */
+* { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .14) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255, 255, 255, .14); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ------------------------------------------------------------------ *
+ * Die Karte – das eine Flächenrezept
+ * ------------------------------------------------------------------ *
+ * Haarlinie, hauchdünnes Licht oben, fast schwarze Füllung. Kein schwerer
+ * Verlauf mehr: Der hat auf Grau „Tiefe" simuliert und Brei erzeugt. Auf
+ * Schwarz macht die Linie die Form, nicht der Verlauf.
+ */
+.kachel, .verlauf, .ring-block, .tabellen-rahmen, .betrieb-karte,
+.wunsch-bilanz, .treppe, .fakten div, .tor {
+  border: 1px solid var(--linie);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .025), transparent 42%) , var(--flaeche);
+  box-shadow: var(--schatten-m);
+}
 
 /* ------------------------------------------------------------------ *
  * Rahmen
@@ -125,7 +161,7 @@ code, .mono {
   height: 100dvh;
   padding: 22px 14px 16px;
   border-right: 1px solid var(--linie);
-  background: color-mix(in srgb, var(--flaeche-tief) 82%, transparent);
+  background: color-mix(in srgb, var(--flaeche-tief) 78%, transparent);
   backdrop-filter: blur(18px);
 }
 
@@ -137,8 +173,7 @@ code, .mono {
   height: 34px;
   border-radius: 11px;
   color: #fff;
-  background: linear-gradient(140deg, var(--akzent), var(--akzent-2));
-  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--akzent) 80%, transparent);
+  background: var(--akzent);
   font-size: 17px;
   font-weight: 900;
   letter-spacing: -.04em;
@@ -150,6 +185,7 @@ code, .mono {
 
 .navi { display: grid; gap: 2px; }
 .navi-punkt {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 11px;
@@ -165,12 +201,23 @@ code, .mono {
   transition: color var(--takt), background var(--takt);
 }
 .navi-punkt .icon { color: var(--leise); transition: color var(--takt); }
-.navi-punkt:hover { color: var(--text); background: rgba(255, 255, 255, .045); }
+.navi-punkt:hover { color: var(--text); background: rgba(255, 255, 255, .05); }
 .navi-punkt:hover .icon { color: var(--gedaempft); }
+/* Aktiv: neutrale Flaeche, der Akzent sitzt nur im Strich an der Kante und
+   im Symbol – eine Farbe, sparsam gesetzt, statt getoenter Flaechen. */
 .navi-punkt[aria-current='true'] {
   color: var(--text);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--akzent) 22%, transparent), color-mix(in srgb, var(--akzent) 7%, transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--akzent) 26%, transparent);
+  background: rgba(255, 255, 255, .07);
+}
+.navi-punkt[aria-current='true']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--akzent);
 }
 .navi-punkt[aria-current='true'] .icon { color: var(--akzent); }
 .navi-punkt span { flex: 1; min-width: 0; }
@@ -178,7 +225,7 @@ code, .mono {
 .abzeichen {
   padding: 1px 7px;
   border-radius: 999px;
-  color: #12131a;
+  color: #191204;
   background: var(--warn);
   font-size: 11px;
   font-weight: 800;
@@ -193,8 +240,9 @@ code, .mono {
   gap: 4px;
   margin: 0;
   padding: 10px 12px;
+  border: 1px solid var(--linie);
   border-radius: var(--r-m);
-  background: rgba(255, 255, 255, .028);
+  background: rgba(255, 255, 255, .02);
 }
 .server-fakten div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .server-fakten dt { color: var(--leise); font-size: 11px; }
@@ -214,17 +262,18 @@ code, .mono {
   align-items: center;
   gap: 8px;
   padding: 7px 13px;
+  border: 1px solid var(--linie);
   border-radius: 999px;
   color: var(--gedaempft);
-  background: rgba(255, 255, 255, .04);
+  background: rgba(255, 255, 255, .03);
   font-size: 12px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--leise); }
-.live.aktiv { color: var(--gut); background: color-mix(in srgb, var(--gut) 11%, transparent); }
+.live.aktiv { color: var(--gut); border-color: color-mix(in srgb, var(--gut) 30%, transparent); background: color-mix(in srgb, var(--gut) 9%, transparent); }
 .live.aktiv i { background: var(--gut); animation: puls 2.4s ease-in-out infinite; }
-.live.draining { color: var(--schlecht); background: color-mix(in srgb, var(--schlecht) 12%, transparent); }
+.live.draining { color: var(--schlecht); border-color: color-mix(in srgb, var(--schlecht) 30%, transparent); background: color-mix(in srgb, var(--schlecht) 10%, transparent); }
 .live.draining i { background: var(--schlecht); }
 
 @keyframes puls {
@@ -242,31 +291,24 @@ code, .mono {
   gap: 16px;
   padding: 18px clamp(16px, 3vw, 36px);
   border-bottom: 1px solid var(--linie);
-  background: color-mix(in srgb, var(--grund) 78%, transparent);
+  background: color-mix(in srgb, var(--grund) 76%, transparent);
   backdrop-filter: blur(16px);
 }
 .kopf-titel { flex: 1; min-width: 0; }
 .kopf-titel h1 {
   margin: 0;
   font-size: clamp(21px, 2.4vw, 27px);
-  font-weight: 800;
-  letter-spacing: -.028em;
+  font-weight: 850;
+  letter-spacing: -.035em;
 }
 .kopf-titel p { margin: 2px 0 0; color: var(--leise); font-size: 12.5px; }
 .kopf-werkzeuge { display: flex; align-items: center; gap: 9px; }
 
-/* Nur der Titel der offenen Tafel steht da – die anderen liegen bereit. */
-.portal[data-offen='uebersicht'] [data-titel]:not([data-titel='uebersicht']),
-.portal[data-offen='spieler'] [data-titel]:not([data-titel='spieler']),
-.portal[data-offen='klassen'] [data-titel]:not([data-titel='klassen']),
-.portal[data-offen='liste'] [data-titel]:not([data-titel='liste']),
-.portal[data-offen='betrieb'] [data-titel]:not([data-titel='betrieb']) { display: none; }
-
-/* Der Zeitraum steuert nur Übersicht und Klassen – auf den übrigen Tafeln
-   wäre er ein Schalter ohne Wirkung, und der ist schlimmer als keiner. */
-.portal[data-offen='spieler'] .zeitraum,
-.portal[data-offen='liste'] .zeitraum,
-.portal[data-offen='betrieb'] .zeitraum { display: none; }
+/* Der Zeitraum steuert nur die Tafeln, die ihn auch verwenden – auf den
+   übrigen wäre er ein Schalter ohne Wirkung, und der ist schlimmer als
+   keiner. Ob er gilt, steht als eine Eigenschaft am Rahmen (`TAFELN` in
+   view.ts), nicht als Liste von Tafelnamen im Stylesheet. */
+.portal[data-zeitraum='aus'] .zeitraum { display: none; }
 
 .knopf {
   display: inline-flex;
@@ -277,12 +319,12 @@ code, .mono {
   border: 1px solid var(--linie);
   border-radius: var(--r-s);
   color: var(--gedaempft);
-  background: rgba(255, 255, 255, .035);
+  background: rgba(255, 255, 255, .03);
   font-size: 13px;
   font-weight: 650;
   transition: color var(--takt), border-color var(--takt), background var(--takt), transform var(--takt);
 }
-.knopf:hover { color: var(--text); border-color: var(--linie-stark); background: rgba(255, 255, 255, .07); }
+.knopf:hover { color: var(--text); border-color: var(--linie-stark); background: rgba(255, 255, 255, .06); }
 .knopf:active { transform: translateY(1px); }
 .knopf.leise { border-color: transparent; background: transparent; color: var(--leise); }
 .knopf.gross {
@@ -291,12 +333,11 @@ code, .mono {
   height: 48px;
   border: 0;
   color: #fff;
-  background: linear-gradient(135deg, var(--akzent), var(--akzent-2));
+  background: var(--akzent);
   font-size: 14px;
-  font-weight: 700;
-  box-shadow: 0 12px 30px -12px color-mix(in srgb, var(--akzent) 90%, transparent);
+  font-weight: 750;
 }
-.knopf.gross:hover { filter: brightness(1.08); }
+.knopf.gross:hover { filter: brightness(1.1); }
 .knopf.laedt .icon { animation: dreh .9s linear infinite; }
 @keyframes dreh { to { rotate: 360deg; } }
 
@@ -304,8 +345,9 @@ code, .mono {
   display: inline-flex;
   gap: 2px;
   padding: 3px;
+  border: 1px solid var(--linie);
   border-radius: 11px;
-  background: rgba(255, 255, 255, .04);
+  background: rgba(255, 255, 255, .02);
 }
 .segmente button {
   padding: 5px 11px;
@@ -319,7 +361,11 @@ code, .mono {
   transition: color var(--takt), background var(--takt);
 }
 .segmente button:hover { color: var(--gedaempft); }
-.segmente button.an { color: var(--text); background: var(--flaeche-hoch); box-shadow: var(--schatten-s); }
+.segmente button.an {
+  color: var(--text);
+  background: rgba(255, 255, 255, .09);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12);
+}
 
 /* --- Inhalt ------------------------------------------------------- */
 .inhalt {
@@ -349,11 +395,14 @@ code, .mono {
  * ------------------------------------------------------------------ */
 .block { display: grid; gap: 12px; min-width: 0; }
 .block-kopf { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+/* Ohne `flex: 1` bemisst sich die Titelspalte am laengsten Wort und bricht die
+   Hinweiszeile mitten im Satz um, obwohl rechts daneben nichts steht. */
+.block-kopf > div:first-child { flex: 1 1 340px; min-width: 0; }
 .block-kopf h2 {
   margin: 0;
   font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -.012em;
+  font-weight: 750;
+  letter-spacing: -.015em;
 }
 .block-hinweis { margin: 2px 0 0; max-width: 62ch; color: var(--leise); font-size: 12px; }
 
@@ -372,30 +421,29 @@ code, .mono {
   padding: 16px 17px 15px;
   overflow: hidden;
   border-radius: var(--r-l);
-  background:
-    linear-gradient(168deg, var(--flaeche-hoch), var(--flaeche));
-  box-shadow: inset 0 1px 0 var(--licht), var(--schatten-m);
+  transition: transform var(--takt), border-color var(--takt);
 }
+.kachel:hover { transform: translateY(-1px); border-color: var(--linie-stark); }
 /* Der farbige Faden am oberen Rand ist die einzige Stelle, an der eine Kachel
    Ton bekennt – kein eingefärbter Hintergrund, der den Wert schlechter lesbar
-   macht. */
+   macht. Ohne Ton bleibt die Kante still. */
 .kachel::before {
   content: '';
   position: absolute;
   inset: 0 0 auto;
   height: 2px;
-  background: var(--linie);
+  background: transparent;
 }
-.kachel.ton-akzent::before { background: linear-gradient(90deg, var(--akzent), var(--akzent-2)); }
-.kachel.ton-gut::before { background: linear-gradient(90deg, var(--gut), color-mix(in srgb, var(--gut) 40%, transparent)); }
-.kachel.ton-warn::before { background: linear-gradient(90deg, var(--warn), color-mix(in srgb, var(--warn) 40%, transparent)); }
+.kachel.ton-akzent::before { background: var(--akzent); }
+.kachel.ton-gut::before { background: linear-gradient(90deg, var(--gut), transparent 85%); }
+.kachel.ton-warn::before { background: linear-gradient(90deg, var(--warn), transparent 85%); }
 
-.kachel-label { display: block; color: var(--leise); font-size: 12px; font-weight: 600; }
-.kachel-zeile { display: flex; align-items: baseline; gap: 9px; margin-top: 7px; }
+.kachel-label { display: block; color: var(--leise); }
+.kachel-zeile { display: flex; align-items: baseline; gap: 9px; margin-top: 8px; }
 .kachel-wert {
-  font-size: 30px;
-  font-weight: 750;
-  letter-spacing: -.035em;
+  font-size: 31px;
+  font-weight: 800;
+  letter-spacing: -.045em;
   font-variant-numeric: tabular-nums;
   line-height: 1.05;
 }
@@ -411,29 +459,129 @@ code, .mono {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.trend.hoch { color: var(--gut); background: color-mix(in srgb, var(--gut) 14%, transparent); }
-.trend.runter { color: var(--schlecht); background: color-mix(in srgb, var(--schlecht) 14%, transparent); }
+.trend.hoch { color: var(--gut); background: color-mix(in srgb, var(--gut) 13%, transparent); }
+.trend.runter { color: var(--schlecht); background: color-mix(in srgb, var(--schlecht) 13%, transparent); }
 .trend.gleich { color: var(--leise); background: rgba(255, 255, 255, .06); }
 
 /* Die Kurve klebt am unteren Rand der Kachel: Nebeneinander stehende Kacheln
    haben unterschiedlich lange Fußnoten, und ohne diesen Schub säßen ihre
-   Kurven auf verschiedenen Höhen – vier Diagramme, die sich nicht vergleichen
-   lassen, obwohl sie nebeneinander liegen. */
+   Kurven auf verschiedenen Höhen. */
 .funke { display: block; box-sizing: content-box; width: 100%; height: 34px; margin-top: auto; padding-top: 12px; }
 .funke-linie { fill: none; stroke: var(--akzent); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
-.funke-flaeche { fill: color-mix(in srgb, var(--akzent) 13%, transparent); stroke: none; }
-.funke.gut .funke-linie { stroke: var(--gut); }
-.funke.gut .funke-flaeche { fill: color-mix(in srgb, var(--gut) 12%, transparent); }
+.funke-flaeche { fill: color-mix(in srgb, var(--akzent) 14%, transparent); stroke: none; }
+/* Bewusst KEINE Sonderfarbe fuer .funke.gut: Die Bewertung traegt der
+   Trend-Chip daneben – zwei gruene Stimmen fuer dieselbe Aussage sind eine
+   zu viel, und die Kurve bleibt Teil des monochromen Chroms. */
+
+/* ------------------------------------------------------------------ *
+ * Nordstern
+ * ------------------------------------------------------------------ *
+ * Die einzige Kachel des Portals mit eigener Gestalt. `docs/GOAL.md` fuehrt
+ * zwoelf technische Zeilen, die alle gruen sind, und eine dreizehnte, die kein
+ * Test beantworten kann: ob Fremde wiederkommen. Wenn eine Zahl im Portal
+ * anders aussehen darf als alle anderen, dann diese – sie traegt als einzige
+ * die volle Signatur: Verlaufsrand, Verlaufsziffer, Glow.
+ */
+.nordstern {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 26px;
+  padding: 20px 24px;
+  overflow: hidden;
+  border: 1px solid var(--linie);
+  border-radius: var(--r-l);
+  background: var(--flaeche);
+  box-shadow: var(--schatten-m);
+}
+.nordstern::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: var(--akzent);
+}
+.nordstern-text { flex: 1; min-width: 220px; }
+.nordstern-label { display: flex; align-items: center; gap: 8px; color: var(--akzent); font-size: 12.5px; font-weight: 700; }
+.nordstern-text p { margin: 4px 0 0; color: var(--leise); font-size: 12.5px; }
+.nordstern-wert { display: grid; gap: 2px; }
+.nordstern-wert strong {
+  font-size: 40px;
+  font-weight: 850;
+  letter-spacing: -.045em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.nordstern-wert small { max-width: 34ch; color: var(--leise); font-size: 11.5px; line-height: 1.4; }
+
+/* ------------------------------------------------------------------ *
+ * Wiederkehr: die Treppe
+ * ------------------------------------------------------------------ */
+.treppe {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--r-l);
+  list-style: none;
+}
+.stufe {
+  display: grid;
+  grid-template-columns: 128px minmax(90px, 1fr) 76px 190px;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 18px;
+}
+.stufe + .stufe { border-top: 1px solid var(--linie); }
+.stufe-name { color: var(--gedaempft); }
+.stufe-balken { height: 8px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .06); }
+.stufe-balken b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--akzent);
+  transition: width .5s cubic-bezier(.32, .72, 0, 1);
+}
+.stufe-quote { font-size: 16px; font-weight: 750; text-align: right; font-variant-numeric: tabular-nums; }
+/* Der Nenner steht an JEDER Zeile: Er ist bei jeder Stufe ein anderer, und das
+   ist die Stelle, an der man beim Ueberfliegen einen Denkfehler macht. */
+.stufe-nenner { color: var(--leise); font-size: 11.5px; text-align: right; font-variant-numeric: tabular-nums; }
+.stufe.zu-jung .stufe-quote { color: var(--leise); font-weight: 650; }
+.stufe.zu-jung .stufe-balken { opacity: .4; }
+
+.notiz.regel {
+  align-items: flex-start;
+  padding: 12px 15px;
+  border: 1px solid var(--linie);
+  border-radius: var(--r-m);
+  background: rgba(255, 255, 255, .02);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.notiz.regel .icon { margin-top: 2px; color: var(--akzent); }
+.notiz.regel b { color: var(--gedaempft); font-weight: 650; }
+.notiz.warn { color: var(--warn); }
+
+@media (max-width: 860px) {
+  .stufe { grid-template-columns: minmax(0, 1fr) 72px; grid-template-areas: 'name quote' 'balken balken' 'nenner nenner'; gap: 6px 12px; }
+  .stufe-name { grid-area: name; }
+  .stufe-quote { grid-area: quote; }
+  .stufe-balken { grid-area: balken; }
+  .stufe-nenner { grid-area: nenner; text-align: left; }
+}
 
 /* ------------------------------------------------------------------ *
  * Verlauf
  * ------------------------------------------------------------------ */
 .verlauf {
   margin: 0;
+  /* Als Grid-Item braucht das Figure ein ausdrückliches `min-width: 0`: Ohne
+     das zwingt das `min-width: 620px` des SVGs (schmale Schirme) die ganze
+     Seite breit, statt innerhalb von `.verlauf-flaeche` zu scrollen. */
+  min-width: 0;
   padding: 16px 18px 12px;
   border-radius: var(--r-l);
-  background: linear-gradient(168deg, var(--flaeche-hoch), var(--flaeche));
-  box-shadow: inset 0 1px 0 var(--licht), var(--schatten-m);
 }
 .verlauf-kopf {
   display: flex;
@@ -448,8 +596,8 @@ code, .mono {
 .verlauf-spitze { margin-left: auto; }
 .verlauf-spitze b { color: var(--gedaempft); }
 .punkt { display: inline-block; width: 9px; height: 9px; border-radius: 3px; }
-.punkt.neu { background: var(--akzent-2); }
-.punkt.alt { background: color-mix(in srgb, var(--akzent) 55%, transparent); }
+.punkt.neu { background: var(--serie-neu); }
+.punkt.alt { background: var(--serie-alt); }
 
 .verlauf-flaeche { position: relative; }
 /* Feste Seitenverhältnisse statt fester Höhe: Mit `preserveAspectRatio: none`
@@ -462,7 +610,7 @@ code, .mono {
 .verlauf .balken-neu { fill: url(#farbe-neu); transition: opacity var(--takt); }
 .verlauf .treffer { fill: transparent; }
 .verlauf .saeule:hover .treffer,
-.verlauf .saeule.an .treffer { fill: rgba(255, 255, 255, .035); }
+.verlauf .saeule.an .treffer { fill: rgba(255, 255, 255, .04); }
 .verlauf .marke, .verlauf .achsen-marke { fill: var(--leise); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .verlauf .achsen-marke { font-size: 11px; }
 
@@ -497,8 +645,6 @@ code, .mono {
   gap: clamp(18px, 4vw, 48px);
   padding: 20px 22px;
   border-radius: var(--r-l);
-  background: linear-gradient(168deg, var(--flaeche-hoch), var(--flaeche));
-  box-shadow: inset 0 1px 0 var(--licht), var(--schatten-m);
 }
 .ring-figur { position: relative; width: 168px; flex: none; }
 .ring-figur svg { display: block; width: 100%; height: auto; }
@@ -512,13 +658,11 @@ code, .mono {
   text-align: center;
   pointer-events: none;
 }
-.ring-mitte strong { font-size: 26px; font-weight: 750; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.ring-mitte strong { font-size: 26px; font-weight: 800; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
 .ring-mitte span { color: var(--leise); font-size: 11.5px; }
 
 /* Gedeckelt: Ohne Obergrenze zog die Prozentspalte auf einem breiten Schirm
-   bis an den rechten Rand, und zwischen „Sprinter" und „27,8 %" lagen 700
-   Pixel Nichts – zwei Werte, die zusammengehören, so weit auseinander, dass
-   man mit dem Finger nachfahren muss. */
+   bis an den rechten Rand, und zwischen Name und Wert lagen 700 Pixel Nichts. */
 .ring-legende { flex: 1; min-width: 220px; max-width: 460px; display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .ring-legende li { display: flex; align-items: center; gap: 10px; font-size: 13px; }
 .ring-legende span { flex: 1; min-width: 0; overflow: hidden; color: var(--gedaempft); text-overflow: ellipsis; white-space: nowrap; }
@@ -532,8 +676,6 @@ code, .mono {
   overflow: auto hidden;
   max-height: none;
   border-radius: var(--r-l);
-  background: linear-gradient(168deg, var(--flaeche-hoch), var(--flaeche));
-  box-shadow: inset 0 1px 0 var(--licht), var(--schatten-m);
 }
 .tabelle { width: 100%; border-spacing: 0; font-size: 13px; }
 .tabelle th, .tabelle td { padding: 11px 14px; text-align: left; vertical-align: middle; white-space: nowrap; }
@@ -545,13 +687,11 @@ code, .mono {
   color: var(--leise);
   background: color-mix(in srgb, var(--flaeche-hoch) 97%, transparent);
   backdrop-filter: blur(8px);
-  font-size: 12px;
-  font-weight: 600;
 }
 .tabelle tbody td { border-bottom: 1px solid rgba(255, 255, 255, .04); }
 .tabelle tbody tr:last-child td { border-bottom: 0; }
 .tabelle tbody tr { transition: background var(--takt); }
-.tabelle tbody tr:hover { background: rgba(255, 255, 255, .035); }
+.tabelle tbody tr:hover { background: rgba(255, 255, 255, .03); }
 .tabelle tbody tr[hidden] { display: none; }
 .tabelle .zahl { text-align: right; font-variant-numeric: tabular-nums; }
 .tabelle .zahl.stark { color: var(--text); font-weight: 700; }
@@ -570,9 +710,9 @@ code, .mono {
   height: 30px;
   flex: none;
   border-radius: 9px;
-  color: hsl(var(--ton, 240) 70% 84%);
-  background: hsl(var(--ton, 240) 60% 22% / .6);
-  box-shadow: inset 0 0 0 1px hsl(var(--ton, 240) 60% 60% / .22);
+  color: hsl(var(--ton, 240) 75% 84%);
+  background: hsl(var(--ton, 240) 60% 20% / .7);
+  box-shadow: inset 0 0 0 1px hsl(var(--ton, 240) 65% 62% / .28);
   font-size: 11px;
   font-weight: 750;
   letter-spacing: .02em;
@@ -598,7 +738,7 @@ code, .mono {
   height: 6px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(255, 255, 255, .07);
+  background: rgba(255, 255, 255, .06);
 }
 .anteil-balken b { display: block; height: 100%; border-radius: inherit; background: var(--akzent); }
 .anteil em { min-width: 48px; color: var(--leise); font-size: 11.5px; font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
@@ -606,18 +746,19 @@ code, .mono {
 .familie { display: inline-block; width: 9px; height: 9px; flex: none; border-radius: 3px; background: var(--leise); }
 
 /*
- * Zweigfarben an genau einer Stelle. `color` statt `background`, damit dieselbe
- * Klasse den Punkt in der Legende, den Balken in der Tabelle und das Segment im
- * Ring einfärbt – drei Erscheinungsformen, eine Wahrheit.
+ * Zweigfarben an genau einer Stelle. `--zweig` statt `background`, damit
+ * dieselbe Klasse den Punkt in der Legende, den Balken in der Tabelle und das
+ * Segment im Ring einfärbt – drei Erscheinungsformen, eine Wahrheit.
+ * Auf Schwarz eine Stufe leuchtender als früher, sonst versumpfen sie.
  */
-.branch-rapid { --zweig: #5b8cff; }
-.branch-precision { --zweig: #e0a44a; }
-.branch-control { --zweig: #46b98d; }
-.branch-impact { --zweig: #d2606f; }
-.branch-specter { --zweig: #8f7ff0; }
-.branch-tempest { --zweig: #e0954e; }
-.branch-siege { --zweig: #b0a24e; }
-.branch-aegis { --zweig: #4ea9a4; }
+.branch-rapid { --zweig: #6ba0ff; }
+.branch-precision { --zweig: #ffb454; }
+.branch-control { --zweig: #43d99c; }
+.branch-impact { --zweig: #ff7085; }
+.branch-specter { --zweig: #a48cff; }
+.branch-tempest { --zweig: #ff9c5a; }
+.branch-siege { --zweig: #d6c24f; }
+.branch-aegis { --zweig: #4fd0ca; }
 .branch-rest { --zweig: #5d6577; }
 i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
 .anteil-balken b[class*='branch-'] { background: var(--zweig, var(--akzent)); }
@@ -637,7 +778,7 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
   padding: 3px 9px;
   border-radius: 999px;
   color: var(--gedaempft);
-  background: rgba(255, 255, 255, .055);
+  background: rgba(255, 255, 255, .05);
   font-size: 11.5px;
   font-weight: 600;
 }
@@ -652,10 +793,10 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
   padding: 0 12px;
   border: 1px solid var(--linie);
   border-radius: var(--r-s);
-  background: rgba(255, 255, 255, .035);
+  background: rgba(255, 255, 255, .03);
   transition: border-color var(--takt), box-shadow var(--takt);
 }
-.suchfeld:focus-within { border-color: color-mix(in srgb, var(--akzent) 60%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--akzent) 12%, transparent); }
+.suchfeld:focus-within { border-color: color-mix(in srgb, var(--akzent) 60%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--akzent) 14%, transparent); }
 .suchfeld .icon { color: var(--leise); width: 16px; height: 16px; }
 .suchfeld input {
   width: 190px;
@@ -691,19 +832,19 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
   gap: 10px;
   margin: 0;
   padding: 13px 16px;
+  border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
   border-radius: var(--r-m);
   color: var(--warn);
-  background: color-mix(in srgb, var(--warn) 10%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 26%, transparent);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
   font-size: 13px;
 }
 .warnung .icon { margin-top: 1px; }
 
 .tote-klassen {
   padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--warn) 24%, transparent);
   border-radius: var(--r-m);
-  background: color-mix(in srgb, var(--warn) 7%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 20%, transparent);
+  background: color-mix(in srgb, var(--warn) 6%, transparent);
 }
 .tote-klassen h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; color: var(--warn); font-size: 13px; font-weight: 650; }
 .tote-klassen h3 b { padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--warn) 20%, transparent); font-size: 11.5px; }
@@ -713,15 +854,10 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
  * Betrieb
  * ------------------------------------------------------------------ */
 .betrieb { display: grid; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); gap: 12px; }
-.betrieb-karte {
-  padding: 15px 16px;
-  border-radius: var(--r-l);
-  background: linear-gradient(168deg, var(--flaeche-hoch), var(--flaeche));
-  box-shadow: inset 0 1px 0 var(--licht), var(--schatten-m);
-}
+.betrieb-karte { padding: 15px 16px; border-radius: var(--r-l); }
 .betrieb-karte header { display: flex; align-items: center; gap: 9px; }
 .betrieb-karte b { color: var(--gedaempft); font-size: 12.5px; font-weight: 600; }
-.betrieb-wert { display: block; margin-top: 8px; color: var(--text); font-size: 21px; font-weight: 750; letter-spacing: -.025em; font-variant-numeric: tabular-nums; }
+.betrieb-wert { display: block; margin-top: 8px; color: var(--text); font-size: 21px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
 .betrieb-karte dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; margin: 14px 0 0; }
 .betrieb-karte dl div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .betrieb-karte dt { color: var(--leise); font-size: 11.5px; }
@@ -730,7 +866,7 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
 .ampel { width: 8px; height: 8px; flex: none; border-radius: 50%; }
 .betrieb-karte.gut .ampel { background: var(--gut); box-shadow: 0 0 10px color-mix(in srgb, var(--gut) 70%, transparent); }
 .betrieb-karte.achtung .ampel { background: var(--warn); box-shadow: 0 0 10px color-mix(in srgb, var(--warn) 70%, transparent); }
-.betrieb-karte.achtung { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 24%, transparent), var(--schatten-m); }
+.betrieb-karte.achtung { border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
 
 .flags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
 .flag {
@@ -738,18 +874,16 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
   align-items: center;
   gap: 7px;
   padding: 5px 10px;
+  border: 1px solid var(--linie);
   border-radius: 999px;
-  background: rgba(255, 255, 255, .04);
+  background: rgba(255, 255, 255, .02);
   font-size: 11.5px;
   font-weight: 600;
 }
 .flag b { color: var(--gedaempft); font-weight: 650; }
-.flag.an { color: var(--gut); background: color-mix(in srgb, var(--gut) 12%, transparent); }
+.flag.an { color: var(--gut); border-color: color-mix(in srgb, var(--gut) 26%, transparent); background: color-mix(in srgb, var(--gut) 9%, transparent); }
 .flag.aus { color: var(--leise); }
 
-/* Einzelne Karten statt eines Gitters mit 1-px-Fugen: Bei sechs Feldern in
-   fünf Spalten blieb sonst eine leere Zelle stehen, und die trug die Fugenfarbe
-   als Fläche – ein hellerer Block ohne Inhalt, der aussah wie ein Fehler. */
 .fakten {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(212px, 1fr));
@@ -763,8 +897,6 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
   gap: 14px;
   padding: 14px 16px;
   border-radius: var(--r-m);
-  background: linear-gradient(168deg, var(--flaeche-hoch), var(--flaeche));
-  box-shadow: inset 0 1px 0 var(--licht), var(--schatten-m);
 }
 .fakten dt { color: var(--leise); font-size: 12px; }
 .fakten dd { margin: 0; font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
@@ -772,17 +904,8 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
 /* ------------------------------------------------------------------ *
  * Sams Liste
  * ------------------------------------------------------------------ *
- * „Ich will die Liste im Admin-Bereich sehen können und auch, was erledigt
- * wurde, was noch offen ist."
- *
  * Erledigtes bleibt sichtbar, tritt aber zurück (halbe Deckkraft, durch-
  * gestrichene Kennung): Es ist Beleg, nicht Arbeit.
- */
-/*
- * Die Liste bekommt eine eigene Zeilenbreite. Über 1040 px wandert der Stand
- * („offen", „erledigt") so weit vom Wortlaut weg, dass man zwischen beiden
- * nicht mehr in einem Blick springen kann – ein Fließtext braucht eine Breite,
- * eine Tabelle nicht.
  */
 .wunsch-bilanz, .wunsch-filter, .wunsch-gruppen { max-width: 1040px; }
 
@@ -794,18 +917,22 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
   gap: 16px;
   padding: 17px 20px;
   border-radius: var(--r-l);
-  background: linear-gradient(168deg, var(--flaeche-hoch), var(--flaeche));
-  box-shadow: inset 0 1px 0 var(--licht), var(--schatten-m);
 }
 .wunsch-zahlen { display: grid; gap: 2px; }
-.wunsch-zahlen strong { font-size: 18px; font-weight: 700; letter-spacing: -.02em; }
+.wunsch-zahlen strong { font-size: 18px; font-weight: 750; letter-spacing: -.02em; }
 .wunsch-zahlen span { color: var(--leise); font-size: 12.5px; }
 .wunsch-fortschritt { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 200px; }
-.wunsch-balken { flex: 1; height: 8px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .07); }
-.wunsch-balken i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--gut), color-mix(in srgb, var(--gut) 55%, var(--akzent))); transition: width .5s cubic-bezier(.32, .72, 0, 1); }
+.wunsch-balken { flex: 1; height: 8px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .06); }
+.wunsch-balken i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gut);
+  transition: width .5s cubic-bezier(.32, .72, 0, 1);
+}
 .wunsch-fortschritt b { color: var(--gut); font-size: 14px; font-weight: 750; font-variant-numeric: tabular-nums; }
 
-.wunsch-filter { display: flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: 11px; background: rgba(255, 255, 255, .04); width: fit-content; }
+.wunsch-filter { display: flex; flex-wrap: wrap; gap: 2px; padding: 3px; border: 1px solid var(--linie); border-radius: 11px; background: rgba(255, 255, 255, .02); width: fit-content; }
 .wunsch-filter button {
   padding: 6px 13px;
   border: 0;
@@ -817,28 +944,34 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
   transition: color var(--takt), background var(--takt);
 }
 .wunsch-filter button:hover { color: var(--gedaempft); }
-.wunsch-filter button.an { color: var(--text); background: var(--flaeche-hoch); box-shadow: var(--schatten-s); }
+.wunsch-filter button.an {
+  color: var(--text);
+  background: rgba(255, 255, 255, .09);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12);
+}
 
 .wunsch-gruppen { display: grid; gap: 18px; }
 .wunsch-gruppe { display: grid; gap: 8px; }
 .wunsch-gruppe[hidden] { display: none; }
-.wunsch-gruppe h3 { display: flex; align-items: baseline; gap: 9px; margin: 0; font-size: 13px; font-weight: 700; }
+.wunsch-gruppe h3 { display: flex; align-items: baseline; gap: 9px; margin: 0; font-size: 13px; font-weight: 750; }
 .wunsch-gruppe h3 span { color: var(--leise); font-size: 11.5px; font-weight: 500; }
 
 .wunsch-liste { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
 .wunsch {
+  position: relative;
   display: grid;
   grid-template-columns: 46px minmax(0, 1fr) auto;
   gap: 12px;
   align-items: start;
   padding: 11px 14px 11px 12px;
+  overflow: hidden;
+  border: 1px solid var(--linie);
   border-radius: var(--r-m);
   background: var(--flaeche);
-  box-shadow: inset 0 1px 0 var(--licht);
-  transition: background var(--takt);
+  transition: background var(--takt), border-color var(--takt);
 }
 .wunsch[hidden] { display: none; }
-.wunsch:hover { background: var(--flaeche-hoch); }
+.wunsch:hover { background: var(--flaeche-hoch); border-color: var(--linie-stark); }
 .wunsch-kennung { color: var(--leise); font-size: 11.5px; font-variant-numeric: tabular-nums; }
 .wunsch-text b { display: block; font-size: 13px; font-weight: 600; line-height: 1.45; white-space: normal; }
 .wunsch-text i { display: block; margin-top: 3px; color: var(--leise); font-size: 11.5px; font-style: normal; line-height: 1.45; }
@@ -847,7 +980,6 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
 
 /* Der Stand steht links als Faden, nicht als Rahmen: Ein 3-px-Rand nur auf
    einer Seite verschiebt den Inhalt gegenüber den anderen Karten. */
-.wunsch { position: relative; overflow: hidden; }
 .wunsch::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; }
 .wunsch.offen::before { background: var(--warn); }
 .wunsch.arbeit::before { background: var(--akzent); }
@@ -868,20 +1000,19 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
   width: min(440px, 100%);
   padding: 30px 30px 32px;
   border-radius: var(--r-xl);
-  background: linear-gradient(168deg, var(--flaeche-hoch), var(--flaeche));
-  box-shadow: inset 0 1px 0 var(--licht), var(--schatten-l);
+  box-shadow: var(--schatten-l);
 }
 .tor .marken-block { padding: 0; margin-bottom: 4px; }
-.tor h1 { margin: 0; font-size: 27px; font-weight: 800; letter-spacing: -.03em; }
+.tor h1 { margin: 0; font-size: 27px; font-weight: 850; letter-spacing: -.035em; }
 .tor .tor-text { margin: -6px 0 4px; color: var(--gedaempft); font-size: 13.5px; }
 .tor .klein { margin: 0; color: var(--leise); font-size: 12px; line-height: 1.55; }
 .tor .warnung { font-size: 12.5px; }
 .tor code { padding: 1px 5px; border-radius: 5px; background: rgba(255, 255, 255, .07); }
 .tor .id {
   padding: 12px 14px;
+  border: 1px solid var(--linie);
   border-radius: var(--r-s);
   background: var(--flaeche-tief);
-  box-shadow: inset 0 0 0 1px var(--linie);
   font-size: 12.5px;
   overflow-wrap: anywhere;
 }
@@ -904,6 +1035,7 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
 .skelett-reihe { display: grid; grid-template-columns: repeat(auto-fit, minmax(214px, 1fr)); gap: 12px; }
 .skelett-block {
   height: var(--h, 104px);
+  border: 1px solid var(--linie);
   border-radius: var(--r-l);
   background: linear-gradient(100deg, var(--flaeche) 30%, var(--flaeche-hoch) 50%, var(--flaeche) 70%);
   background-size: 300% 100%;
@@ -924,10 +1056,11 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
   gap: 10px;
   max-width: min(380px, calc(100vw - 40px));
   padding: 12px 15px;
+  border: 1px solid color-mix(in srgb, var(--schlecht) 34%, transparent);
   border-radius: var(--r-m);
   color: var(--text);
   background: color-mix(in srgb, var(--flaeche-hoch) 96%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--schlecht) 32%, transparent), var(--schatten-l);
+  box-shadow: var(--schatten-l);
   font-size: 13px;
   animation: rein .28s cubic-bezier(.32, .72, 0, 1);
 }
@@ -947,13 +1080,14 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
     left: 0;
     z-index: 30;
     width: 264px;
+    background: color-mix(in srgb, var(--flaeche-tief) 96%, transparent);
     translate: -100% 0;
     transition: translate var(--takt);
   }
   .portal[data-navi='auf'] .seitenleiste { translate: 0 0; box-shadow: var(--schatten-l); }
-  .navi-schleier { position: fixed; inset: 0; z-index: 20; background: rgba(3, 4, 8, .6); backdrop-filter: blur(2px); }
+  .navi-schleier { position: fixed; inset: 0; z-index: 20; background: rgba(3, 3, 6, .65); backdrop-filter: blur(2px); }
   .navi-schleier[hidden] { display: none; }
-  .nur-schmal { display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--linie); border-radius: var(--r-s); background: rgba(255, 255, 255, .035); color: var(--gedaempft); }
+  .nur-schmal { display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--linie); border-radius: var(--r-s); background: rgba(255, 255, 255, .03); color: var(--gedaempft); }
 }
 
 @media (max-width: 720px) {
@@ -963,6 +1097,7 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
   .kopf-titel p { display: none; }
   .kopf-werkzeuge { width: 100%; justify-content: space-between; }
   .kachel-wert { font-size: 26px; }
+  .nordstern-wert strong { font-size: 32px; }
   .nur-breit { display: none; }
   .suchfeld { flex: 1; }
   .suchfeld input { width: 100%; }

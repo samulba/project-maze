@@ -1,9 +1,9 @@
 import { AuthClient } from '../auth';
 import './admin.css';
-import { renderPortal, renderTor, TAFELN, type BacklogAntwort, type TafelName, type ViewState } from './view';
+import { renderPortal, renderTor, TAFELN, tafelInfo, type BacklogAntwort, type TafelName, type ViewState } from './view';
 import { icon } from './icons';
 import { zahl } from './format';
-import type { AdminSession, Overview, PlayersResponse } from './types';
+import type { AdminSession, Overview, PlayersResponse, RetentionResponse } from './types';
 
 /**
  * Admin-Portal – Einstieg.
@@ -149,13 +149,25 @@ function zeigeTafel(ziel: TafelName): void {
   tafel = ziel;
   const portal = WURZEL.querySelector<HTMLElement>('.portal');
   if (!portal) return;
+  const info = tafelInfo(ziel);
   portal.dataset['offen'] = ziel;
+  // Titel und Zeitraum-Schalter folgen der Tafel. Beides kommt aus `TAFELN`,
+  // damit eine neue Tafel an genau einer Stelle vollständig beschrieben ist.
+  portal.dataset['zeitraum'] = info.zeitraum ? 'an' : 'aus';
+  const titel = portal.querySelector<HTMLElement>('#tafel-titel');
+  const unter = portal.querySelector<HTMLElement>('#tafel-unter');
+  if (titel) titel.textContent = info.titel;
+  if (unter) unter.textContent = info.unter;
   portal.removeAttribute('data-navi');
   portal.querySelector<HTMLElement>('.navi-schleier')?.setAttribute('hidden', '');
   for (const abschnitt of portal.querySelectorAll<HTMLElement>('.tafel')) {
     abschnitt.toggleAttribute('hidden', abschnitt.dataset['tafel'] !== ziel);
   }
-  for (const knopf of portal.querySelectorAll<HTMLButtonElement>('[data-ziel]')) {
+  // Nur die Navigation trägt `aria-current`. Der Knopf „Aufschlüsseln" auf der
+  // Übersicht führt zwar auch auf eine Tafel, ist aber kein Navigationspunkt –
+  // ein zweites `aria-current="true"` im Dokument wäre für Vorleseprogramme
+  // schlicht falsch.
+  for (const knopf of portal.querySelectorAll<HTMLButtonElement>('.navi-punkt[data-ziel]')) {
     knopf.setAttribute('aria-current', String(knopf.dataset['ziel'] === ziel));
   }
   if (window.location.hash !== `#/${ziel}`) window.history.replaceState(null, '', `#/${ziel}`);
@@ -344,12 +356,15 @@ async function laden(): Promise<void> {
     ? { start: aktiv.selectionStart, ende: aktiv.selectionEnd }
     : null;
   try {
-    const [overview, players, backlog] = await Promise.all([
+    const [overview, players, backlog, retention] = await Promise.all([
       hole<Overview>(`/admin/api/overview?days=${tage}`),
       hole<PlayersResponse>(`/admin/api/players?sort=${sortierung}&limit=50`),
       // Die Liste darf das Portal nicht mitreissen, wenn sie einmal fehlt –
       // sie ist eine Beigabe, kein Betriebswert.
-      hole<BacklogAntwort>('/admin/api/backlog').catch(() => null)
+      hole<BacklogAntwort>('/admin/api/backlog').catch(() => null),
+      // Dasselbe für die Wiederkehr: Sie ist die teuerste Abfrage des Portals.
+      // Fällt sie aus, fehlt eine Tafel – nicht das Portal.
+      hole<RetentionResponse>(`/admin/api/retention?days=${tage}`).catch(() => null)
     ]);
     const state: ViewState = {
       overview,
@@ -359,6 +374,7 @@ async function laden(): Promise<void> {
       tage,
       aktualisiert: Date.now(),
       backlog,
+      wiederkehr: retention?.wiederkehr ?? null,
       tafel,
       konto
     };
