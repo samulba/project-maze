@@ -111,7 +111,7 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     bereich: 'klassen',
     stand: 'erledigt',
     gemeldet: '2026-08-13',
-    nachweis: '7c92e34 (Schritt 1 – Salve statt Fächer) · 24ec93c (Schritt 2 – Pro-Lauf-Profile auf Storm) · Nachweis Schritt 3 folgt',
+    nachweis: '7c92e34 (Schritt 1 – Salve statt Fächer) · 24ec93c (Schritt 2 – Pro-Lauf-Profile auf Storm) · fc946ba (Schritt 3 – Smasher und Trapper)',
     notiz: 'Stufe 4 komplett: Schritt 1 (Salve statt Fächer), Schritt 2 (Pro-Lauf-Profile – Storms mittlere Läufe treffen härter und fliegen langsamer, die äußeren schwächer und schneller, Gesamtschaden/Sekunde unverändert) und Schritt 3 (fehlende Archetypen). Schritt 3 bestand aus drei Teilen: Factory-Minions war über D8 bereits erledigt; neu dazu kommen der rohrlose Smasher (kein Rohr, reiner Aufprall, trägt Blitz/Comets Rammkurve) und Trapper (stehendes Projektil – der Schuss fliegt kurz und bleibt dann als Falle liegen, neue Mechanik `trapAfter`).'
   },
 
