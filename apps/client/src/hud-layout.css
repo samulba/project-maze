@@ -650,11 +650,38 @@
   white-space: nowrap;
   max-width: 100%;
 }
-/* Auf hohen Fenstern ist Platz für mehr Bild – dieselbe Rechnung, nur mit
-   mehr Zeilenhöhe je Reihe. */
-@media (min-height: 900px) {
-  .class-selection .class-choice-preview { height: 76px; }
-  .class-selection .class-choice-preview svg { width: 74px; height: 74px; }
+/*
+ * Die Bildgröße folgt der Fensterhöhe in drei Stufen – **acht Karten müssen
+ * sichtbar bleiben**, sonst ist es keine Wahl (der Prüfstand misst genau das).
+ *
+ * Die Rechnung je Stufe: Dem Panel bleiben `Höhe − 12 (Rand) − 214 (untere
+ * Bedienreihe)`. Davon gehen 45–66 px für Überschrift und Zeile darüber ab, der
+ * Rest trägt vier Reihen plus drei Lücken zu 7 px. Eine Karte ist
+ * `Bild + 4 + Name + Innenabstand`.
+ *
+ * | Fenster | Panel | Karte darf | Bild |
+ * |---|---:|---:|---:|
+ * | 600 px | 374 | 77 | 40 |
+ * | 720 px | 494 | 107 | 56 |
+ * | ab 900 px | 674+ | 122 | 68 |
+ *
+ * Die dritte Stufe hängt zusätzlich am **Seitenverhältnis**, und das ist der
+ * Kern: Auf 4:3 (1280 × 1024) ist das Spielfeld oben und unten schwarz
+ * umrandet, `100 %` in der Höhendeckelung meint aber das ganze Fenster. Das
+ * Panel darf dort also gar nicht so tief, wie die Rechnung erlaubt – mit 68 px
+ * lag es auf dem Auto-Knopf, mit 76 px sieben Pixel tiefer. Der zusätzliche
+ * Platz existiert nur, wenn nicht umrandet wird, und `min-aspect-ratio` ist
+ * genau diese Bedingung.
+ */
+@media (max-height: 700px) {
+  .class-selection .class-choice-preview { height: 40px; }
+  .class-selection .class-choice-preview svg { width: 38px; height: 38px; }
+  .class-selection .class-choices button { padding: 6px 5px; row-gap: 3px; }
+  .class-selection .class-choices strong { font-size: 10px; }
+}
+@media (min-height: 900px) and (min-aspect-ratio: 16 / 10) {
+  .class-selection .class-choice-preview { height: 68px; }
+  .class-selection .class-choice-preview svg { width: 66px; height: 66px; }
   .class-selection .class-choices strong { font-size: 12px; }
 }
 
