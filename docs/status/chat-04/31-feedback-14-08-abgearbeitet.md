@@ -101,6 +101,42 @@ falsch. Jetzt liegt der schnellste baubare Panzer 1,2 % daneben.
 Kein Grundtempo einer Klasse (Höchstwert 340) kommt an den Deckel: Wer nichts
 in Tempo investiert, merkt nichts.
 
+### Was Punkt 5 das Farmen kostet – nachgemessen
+
+Die naheliegende Sorge bei „nur ein Kill schlägt durch": Eine Kugel, die vorher
+eine ganze Reihe Formen abgeräumt hat, holt jetzt nur noch eine. Gemessen mit
+Formen in einer Reihe direkt vor der Mündung, 60 s Dauerfeuer:
+
+| Formen in Reihe | vorher | jetzt |
+| --- | ---: | ---: |
+| 1 | 1764 | 1962 |
+| 2 | 3582 | 1818 |
+| 4 | 5634 | 1710 |
+
+Bei einer einzelnen Form ist es sogar etwas mehr (die Kugel entsteht seit
+Punkt 6b näher am Rohr und ist damit früher da). Bei vier Formen in Reihe
+bricht es um 70 % ein – **eine Kugel hat dort vorher drei Formen gefressen.**
+Genau das ist der Effekt, den Sam „macht kein SINN" genannt hat.
+
+Die Frage ist, ob das im Spiel etwas ändert. Auf der echten Karte liegen die
+Formen gestreut, nicht in Reihe. Zwölf Läufe zu 45 s, feuernd im Kreis, mit der
+Streuung, die die Karte selbst erzeugt:
+
+| | vorher | jetzt |
+| --- | ---: | ---: |
+| Mittel | 240 | 249 |
+| Median | 252 | 243 |
+| Spanne | 117–345 | 90–477 |
+
+**Kein Unterschied** – die Streuung zwischen zwei Läufen ist um ein Vielfaches
+größer als der Abstand der Mittelwerte. Das Farmtempo bleibt, was es war; nur
+der Sonderfall „Formen stehen zufällig in einer Linie" zahlt, und der sah
+vorher falsch aus.
+
+(Kontrolliert wurde auch die Gegenprobe: `progress-probe` erreicht in 150 s
+Stufe 2–3 statt der geforderten 5 – **auf beiden Ständen gleich**. Das ist eine
+zu knappe Geduld der Probe, kein Rückschritt aus diesem Paket.)
+
 ### Kadenz (Punkt 6a)
 
 Rapid mit vollem Nachladen (133 ms) auf einen 175-ms-Klick: **vorher zwei
