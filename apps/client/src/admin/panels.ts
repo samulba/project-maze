@@ -356,13 +356,21 @@ const BEREICH_TEXT: Record<BacklogBereich, string> = {
   bug: 'Fehler'
 };
 
+/** Sortierrang eines Stands: Unerledigtes vor Erledigtem, Verworfenes zuletzt. */
+const STAND_RANG: Record<BacklogStand, number> = { offen: 0, arbeit: 1, erledigt: 2, verworfen: 3 };
+
 /**
  * Sams Rückmeldungen mit Stand. „Ich will die Liste im Admin-Bereich sehen
  * können und auch, was erledigt wurde, was noch offen ist."
  *
- * Offenes steht oben, in jeder Gruppe und über alle Gruppen hinweg – wer die
- * Liste öffnet, will wissen, was noch fehlt, nicht was schon geht. Erledigtes
- * bleibt trotzdem stehen: Es ist der Beleg, und es beantwortet die Frage
+ * **Eine flache Liste, sortiert nach Stand** – nicht mehr sieben Gruppen
+ * untereinander. Die Gruppierung nach Bereich hat die Liste zerhackt: Wer
+ * wissen wollte, was offen ist, musste sieben Überschriften abklappern und
+ * fand das Offene zwischen dem Erledigten des jeweiligen Bereichs. Jetzt
+ * steht ALLES Offene oben, dann In Arbeit, dann der Beleg – und der Bereich
+ * hängt als Etikett an der Zeile, wo er hingehört.
+ *
+ * Erledigtes bleibt stehen: Es ist der Beleg, und es beantwortet die Frage
  * „habe ich das schon einmal gesagt?".
  */
 export function backlogBlock(antwort: BacklogAntwort | null): string {
@@ -370,29 +378,30 @@ export function backlogBlock(antwort: BacklogAntwort | null): string {
   const { zaehlung, gruppen } = antwort;
   const prozent = Math.round(zaehlung.fortschritt * 100);
 
-  const zeilen = gruppen.map((gruppe) => {
-    const punkte = gruppe.eintraege.map((eintrag) => `<li class="wunsch ${eintrag.stand}" data-stand="${escape(eintrag.stand)}">
-      <span class="wunsch-kennung">${escape(eintrag.id)}</span>
-      <span class="wunsch-text">
-        <b>${escape(eintrag.wunsch)}</b>
-        ${eintrag.notiz ? `<i>${escape(eintrag.notiz)}</i>` : ''}
-      </span>
-      <span class="wunsch-stand">${escape(STAND_TEXT[eintrag.stand])}${eintrag.nachweis ? `<em>${escape(eintrag.nachweis)}</em>` : ''}</span>
-    </li>`).join('');
-    const offen = gruppe.eintraege.filter((e) => e.stand === 'offen' || e.stand === 'arbeit').length;
-    return `<div class="wunsch-gruppe">
-      <h3>${escape(BEREICH_TEXT[gruppe.bereich] ?? gruppe.bereich)} <span>${offen > 0 ? `${offen} offen` : 'alles erledigt'}</span></h3>
-      <ul class="wunsch-liste">${punkte}</ul>
-    </div>`;
-  }).join('');
+  const flach = gruppen
+    .flatMap((gruppe) => gruppe.eintraege.map((eintrag) => ({ eintrag, bereich: gruppe.bereich })))
+    .sort((a, b) => STAND_RANG[a.eintrag.stand] - STAND_RANG[b.eintrag.stand]);
 
-  // Der Fortschrittsbalken oben ist die einzige Zahl, die Sam wirklich sucht,
-  // wenn er die Liste öffnet: Wie weit sind wir?
+  const zeilen = flach.map(({ eintrag, bereich }) => `<li class="wunsch ${eintrag.stand}" data-stand="${escape(eintrag.stand)}">
+    <span class="wunsch-chip ${eintrag.stand}"><i></i>${escape(STAND_TEXT[eintrag.stand])}</span>
+    <span class="wunsch-text">
+      <b>${escape(eintrag.wunsch)}</b>
+      ${eintrag.notiz ? `<i>${escape(eintrag.notiz)}</i>` : ''}
+    </span>
+    <span class="wunsch-meta">
+      <span class="marke-pille">${escape(BEREICH_TEXT[bereich] ?? bereich)}</span>
+      <span class="wunsch-kennung">${escape(eintrag.id)}</span>
+      ${eintrag.nachweis ? `<code class="wunsch-nachweis">${escape(eintrag.nachweis)}</code>` : ''}
+    </span>
+  </li>`).join('');
+
   const filter = `<div class="wunsch-filter" role="group" aria-label="Liste filtern">
     ${([['alle', 'Alle'], ['offen', 'Offen'], ['arbeit', 'In Arbeit'], ['erledigt', 'Erledigt']] as const)
       .map(([wert, text], index) => `<button type="button" data-stand-filter="${wert}" class="${index === 0 ? 'an' : ''}" aria-pressed="${index === 0}">${text}</button>`).join('')}
   </div>`;
 
+  // Die Bilanz oben ist die einzige Zahl, die Sam wirklich sucht, wenn er die
+  // Liste öffnet: Wie weit sind wir?
   return `<div class="wunsch-bilanz">
       <div class="wunsch-zahlen">
         <strong>${zaehlung.erledigt} von ${zaehlung.gesamt - zaehlung.verworfen} erledigt</strong>
@@ -404,5 +413,5 @@ export function backlogBlock(antwort: BacklogAntwort | null): string {
       </div>
     </div>
     ${filter}
-    <div class="wunsch-gruppen">${zeilen}</div>`;
+    <ul class="wunsch-liste">${zeilen}</ul>`;
 }
