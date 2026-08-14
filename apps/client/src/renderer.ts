@@ -85,6 +85,20 @@ const OVERCHARGE_SPARKS_PER_SECOND=48;
 const WALL_CULL_MARGIN=140;
 const MAX_WALL_FLASHES=24;
 /** Weg des Rohrs nach hinten in Welteinheiten (Feder: recoil.ts). */
+/**
+ * Die dunkelste Fläche im Bild – Bezugspunkt jeder Kante (Sams Tank-Designs,
+ * 14.08.). Derselbe Wert wie `#080a11` in `class-choice.css`.
+ */
+const SCHATTEN=0x080a11;
+/**
+ * Mischt zwei Farben: `anteil` davon aus `a`, der Rest aus `b`. Das Gegenstück
+ * zu `color-mix(in srgb, …)` im SVG der Wahlkarte – beide Seiten sollen
+ * dieselbe Formsprache zeichnen, also müssen sie dieselbe Rechnung benutzen.
+ */
+const mischen=(a:number,b:number,anteil:number):number=>{
+  const kanal=(versatz:number):number=>Math.round((((a>>versatz)&255)*anteil)+(((b>>versatz)&255)*(1-anteil)));
+  return (kanal(16)<<16)|(kanal(8)<<8)|kanal(0);
+};
 const RECOIL_BARREL=5;
 /**
  * Der Tank selbst bleibt beim Schießen ruhig – nur das Rohr federt.
@@ -1184,7 +1198,10 @@ export class GameRenderer {
       for(const[x,y]of corners){
         points.push(x*Math.cos(lauf.winkel)-y*Math.sin(lauf.winkel),x*Math.sin(lauf.winkel)+y*Math.cos(lauf.winkel));
       }
-      graphics.poly(points).fill(this.palette.barrel).stroke({color,alpha:.36,width:2});
+      // Neutrales Metall mit dunkler Kante: Das Rohr gehört sichtbar NICHT zum
+      // Körper. Vorher trug es die Spielerfarbe als Umriss und verschmolz mit
+      // dem Rumpf zu einem Klumpen (Sam, 14.08.).
+      graphics.poly(points).fill(this.palette.barrel).stroke({color:mischen(this.palette.barrel,SCHATTEN,.28),width:3});
     }
   }
 
@@ -1193,33 +1210,55 @@ export class GameRenderer {
    * zeichnet die Wahlkarten-Vorschau als SVG. Wenn hier etwas anders aussieht
    * als auf der Karte, ist das ein Bug und kein Stilmittel.
    */
+  /**
+   * Der Rumpf – seit Sams „TANK DESIGNS schauen alle noch echt kake aus"
+   * (14.08.) mit **dunkler Kante statt weißem Schleier**.
+   *
+   * Hier stand `outline = {color: 0xffffff, alpha: .38}`. Auf einem farbigen
+   * Körper ergibt Weiß bei 38 % keinen Rand, sondern einen Nebel: Die Form
+   * franst aus, statt zu schneiden. Diep.io setzt eine dunkle Kante, und genau
+   * daher kommt dort der Eindruck fester Körper.
+   *
+   * Die Kante wird aus der Füllfarbe GEMISCHT, nicht fest gesetzt – sie folgt
+   * damit der Spieler-/Familienfarbe und bleibt trotzdem immer die dunkelste
+   * Fläche. Dieselbe Regel wie `color-mix` im Wahlkarten-SVG (class-choice.css);
+   * wenn hier etwas anders aussieht als dort, ist das ein Fehler.
+   */
   private drawClassHull(body:Graphics,detail:Graphics,playerClass:PlayerClass,color:number):void{
-    const outline={color:0xffffff,alpha:.38,width:3};
+    const kante={color:mischen(color,SCHATTEN,.3),width:3.5};
+    const feineKante={color:mischen(color,SCHATTEN,.26),width:2};
     for(const op of hullGeometry(playerClass)){
       switch(op.role){
         case'hull':
-          if(op.kind==='poly')body.poly(op.points).fill(color).stroke(outline);
-          else body.circle(op.x,op.y,op.r).fill(color).stroke(outline);
+          if(op.kind==='poly')body.poly(op.points).fill(color).stroke(kante);
+          else body.circle(op.x,op.y,op.r).fill(color).stroke(kante);
           break;
-        case'armor':
-          if(op.kind==='poly')detail.poly(op.points).fill({color,alpha:.82}).stroke({color:0xffffff,alpha:.16,width:1.5});
-          else detail.circle(op.x,op.y,op.r).fill({color,alpha:.82}).stroke({color:0xffffff,alpha:.16,width:1.5});
+        case'armor':{
+          // Die Panzerung liegt DUNKLER auf dem Rumpf, nicht durchscheinend:
+          // Eine Platte mit Alpha 0,82 war auf jeder Familienfarbe ein Hauch,
+          // gemischt ist sie eine eigene Fläche.
+          const platte=mischen(color,0x10131c,.7);
+          if(op.kind==='poly')detail.poly(op.points).fill(platte).stroke(feineKante);
+          else detail.circle(op.x,op.y,op.r).fill(platte).stroke(feineKante);
           break;
-        case'accent':
-          if(op.kind==='ring')detail.circle(op.x,op.y,op.r).stroke({color:0xffffff,alpha:.3,width:2});
-          else if(op.kind==='poly')detail.poly(op.points).fill({color:0xffffff,alpha:.2});
-          else detail.circle(op.x,op.y,op.r).fill({color:0xffffff,alpha:.22});
+        }
+        case'accent':{
+          const hell=mischen(0xffffff,color,.78);
+          if(op.kind==='ring')detail.circle(op.x,op.y,op.r).stroke({color:mischen(0xffffff,color,.6),width:2.5});
+          else if(op.kind==='poly')detail.poly(op.points).fill(hell).stroke(feineKante);
+          else detail.circle(op.x,op.y,op.r).fill(hell).stroke(feineKante);
           break;
+        }
         case'void':
-          if(op.kind==='poly')detail.poly(op.points).fill({color:0x000000,alpha:.34});
-          else detail.circle(op.x,op.y,op.r).fill({color:0x000000,alpha:.34});
+          if(op.kind==='poly')detail.poly(op.points).fill({color:SCHATTEN,alpha:.78});
+          else detail.circle(op.x,op.y,op.r).fill({color:SCHATTEN,alpha:.78});
           break;
         case'crown':
           // Der Apex-Ring: gestrichelt kann Pixi Graphics nicht ohne Umweg –
-          // ein doppelter feiner Ring liest sich als dieselbe Krone.
+          // ein doppelter Ring liest sich als dieselbe Krone.
           if(op.kind!=='poly'){
-            detail.circle(op.x,op.y,op.r).stroke({color,alpha:.55,width:2});
-            detail.circle(op.x,op.y,op.r-3).stroke({color,alpha:.3,width:1});
+            detail.circle(op.x,op.y,op.r).stroke({color:mischen(0xffffff,color,.74),width:3});
+            detail.circle(op.x,op.y,op.r-4).stroke({color:mischen(0xffffff,color,.4),width:1.5});
           }
           break;
       }

@@ -16,7 +16,14 @@ import { barrelHeightFor } from './barrel-geometry';
  * der Farbe, die die Karte ohnehin trägt.
  */
 
-const VIEW = 96;
+/**
+ * Rand um die Silhouette, in Weltpixeln. Der Ausschnitt wird um den ECHTEN
+ * Umriss gelegt (siehe `rahmen`), nicht um eine feste Zahl – seit die Rohre bis
+ * zur wirklichen Mündung reichen, ist ein Tank je nach Klasse zwischen 44 und
+ * 92 px lang, und ein fester Ausschnitt zeigt entweder Briefmarken oder
+ * abgeschnittene Rohre.
+ */
+const RAND = 6;
 
 function barrelPolygon(lauf: Lauf, height: number): string {
   const corners: [number, number][] = [
@@ -75,12 +82,60 @@ export function classSilhouetteMarkup(playerClass: PlayerClass): string {
   ].join('');
 }
 
+/**
+ * Der Ausschnitt um eine Silhouette: quadratisch, um den echten Umriss zentriert.
+ *
+ * Vorher stand hier ein fester 96er-Ausschnitt und eine Drehung um −30°. Beides
+ * war einmal richtig und ist es seit dem 14.08. nicht mehr: Die Rohre reichen
+ * jetzt bis zur wirklichen Mündung (`shared/barrels.ts`), und damit ragte ein
+ * Lancer aus der Kachel, während ein Smasher darin verloren ging. Die Drehung
+ * kam obendrauf – ein schräg hängender Tank sieht aus, als wäre er umgefallen.
+ *
+ * Jetzt schaut jeder Tank nach rechts, wie in Diep.io, und der Ausschnitt folgt
+ * dem, was wirklich gezeichnet wird: Rumpf UND Rohre.
+ */
+function rahmen(playerClass: PlayerClass): { x: number; y: number; groesse: number } {
+  let links: number = -GAME.playerRadius;
+  let rechts: number = GAME.playerRadius;
+  let oben: number = -GAME.playerRadius;
+  let unten: number = GAME.playerRadius;
+  const punkt = (x: number, y: number): void => {
+    links = Math.min(links, x); rechts = Math.max(rechts, x);
+    oben = Math.min(oben, y); unten = Math.max(unten, y);
+  };
+  for (const op of hullGeometry(playerClass)) {
+    if (op.kind === 'poly') {
+      for (let index = 0; index < op.points.length; index += 2) punkt(op.points[index]!, op.points[index + 1]!);
+    } else {
+      punkt(op.x - op.r, op.y - op.r);
+      punkt(op.x + op.r, op.y + op.r);
+    }
+  }
+  // Auch die Drohnenpunkte: Sie liegen bei `playerRadius + 15` und ragten
+  // sonst aus der Kachel heraus – bei jeder Control-Klasse (Sam, 14.08.).
+  if (CLASS_DEFINITIONS[playerClass].droneCount > 0) {
+    const weite = GAME.playerRadius + 15 + 4.5;
+    punkt(-weite, -weite);
+    punkt(weite, weite);
+  }
+  const height = barrelHeightFor(CLASS_DEFINITIONS[playerClass], playerClass);
+  for (const lauf of laeufeVon(playerClass)) {
+    for (const [x, y] of [[lauf.start, -height / 2], [lauf.muendung, -height / 2], [lauf.muendung, height / 2], [lauf.start, height / 2]] as const) {
+      punkt(x * Math.cos(lauf.winkel) - y * Math.sin(lauf.winkel), x * Math.sin(lauf.winkel) + y * Math.cos(lauf.winkel));
+    }
+  }
+  // Quadratisch, damit ein langer Tank nicht breiter gezeigt wird als ein
+  // runder hoch – sonst wären die Rümpfe von Kachel zu Kachel verschieden groß.
+  const groesse = Math.max(rechts - links, unten - oben) + RAND * 2;
+  return { x: (links + rechts) / 2 - groesse / 2, y: (oben + unten) / 2 - groesse / 2, groesse };
+}
+
 /** Komplettes SVG für eine Karte; Farbe kommt über `color` vom Elternelement. */
 export function classPreviewSvg(playerClass: PlayerClass): string {
+  const { x, y, groesse } = rahmen(playerClass);
   return [
-    `<svg viewBox="${-VIEW / 2} ${-VIEW / 2} ${VIEW} ${VIEW}" aria-hidden="true" focusable="false">`,
-    `<g transform="rotate(-30)">`,
+    `<svg viewBox="${x.toFixed(1)} ${y.toFixed(1)} ${groesse.toFixed(1)} ${groesse.toFixed(1)}" aria-hidden="true" focusable="false">`,
     classSilhouetteMarkup(playerClass),
-    `</g></svg>`
+    `</svg>`
   ].join('');
 }

@@ -64,18 +64,50 @@
   color: var(--accent);
 }
 .class-choice-preview svg { width: 100px; height: 100px; overflow: visible; }
-/* Rollen der geteilten Geometrie (shared/appearance): dieselbe Formsprache wie
-   im Spiel. `hull` traegt die Familienfarbe, `armor` liegt dunkler darauf,
-   `accent` hell, `void` ist Aussparung, `crown` der Apex-Ring. */
-.cp-hull { fill: currentColor; stroke: color-mix(in srgb, #fff 38%, transparent); stroke-width: 3; }
-.cp-armor { fill: color-mix(in srgb, currentColor 68%, #10131c); stroke: color-mix(in srgb, #fff 16%, transparent); stroke-width: 1.5; }
-.cp-accent { fill: color-mix(in srgb, #fff 24%, transparent); }
-.cp-void { fill: color-mix(in srgb, #000 34%, transparent); }
-.cp-ring { fill: none; stroke-width: 2; }
-.cp-ring.cp-accent { stroke: color-mix(in srgb, #fff 30%, transparent); }
-.cp-ring.cp-crown { stroke: color-mix(in srgb, currentColor 62%, #fff); stroke-dasharray: 5 4; }
-.cp-barrel, .cp-barrels { fill: color-mix(in srgb, currentColor 55%, #6c7386); }
-.cp-drone { fill: currentColor; opacity: .62; }
+/* ------------------------------------------------------------------ *
+ * Die Formsprache: dunkle Kante, neutrales Rohr
+ * ------------------------------------------------------------------ *
+ * Sam, 14.08.: „TANK DESIGNS an sich finde ich schauen leider alle noch echt
+ * kake aus."
+ *
+ * Zwei Ursachen, beide hier:
+ *
+ * 1. **Der Umriss war weiß bei 38 %.** Auf einem farbigen Körper ergibt das
+ *    keinen Rand, sondern einen Schleier – die Form franst aus, statt zu
+ *    schneiden. Diep.io setzt eine DUNKLE Kante, und genau daher kommt dort
+ *    der Eindruck von sauberen, festen Körpern.
+ * 2. **Das Rohr trug die Familienfarbe** (`currentColor 55 %`). Körper und Rohr
+ *    verschmolzen damit zu einem Klumpen. In Diep.io ist das Rohr grau und
+ *    gehört sichtbar nicht zum Körper – erst dadurch liest man überhaupt, wo
+ *    der Tank aufhört und die Waffe anfängt.
+ *
+ * Die Kante wird aus `currentColor` gemischt statt fest gesetzt: Sie folgt der
+ * Familienfarbe, bleibt aber immer die dunkelste Fläche im Bild.
+ */
+.cp-hull {
+  fill: currentColor;
+  stroke: color-mix(in srgb, currentColor 30%, #080a11);
+  stroke-width: 3.5;
+  stroke-linejoin: round;
+}
+.cp-armor {
+  fill: color-mix(in srgb, currentColor 70%, #10131c);
+  stroke: color-mix(in srgb, currentColor 26%, #080a11);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.cp-accent {
+  fill: color-mix(in srgb, #fff 78%, currentColor);
+  stroke: color-mix(in srgb, currentColor 26%, #080a11);
+  stroke-width: 2;
+}
+.cp-void { fill: #080a11; opacity: .78; }
+.cp-ring { fill: none; stroke-width: 2.5; }
+.cp-ring.cp-accent { fill: none; stroke: color-mix(in srgb, #fff 60%, currentColor); }
+.cp-ring.cp-crown { fill: none; stroke: color-mix(in srgb, #fff 74%, currentColor); stroke-width: 3; stroke-dasharray: 6 5; }
+/* Neutrales Grau mit derselben dunklen Kante – das Rohr ist Metall, nicht Panzer. */
+.cp-barrel { fill: #99a1b3; stroke: #262c39; stroke-width: 3; stroke-linejoin: round; }
+.cp-drone { fill: currentColor; stroke: color-mix(in srgb, currentColor 26%, #080a11); stroke-width: 2; }
 
 /* Jede Familie hat ihre Farbe – dieselbe Zuordnung wie Rollenwort und Rad.
    Die vier alten Familien trugen hier abweichende Werte; wer im Rad den

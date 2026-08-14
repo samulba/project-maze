@@ -49,7 +49,9 @@ export interface Lauf {
   tempofaktor: number;
 }
 
-type Laufdefinition = Pick<ClassDefinition, 'branch' | 'barrelLength'> & Winkeldefinition;
+/** Was für die MÜNDUNG nötig ist – Winkel plus Rohrlänge, weiterhin ohne `branch`. */
+type Muendungsdefinition = Pick<ClassDefinition, 'barrelLength'> & Winkeldefinition;
+type Laufdefinition = Pick<ClassDefinition, 'branch'> & Muendungsdefinition;
 
 /**
  * Wo ein Lauf am Rumpf ansetzt. Impact-Klassen sitzen tiefer im Körper – das
@@ -60,16 +62,44 @@ export const laufStart = (definition: Pick<ClassDefinition, 'branch'>): number =
   (definition.branch === 'impact' ? 1 : 4);
 
 /**
- * Wo der Lauf endet.
+ * **Wie viel kürzer ein Lauf am Rand des Fächers ist.**
  *
- * `playerRadius + barrelLength` – also der Punkt, an dem der Server die Kugel
- * schon immer entstehen ließ. Gezeichnet wurde bis dahin nur `4 + barrelLength`,
- * und die Differenz war exakt Sams Lücke. Von den beiden Zahlen ist diese die
- * richtige: Sie macht die Rohre außerdem so lang, wie sie in Diep.io sind – ein
- * Core-Rohr ragt damit 36 px über einen 22-px-Rumpf hinaus statt 18.
+ * Sam, 14.08.: „TANK DESIGNS an sich finde ich schauen leider alle noch echt
+ * kake aus." Ein Teil davon sind die Fächerklassen: Sechs gleich lange Rohre,
+ * die aus einem Punkt strahlen, sehen aus wie ein Besen, nicht wie ein Panzer.
+ * In Diep.io ist der Spreadshot gestaffelt – mittig lang, außen kurz –, und
+ * genau das macht daraus eine Form statt eines Bündels.
+ *
+ * Nur für den ECHTEN Fächer aus `barrelSpread`. Klassen mit gesetzten Winkeln
+ * (`barrelAngles`, `barrels` – Octo, Flanker, Heckläufe) behalten volle Länge:
+ * Dort ist jede Richtung eine Entscheidung, keine Streuung.
  */
-export const muendungsabstand = (definition: Pick<ClassDefinition, 'barrelLength'>): number =>
-  GAME.playerRadius + definition.barrelLength;
+export const FAECHER_STAFFELUNG = 0.3;
+
+export function laengenfaktor(definition: Winkeldefinition, lauf: number): number {
+  if (definition.barrels || definition.barrelAngles || definition.barrelCount <= 1) return 1;
+  // −1 außen links, 0 in der Mitte, +1 außen rechts.
+  const lage = (lauf / (definition.barrelCount - 1)) * 2 - 1;
+  return 1 - FAECHER_STAFFELUNG * Math.abs(lage);
+}
+
+/**
+ * Wo der Lauf endet – **hier tritt die Kugel aus, und hier hört die Zeichnung
+ * auf.**
+ *
+ * `playerRadius + barrelLength` ist der Punkt, an dem der Server die Kugel
+ * schon immer entstehen ließ. Gezeichnet wurde bis zum 14.08. nur
+ * `4 + barrelLength`, und die Differenz war exakt Sams Lücke „man sieht die
+ * Kugel schon vorm Rohr". Von den beiden Zahlen ist diese die richtige: Sie
+ * macht die Rohre außerdem so lang, wie sie in Diep.io sind.
+ *
+ * `lauf` staffelt den Fächer (siehe `laengenfaktor`). Ohne Angabe gilt der
+ * längste, mittlere Lauf.
+ */
+export function muendungsabstand(definition: Muendungsdefinition, lauf = -1): number {
+  const faktor = lauf < 0 ? 1 : laengenfaktor(definition, lauf);
+  return GAME.playerRadius + definition.barrelLength * faktor;
+}
 
 /**
  * Wo der MITTELPUNKT einer Kugel entsteht.
@@ -85,8 +115,8 @@ export const muendungsabstand = (definition: Pick<ClassDefinition, 'barrelLength
  * `playerRadius * 0.75` fängt die kurzläufigen Impact-Klassen ab, damit keine
  * Kugel im eigenen Rumpf erscheint.
  */
-export function projektilStart(definition: Pick<ClassDefinition, 'barrelLength'>, projektilradius: number): number {
-  return Math.max(GAME.playerRadius * 0.75, muendungsabstand(definition) - projektilradius * 0.65);
+export function projektilStart(definition: Muendungsdefinition, projektilradius: number, lauf = -1): number {
+  return Math.max(GAME.playerRadius * 0.75, muendungsabstand(definition, lauf) - projektilradius * 0.65);
 }
 
 /**
@@ -127,11 +157,10 @@ export function laufwinkel(definition: Winkeldefinition, lauf: number): number {
 export function laeufe(definition: Laufdefinition): Lauf[] {
   if (definition.barrelCount <= 0) return [];
   const start = laufStart(definition);
-  const muendung = muendungsabstand(definition);
   return Array.from({ length: definition.barrelCount }, (_, index) => ({
     winkel: laufwinkel(definition, index),
     start,
-    muendung,
+    muendung: muendungsabstand(definition, index),
     schadensfaktor: definition.barrels?.[index]?.damageScale ?? 1,
     tempofaktor: definition.barrels?.[index]?.speedScale ?? 1
   }));

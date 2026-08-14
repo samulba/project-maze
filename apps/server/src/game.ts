@@ -484,7 +484,7 @@ export class MazeGame {
     const speed = this.barrelSpeed(stats, barrel);
     // Aus dem Rohr, nicht davor (Sams Punkt 6 vom 14.08.) – die Zahl steht in
     // `shared/barrels.ts`, damit sie zur gezeichneten Mündung passt.
-    const abstand = projektilStart(stats, stats.projectileRadius);
+    const abstand = projektilStart(stats, stats.projectileRadius, barrel);
     const position = { x: player.position.x + direction.x * abstand, y: player.position.y + direction.y * abstand };
     const id = crypto.randomUUID();
     this.projectiles.set(id, { id, ownerId: player.id, position, velocity: { x: direction.x * speed, y: direction.y * speed }, radius: stats.projectileRadius, integrity: stats.penetration, maxIntegrity: stats.penetration, damage: this.barrelDamage(stats, barrel), life: stats.projectileLife, plantAtLife: this.plantAtLifeFor(stats) });
@@ -568,7 +568,7 @@ export class MazeGame {
       // Position VOM AKTUELLEN Standort des Besitzers, nicht vom Moment des
       // Abzugs – wer sich während der Salve bewegt, feuert die späteren Läufe
       // von dort, wo er gerade ist, genau wie ein echter Mehrlauf-Tank.
-      const abstand = projektilStart({ barrelLength: shot.barrelLength }, shot.projectileRadius);
+      const abstand = projektilStart({ barrelLength: shot.barrelLength, barrelCount: 1, barrelSpread: 0 }, shot.projectileRadius);
       const position = { x: owner.position.x + direction.x * abstand, y: owner.position.y + direction.y * abstand };
       const id = crypto.randomUUID();
       this.projectiles.set(id, { id, ownerId: shot.ownerId, position, velocity: { x: direction.x * shot.projectileSpeed, y: direction.y * shot.projectileSpeed }, radius: shot.projectileRadius, integrity: shot.penetration, maxIntegrity: shot.penetration, damage: shot.damage, life: shot.projectileLife, plantAtLife: shot.plantAtLife });

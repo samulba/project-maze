@@ -50,6 +50,25 @@ Zeigerbefehl OHNE Auto-Modus. `primary` heißt weiterhin „der Tank feuert" und
 ist Klick ODER Auto – für Rohre reicht das, für Drohnen sind es drei Zustände,
 die eine Boolesche Variable nicht auseinanderhält.
 
+## Zweiter Nachtrag: Tank-Designs komplett überarbeitet
+
+Sam: „TANK DESIGNS an sich finde ich schauen leider alle noch echt kake aus.
+ÜBERARBEITE DIE ALLE KOMPLETT."
+
+Zwei der drei Ursachen betrafen alle 67 Klassen gleichzeitig: Der Umriss war
+weiß bei 38 % (ein Schleier, kein Rand), und das Rohr trug die Familienfarbe
+(Körper und Waffe verschmolzen zu einem Klumpen). Beides ist jetzt wie in
+Diep.io – dunkle Kante, neutrales Metall –, aus EINER Rechnung für Spiel und
+Wahlkarte.
+
+Dazu: Vorschau ohne Drehung und um die echte Silhouette gerahmt, Fächerläufe
+gestaffelt (und die Kugel folgt der Mündung DIESES Laufs), alle 67 Silhouetten
+neu – jede Familie mit einem Merkmal, das nur sie trägt, jede Stufe sichtbar
+wachsend. Details in [Bericht 32](32-tank-designs.md).
+
+Neu: `node scripts/tank-sheet.mjs` zeichnet alle 67 nebeneinander. Ohne dieses
+Bild konnten Rohre und Rümpfe monatelang auseinanderlaufen.
+
 ## Was Sam beim nächsten Test ansehen sollte
 
 1. **Halbautomatik**: Sind 200 ms die richtige Grenze zwischen „Klick" und
@@ -60,6 +79,8 @@ die eine Boolesche Variable nicht auseinanderhält.
    Client-Vorhersage leidet.
 4. **Wahlkarten**: Reicht das Bild, oder fehlt der Rollenname auf der Karte
    statt nur im Tooltip?
+5. **Die Tanks selbst**: Kontaktbogen unter `.probe/tanks-nachher.png`. Sitzt
+   die Formsprache, oder soll eine Familie anders aussehen?
 
 ## Offen aus früheren Sitzungen
 
