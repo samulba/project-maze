@@ -161,7 +161,8 @@ export class InputController {
       move: this.enabled ? this.getMovement() : { x: 0, y: 0 },
       aim: this.getAim(),
       primary: this.enabled && this.isPrimary,
-      secondary: this.enabled && this.isSecondary
+      secondary: this.enabled && this.isSecondary,
+      klick: this.enabled && this.isZeigerbefehl
     };
   }
 
@@ -197,6 +198,19 @@ export class InputController {
   }
 
   get isPrimary(): boolean { return this.enabled && (this.primaryDown || this.aimStick.engaged || this.autoFire); }
+  /**
+   * Der echte Zeigerbefehl: Maustaste unten oder Ziel-Stick am Daumen –
+   * **ohne** den Auto-Modus.
+   *
+   * Der Ziel-Stick zählt dazu, weil er auf Touch genau das ist, was die
+   * Maustaste auf dem Schreibtisch ist: „ich zeige jetzt dorthin". Nur
+   * `autoFire` fällt heraus – der ist eine Einstellung, kein Befehl.
+   *
+   * Gebraucht wird das für die Drohnen (Sams Punkt vom 14.08.): Sie sollen zum
+   * Zeiger, wenn man klickt, und nur dann selbst jagen, wenn der Auto-Modus
+   * läuft und man NICHT klickt.
+   */
+  get isZeigerbefehl(): boolean { return this.enabled && (this.primaryDown || this.aimStick.engaged); }
   get isSecondary(): boolean { return this.enabled && this.secondaryDown; }
   get showCrosshair(): boolean { return this.finePointer && !this.aimStick.active; }
   /** Für Onboarding-Hinweise: Hat der Spieler den Bewegungs-Input schon benutzt? */

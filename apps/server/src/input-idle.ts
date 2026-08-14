@@ -32,7 +32,7 @@ import { MazeGame } from './game.js';
 export const INPUT_IDLE_MS = 2_000;
 
 interface IdleInternals {
-  players: Map<string, { isBot: boolean; move: { x: number; y: number }; primary: boolean; secondary: boolean }>;
+  players: Map<string, { isBot: boolean; move: { x: number; y: number }; primary: boolean; klick: boolean; secondary: boolean }>;
 }
 
 /** Letzte Eingabe je Spieler-ID, pro Spielinstanz. */
@@ -89,6 +89,9 @@ export function tuneInputIdle<T extends MazeGame>(game: T, idleMs = INPUT_IDLE_M
       if (now - zuletzt < idleMs) continue;
       spieler.move = { x: 0, y: 0 };
       spieler.primary = false;
+      // Auch der Zeigerbefehl: Sonst flöge die Flotte eines abwesenden Spielers
+      // weiter auf seinen letzten Mauszeiger zu (Drohnensteuerung, 14.08.).
+      spieler.klick = false;
       spieler.secondary = false;
     }
   }) as T['step'];

@@ -34,6 +34,22 @@ Sams Worte im Original und die Begründung der Reihenfolge stehen in
    Wahlkarten-Vorschau –, und die drei Fassungen liefen auseinander: Storm
    zeigte sechs parallele Rohre und feuerte einen 24°-Fächer.
 
+## Nachtrag vom selben Tag: Drohnen greifen nur im Auto-Modus von selbst an
+
+Sam auf Rückfrage: „die sollen nur angreifen, wenn du im E-Auto-Modus bist und
+man nix klickt; sonst immer in der Maus-Nähe, wenn man klickt."
+
+| Klick | Auto-Modus (E) | Flotte |
+| --- | --- | --- |
+| ja | egal | zum Zeiger |
+| nein | ja | sucht sich selbst ein Ziel |
+| nein | nein | Orbit, greift nichts an |
+
+Dafür trägt `InputMessage` ein neues, optionales Feld `klick`: den echten
+Zeigerbefehl OHNE Auto-Modus. `primary` heißt weiterhin „der Tank feuert" und
+ist Klick ODER Auto – für Rohre reicht das, für Drohnen sind es drei Zustände,
+die eine Boolesche Variable nicht auseinanderhält.
+
 ## Was Sam beim nächsten Test ansehen sollte
 
 1. **Halbautomatik**: Sind 200 ms die richtige Grenze zwischen „Klick" und

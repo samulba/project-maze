@@ -146,6 +146,46 @@ und nicht sechs. Gehalten: nach 200 ms voller Takt wie bisher.
 Die unterdrückte Salve kostet keine Nachladezeit – sonst wäre die Schicht eine
 versteckte Feuerraten-Senkung statt einer Steuerungshilfe.
 
+## Nachtrag: Wann Drohnen von selbst angreifen (Sams Klarstellung)
+
+Auf die Rückfrage, ob „eins zu eins wie Diep.io" auch den Auto-Angriff
+betrifft, hat Sam die Regel selbst benannt:
+
+> „die sollen nur angreifen, wenn du im E-Auto-Modus bist und man nix klickt;
+> sonst immer in der Maus-Nähe, wenn man klickt, obv wie bei Diep.io"
+
+Das ist eine Präzisierung seines Auftrags vom 13.08. („da müssen die Drohnen ja
+auch irgendwas angreifen"), keine Rücknahme: Angreifen ja – aber nur im
+Auto-Modus.
+
+| Klick | Auto-Modus (E) | Flotte |
+| --- | --- | --- |
+| ja | egal | zum Zeiger |
+| nein | ja | sucht sich selbst ein Ziel |
+| nein | nein | Orbit, greift nichts an |
+
+**Warum das nicht ohne Netzwerkänderung ging:** `primary` heißt seit jeher „der
+Tank feuert" und ist `Klick ODER Auto-Modus` – der Client faltet den E-Modus
+hinein, damit Rohre in beiden Fällen schießen. Für Drohnen sind das aber drei
+Zustände, die eine Boolesche Variable nicht auseinanderhält. Deshalb trägt
+`InputMessage` jetzt zusätzlich `klick`: den ECHTEN Zeigerbefehl ohne
+Auto-Modus. `primary && !klick` ist damit exakt „Auto-Modus läuft, Maustaste
+oben".
+
+Das Feld ist optional. Fehlt es (älterer Client mit gepuffertem Bündel nach
+einem Deploy), gilt `klick = primary` – also das Verhalten von vorher, statt
+eines abgelehnten Pakets.
+
+Bots kennen das Feld nicht und brauchen es nicht: Ihr `primary` IST ihr
+Zeigerbefehl (`updateBot` richtet erst die Zielrichtung aus, dann feuert es),
+und sie gelten immer als im Auto-Modus. Ohne diese Ausnahme hätten
+Controller-Bots aufgehört zu jagen, sobald ihr Ziel außer Reichweite gerät.
+
+Drei Zustände, drei Tests – gemessen am Schaden und am Ort der Flotte, nicht an
+einem Zustandsfeld. Der Zeiger zeigt dabei bewusst WEG vom Gegner: Nur so
+lässt sich „zum Zeiger" von „sucht sich selbst ein Ziel" überhaupt
+unterscheiden.
+
 ## Was NICHT passiert ist
 
 * **Der Wandtod der Drohnen bleibt unverändert.** Sam korrigiert sich in

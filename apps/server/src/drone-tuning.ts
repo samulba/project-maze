@@ -140,9 +140,38 @@ const DRONE_ARCHETYPES: Partial<Record<PlayerClass, DroneArchetype>> = Object.fr
 interface RuntimePlayer extends PlayerSnapshot {
   aim: Vector2;
   primary: boolean;
+  /** Echter Zeigerbefehl ohne Auto-Modus (siehe `zeigerbefehl`/`autoModus`). */
+  klick?: boolean;
   secondary: boolean;
+  /** Nur zur Unterscheidung Mensch/Bot – der Inhalt interessiert hier nicht. */
+  bot?: unknown;
   passiveModifier?: PassiveModifierId;
 }
+
+/**
+ * Zeigt der Spieler gerade aktiv irgendwohin? – Sams Regel vom 14.08.:
+ *
+ * > „die sollen nur angreifen, wenn du im E-Auto-Modus bist und man nix klickt;
+ * > sonst immer in der Maus-Nähe, wenn man klickt, obv wie bei Diep.io"
+ *
+ * Bots kennen das Feld nicht: Sie setzen `primary` direkt, und ihr `primary`
+ * IST ihr Zeigerbefehl (`updateBot` richtet die Zielrichtung auf den Gegner,
+ * bevor es feuert). Deshalb lesen sie hier `primary`, Menschen `klick`.
+ */
+const zeigerbefehl = (spieler: RuntimePlayer): boolean =>
+  (spieler.bot ? spieler.primary : spieler.klick ?? spieler.primary);
+
+/**
+ * Läuft der Auto-Modus, ohne dass gerade gezeigt wird? Nur dann suchen sich
+ * Drohnen selbst ein Ziel.
+ *
+ * `primary && !klick` heißt genau das: Der Tank feuert (Auto-Modus an), aber
+ * die Maustaste ist oben. Bots gelten immer als im Auto-Modus – sie haben
+ * keinen Knopf, und ohne diese Zeile hätten Controller-Bots aufgehört zu
+ * jagen, sobald ihr Ziel außer Reichweite gerät.
+ */
+const autoModus = (spieler: RuntimePlayer): boolean =>
+  (spieler.bot ? true : spieler.primary && !zeigerbefehl(spieler));
 interface RuntimeDrone extends DroneSnapshot {
   slot: number;
   contactCooldown: number;
@@ -500,13 +529,22 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
         const winkel = basiswinkel + faecher;
         ziel = { x: owner.position.x + Math.cos(winkel) * ABSTOSS_WEG, y: owner.position.y + Math.sin(winkel) * ABSTOSS_WEG };
         formation = false;
-      } else if (owner.primary) {
+      } else if (zeigerbefehl(owner)) {
+        // Geklickt heißt: dorthin. Immer, auch wenn der Auto-Modus läuft.
         ziel = zeiger;
         kampfziel = zeiger;
-      } else {
+      } else if (autoModus(owner)) {
+        // Auto-Modus und die Maustaste ist oben: Jetzt – und nur jetzt – suchen
+        // sich die Drohnen selbst ein Ziel.
         const gesucht = sucheZiel(internals, owner, archetype.searchRadius, zielSpeicher);
         if (gesucht) { ziel = gesucht; kampfziel = gesucht; }
         else formation = false;
+      } else {
+        // Weder Klick noch Auto: Orbit, und sie greifen nichts an. Bis zum
+        // 14.08. jagten sie auch hier – das war der Stand, den Sam mit „nur
+        // wenn du im E-Auto-Modus bist" korrigiert hat.
+        formation = false;
+        zielSpeicher.delete(owner.id);
       }
 
       /*

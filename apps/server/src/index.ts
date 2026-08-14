@@ -600,7 +600,11 @@ const inputSchema = z.object({
     y: z.number().finite().min(-GAME.maxAimDistance * 1.25).max(GAME.maxAimDistance * 1.25)
   }),
   primary: z.boolean(),
-  secondary: z.boolean()
+  secondary: z.boolean(),
+  // Der echte Zeigerbefehl ohne Auto-Modus (Drohnensteuerung, siehe
+  // `InputMessage`). Optional, damit ein Client mit gepuffertem Bündel nach
+  // einem Deploy nicht an `.strict()` scheitert.
+  klick: z.boolean().optional()
 }).strict();
 const upgradeSchema = z.object({ type: z.literal('upgrade'), upgrade: z.enum(UPGRADE_IDS) }).strict();
 const classSchema = z.object({ type: z.literal('chooseClass'), playerClass: z.enum(PLAYER_CLASS_IDS) }).strict();

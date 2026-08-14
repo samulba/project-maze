@@ -90,7 +90,14 @@ export interface BotState {
 interface GamePlayer extends PlayerSnapshot {
   move: Vector2;
   aim: Vector2;
+  /** „Der Tank feuert" – Klick ODER Auto-Modus. */
   primary: boolean;
+  /**
+   * Der echte Zeigerbefehl OHNE Auto-Modus. `primary && !klick` heißt damit
+   * „Auto-Modus läuft, der Spieler klickt gerade nicht" – die Bedingung, unter
+   * der Drohnen sich selbst ein Ziel suchen dürfen (Sam, 14.08.).
+   */
+  klick: boolean;
   secondary: boolean;
   lastInput: number;
   cooldown: number;
@@ -315,12 +322,16 @@ export class MazeGame {
     if (player.dead) {
       player.move = { x: 0, y: 0 };
       player.primary = false;
+      player.klick = false;
       player.secondary = false;
       return;
     }
     player.move = clampMagnitude(input.move, 1);
     player.aim = clampMagnitude(input.aim, GAME.maxAimDistance);
     player.primary = input.primary;
+    // Der echte Zeigerbefehl ohne Auto-Modus. Fehlt das Feld (älterer Client),
+    // gilt `klick = primary` – exakt das Verhalten vor Sams Punkt vom 14.08.
+    player.klick = input.klick ?? input.primary;
     player.secondary = input.secondary;
     const moving = Math.hypot(player.move.x, player.move.y) > 0.12;
     if (player.invulnerable && (moving || input.primary || input.secondary)) {
@@ -417,7 +428,7 @@ export class MazeGame {
       health: base.maxHealth, maxHealth: base.maxHealth, level: 1, xp: 0, xpForNextLevel: xpThresholdForLevel(1),
       availablePoints: 0, upgrades: EMPTY_UPGRADES(), score: 0, kills: 0, deaths: 0, streak: 0, bestStreak: 0, invulnerable: true,
       isBot, dead: false, deathLevel: 1, respawnLevel: 1, canRespawnAt: 0, autoRespawnAt: 0, killerName: '',
-      move: { x: 0, y: 0 }, aim: { x: GAME.maxAimDistance, y: 0 }, primary: false, secondary: false,
+      move: { x: 0, y: 0 }, aim: { x: GAME.maxAimDistance, y: 0 }, primary: false, klick: false, secondary: false,
       lastInput: -1, cooldown: 0,
       lastDamageAt: Date.now(), invulnerableUntil: Date.now() + GAME.respawnInvulnerabilityMs, bot
     };
@@ -714,7 +725,10 @@ export class MazeGame {
       const orbit = { x: owner.position.x + Math.cos(orbitAngle) * 82, y: owner.position.y + Math.sin(orbitAngle) * 82 };
       let target = orbit;
       if (owner.secondary) target = { x: owner.position.x - aim.x, y: owner.position.y - aim.y };
-      else if (owner.primary) target = { x: owner.position.x + aim.x, y: owner.position.y + aim.y };
+      // Der ECHTE Zeigerbefehl, nicht `primary`: Der Auto-Modus schickt die
+      // Flotte nicht zum Zeiger (Sam, 14.08.). Bots kennen `klick` nicht und
+      // fallen auf `primary` zurück – siehe `zeigerbefehl` in drone-tuning.ts.
+      else if (owner.bot ? owner.primary : owner.klick) target = { x: owner.position.x + aim.x, y: owner.position.y + aim.y };
       const direction = normalize({ x: target.x - drone.position.x, y: target.y - drone.position.y });
       drone.velocity = moveVectorToward(drone.velocity, { x: direction.x * 450, y: direction.y * 450 }, 1500 * dt);
       const moved = moveCircle(drone.position, drone.velocity, dt, 12);
@@ -792,6 +806,7 @@ export class MazeGame {
     target.health = 0;
     target.velocity = { x: 0, y: 0 };
     target.primary = false;
+    target.klick = false;
     target.secondary = false;
     target.deaths += 1;
     target.deathLevel = target.level;

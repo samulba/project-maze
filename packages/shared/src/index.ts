@@ -170,7 +170,29 @@ export type ThemeId = 'midnight' | 'void' | 'classic';
 
 export interface Vector2 { x: number; y: number; }
 /** `aim` is a world-space offset. Bullet classes use direction; drones also use magnitude. */
-export interface InputMessage { type: 'input'; sequence: number; move: Vector2; aim: Vector2; primary: boolean; secondary: boolean; }
+/**
+ * `klick` ist der ECHTE Zeigerbefehl – Maustaste unten oder Ziel-Stick am
+ * Daumen –, ohne den Auto-Modus.
+ *
+ * `primary` heißt „der Tank feuert" und ist seit jeher `Klick ODER Auto-Modus`.
+ * Für Rohre reicht das: Sie schießen in beiden Fällen gleich. Für Drohnen ist
+ * es zu wenig, seit Sam am 14.08. die Diep.io-Regel benannt hat: „die sollen
+ * nur angreifen, wenn du im E-Auto-Modus bist und man nix klickt; sonst immer
+ * in der Maus-Nähe, wenn man klickt."
+ *
+ * Damit sind es drei Zustände, die `primary` allein nicht auseinanderhält:
+ *
+ * | Klick | Auto | Drohnen |
+ * |---|---|---|
+ * | ja | egal | zum Zeiger |
+ * | nein | ja | suchen sich selbst ein Ziel |
+ * | nein | nein | Orbit, sie greifen nichts an |
+ *
+ * Optional, damit ein Client mit gepuffertem Bündel nach einem Deploy nicht an
+ * einem neuen Pflichtfeld scheitert: Fehlt es, gilt `klick = primary`, also
+ * exakt das Verhalten von vorher.
+ */
+export interface InputMessage { type: 'input'; sequence: number; move: Vector2; aim: Vector2; primary: boolean; secondary: boolean; klick?: boolean | undefined; }
 /** `authToken` ist optional: Gast-Spielen bleibt immer möglich, Login heftet nur das Konto an. */
 /**
  * `deviceId` ist eine Zufalls-ID aus dem localStorage des Browsers und dient

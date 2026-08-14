@@ -117,8 +117,15 @@ describe('Drohnen-Verhalten (Stufe 1)', () => {
     drones: Map<string, any>;
   }
 
-  /** Ein Controller auf freiem Feld, mit stehender Flotte. */
-  const aufbau = (klasse: 'drone' | 'guardian' | 'aviary' = 'drone') => {
+  /**
+   * Ein Controller auf freiem Feld, mit stehender Flotte.
+   *
+   * `autoModus` schaltet den E-Modus ein: `primary` (der Tank feuert), aber
+   * `klick` bleibt unten – genau die Bedingung, unter der Drohnen seit Sams
+   * Klarstellung vom 14.08. selbst auf Jagd gehen dürfen. Voreinstellung ist
+   * AN, weil die Tests dieses Blocks alle die Selbstsuche prüfen.
+   */
+  const aufbau = (klasse: 'drone' | 'guardian' | 'aviary' = 'drone', autoModus = true) => {
     const game = tuneDrones(tuneCombatScaling(new MazeGame(0)));
     const interna = game as unknown as Interna;
     // Formen weg: Sie sind gültige Ziele und würden jede Messung stören.
@@ -129,6 +136,8 @@ describe('Drohnen-Verhalten (Stufe 1)', () => {
     spieler.position = { ...OFFENES_FELD };
     spieler.invulnerable = false;
     spieler.invulnerableUntil = 0;
+    spieler.primary = autoModus;
+    spieler.klick = false;
     expect(game.chooseClass(id, klasse === 'drone' ? 'drone' : klasse)).toBe(true);
     game.step(1 / 40, 100_000);
     return { game, interna, id, spieler };
@@ -359,6 +368,7 @@ describe('Wandtod', () => {
     for (let tick = 0; tick < 100; tick += 1) {
       spieler.aim = { x: wand.x + wand.width + 400 - anlauf.x, y: 0 };
       spieler.primary = true;
+      spieler.klick = true;
       game.step(1 / 40, (now += 25));
     }
     expect(interna.drones.size, `${startbestand} Drohnen vorher, ${interna.drones.size} danach`).toBeLessThan(startbestand);
@@ -395,6 +405,7 @@ describe('Wandtod', () => {
     for (let tick = 0; tick < 100; tick += 1) {
       spieler.aim = { x: 300, y: 0 };
       spieler.primary = true;
+      spieler.klick = true;
       game.step(1 / 40, (now += 25));
     }
     expect(interna.drones.size).toBe(startbestand);
@@ -437,6 +448,11 @@ describe('Minion-Waffe', () => {
     spieler.position = { ...OFFENES_FELD };
     spieler.invulnerable = false;
     spieler.invulnerableUntil = 0;
+    // E-Auto-Modus: feuert, aber klickt nicht. Seit Sams Klarstellung vom
+    // 14.08. ist das die einzige Lage, in der Drohnen sich selbst ein Ziel
+    // suchen – und ohne Ziel gibt es auch keinen Minion-Schuss.
+    spieler.primary = true;
+    spieler.klick = false;
     for (const schritt of KLASSENPFAD[klasse]) expect(game.chooseClass(id, schritt)).toBe(true);
     game.step(1 / 40, 100_000);
     return { game, interna, id, spieler };
@@ -591,7 +607,9 @@ describe('Drohnen kreisen, statt zu parken (Stufe 3)', () => {
     spieler.invulnerableUntil = 0;
     for (const stufe of pfad) expect(game.chooseClass(id, stufe), stufe).toBe(true);
     spieler.aim = { x: 260, y: 0 };
+    // Geklickt, nicht Auto-Modus: Dieser Block prüft den Kreis UM DEN ZEIGER.
     spieler.primary = true;
+    spieler.klick = true;
     let now = 100_000;
     for (let tick = 0; tick < 200; tick += 1) interna.stepDrones(1 / 40, (now += 25));
     return { interna, spieler, now };
@@ -644,5 +662,89 @@ describe('Drohnen kreisen, statt zu parken (Stufe 3)', () => {
   it('erlaubt Zielpunkte bis in die Ecke des Sichtfensters', () => {
     const halbeDiagonale = Math.hypot(GAME.visibleWorldWidth / 2, GAME.visibleWorldHeight / 2);
     expect(GAME.maxAimDistance).toBeGreaterThanOrEqual(halbeDiagonale);
+  });
+});
+
+/**
+ * Wann Drohnen von selbst angreifen – Sams Klarstellung vom 14.08.:
+ *
+ * > „die sollen nur angreifen, wenn du im E-Auto-Modus bist und man nix
+ * > klickt; sonst immer in der Maus-Nähe, wenn man klickt, obv wie bei
+ * > Diep.io"
+ *
+ * Das ist eine Rücknahme seines eigenen Auftrags vom 13.08. („da müssen die
+ * Drohnen ja auch irgendwas angreifen"), und zwar eine präzisere: Angreifen
+ * ja – aber nur im Auto-Modus. Ohne Kommando und ohne Auto schweben sie, genau
+ * wie in Diep.io.
+ *
+ * Drei Zustände, drei Tests. Gemessen wird am Schaden und am Ort der Flotte,
+ * nicht an einem Zustandsfeld.
+ */
+describe('Drohnen greifen nur im Auto-Modus von selbst an', () => {
+  const FELD = messpunkt({ links: 380, rechts: 380, oben: 380, unten: 380 });
+
+  interface Interna {
+    players: Map<string, any>;
+    shapes: Map<string, any>;
+    drones: Map<string, any>;
+  }
+
+  /** Controller auf freiem Feld, Gegner 200 px rechts, Zeiger nach rechts. */
+  const feld = (modus: { primary: boolean; klick: boolean }) => {
+    const game = tuneDrones(tuneCombatScaling(new MazeGame(0)));
+    const interna = game as unknown as Interna;
+    interna.shapes.clear();
+    const id = game.addPlayer('Controller');
+    const spieler = interna.players.get(id);
+    spieler.level = 45;
+    spieler.position = { ...FELD };
+    spieler.invulnerable = false;
+    spieler.invulnerableUntil = 0;
+    expect(game.chooseClass(id, 'drone')).toBe(true);
+
+    const gegnerId = game.addPlayer('Gegner');
+    const gegner = interna.players.get(gegnerId);
+    gegner.position = { x: FELD.x + 200, y: FELD.y };
+    gegner.invulnerable = false;
+    gegner.invulnerableUntil = 0;
+    gegner.level = 45;
+
+    let now = 100_000;
+    for (let tick = 0; tick < 120; tick += 1) {
+      // Zeiger nach LINKS, Gegner steht rechts: Ein Klick schickt die Flotte
+      // damit weg vom Gegner – nur so lässt sich „zum Zeiger" von „sucht sich
+      // selbst ein Ziel" überhaupt unterscheiden.
+      spieler.aim = { x: -260, y: 0 };
+      spieler.primary = modus.primary;
+      spieler.klick = modus.klick;
+      gegner.position = { x: FELD.x + 200, y: FELD.y };
+      game.step(1 / 40, (now += 25));
+    }
+    const drohnen = [...interna.drones.values()];
+    expect(drohnen.length).toBeGreaterThan(0);
+    const zumGegner = drohnen.reduce((summe, d) => summe + Math.hypot(d.position.x - gegner.position.x, d.position.y - gegner.position.y), 0) / drohnen.length;
+    return { spieler, gegner, zumGegner, schaden: gegner.maxHealth - gegner.health };
+  };
+
+  it('greift im Auto-Modus ohne Klick von selbst an', () => {
+    const { zumGegner, schaden } = feld({ primary: true, klick: false });
+    expect(schaden, `kein Schaden, Flotte ${zumGegner.toFixed(0)} px entfernt`).toBeGreaterThan(0);
+    expect(zumGegner).toBeLessThan(120);
+  });
+
+  it('greift ohne Auto-Modus und ohne Klick GAR NICHTS an', () => {
+    const { zumGegner, schaden } = feld({ primary: false, klick: false });
+    expect(schaden, 'Flotte hat ohne Kommando angegriffen').toBe(0);
+    // Sie bleibt beim Besitzer – der Gegner steht 200 px weg, der Orbit liegt
+    // bei 82 px, also sicher jenseits von 100 px vom Gegner.
+    expect(zumGegner).toBeGreaterThan(120);
+  });
+
+  it('folgt dem Klick zum Zeiger, auch wenn der Auto-Modus läuft', () => {
+    // primary UND klick: Der Auto-Modus ist an, der Spieler klickt trotzdem.
+    // Der Zeiger zeigt weg vom Gegner – die Flotte muss dorthin, nicht jagen.
+    const { zumGegner, schaden } = feld({ primary: true, klick: true });
+    expect(zumGegner, 'Flotte ist zum Gegner gejagt statt zum Zeiger').toBeGreaterThan(300);
+    expect(schaden).toBe(0);
   });
 });
