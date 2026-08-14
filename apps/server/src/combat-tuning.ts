@@ -42,6 +42,8 @@ interface TunedStats {
   barrelSpread: number;
   barrelLength: number;
   barrelAngles?: number[] | undefined;
+  /** Pro-Lauf-Profile (Klassen 4.2) – muss mit `game.ts`s `RuntimeStats` mitgezogen werden, sonst feuert die Tuning-Schicht jeden Lauf wieder mit demselben Schaden/Tempo. */
+  barrels?: Array<{ angle: number; damageScale?: number; speedScale?: number }> | undefined;
   /** Salve statt Fächer (Klassen 4.2) – muss mit `game.ts`s `RuntimeStats` mitgezogen werden, sonst feuert die Tuning-Schicht wieder alle Läufe gleichzeitig. */
   burstDelay?: number | undefined;
   droneCount: number;
@@ -136,6 +138,7 @@ export function tunedStatsFor(player: RuntimePlayer): TunedStats {
     barrelLength: base.barrelLength,
     burstDelay: base.burstDelay,
     barrelAngles: base.barrelAngles,
+    barrels: base.barrels,
     droneCount: base.droneCount,
     droneRespawn: Math.max(0.4, base.droneRespawn * Math.pow(0.96, player.upgrades.reload))
   };

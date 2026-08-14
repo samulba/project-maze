@@ -91,8 +91,13 @@ describe('class mechanics', () => {
     internals.fire(player, stats);
     const projectiles = [...internals.projectiles.values()];
     expect(projectiles).toHaveLength(4);
+    // Direktschaden je Lauf einzeln zu prüfen ginge seit den Pro-Lauf-
+    // Profilen (Klassen 4.2) an der Frage vorbei – Storms vier Läufe treffen
+    // absichtlich unterschiedlich hart. Was diese Schicht NICHT anfassen darf,
+    // ist der Gesamtschaden der Salve.
+    const gesamtschaden = projectiles.reduce((summe, projectile) => summe + projectile.damage, 0);
+    expect(gesamtschaden).toBeCloseTo(stats.damage * stats.barrelCount, 5);
     for (const projectile of projectiles) {
-      expect(projectile.damage).toBeCloseTo(stats.damage, 5);
       // 0.95: Der Tempo-Dämpfer hält ~25 % mehr Storm-Kugeln gleichzeitig in
       // der Luft – der gesenkte Faktor gleicht den Neben-Buff der Wand aus.
       expect(projectile.integrity).toBeCloseTo(stats.penetration * 0.95, 5);

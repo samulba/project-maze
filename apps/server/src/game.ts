@@ -58,6 +58,7 @@ interface RuntimeStats {
   barrelSpread: number;
   barrelLength: number;
   barrelAngles?: number[] | undefined;
+  barrels?: Array<{ angle: number; damageScale?: number; speedScale?: number }> | undefined;
   burstDelay?: number | undefined;
   droneCount: number;
   droneRespawn: number;
@@ -210,6 +211,7 @@ function statsFor(player: GamePlayer): RuntimeStats {
     barrelSpread: base.barrelSpread,
     barrelLength: base.barrelLength,
     barrelAngles: base.barrelAngles,
+    barrels: base.barrels,
     burstDelay: base.burstDelay,
     droneCount: base.droneCount,
     droneRespawn: Math.max(0.35, base.droneRespawn * Math.pow(0.94, player.upgrades.reload))
@@ -427,15 +429,31 @@ export class MazeGame {
   private fireBarrel(player: GamePlayer, stats: RuntimeStats, barrel: number): void {
     const angle = Math.atan2(player.aim.y, player.aim.x) + this.barrelOffset(stats, barrel);
     const direction = { x: Math.cos(angle), y: Math.sin(angle) };
+    const speed = this.barrelSpeed(stats, barrel);
     const position = { x: player.position.x + direction.x * (GAME.playerRadius + stats.barrelLength), y: player.position.y + direction.y * (GAME.playerRadius + stats.barrelLength) };
     const id = crypto.randomUUID();
-    this.projectiles.set(id, { id, ownerId: player.id, position, velocity: { x: direction.x * stats.projectileSpeed, y: direction.y * stats.projectileSpeed }, radius: stats.projectileRadius, integrity: stats.penetration, maxIntegrity: stats.penetration, damage: stats.damage, life: stats.projectileLife });
+    this.projectiles.set(id, { id, ownerId: player.id, position, velocity: { x: direction.x * speed, y: direction.y * speed }, radius: stats.projectileRadius, integrity: stats.penetration, maxIntegrity: stats.penetration, damage: this.barrelDamage(stats, barrel), life: stats.projectileLife });
   }
 
   private barrelOffset(stats: RuntimeStats, barrel: number): number {
+    if (stats.barrels) return stats.barrels[barrel]?.angle ?? 0;
     return stats.barrelAngles
       ? stats.barrelAngles[barrel] ?? 0
       : stats.barrelCount === 1 ? 0 : (barrel / (stats.barrelCount - 1) - 0.5) * stats.barrelSpread;
+  }
+
+  /**
+   * Pro-Lauf-Profile (Klassen 4.2, Stufe 4, Schritt 2): `barrels` gibt
+   * einzelnen Läufen einen eigenen Schaden-/Tempo-Faktor, Standard je 1 –
+   * unbesetzt oder ohne `barrels` bleibt jeder Lauf exakt bei `stats.damage`
+   * bzw. `stats.projectileSpeed`, wie vor diesem Feld.
+   */
+  private barrelDamage(stats: RuntimeStats, barrel: number): number {
+    return stats.damage * (stats.barrels?.[barrel]?.damageScale ?? 1);
+  }
+
+  private barrelSpeed(stats: RuntimeStats, barrel: number): number {
+    return stats.projectileSpeed * (stats.barrels?.[barrel]?.speedScale ?? 1);
   }
 
   /**
@@ -454,11 +472,11 @@ export class MazeGame {
       ownerId: player.id,
       angle: Math.atan2(player.aim.y, player.aim.x) + this.barrelOffset(stats, barrel),
       barrelLength: stats.barrelLength,
-      projectileSpeed: stats.projectileSpeed,
+      projectileSpeed: this.barrelSpeed(stats, barrel),
       projectileLife: stats.projectileLife,
       projectileRadius: stats.projectileRadius,
       penetration: stats.penetration,
-      damage: stats.damage,
+      damage: this.barrelDamage(stats, barrel),
       remaining: barrel * stats.burstDelay!
     });
   }

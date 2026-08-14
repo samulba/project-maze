@@ -226,6 +226,19 @@ export interface ClassDefinition {
   /** Feste Laufwinkel relativ zur Zielrichtung (z. B. Heckläufe). Ersetzt das Spread-Layout. */
   barrelAngles?: number[];
   /**
+   * Pro-Lauf-Profile (Klassen 4.2, Stufe 4, Schritt 2 – Plan „26-plan-rework":
+   * „Das ist der Schritt, der Spreadshot von Penta trennt."). Ohne dieses
+   * Feld feuert jeder Lauf mit demselben `damage`/`projectileSpeed` – ein
+   * Fächer aus vier Läufen und ein Fächer aus acht Läufen unterscheiden sich
+   * dann nur in der Zahl, nicht im Gefühl. Mit `barrels` bekommt jeder Lauf
+   * seinen eigenen Winkel (ersetzt `barrelAngles`, wenn gesetzt) sowie einen
+   * Schaden-/Tempo-Faktor (Standard je 1). Die Summe der `damageScale`-Werte
+   * sollte `barrelCount` ergeben, damit der Gesamtschaden pro Sekunde – die
+   * Zahl, mit der `damage` in jeder Balance-Rechnung auftaucht – unverändert
+   * bleibt und nur die Verteilung ÜBER die Läufe wechselt.
+   */
+  barrels?: Array<{ angle: number; damageScale?: number; speedScale?: number }>;
+  /**
    * Salve statt Fächer (Klassen 4.2, Stufe 4 – Sam: „Der eine schießt drei
    * nach vorne, der andere zwei.") – dieselben `barrelCount` Schüsse, aber
    * nacheinander statt gleichzeitig, mit dieser Pause dazwischen. Unbesetzt
@@ -333,10 +346,26 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     droneCount: 0, droneRespawn: 0
   }),
   storm: classDef({
-    id: 'storm', label: 'Storm', description: 'Vier Läufe bilden eine breite, aber abwehrbare Kugelwand.', parent: 'twin',
+    id: 'storm', label: 'Storm', description: 'Vier Läufe fächern auf – die Mitte trifft härter, außen schwirrt es schneller und leichter heraus.', parent: 'twin',
     unlockLevel: 28, branch: 'rapid', maxHealth: 108, regen: 2.2, acceleration: 1550, moveSpeed: 276,
     reload: 0.26, projectileSpeed: 860, projectileLife: 1.35, damage: 6, projectileRadius: 6,
     penetration: 12, bodyDamage: 10, barrelCount: 4, barrelSpread: 0.3, barrelLength: 34,
+    /*
+     * Pro-Lauf-Profile, erster Anwendungsfall: dieselben vier Winkel wie
+     * bisher (aus barrelCount/barrelSpread, hier nur ausgeschrieben, damit
+     * Server-Feuerrichtung und Client-Rohrgrafik – die weiter über
+     * barrelSpread rechnet – exakt zusammenbleiben), aber die beiden
+     * mittleren Läufe treffen härter und fliegen dafür langsamer, die
+     * äußeren sind schwächer und schneller. Summe der damageScale 0,65+1,35+
+     * 1,35+0,65 = 4 = barrelCount: derselbe Gesamtschaden pro Sekunde wie vor
+     * diesem Profil, nur anders über die Läufe verteilt.
+     */
+    barrels: [
+      { angle: -0.15, damageScale: 0.65, speedScale: 1.15 },
+      { angle: -0.05, damageScale: 1.35, speedScale: 0.92 },
+      { angle: 0.05, damageScale: 1.35, speedScale: 0.92 },
+      { angle: 0.15, damageScale: 0.65, speedScale: 1.15 }
+    ],
     droneCount: 0, droneRespawn: 0
   }),
   gatling: classDef({

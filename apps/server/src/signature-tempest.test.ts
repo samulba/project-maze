@@ -184,7 +184,10 @@ describe('tempest signature – hitze', () => {
 
   it('lässt Klassen außerhalb der Tempest-Familie unberührt', () => {
     const game = createGame();
-    const { internals, id, player } = spawn(game, 'storm');
+    // twin statt storm: storm trägt seit den Pro-Lauf-Profilen (Klassen 4.2)
+    // absichtlich unterschiedlichen Schaden je Lauf – das würde hier die
+    // eigentliche Frage (rührt DIESE Schicht den Schaden an?) verdecken.
+    const { internals, id, player } = spawn(game, 'twin');
     const stats = tunedStatsFor(player);
 
     let now = 100_000;

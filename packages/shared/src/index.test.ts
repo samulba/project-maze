@@ -281,4 +281,22 @@ describe('progression and input rules', () => {
     expect(dps('railgun')).toBeLessThanOrEqual(70);
     expect(dps('lancer')).toBeLessThanOrEqual(70);
   });
+
+  /**
+   * Pro-Lauf-Profile (Klassen 4.2, Stufe 4, Schritt 2): `barrels` verteilt
+   * denselben Gesamtschaden anders über die Läufe, darf ihn aber nicht
+   * verändern. `damage * barrelCount` taucht in der Balance-Rechnung oben
+   * (`dps`) als der volle Schaden pro Sekunde auf – jede Klasse mit `barrels`
+   * muss diesen Wert exakt einhalten, sonst driftet das Balancing bei jeder
+   * neuen Anwendung des Musters unbemerkt weg.
+   */
+  it('lässt Pro-Lauf-Profile (barrels) den Gesamtschaden pro Salve unverändert', () => {
+    for (const id of PLAYER_CLASS_IDS) {
+      const tank = CLASS_DEFINITIONS[id];
+      if (!tank.barrels) continue;
+      expect(tank.barrels, id).toHaveLength(tank.barrelCount);
+      const summe = tank.barrels.reduce((sum, barrel) => sum + (barrel.damageScale ?? 1), 0);
+      expect(summe, id).toBeCloseTo(tank.barrelCount, 6);
+    }
+  });
 });
