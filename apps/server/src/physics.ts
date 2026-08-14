@@ -92,6 +92,127 @@ export function projectileSubstepCount(maximumSpeed: number, dt: number, stepDis
   return Math.max(1, Math.min(maximumSubsteps, Math.ceil(maximumSpeed * dt / Math.max(1, stepDistance))));
 }
 
+/**
+ * Grobraster für die Frage „welcher Körper berührt diesen Punkt?" – **ohne
+ * Zwischenliste**.
+ *
+ * ## Warum eigen und nicht `SpatialHash`
+ *
+ * `SpatialHash.query` baut für jede Abfrage ein Array. Für die Projektilpaare
+ * (ein paar Dutzend, einmal je Teilschritt) ist das egal. Für die heißen
+ * Schleifen ist genau diese Liste die Rechnung:
+ *
+ * | Schleife | vorher je Tick |
+ * | --- | --- |
+ * | jede Drohne gegen jede Form | 160 × `[...shapes.values()]` à 562 Einträge |
+ * | jedes Projektil gegen jede Form | je Teilschritt dasselbe |
+ *
+ * Gemessen am 14.08. in einer Arena mit 160 Drohnen: `stepDrones` allein war
+ * **30 % des Ticks**, fast vollständig in dieser einen `.find()`-Zeile. Der
+ * lineare Durchlauf war seit jeher da; sichtbar wurde er, als Drohnen zu festen
+ * Körpern wurden (Sams Punkt 7) und die Berührung deshalb in JEDEM Tick
+ * aufgelöst werden muss statt nur, wenn der Rempler nachgeladen hat.
+ *
+ * ## Warum das Raster den größten Radius mitführt
+ *
+ * Es rastet auf die **Mitte** eines Körpers ein. Eine große Form kann in der
+ * Nachbarzelle sitzen und trotzdem hereinragen. Wer nach Berührung fragt, muss
+ * den Suchbereich deshalb um den größten vorkommenden Radius aufweiten – sonst
+ * fliegt eine Kugel durch ein Pentagon, weil dessen Mittelpunkt eine Zelle
+ * weiter liegt. Der Wert wird beim Aufbau gemessen und nicht angenommen: Elite-
+ * Formen (`arena-systems.ts`) tragen eigene Radien.
+ */
+export class Koerperraster<T extends { position: Vector2 }> {
+  private readonly zellen = new Map<number, T[]>();
+  private groessterRadius = 0;
+  private gebautFuer = Number.NaN;
+
+  /**
+   * Alles drei als Funktion – und das ist der Punkt.
+   *
+   * `quelle`: Woher die Körper kommen. `radiusVon`: Formen tragen ihren Radius
+   * als `radius`, Drohnen als `gameplayRadius ?? 12`. `stand`: die Tick-Nummer.
+   *
+   * **Das Raster baut sich selbst neu, sobald der Stand sich geändert hat.**
+   * Der erste Anlauf am 14.08. ließ `step()` es aufbauen – und fiel damit über
+   * genau die Falle, vor der der Kopf von `simulation-hardening.ts` warnt: Wer
+   * `stepDrones` oder `stepProjectiles` direkt ruft (die Tests tun das, und
+   * jede ersetzende Schicht könnte es), bekam ein leeres Raster und damit
+   * lautlos keine Treffer mehr. Ein Zwischenspeicher, den der Aufrufer pflegen
+   * muss, ist kein Zwischenspeicher, sondern eine Verabredung.
+   *
+   * Gültig ist der Stand für alles, was NACH der Bewegung der Körper fragt –
+   * Formen bewegen sich am Anfang des Ticks, Drohnen in `stepDrones`, und
+   * beide werden erst danach nach Treffern gefragt.
+   */
+  constructor(
+    private readonly quelle: () => Iterable<T>,
+    private readonly radiusVon: (koerper: T) => number,
+    private readonly stand: () => number,
+    private readonly zellgroesse = 64
+  ) {}
+
+  private auffrischen(): void {
+    const jetzt = this.stand();
+    if (jetzt === this.gebautFuer) return;
+    this.gebautFuer = jetzt;
+    this.zellen.clear();
+    this.groessterRadius = 0;
+    for (const einer of this.quelle()) {
+      const radius = this.radiusVon(einer);
+      if (radius > this.groessterRadius) this.groessterRadius = radius;
+      const schluessel = this.schluesselFuer(einer.position.x, einer.position.y);
+      const fach = this.zellen.get(schluessel);
+      if (fach) fach.push(einer);
+      else this.zellen.set(schluessel, [einer]);
+    }
+  }
+
+  /**
+   * Erzwingt den Neuaufbau vor der nächsten Frage.
+   *
+   * Gebraucht dort, wo sich Körper INNERHALB eines Ticks bewegen, nachdem das
+   * Raster schon einmal gefragt wurde – der Regelfall braucht das nicht.
+   */
+  entwerten(): void { this.gebautFuer = Number.NaN; }
+
+  /**
+   * Der erste Körper, der einen Kreis (`position`, `radius`) berührt.
+   *
+   * Die Überlappungsrechnung steckt bewusst HIER und nicht beim Aufrufer: Sie
+   * stand am 14.08. an vier Stellen wörtlich gleich im Code – in `game.ts`
+   * zweimal, in `simulation-hardening.ts` und in `drone-tuning.ts` –, und jede
+   * Kopie war eine Gelegenheit, sie auseinanderlaufen zu lassen.
+   */
+  finde(position: Vector2, radius: number, passt?: (kandidat: T) => boolean): T | undefined {
+    this.auffrischen();
+    const reichweite = radius + this.groessterRadius;
+    const vonX = Math.floor((position.x - reichweite) / this.zellgroesse);
+    const bisX = Math.floor((position.x + reichweite) / this.zellgroesse);
+    const vonY = Math.floor((position.y - reichweite) / this.zellgroesse);
+    const bisY = Math.floor((position.y + reichweite) / this.zellgroesse);
+    for (let x = vonX; x <= bisX; x += 1) {
+      for (let y = vonY; y <= bisY; y += 1) {
+        const fach = this.zellen.get(x * 65_536 + y);
+        if (!fach) continue;
+        for (const kandidat of fach) {
+          const dx = kandidat.position.x - position.x;
+          const dy = kandidat.position.y - position.y;
+          const beruehrung = this.radiusVon(kandidat) + radius;
+          if (dx * dx + dy * dy > beruehrung * beruehrung) continue;
+          if (passt && !passt(kandidat)) continue;
+          return kandidat;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  private schluesselFuer(x: number, y: number): number {
+    return Math.floor(x / this.zellgroesse) * 65_536 + Math.floor(y / this.zellgroesse);
+  }
+}
+
 interface Positioned { position: Vector2; }
 export class SpatialHash<T extends Positioned> {
   private readonly buckets = new Map<string, T[]>();

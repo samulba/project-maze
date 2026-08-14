@@ -196,6 +196,15 @@ interface DroneInternals {
   shapes: Map<string, ShapeSnapshot>;
   projectiles: Map<string, RuntimeProjectile>;
   nextDroneSpawn: Map<string, number>;
+  /**
+   * Das Formenraster der Basis (`game.ts`), einmal je Tick gebaut. Diese
+   * Schicht ERSETZT `stepDrones` und löst die Berührung seit Sams Punkt 7 in
+   * JEDEM Tick auf – der lineare Durchlauf über alle 562 Formen war damit
+   * 160 × je Tick statt nur, wenn der Rempler nachgeladen hatte, und allein
+   * ein Drittel der Tickzeit (gemessen 14.08.).
+   */
+  formenraster: { finde(position: Vector2, radius: number, passt?: (kandidat: ShapeSnapshot) => boolean): ShapeSnapshot | undefined };
+  gegnerAmPunkt(position: Vector2, radius: number, ownerId: string): RuntimePlayer | undefined;
   spawnDrone(owner: RuntimePlayer, slot: number): void;
   stepDrones(dt: number, now: number): void;
   damageShape(shape: ShapeSnapshot, damage: number, ownerId: string, now: number): void;
@@ -679,13 +688,8 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
        * continue;` ganz oben – eine Drohne mit laufender Nachladezeit
        * durchquerte das Quadrat, das sie gerade gebissen hatte, ungebremst.
        */
-      const shape = [...internals.shapes.values()].find(
-        (candidate) => distanceSquared(candidate.position, drone.position) <= Math.pow(candidate.radius + radius, 2)
-      );
-      const targetPlayer = shape ? undefined : [...internals.players.values()].find(
-        (candidate) => !candidate.dead && !candidate.invulnerable && candidate.id !== owner.id &&
-          distanceSquared(candidate.position, drone.position) <= Math.pow(GAME.playerRadius + radius, 2)
-      );
+      const shape = internals.formenraster.finde(drone.position, radius);
+      const targetPlayer = shape ? undefined : internals.gegnerAmPunkt(drone.position, radius, owner.id);
       if (shape) schiebeAuseinander(drone, shape.position, shape.radius + radius, (position) => isFree(position, radius));
       else if (targetPlayer) schiebeAuseinander(drone, targetPlayer.position, GAME.playerRadius + radius, (position) => isFree(position, radius));
 

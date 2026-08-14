@@ -503,9 +503,24 @@ export function tuneBotBrain<T extends MazeGame>(game: T, pacing: BotPacingConfi
           && now - Math.max(brain.targetAcquiredAt, brain.lastHitTargetId === bot.targetId ? brain.lastHitAt : 0)
             <= (pacing?.huntTimeoutMs ?? 8_000));
         if (!verfolgt) {
-          const shape = [...internals.shapes.values()]
-            .filter((candidate) => hasLineOfSight(player.position, candidate.position))
-            .sort((a, b) => distanceSquared(a.position, player.position) - distanceSquared(b.position, player.position))[0];
+          /*
+           * Erst sortieren, dann sehen – nicht umgekehrt.
+           *
+           * Hier stand `.filter(hasLineOfSight).sort(nachEntfernung)[0]`, also
+           * ein Sichtstrahl auf JEDE der 562 Formen, um am Ende genau eine zu
+           * behalten. Im Profil des laufenden Servers war das der größte
+           * einzelne Posten der Simulation (`segmentIntersectsWall`, rund ein
+           * Fünftel der Rechenzeit): achtzehn Bots × 562 Strahlen, alle 195 bis
+           * 538 ms neu.
+           *
+           * Das Ergebnis ist dasselbe – gesucht ist die NÄCHSTE Form mit freier
+           * Sicht. Wer nach Entfernung sortiert und dann den ersten sichtbaren
+           * nimmt, prüft im Regelfall eine Handvoll statt aller. Kein
+           * Verhaltensunterschied, nur eine andere Reihenfolge der Fragen.
+           */
+          const nachEntfernung = [...internals.shapes.values()]
+            .sort((a, b) => distanceSquared(a.position, player.position) - distanceSquared(b.position, player.position));
+          const shape = nachEntfernung.find((candidate) => hasLineOfSight(player.position, candidate.position));
           bot.targetShapeId = shape?.id ?? null;
           bot.targetId = null;
           brain.lastSeenPosition = null;

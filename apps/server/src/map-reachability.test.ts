@@ -8,7 +8,7 @@ import {
   pruefeErreichbarkeit,
   zellenVon
 } from './map-reachability';
-import { SHAPE_CONFIG, WALLS, circleHitsWall, isFree, randomSpawn, createShape } from './world';
+import { SHAPE_CONFIG, WALLS, circleHitsWall, isFree, randomSpawn, createShape, resetDisabledWalls, setWallDisabled } from './world';
 
 /**
  * Die Probe misst die Karte – also muss zuerst die Probe selbst geprüft werden,
@@ -179,5 +179,52 @@ describe('Erreichbarkeit der echten Karte', () => {
   it('misst überhaupt eine Karte mit Wänden – sonst prüfte der Test nichts', () => {
     expect(WALLS.length).toBeGreaterThan(20);
     expect(ergebnis.begehbar).toBeLessThan(ergebnis.spalten * ergebnis.zeilen);
+  });
+});
+
+/**
+ * Das Wandraster – Sams „ULTRA LAGGY" vom 14.08.
+ *
+ * `isFree` lief über alle 232 Wände und baute dafür je Aufruf eine Liste. Sie
+ * ist die meistgerufene Funktion des Servers (zweimal je Bewegungsschritt, für
+ * jede Form, jede Drohne, jeden Panzer, vierzigmal je Sekunde) und war damit
+ * der größte Posten im Profil. Jetzt fragt sie ein Raster.
+ *
+ * Diese Prüfung misst nicht das Tempo, sondern die **Gleichheit**: Über ein
+ * dichtes Gitter aus Punkten und mehrere Radien muss die neue Antwort exakt
+ * der alten entsprechen – Wand für Wand nachgerechnet, ohne Raster.
+ */
+describe('Wandraster', () => {
+  const ohneRaster = (punkt: { x: number; y: number }, radius: number): boolean => {
+    if (punkt.x < radius || punkt.y < radius) return false;
+    if (punkt.x > GAME.worldWidth - radius || punkt.y > GAME.worldHeight - radius) return false;
+    return !WALLS.some((wand) => circleHitsWall(punkt, radius, wand));
+  };
+
+  it('antwortet an jedem Punkt genau wie der lineare Durchlauf', () => {
+    let geprueft = 0;
+    for (const radius of [12, 22, 42]) {
+      for (let x = 0; x <= GAME.worldWidth; x += 97) {
+        for (let y = 0; y <= GAME.worldHeight; y += 89) {
+          const punkt = { x, y };
+          expect(isFree(punkt, radius), `frei(${x},${y},r${radius})`).toBe(ohneRaster(punkt, radius));
+          geprueft += 1;
+        }
+      }
+    }
+    // Ein Gitter, das die Karte wirklich abdeckt – sonst prüft der Test nichts.
+    expect(geprueft).toBeGreaterThan(15_000);
+  });
+
+  it('bleibt gleich, wenn eine Wand ausgeschaltet und wieder eingeschaltet wird', () => {
+    // Der Fracture-Fall (`arena-events.ts`): Fällt die Wand aus der Liste, muss
+    // sie auch aus dem Raster fallen – sonst blockiert ein Gespenst den Gang.
+    const wand = WALLS[Math.floor(WALLS.length / 2)]!;
+    const mitte = { x: wand.x + wand.width / 2, y: wand.y + wand.height / 2 };
+    expect(isFree(mitte, 12)).toBe(false);
+    setWallDisabled(wand.id, true);
+    expect(isFree(mitte, 12)).toBe(true);
+    resetDisabledWalls();
+    expect(isFree(mitte, 12)).toBe(false);
   });
 });

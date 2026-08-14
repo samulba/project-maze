@@ -438,12 +438,74 @@ let arenaMode: ArenaMode = 'maze';
 
 /** Zwischenspeicher, damit der Normalfall ohne Fracture keine zusätzliche Prüfung kostet. */
 let activeWalls: Wall[] = WALLS;
+/**
+ * Wandraster – welche Wände liegen in welcher Rasterzelle.
+ *
+ * ## Warum es das gibt
+ *
+ * `isFree` ist die meistgerufene Funktion des ganzen Servers: zweimal je
+ * Bewegungsschritt, und bewegt wird jede Form (562), jede Drohne (bis 160) und
+ * jeder Panzer, vierzigmal in der Sekunde. Dahinter stand
+ * `activeWalls.filter(...)` – ein Durchlauf über alle 232 Wände **mit einer
+ * frischen Liste als Ergebnis**, obwohl die Antwort fast immer „keine" lautet.
+ * Im Profil des laufenden Servers war das der größte Posten der Simulation.
+ *
+ * Die Wände stehen fest; sie ändern sich nur beim Moduswechsel und wenn ein
+ * Arena-Ereignis eine Wand ausschaltet (`disableWall`). Genau dort – in
+ * `refreshActiveWalls` – wird das Raster neu gebaut, sonst nie.
+ *
+ * Zellenkante 480 px ist die Design-Einheit der Karte (`ZELLE`): Eine Wand
+ * liegt damit in ein bis zwei Zellen, und eine Anfrage sieht ein bis vier an.
+ */
+const RASTER_ZELLE = 480;
+let wandRaster = new Map<number, Wall[]>();
+const wandRasterNeu = (): void => {
+  wandRaster = new Map<number, Wall[]>();
+  for (const wand of activeWalls) {
+    const vonX = Math.floor(wand.x / RASTER_ZELLE);
+    const bisX = Math.floor((wand.x + wand.width) / RASTER_ZELLE);
+    const vonY = Math.floor(wand.y / RASTER_ZELLE);
+    const bisY = Math.floor((wand.y + wand.height) / RASTER_ZELLE);
+    for (let x = vonX; x <= bisX; x += 1) {
+      for (let y = vonY; y <= bisY; y += 1) {
+        const schluessel = x * 65_536 + y;
+        const fach = wandRaster.get(schluessel);
+        if (fach) fach.push(wand);
+        else wandRaster.set(schluessel, [wand]);
+      }
+    }
+  }
+};
+/**
+ * Läuft die Wände in der Nachbarschaft ab, ohne eine Liste zu bauen.
+ *
+ * Bricht ab, sobald `besuch` `true` liefert – das ist die Form, die `isFree`
+ * braucht („gibt es EINE Wand im Weg?"). Eine Wand kann in mehreren Zellen
+ * liegen und deshalb mehrfach besucht werden; für eine Ja/Nein-Frage ist das
+ * ohne Belang, und der Aufwand dafür wäre teurer als die Doppelprüfung.
+ */
+function beiWaendenNahe(position: Vector2, radius: number, besuch: (wand: Wall) => boolean): boolean {
+  const vonX = Math.floor((position.x - radius) / RASTER_ZELLE);
+  const bisX = Math.floor((position.x + radius) / RASTER_ZELLE);
+  const vonY = Math.floor((position.y - radius) / RASTER_ZELLE);
+  const bisY = Math.floor((position.y + radius) / RASTER_ZELLE);
+  for (let x = vonX; x <= bisX; x += 1) {
+    for (let y = vonY; y <= bisY; y += 1) {
+      const fach = wandRaster.get(x * 65_536 + y);
+      if (!fach) continue;
+      for (const wand of fach) if (besuch(wand)) return true;
+    }
+  }
+  return false;
+}
 const refreshActiveWalls = (): void => {
   // FFA hat keine Waende. Die Liste bleibt erzeugt – nur sieht sie niemand:
   // Kollision, Sichtlinie und Snapshot lesen ausschliesslich `activeWalls`.
-  if (!ARENA_MODES[arenaMode].walls) { activeWalls = []; return; }
+  if (!ARENA_MODES[arenaMode].walls) { activeWalls = []; wandRasterNeu(); return; }
   activeWalls = disabledWallIds.size === 0 ? WALLS : WALLS.filter((candidate) => !disabledWallIds.has(candidate.id));
+  wandRasterNeu();
 };
+wandRasterNeu();
 
 /**
  * Stellt den Modus der Arena ein. Wird beim Start genau einmal gerufen; die
@@ -479,7 +541,18 @@ const SPAWNS: Vector2[] = [{ x: 240, y: 240 }, { x: GAME.worldWidth - 240, y: 24
 export function circleHitsWall(position: Vector2, radius: number, candidate: Wall): boolean { const nearestX = clamp(position.x, candidate.x, candidate.x + candidate.width); const nearestY = clamp(position.y, candidate.y, candidate.y + candidate.height); const dx = position.x - nearestX; const dy = position.y - nearestY; return dx * dx + dy * dy < radius * radius; }
 export function isInsideWorld(position: Vector2, radius: number): boolean { return position.x >= radius && position.y >= radius && position.x <= GAME.worldWidth - radius && position.y <= GAME.worldHeight - radius; }
 export function nearbyWalls(position: Vector2, radius: number): Wall[] { return activeWalls.filter((candidate) => candidate.x <= position.x + radius && candidate.x + candidate.width >= position.x - radius && candidate.y <= position.y + radius && candidate.y + candidate.height >= position.y - radius); }
-export function isFree(position: Vector2, radius: number): boolean { return isInsideWorld(position, radius) && !nearbyWalls(position, radius + 12).some((candidate) => circleHitsWall(position, radius, candidate)); }
+/**
+ * Steht an dieser Stelle Platz für einen Kreis?
+ *
+ * Die meistgerufene Funktion des Servers – deshalb läuft sie über das Wandraster
+ * und baut keine Zwischenliste mehr (siehe `wandRaster`). Das Ergebnis ist
+ * dasselbe wie mit `nearbyWalls(...).some(...)`: Der Suchbereich ist mit
+ * `radius + 12` derselbe, und geprüft wird weiterhin mit `circleHitsWall`.
+ */
+export function isFree(position: Vector2, radius: number): boolean {
+  if (!isInsideWorld(position, radius)) return false;
+  return !beiWaendenNahe(position, radius + 12, (candidate) => circleHitsWall(position, radius, candidate));
+}
 export function moveCircle(position: Vector2, velocity: Vector2, dt: number, radius: number): { position: Vector2; velocity: Vector2; collided: boolean } {
   const distance = Math.hypot(velocity.x, velocity.y) * dt; const steps = Math.max(1, Math.ceil(distance / Math.max(8, radius * 0.55))); const stepDt = dt / steps; const next = { ...position }; const resolvedVelocity = { ...velocity }; let collided = false;
   for (let step = 0; step < steps; step += 1) {
@@ -532,5 +605,17 @@ export function segmentCrossesWalls(start: Vector2, end: Vector2, ids: Iterable<
   }
   return false;
 }
-export function hasLineOfSight(start: Vector2, end: Vector2): boolean { const center = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }; const radius = Math.hypot(end.x - start.x, end.y - start.y) / 2 + 20; return !nearbyWalls(center, radius).some((candidate) => segmentIntersectsWall(start, end, candidate)); }
+/**
+ * Freie Sicht zwischen zwei Punkten.
+ *
+ * Zweitgrößter Posten im Serverprofil nach `isFree` – die Bots fragen sie für
+ * jedes Ziel neu. Auch sie läuft jetzt über das Wandraster statt über eine
+ * frische Liste aller Wände; geprüft wird unverändert mit
+ * `segmentIntersectsWall`, und der abgesuchte Bereich ist derselbe.
+ */
+export function hasLineOfSight(start: Vector2, end: Vector2): boolean {
+  const center = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+  const radius = Math.hypot(end.x - start.x, end.y - start.y) / 2 + 20;
+  return !beiWaendenNahe(center, radius, (candidate) => segmentIntersectsWall(start, end, candidate));
+}
 export function wallsInView(position: Vector2): Wall[] { const halfWidth = GAME.visibleWorldWidth * 0.62; const halfHeight = GAME.visibleWorldHeight * 0.72; return activeWalls.filter((candidate) => candidate.x <= position.x + halfWidth && candidate.x + candidate.width >= position.x - halfWidth && candidate.y <= position.y + halfHeight && candidate.y + candidate.height >= position.y - halfHeight); }

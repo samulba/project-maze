@@ -19,6 +19,15 @@ type RuntimeShape = ShapeSnapshot;
 type RuntimeDrone = DroneSnapshot & { gameplayRadius?: number | undefined };
 interface GameInternals {
   players: Map<string, RuntimePlayer>;
+  /**
+   * Die Grobraster der Basis (`game.ts`), einmal je Tick gebaut. Diese Schicht
+   * ERSETZT `stepProjectiles`; sie muss deshalb dieselben Raster benutzen und
+   * darf sich kein zweites bauen – sonst stünde derselbe Treffer zweimal im
+   * Code, mit zwei Zeitpunkten und zwei Ständen.
+   */
+  formenraster: { finde(position: Vector2, radius: number, passt?: (kandidat: RuntimeShape) => boolean): RuntimeShape | undefined };
+  drohnenraster: { finde(position: Vector2, radius: number, passt?: (kandidat: RuntimeDrone) => boolean): RuntimeDrone | undefined };
+  gegnerAmPunkt(position: Vector2, radius: number, ownerId: string): RuntimePlayer | undefined;
   projectiles: Map<string, RuntimeProjectile>;
   shapes: Map<string, RuntimeShape>;
   drones: Map<string, RuntimeDrone>;
@@ -189,7 +198,7 @@ export function hardenSimulation<T extends MazeGame>(game: T): T {
         if (!isFree(next, projectile.radius)) { internals.projectiles.delete(projectile.id); continue; }
         projectile.position = next;
         const hits = hitSet(projectile);
-        const shape = [...internals.shapes.values()].find((candidate) => distanceSquared(candidate.position, projectile.position) <= Math.pow(candidate.radius + projectile.radius, 2));
+        const shape = internals.formenraster.finde(projectile.position, projectile.radius);
         if (shape) {
           const key = `shape:${shape.id}`;
           if (!hits.has(key)) {
@@ -211,10 +220,7 @@ export function hardenSimulation<T extends MazeGame>(game: T): T {
          * VOR dem Spieler geprüft: Eine Flotte um ihren Besitzer herum ist in
          * Diep.io ein Schild, und ein Schild, das man durchschießt, ist keins.
          */
-        const drone = [...internals.drones.values()].find(
-          (candidate) => candidate.ownerId !== projectile.ownerId &&
-            distanceSquared(candidate.position, projectile.position) <= Math.pow(droneRadius(candidate) + projectile.radius, 2)
-        );
+        const drone = internals.drohnenraster.finde(projectile.position, projectile.radius, (candidate) => candidate.ownerId !== projectile.ownerId);
         if (drone) {
           const key = `drone:${drone.id}`;
           if (!hits.has(key)) {
@@ -225,7 +231,7 @@ export function hardenSimulation<T extends MazeGame>(game: T): T {
           if (projectile.integrity <= 0 || drone.health > 0) internals.projectiles.delete(projectile.id);
           continue;
         }
-        const target = [...internals.players.values()].find((candidate) => !candidate.dead && !candidate.invulnerable && candidate.id !== projectile.ownerId && distanceSquared(candidate.position, projectile.position) <= Math.pow(GAME.playerRadius + projectile.radius, 2));
+        const target = internals.gegnerAmPunkt(projectile.position, projectile.radius, projectile.ownerId);
         if (target) {
           const key = `player:${target.id}`;
           if (!hits.has(key)) {

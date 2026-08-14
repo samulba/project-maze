@@ -69,6 +69,31 @@ wachsend. Details in [Bericht 32](32-tank-designs.md).
 Neu: `node scripts/tank-sheet.mjs` zeichnet alle 67 nebeneinander. Ohne dieses
 Bild konnten Rohre und Rümpfe monatelang auseinanderlaufen.
 
+## Dritter Nachtrag: „ULTRA LAGGY" – erst gemessen, dann gefixt
+
+Sam: „ok das game ist jetzt ULTRA LAGGY das müssen wir schnell fixen!"
+
+Der A/B-Vergleich gegen die Basis sagt: **Es lag nicht am Paket vom 14.08.**
+Tick 5,66 gegen 5,34 ms, Bildrate 3,1 gegen 3,0 – alles im Rauschen. Langsam war
+etwas Älteres, das erst auffiel, als die Arena voller wurde:
+
+| Posten | Was daran teuer war | Jetzt |
+| --- | --- | --- |
+| `isFree` | Durchlauf über alle 232 Wände, mit frischer Liste – zweimal je Bewegungsschritt, für jede Form, Drohne und jeden Panzer | Wandraster, keine Liste |
+| Drohnen-Berührung | linear durch 562 Formen, seit Punkt 7 in JEDEM Tick | gemeinsames `Koerperraster` |
+| Bot-Zielsuche | 562 Sichtstrahlen, um einen zu behalten | erst sortieren, dann sehen |
+
+| | vorher | nachher |
+| --- | ---: | ---: |
+| Tick p50, normale Arena | 4,2–5,3 ms | **2,3 ms** |
+| Tick p95 | 9,0–9,6 ms | **4,9 ms** |
+| Tick p50 bei 160 Drohnen | 3,79 ms | **0,98 ms** |
+
+Die Simulation ist damit doppelt so schnell wie vor dem ganzen 14.08. Details,
+die falsche Zwischenmessung und die offenen Verdächtigen in
+[Bericht 33](33-lag.md). Neu: `node scripts/frame-probe.mjs` misst Bildzeiten im
+echten Browser.
+
 ## Was Sam beim nächsten Test ansehen sollte
 
 1. **Halbautomatik**: Sind 200 ms die richtige Grenze zwischen „Klick" und

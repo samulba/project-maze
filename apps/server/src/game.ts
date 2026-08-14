@@ -27,6 +27,7 @@ import {
   SpatialHash,
   clampMagnitude,
   distanceSquared,
+  Koerperraster,
   moveVectorToward,
   normalize,
   projectileSubstepCount,
@@ -276,6 +277,19 @@ export class MazeGame {
   private readonly projectiles = new Map<string, GameProjectile>();
   private readonly drones = new Map<string, GameDrone>();
   private readonly shapes = new Map<string, ShapeSnapshot>();
+  /**
+   * Die Grobraster für Formen und Drohnen – einmal je Tick gebaut (`step`),
+   * danach von JEDER Trefferfrage benutzt: Drohne gegen Form, Kugel gegen Form,
+   * Kugel gegen Drohne. Vorher lief jede dieser Fragen linear über alle 562
+   * Formen und baute sich dafür ihre eigene Liste; in einer Arena mit 160
+   * Drohnen war das ein Drittel der Tickzeit (gemessen 14.08.).
+   *
+   * `protected`, weil die ersetzenden Schichten (`simulation-hardening`,
+   * `drone-tuning`) dieselben Raster benutzen müssen – ein zweites, eigenes
+   * Raster wäre doppelte Arbeit und ein zweiter Stand der Wahrheit.
+   */
+  protected readonly formenraster = new Koerperraster<ShapeSnapshot>(() => this.shapes.values(), (form) => form.radius, () => this.tick);
+  protected readonly drohnenraster = new Koerperraster<GameDrone>(() => this.drones.values(), droneRadius, () => this.tick);
   private readonly shapeRespawns: number[] = [];
   private readonly nextDroneSpawn = new Map<string, number>();
   private readonly killfeed: KillEvent[] = [];
@@ -388,6 +402,11 @@ export class MazeGame {
     this.resolvePlayerCollisions(now);
     this.resolveShapeBodyCollisions(now);
     this.stepDrones(safeDt, now);
+    // Die Drohnen haben sich gerade bewegt. Das Raster frischt sich zwar von
+    // selbst je Tick auf, aber innerhalb DIESES Ticks ist es womöglich schon
+    // beantwortet worden (Drohne gegen Form) – die Projektile darunter müssen
+    // die neuen Plätze sehen und nicht die vom Tickanfang.
+    this.drohnenraster.entwerten();
     this.stepBurstQueue(safeDt);
     this.stepProjectiles(safeDt, now);
     for (const player of this.players.values()) if (player.dead && now >= player.autoRespawnAt) this.respawn(player, now);
@@ -593,21 +612,21 @@ export class MazeGame {
         const next = { x: projectile.position.x + projectile.velocity.x * subDt, y: projectile.position.y + projectile.velocity.y * subDt };
         if (!isFree(next, projectile.radius)) { this.projectiles.delete(projectile.id); continue; }
         projectile.position = next;
-        const shape = [...this.shapes.values()].find((candidate) => distanceSquared(candidate.position, projectile.position) <= Math.pow(candidate.radius + projectile.radius, 2));
+        const shape = this.formenraster.finde(projectile.position, projectile.radius);
         if (shape) {
           this.damageShape(shape, projectile.damage, projectile.ownerId, now);
           projectile.integrity -= shape.maxHealth * 0.18;
           if (projectile.integrity <= 0 || survivedHit(shape.health)) this.projectiles.delete(projectile.id);
           continue;
         }
-        const drone = [...this.drones.values()].find((candidate) => candidate.ownerId !== projectile.ownerId && distanceSquared(candidate.position, projectile.position) <= Math.pow(droneRadius(candidate) + projectile.radius, 2));
+        const drone = this.drohnenraster.finde(projectile.position, projectile.radius, (candidate) => candidate.ownerId !== projectile.ownerId);
         if (drone) {
           this.damageDrone(drone, projectile.damage, now);
           projectile.integrity -= drone.maxHealth * 0.18;
           if (projectile.integrity <= 0 || survivedHit(drone.health)) this.projectiles.delete(projectile.id);
           continue;
         }
-        const target = [...this.players.values()].find((candidate) => !candidate.dead && !candidate.invulnerable && candidate.id !== projectile.ownerId && distanceSquared(candidate.position, projectile.position) <= Math.pow(GAME.playerRadius + projectile.radius, 2));
+        const target = this.gegnerAmPunkt(projectile.position, projectile.radius, projectile.ownerId);
         if (target) {
           this.damagePlayer(target, projectile.damage, projectile.ownerId, now);
           projectile.integrity -= target.maxHealth * 0.18;
@@ -739,8 +758,8 @@ export class MazeGame {
       // ist: Sonst fliegt eine Drohne während ihrer Nachladezeit seelenruhig
       // durch das Quadrat hindurch, das sie gerade gebissen hat (Sam, 14.08.).
       const radius = droneRadius(drone);
-      const shape = [...this.shapes.values()].find((candidate) => distanceSquared(candidate.position, drone.position) <= Math.pow(candidate.radius + radius, 2));
-      const targetPlayer = shape ? undefined : [...this.players.values()].find((candidate) => !candidate.dead && !candidate.invulnerable && candidate.id !== owner.id && distanceSquared(candidate.position, drone.position) <= Math.pow(GAME.playerRadius + radius, 2));
+      const shape = this.formenraster.finde(drone.position, radius);
+      const targetPlayer = shape ? undefined : this.gegnerAmPunkt(drone.position, radius, owner.id);
       if (shape) schiebeAuseinander(drone, shape.position, shape.radius + radius, (position) => isFree(position, radius));
       else if (targetPlayer) schiebeAuseinander(drone, targetPlayer.position, GAME.playerRadius + radius, (position) => isFree(position, radius));
       if (drone.contactCooldown > 0) continue;
@@ -775,6 +794,25 @@ export class MazeGame {
    * hier und in `drone-tuning.ts`); mit dem dritten Aufrufer aus
    * `stepProjectiles` wäre sie dreimal dagestanden.
    */
+  /**
+   * Der erste treffbare Gegner an einem Punkt – für Drohnen- und Kugeltreffer.
+   *
+   * Kein Raster: Spieler sind zu zweit bis zu dritt Dutzend, ein Raster über sie
+   * kostet mehr Aufbau, als der Durchlauf spart. Was diese Naht spart, ist die
+   * **Liste**: `[...this.players.values()].find(...)` legte je Drohne und je
+   * Projektil-Teilschritt ein Array an. Die Regel „nicht tot, nicht
+   * unverwundbar, nicht der Eigene" stand dabei viermal wörtlich im Code.
+   */
+  protected gegnerAmPunkt(position: Vector2, radius: number, ownerId: string): GamePlayer | undefined {
+    const reichweite = GAME.playerRadius + radius;
+    const grenze = reichweite * reichweite;
+    for (const kandidat of this.players.values()) {
+      if (kandidat.dead || kandidat.invulnerable || kandidat.id === ownerId) continue;
+      if (distanceSquared(kandidat.position, position) <= grenze) return kandidat;
+    }
+    return undefined;
+  }
+
   protected damageDrone(drone: GameDrone, damage: number, now: number): void {
     drone.health -= Math.max(0, damage);
     if (drone.health > 0) return;
@@ -909,7 +947,14 @@ export class MazeGame {
         bot.targetId = enemy.id;
         bot.targetShapeId = null;
       } else {
-        const shape = [...this.shapes.values()].filter((candidate) => hasLineOfSight(player.position, candidate.position)).sort((a, b) => distanceSquared(a.position, player.position) - distanceSquared(b.position, player.position))[0];
+        // Erst nach Entfernung sortieren, dann den ersten sichtbaren nehmen –
+        // dieselbe Form wie vorher, aber ein Sichtstrahl je Kandidat statt
+        // 562 im Voraus. Begründung ausführlich in `bot-brain.ts`, das diese
+        // Methode ersetzt; hier steht sie mit, damit die Basis nicht die
+        // teure Fassung bleibt.
+        const shape = [...this.shapes.values()]
+          .sort((a, b) => distanceSquared(a.position, player.position) - distanceSquared(b.position, player.position))
+          .find((candidate) => hasLineOfSight(player.position, candidate.position));
         bot.targetShapeId = shape?.id ?? null;
         bot.targetId = null;
       }
