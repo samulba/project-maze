@@ -916,7 +916,25 @@ export const GAME = {
   visibleWorldWidth: 1600,
   visibleWorldHeight: 900,
   viewRadius: 1100,
-  maxAimDistance: 650,
+  /**
+   * Wie weit der Zeiger vom eigenen Panzer weg gemeldet wird.
+   *
+   * Für Rohre zählt nur die RICHTUNG – der Betrag war dort nie wichtig. Für
+   * Drohnen ist er alles: Sie fliegen zu dem Punkt, auf den der Zeiger deutet,
+   * und weiter als hier steht, kommen sie nicht.
+   *
+   * Bei 650 war das ein Fehler, den man sehen konnte: Das Sichtfenster ist
+   * 1600 x 900, die halbe Bilddiagonale also 918 px. Ein Gegner in der Ecke des
+   * eigenen Bildschirms war mit dem Zeiger auf ihm **nicht erreichbar** – die
+   * Flotte blieb 268 px vor ihm stehen und wartete. Sam, 14.08.: „Die
+   * Drohnen-Klasse fühlt sich noch immer MEGA MEGA komisch an zu spielen. Ich
+   * will das EINS ZU EINS wie in Diep.io haben vom Feeling."
+   *
+   * 920 ist genau diese halbe Bilddiagonale, aufgerundet: Jeder Punkt, den der
+   * Spieler sieht, ist auch ein Punkt, den er befehlen kann – und keiner
+   * darüber hinaus.
+   */
+  maxAimDistance: 920,
   playerRadius: 22,
   tickRate: 40,
   snapshotRate: 30,

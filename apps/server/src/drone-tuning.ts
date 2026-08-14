@@ -235,10 +235,49 @@ const WANDTOD_REST_ANTEIL = 0.3;
  * selben Kreis, in dem der Spieler zeigen kann.
  */
 const LEINE = GAME.maxAimDistance;
-/** Radius des Rings, auf dem sich die Flotte um ihr gemeinsames Ziel verteilt. */
-const FORMATION_RING = 26;
+/**
+ * Grundradius des Rings, auf dem sich die Flotte um ihr gemeinsames Ziel
+ * verteilt. `formationsring` weitet ihn für große Flotten auf.
+ */
+const FORMATION_RING = 30;
+/**
+ * Der Ring wächst mit der Flotte – sonst überlappen sich neun Vögel auf einem
+ * 30-px-Kreis (Bogenabstand 21 px bei 17 px Körperdurchmesser) zu einem
+ * einzigen Klumpen, und der ganze Zweck der Formation ist wieder weg. Der
+ * Faktor 0,85 je Körper hält den Bogenabstand bei rund dem 5,3-fachen des
+ * Durchmessers, unabhängig von der Flottengröße.
+ */
+const formationsring = (droneCount: number, koerperradius: number): number =>
+  Math.max(FORMATION_RING, droneCount * koerperradius * 0.85);
+/**
+ * **Wie schnell dieser Ring sich dreht** – der Kern von Sams Punkt 8
+ * („eins zu eins wie in Diep.io vom Feeling").
+ *
+ * In Diep.io steht eine Drohne nie. Sie fliegt zum Zeiger und **kreist dort**,
+ * bis ein neuer Befehl kommt; genau dieses ständige Schwirren ist das Gefühl,
+ * das Sam meint. Hier war der Formationsplatz eine feste Zahl je Slot: Die
+ * Flotte flog hin, bremste (siehe `ANKUNFT_RADIUS`) und **parkte**. Eine
+ * parkende Flotte ist ein Standbild.
+ *
+ * Mit einer Drehung wird aus demselben Formationsplatz ein wanderndes Ziel –
+ * die Drohne kommt nie an und kreist deshalb von selbst. 2,2 rad/s sind rund
+ * 2,9 Sekunden je Umlauf: schnell genug, dass es lebt, langsam genug, dass man
+ * einzelne Drohnen mit dem Auge verfolgen kann.
+ */
+const FORMATION_DREHUNG = 2.2;
 /** Über diese Zeit wird die Restdistanz abgebremst – gegen das Überschwingen. */
 const BREMS_SEKUNDEN = 0.18;
+/**
+ * Mit wie viel Schwung eine frische Drohne aus dem Spawner kommt, als Anteil
+ * ihres Archetyp-Tempos.
+ *
+ * In Diep.io fällt eine Drohne nicht aus der Mitte des Panzers, sie wird aus
+ * dem Spawner-Rohr GESCHOSSEN und schwenkt dann in die Formation ein. Vorher
+ * stand hier `position: { ...owner.position }, velocity: { x: 0, y: 0 }` – die
+ * Drohne erschien im Mittelpunkt des eigenen Tanks und musste sich von dort
+ * erst herausarbeiten.
+ */
+const SPAWN_SCHWUNG = 0.55;
 
 interface Zielspeichereintrag {
   id: string;
@@ -349,12 +388,28 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
     const id = crypto.randomUUID();
     const archetype = archetypeFor(owner.playerClass);
     const maximum = archetype.health * (1 + owner.upgrades.maxHealth * 0.08) * modifierFor(owner).healthMultiplier;
+    /*
+     * Aus dem Spawner, nicht aus dem Mittelpunkt (siehe `SPAWN_SCHWUNG`).
+     *
+     * Die Richtung ist die Blickrichtung des Panzers – dort sitzt in Diep.io
+     * das Spawner-Rohr. Liegt der Austrittspunkt in einer Wand, bleibt es beim
+     * Mittelpunkt: Lieber eine Drohne, die sich herausarbeitet, als eine, die
+     * in einer Wand steht.
+     */
+    const richtung = { x: Math.cos(owner.angle), y: Math.sin(owner.angle) };
+    const muendung = {
+      x: owner.position.x + richtung.x * (GAME.playerRadius + archetype.radius),
+      y: owner.position.y + richtung.y * (GAME.playerRadius + archetype.radius)
+    };
+    const frei = isFree(muendung, archetype.radius);
     internals.drones.set(id, {
       id,
       ownerId: owner.id,
-      position: { ...owner.position },
-      velocity: { x: 0, y: 0 },
-      angle: 0,
+      position: frei ? muendung : { ...owner.position },
+      velocity: frei
+        ? { x: richtung.x * archetype.speed * SPAWN_SCHWUNG, y: richtung.y * archetype.speed * SPAWN_SCHWUNG }
+        : { x: 0, y: 0 },
+      angle: owner.angle,
       health: maximum,
       maxHealth: maximum,
       slot,
@@ -455,14 +510,26 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
       }
 
       /*
-       * Formation statt Pulk: Jede Drohne bekommt ihren Slot-Winkel auch beim
-       * Angriff, fliegt also einen eigenen Punkt auf einem kleinen Ring um das
-       * gemeinsame Ziel an. Ohne das stapelt sich die ganze Flotte auf einer
-       * Koordinate und sieht aus wie eine Drohne.
+       * Formation statt Pulk – und seit Sams Punkt 8 eine KREISENDE Formation.
+       *
+       * Jede Drohne bekommt ihren Slot-Winkel auch beim Angriff, fliegt also
+       * einen eigenen Punkt auf einem kleinen Ring um das gemeinsame Ziel an.
+       * Ohne das stapelt sich die ganze Flotte auf einer Koordinate und sieht
+       * aus wie eine Drohne.
+       *
+       * Neu ist der Zeitanteil (`FORMATION_DREHUNG`): Der Platz wandert um das
+       * Ziel herum, die Drohne kommt also nie an und umkreist es. Genau das
+       * macht Diep.io, und genau das fehlte hier – die Flotte flog hin und
+       * blieb stehen.
+       *
+       * Auch bei EINER Drohne (die Bedingung stand vorher auf `> 1`): Ein
+       * einzelner Wächter, der auf seinem Ziel parkt, sieht genauso tot aus wie
+       * sieben.
        */
-      if (formation && definition.droneCount > 1) {
-        const platz = drone.slot * Math.PI * 2 / definition.droneCount;
-        ziel = { x: ziel.x + Math.cos(platz) * FORMATION_RING, y: ziel.y + Math.sin(platz) * FORMATION_RING };
+      if (formation) {
+        const platz = drone.slot * Math.PI * 2 / Math.max(1, definition.droneCount) + (now / 1000) * FORMATION_DREHUNG;
+        const ring = formationsring(definition.droneCount, radius);
+        ziel = { x: ziel.x + Math.cos(platz) * ring, y: ziel.y + Math.sin(platz) * ring };
       }
       // Leine: Kein Zielpunkt liegt weiter vom Besitzer entfernt als sein
       // Zeiger reichen kann. Ohne sie schiebt ein gehaltener Rechtsklick die
@@ -473,10 +540,19 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
       const abstand = Math.hypot(target.x - drone.position.x, target.y - drone.position.y);
       const direction = normalize({ x: target.x - drone.position.x, y: target.y - drone.position.y });
       const travelMultiplier = modifier.moveMultiplier * modifier.projectileSpeedMultiplier;
-      // Ankommen statt Überschwingen: Auf den letzten Metern wird die
-      // Wunschgeschwindigkeit von der Reststrecke gedeckelt. Vorher pendelte
-      // eine Drohne am Zielpunkt mit bis zu 71 px Amplitude, weil sie mit
-      // vollem Tempo hineinfuhr und erst dahinter bremste.
+      /*
+       * Ankommen statt Überschwingen: Auf den letzten Metern wird die
+       * Wunschgeschwindigkeit von der Reststrecke gedeckelt. Ohne das pendelte
+       * eine Drohne am Zielpunkt mit bis zu 71 px Amplitude, weil sie mit
+       * vollem Tempo hineinfuhr und erst dahinter bremste.
+       *
+       * Die Bremse BLEIBT, obwohl sie im Zielpunkt 0 ergibt – seit der
+       * Formationsplatz wandert (`FORMATION_DREHUNG`), gibt es diesen Zielpunkt
+       * nämlich nicht mehr: Die Drohne verfolgt einen mit 66 px/s kreisenden
+       * Punkt und stellt sich auf rund 12 px Rückstand ein. Das ergibt einen
+       * sauberen Kreis statt eines Zitterns um eine Stelle – ein Tempo-Boden
+       * hätte genau dieses Zittern zurückgebracht.
+       */
       const speed = Math.min(archetype.speed * travelMultiplier, abstand / BREMS_SEKUNDEN);
       drone.velocity = moveVectorToward(
         drone.velocity,

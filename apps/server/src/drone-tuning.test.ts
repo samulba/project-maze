@@ -544,3 +544,105 @@ describe('Minion-Waffe', () => {
     }
   });
 });
+
+/**
+ * Drohnen-Rework 3 (Sams Spieltest vom 14.08., Punkt 8).
+ *
+ * > „Die Drohnen-Klasse fühlt sich noch immer MEGA MEGA komisch an zu spielen.
+ * > Ich will das EINS ZU EINS wie in DIEP.io haben vom FEELING, dort haben sie
+ * > das perfekt gemacht."
+ *
+ * Gemessen war der Grund eine einzige Zahl: Der Formationsplatz jeder Drohne
+ * stand FEST am Ziel, und die Ankunftsbremse (`abstand / BREMS_SEKUNDEN`)
+ * ergibt auf einem festen Punkt exakt 0. Mit gehaltenem Linksklick flog die
+ * Flotte zum Zeiger und **parkte dort mit 0,0 px/s** – alle sechs
+ * Drohnenklassen, ohne Ausnahme. Eine parkende Flotte ist ein Standbild, kein
+ * Schwarm.
+ *
+ * In Diep.io steht eine Drohne nie: Sie kreist um ihren Zielpunkt, bis ein
+ * neuer Befehl kommt. Seit `FORMATION_DREHUNG` wandert der Platz, die Drohne
+ * kommt nie an – und kreist deshalb von selbst.
+ */
+describe('Drohnen kreisen, statt zu parken (Stufe 3)', () => {
+  const FELD = messpunkt({ links: 380, rechts: 380, oben: 380, unten: 380 });
+
+  interface Interna {
+    players: Map<string, any>;
+    shapes: Map<string, any>;
+    drones: Map<string, any>;
+    stepDrones(dt: number, now: number): void;
+  }
+
+  /**
+   * Flotte auf einen Zeiger 260 px rechts vom Panzer, eingeschwungen.
+   *
+   * Der Pfad wird abgelaufen, nicht gesprungen: `chooseClass` erlaubt nur den
+   * jeweils nächsten Schritt der eigenen Familie (plus den Apex).
+   */
+  const amZeiger = (pfad: readonly ['drone', ...('warden' | 'overseer' | 'sovereign')[]]) => {
+    const game = tuneDrones(tuneCombatScaling(new MazeGame(0)));
+    const interna = game as unknown as Interna;
+    interna.shapes.clear();
+    const id = game.addPlayer('Controller');
+    const spieler = interna.players.get(id);
+    spieler.level = 45;
+    spieler.position = { ...FELD };
+    spieler.invulnerable = false;
+    spieler.invulnerableUntil = 0;
+    for (const stufe of pfad) expect(game.chooseClass(id, stufe), stufe).toBe(true);
+    spieler.aim = { x: 260, y: 0 };
+    spieler.primary = true;
+    let now = 100_000;
+    for (let tick = 0; tick < 200; tick += 1) interna.stepDrones(1 / 40, (now += 25));
+    return { interna, spieler, now };
+  };
+
+  const PFADE = [
+    ['drone'],
+    ['drone', 'warden'],
+    ['drone', 'warden', 'overseer'],
+    ['drone', 'warden', 'overseer', 'sovereign']
+  ] as const;
+
+  it.each(PFADE)('lässt die Flotte von %s… am Zeiger nicht stehenbleiben', (...pfad) => {
+    const { interna, spieler } = amZeiger(pfad as unknown as Parameters<typeof amZeiger>[0]);
+    let now = 105_000;
+    const tempi: number[] = [];
+    for (let tick = 0; tick < 200; tick += 1) {
+      interna.stepDrones(1 / 40, (now += 25));
+      for (const drohne of interna.drones.values()) tempi.push(Math.hypot(drohne.velocity.x, drohne.velocity.y));
+    }
+    expect(tempi.length).toBeGreaterThan(0);
+    // Vor dieser Stufe war das LANGSAMSTE gemessene Tempo 0,0 px/s – und zwar
+    // das schnellste zugleich, weil alle standen.
+    expect(Math.min(...tempi)).toBeGreaterThan(40);
+    expect(spieler.dead).toBe(false);
+  });
+
+  it('hält dabei einen gleichmäßigen Ring um den Zeiger', () => {
+    const { interna, spieler } = amZeiger(['drone']);
+    const zeiger = { x: spieler.position.x + spieler.aim.x, y: spieler.position.y + spieler.aim.y };
+    let now = 105_000;
+    const abstaende: number[] = [];
+    for (let tick = 0; tick < 200; tick += 1) {
+      interna.stepDrones(1 / 40, (now += 25));
+      for (const drohne of interna.drones.values()) {
+        abstaende.push(Math.hypot(drohne.position.x - zeiger.x, drohne.position.y - zeiger.y));
+      }
+    }
+    // Kreis, nicht Spirale und nicht Pendel: Der Ring bleibt über 5 Sekunden
+    // innerhalb weniger Pixel derselbe.
+    expect(Math.max(...abstaende) - Math.min(...abstaende)).toBeLessThan(6);
+    expect(Math.min(...abstaende)).toBeGreaterThan(10);
+  });
+
+  /**
+   * Sam, Punkt 8, ist ohne die Zeigerreichweite nicht erfüllbar: Bei 650 px
+   * blieb die Flotte 268 px vor einem Gegner stehen, der in der Ecke des
+   * eigenen Bildschirms stand. Die halbe Bilddiagonale ist 918 px.
+   */
+  it('erlaubt Zielpunkte bis in die Ecke des Sichtfensters', () => {
+    const halbeDiagonale = Math.hypot(GAME.visibleWorldWidth / 2, GAME.visibleWorldHeight / 2);
+    expect(GAME.maxAimDistance).toBeGreaterThanOrEqual(halbeDiagonale);
+  });
+});

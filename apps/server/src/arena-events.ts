@@ -73,6 +73,16 @@ const GUARDIAN_AGGRO_RADIUS = 760;
 /** Der Guardian verlässt seine Zone nicht – er lässt sich nicht aus der Arena locken. */
 const GUARDIAN_LEASH_RADIUS = 430;
 const GUARDIAN_PREFERRED_DISTANCE = 250;
+/**
+ * Feuerreichweite des Guardians – eine eigene Zahl, seit `GAME.maxAimDistance`
+ * eine andere Aufgabe hat.
+ *
+ * Hier stand `GAME.maxAimDistance + 60`, also 710. Als die Zeigerreichweite für
+ * die Drohnensteuerung auf 920 stieg (Sams Punkt 8 vom 14.08.), wäre der
+ * Guardian still auf 980 px Feuerreichweite mitgewachsen – eine Balance-Änderung
+ * als Nebenwirkung eines Steuerungs-Fixes. 710 ist der Stand, der gemessen wurde.
+ */
+const GUARDIAN_FIRE_RANGE = 710;
 const GUARDIAN_DECISION_MS = 320;
 /** So lange gilt ein Angreifer als Bedrohung (und verliert seinen Anfängerschutz). */
 const GUARDIAN_THREAT_MS = 8_000;
@@ -275,7 +285,7 @@ function driveGuardian(
     x: direction.x * radial + home.x - direction.y * 0.35,
     y: direction.y * radial + home.y + direction.x * 0.35
   });
-  guardian.primary = distance < GAME.maxAimDistance + 60;
+  guardian.primary = distance < GUARDIAN_FIRE_RANGE;
   guardian.secondary = false;
 }
 
