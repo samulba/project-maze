@@ -99,7 +99,17 @@ describe('Battle-Royale-Zone', () => {
 
   it('haelt die Zone waehrend der Schonfrist still und tut niemandem weh', () => {
     setArenaMode('royale');
-    const game = createGame();
+    /*
+     * `ohneFormen` – dieselbe Luecke wie oben, und derselbe Flake.
+     *
+     * Der Test behauptet „kein Leben verloren" ueber 35 Sekunden und liess die
+     * Formen dabei stehen. Eine vorbeitreibende Form kostet Leben, und der Test
+     * meldet dann einen Zonenschaden, den es nie gab -- beobachtet in rund
+     * einem von acht Laeufen. Der Nachbartest hat genau diesen Fehler schon
+     * einmal gemacht und traegt die Erklaerung; hier stand nur der Aufruf
+     * nicht.
+     */
+    const game = ohneFormen(createGame());
     const id = game.addPlayer('Spieler');
     const player = (game as unknown as Internals).players.get(id);
     // Weit ausserhalb jeder spaeteren Zone, aber innerhalb der Karte.
