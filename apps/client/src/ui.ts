@@ -422,6 +422,23 @@ export class GameUI {
     };
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(breiteMelden).observe(this.upgrades);
     breiteMelden();
+    /*
+     * Dieselbe Idee für die Höhe der linken oberen Ecke (Spielerkarte +
+     * Killfeed, `.top-left`). Die Death-Karte beim Zuschauen hängt sich unten
+     * links an (`spectator.css`) und wuchs mit dem eingezogenen Loadout auf
+     * bis zu 476 px – bei kurzem Killfeed unauffällig, bei einem mit mehreren
+     * Einträgen ragte ihr oberer Rand in genau die Zeilen hinein, die gerade
+     * erst neu dazukamen. Ein fester Wert hätte hier so oder so mal zu wenig,
+     * mal zu viel Platz gelassen.
+     */
+    const topLinksHoeheMelden = (): void => {
+      const topLeft = document.querySelector<HTMLElement>('.top-left');
+      if (!topLeft) return;
+      document.documentElement.style.setProperty('--top-links-hoehe', `${Math.round(topLeft.getBoundingClientRect().height)}px`);
+    };
+    const topLeftElement = document.querySelector<HTMLElement>('.top-left');
+    if (topLeftElement && typeof ResizeObserver !== 'undefined') new ResizeObserver(topLinksHoeheMelden).observe(topLeftElement);
+    topLinksHoeheMelden();
     this.points = this.require('#upgrade-points');
     this.signatureRow = this.require('#signature-row');
     this.signatureLabelEl = this.require('#signature-label');

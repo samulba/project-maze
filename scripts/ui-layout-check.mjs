@@ -511,7 +511,16 @@ function messenImBrowser() {
    */
   const alsSheet = window.matchMedia('(pointer: coarse)').matches;
   const sheetOffen = panel?.classList.contains('sheet-open');
-  if (panel && !panel.hidden && punkteOffen && !imTod && (!alsSheet || sheetOffen)) {
+  /*
+   * Das Klassenrad ist seit „Klassen 4.1" (class-tree.css) mit Absicht eine
+   * Leseansicht: Das HUD tritt zurueck, das Upgrade-Panel ausdruecklich mit
+   * (`opacity:0; pointer-events:none`, Kommentar dort: „eine Bedienung, die
+   * waehrend einer Leseansicht nicht gebraucht wird"). Ohne diese Ausnahme
+   * meldete diese Pruefung genau die gewollte Regel als Befund – bei jedem
+   * offenen Rad mit einem freien Punkt, seit es die Regel gibt.
+   */
+  const radOffen = !!document.querySelector('.class-overlay:not([hidden])');
+  if (panel && !panel.hidden && punkteOffen && !imTod && !radOffen && (!alsSheet || sheetOffen)) {
     const stil = getComputedStyle(panel);
     const gruende = [];
     if (stil.pointerEvents === 'none') gruende.push('Panel nimmt keine Zeiger an');

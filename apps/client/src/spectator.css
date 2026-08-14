@@ -68,6 +68,39 @@
   background: var(--strong);
   box-shadow: 0 14px 40px var(--shadow);
   pointer-events: auto;
+  /*
+   * Gemessen: Mit eingezogenem Loadout ist die Karte bis zu 476 px hoch – bei
+   * einem gefüllten Killfeed (Spielerkarte + mehrere Zeilen, `--top-links-
+   * hoehe`, in `ui.ts` per ResizeObserver gemessen) ragte ihr oberer Rand
+   * genau dort hinein. Wird es eng, scrollt die Karte in sich statt in den
+   * Killfeed zu wachsen.
+   *
+   * Zweimal `--edge-y` abgezogen, nicht einmal: `.top-left` beginnt selbst
+   * erst bei `--edge-y` von oben (`top-links-hoehe` ist nur seine eigene
+   * Höhe, nicht sein Abstand zur Bildkante), und die Karte unten braucht
+   * ihren eigenen Rand. Ein einzelner Abzug liess die Karte genau um diesen
+   * Rand zu hoch geraten – 6 px Überlappung, gemessen.
+   */
+  max-height: calc(100% - var(--top-links-hoehe, 0px) - 12px - 2 * max(var(--edge-y), env(safe-area-inset-bottom)));
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+/*
+ * Wie beim normalen Tod (hud-layout.css, `:not(.spectating) .death-actions`)
+ * klebt der Weg zurück am unteren Kartenrand, statt mit dem Inhalt
+ * wegzuscrollen: Gemessen mit ausgeklapptem Loadout ragte ZUM STARTSCREEN
+ * sonst unter den sichtbaren Kasten – der Prüfstand fand das (Weg zurueck:
+ * nicht ohne Scrollen erreichbar). Innenabstand hier 14 px statt dort 28 px,
+ * weil die Karte beim Zuschauen selbst nur mit 14 px gepolstert ist.
+ */
+.death-screen.spectating .death-actions {
+  position: sticky;
+  bottom: -1px;
+  z-index: 1;
+  margin: 10px -14px -14px;
+  padding: 10px 14px 14px;
+  background: linear-gradient(to top,
+    var(--strong) 0%, var(--strong) 72%, color-mix(in srgb, var(--strong) 0%, transparent) 100%);
 }
 .death-screen.spectating .eyebrow { margin-bottom: 8px; font-size: 9px; }
 .death-screen.spectating h2 { font-size: 19px; letter-spacing: -.02em; }
