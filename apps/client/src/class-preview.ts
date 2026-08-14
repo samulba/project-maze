@@ -1,5 +1,7 @@
 import { CLASS_DEFINITIONS, GAME, type PlayerClass } from '@project-maze/shared';
 import { hullGeometry, type DrawOp } from '@project-maze/shared/appearance';
+import { laeufeVon, type Lauf } from '@project-maze/shared/barrels';
+import { barrelHeightFor } from './barrel-geometry';
 
 /**
  * Bild des Tanks für Wahlkarten, Rad und Death-Screen.
@@ -16,17 +18,15 @@ import { hullGeometry, type DrawOp } from '@project-maze/shared/appearance';
 
 const VIEW = 96;
 
-const barrelHeight = (branch: string): number => (branch === 'precision' ? 12 : branch === 'impact' ? 16 : 14);
-
-function barrelPolygon(start: number, length: number, height: number, angle: number): string {
+function barrelPolygon(lauf: Lauf, height: number): string {
   const corners: [number, number][] = [
-    [start, -height / 2],
-    [start + length, -height / 2],
-    [start + length, height / 2],
-    [start, height / 2]
+    [lauf.start, -height / 2],
+    [lauf.muendung, -height / 2],
+    [lauf.muendung, height / 2],
+    [lauf.start, height / 2]
   ];
   return corners
-    .map(([x, y]) => `${(x * Math.cos(angle) - y * Math.sin(angle)).toFixed(1)},${(x * Math.sin(angle) + y * Math.cos(angle)).toFixed(1)}`)
+    .map(([x, y]) => `${(x * Math.cos(lauf.winkel) - y * Math.sin(lauf.winkel)).toFixed(1)},${(x * Math.sin(lauf.winkel) + y * Math.cos(lauf.winkel)).toFixed(1)}`)
     .join(' ');
 }
 
@@ -46,25 +46,17 @@ function opMarkup(op: DrawOp): string {
 /** Nur die Silhouette (Rumpf + Rohre), z. B. für Rad-Knoten und Blindtest. */
 export function classSilhouetteMarkup(playerClass: PlayerClass): string {
   const definition = CLASS_DEFINITIONS[playerClass];
-  const height = barrelHeight(definition.branch);
-  const start = definition.branch === 'impact' ? 1 : 4;
-
-  const barrels: string[] = [];
-  if (definition.barrelCount > 0) {
-    if (definition.barrelAngles) {
-      for (const angle of definition.barrelAngles) {
-        barrels.push(`<polygon points="${barrelPolygon(start, definition.barrelLength, height, angle)}" class="cp-barrel"/>`);
-      }
-    } else {
-      for (let index = 0; index < definition.barrelCount; index += 1) {
-        const offset = definition.barrelCount === 1 ? 0 : (index / (definition.barrelCount - 1) - 0.5) * definition.barrelSpread;
-        const y = offset * 44;
-        barrels.push(
-          `<rect x="${start}" y="${(y - height / 2).toFixed(1)}" width="${definition.barrelLength}" height="${height}" rx="${definition.branch === 'precision' ? 3 : 4}" class="cp-barrel"/>`
-        );
-      }
-    }
-  }
+  /*
+   * Rohre aus `shared/barrels.ts` und Breite aus `barrel-geometry.ts` – bis zum
+   * 14.08. rechnete diese Datei beides noch einmal selbst, mit drei festen
+   * Breiten für über fünfzig Klassen und mit parallelen Balken statt des
+   * Winkelfächers, den der Server wirklich feuert. Die Wahlkarte zeigte damit
+   * einen anderen Tank, als man danach spielte (Sams Punkt 6).
+   */
+  const height = barrelHeightFor(definition, playerClass);
+  const barrels = laeufeVon(playerClass).map(
+    (lauf) => `<polygon points="${barrelPolygon(lauf, height)}" class="cp-barrel"/>`
+  );
 
   const drones: string[] = [];
   const droneCount = Math.min(definition.droneCount, 8);

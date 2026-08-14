@@ -51,6 +51,7 @@ import {
 import { DEFAULT_BOT_PACING, tuneBotBrain } from './bot-brain.js';
 import { tuneDrones } from './drone-tuning.js';
 import { tuneFamilyUpgrades, type SignatureFamily } from './family-upgrades.js';
+import { tuneFireCadence } from './fire-cadence.js';
 import { tuneFireRecoil } from './fire-recoil.js';
 import { tuneHitDirection } from './hit-direction.js';
 import { MazeGame } from './game.js';
@@ -481,6 +482,13 @@ const encodedGame = tuneSnapshotEncoding(
                                   // wie die AEGIS-Entladung, die aussen nicht
                                   // vorbeikommen.
                                   tuneHitDirection(
+                                  // Halbautomatik direkt um das Kampf-Tuning
+                                  // (Sams Punkt 6 vom 14.08.): Dort steht die
+                                  // Zeile, die bei gedrueckter Taste feuert.
+                                  // INNERHALB des Ladeschusses – eine Klasse,
+                                  // deren ganzes Spiel das Halten ist, darf
+                                  // keine Halbautomatik bekommen.
+                                  tuneFireCadence(
                                   tuneCombatScaling(
                                     // Projektiltempo vor allem anderen: Es
                                     // aendert die Statik, aus der jede weitere
@@ -489,6 +497,7 @@ const encodedGame = tuneSnapshotEncoding(
                                       tuneSpectator(hardenSimulation(new MazeGame(BOT_COUNT)), SPECTATOR_ENABLED),
                                       PROJECTILE_SPEED_V2
                                     )
+                                  )
                                   )
                                   ),
                                   FAMILY_UPGRADE_BRANCHES

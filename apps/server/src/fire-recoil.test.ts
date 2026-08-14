@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { GAME } from '@project-maze/shared';
+import { CLASS_DEFINITIONS, GAME } from '@project-maze/shared';
 import { tuneCombatScaling } from './combat-tuning';
-import { RUECKSTOSS_TEMPO, offenerRueckstoss, tuneFireRecoil } from './fire-recoil';
+import { RUECKSTOSS_TEMPO, kugelwucht, offenerRueckstoss, tuneFireRecoil } from './fire-recoil';
 import { MazeGame } from './game';
 import { messfeld } from './messfeld';
 import { tuneLoadoutSystem } from './loadout-system';
@@ -23,7 +23,7 @@ const DT = 1 / 40;
 /**
  * Nachweislich freies Feld – der Tank muss driften können, nicht anecken.
  * Auf der Karte gesucht statt hingeschrieben (siehe messfeld.ts): Die Drift
- * läuft über mehrere Sekunden bei rund 25 px/s.
+ * läuft über mehrere Sekunden bei 4–11 px/s je nach Klasse.
  */
 const OFFEN = messfeld(240);
 
@@ -56,9 +56,10 @@ const schuetze = (game: MazeGame, interna: Interna, klasse = 'twin') => {
 };
 
 /** Sekunden feuern und zurückgeben, wie weit der Tank gedriftet ist. */
-const drift = (sekunden: number, rueckstoss: boolean, klasse = 'twin'): number => {
+const drift = (sekunden: number, rueckstoss: boolean, klasse = 'twin', level = 45): number => {
   const { game, interna } = bauen(rueckstoss);
   const { spieler } = schuetze(game, interna, klasse);
+  spieler.level = level;
   const start = { ...spieler.position };
   let now = 100_000;
   for (let tick = 0; tick < sekunden / DT; tick += 1) {
@@ -93,22 +94,56 @@ describe('Rückstoß beim Feuern', () => {
   });
 
   /**
-   * Sams Einschränkung „aber jetzt auch nicht zu stark" ist hier die
-   * eigentliche Zusicherung: Die Drift bleibt bei rund einem Zehntel der
-   * Laufgeschwindigkeit, und sie ist für schnelle wie langsame Klassen
-   * dieselbe – sonst würde eine Gatling zehnmal so weit geschoben wie eine
-   * Kanone, nur weil sie öfter abdrückt.
+   * Die Feuerrate darf die Drift nicht bestimmen – sonst würde eine Gatling
+   * zehnmal so weit geschoben wie eine Kanone, nur weil sie öfter abdrückt.
+   * Das war die Zusicherung der ersten Runde und gilt unverändert.
    */
-  it('driftet rund 25 px je Sekunde – und zwar unabhängig von der Feuerrate', () => {
+  it('driftet unabhängig von der Feuerrate', () => {
     const schnell = drift(3, true, 'gatling') / 3;
     const langsam = drift(3, true, 'sniper') / 3;
     for (const [name, wert] of [['gatling', schnell], ['sniper', langsam]] as const) {
       expect(wert, `${name} driftet ${wert.toFixed(1)} px/s`).toBeGreaterThan(RUECKSTOSS_TEMPO * 0.5);
-      expect(wert, `${name} driftet ${wert.toFixed(1)} px/s`).toBeLessThan(RUECKSTOSS_TEMPO * 1.6);
+      expect(wert, `${name} driftet ${wert.toFixed(1)} px/s`).toBeLessThan(RUECKSTOSS_TEMPO * 2);
     }
     // Die schnelle Klasse darf nicht ein Vielfaches der langsamen driften.
     expect(schnell / langsam).toBeLessThan(1.8);
     expect(schnell / langsam).toBeGreaterThan(0.55);
+  });
+
+  /**
+   * Zweite Runde (Sam, 14.08.): „RÜCKSTOSS der KUGELN viel zu STARK, z.B. nicht
+   * sinnvoll eingesetzt, z.B. beim ANFANGSTANK zu stark."
+   *
+   * Der Anfangstank ist die Klasse, an der Sam es festmacht, und er bekommt die
+   * Zahl, die dazu gehört: Die Core driftete mit 25,0 px/s, also 9,3 % ihrer
+   * Laufgeschwindigkeit von 270 px/s. Jetzt sind es 6,0 px/s – 2,2 %.
+   */
+  it('schiebt den Anfangstank nur noch angedeutet', () => {
+    const core = drift(3, true, 'core') / 3;
+    expect(core, `core driftet ${core.toFixed(1)} px/s`).toBeLessThan(CLASS_DEFINITIONS.core.moveSpeed * 0.03);
+    // Aber spürbar bleibt er: „ganz weg" wäre die Rücknahme der ersten Runde.
+    expect(core).toBeGreaterThan(3);
+  });
+
+  /**
+   * „Nicht sinnvoll eingesetzt": Vorher hing der Stoß an der Feuerrate und an
+   * SONST NICHTS – eine kleine schnelle Kugel schob genauso wie eine schwere.
+   * Jetzt folgt er dem Impuls des Schusses (`kugelwucht`).
+   */
+  it('schiebt eine schwere Kugel weiter als eine leichte', () => {
+    expect(kugelwucht(CLASS_DEFINITIONS.sniper)).toBeGreaterThan(kugelwucht(CLASS_DEFINITIONS.rapid));
+    expect(drift(3, true, 'sniper')).toBeGreaterThan(drift(3, true, 'rapid'));
+  });
+
+  /**
+   * Der Rückstoß ist eine Eigenschaft der Kanone, nicht der Ausbaustufe. Über
+   * die Levelrampe des Kugelradius (13.08.) wäre er sonst still bis zum
+   * 3,6-fachen mitgewachsen.
+   */
+  it('wächst nicht mit dem Level', () => {
+    // Je Messung ein eigenes Spiel: Zwei Panzer in einem stünden übereinander
+    // und schöben sich gegenseitig weg – gemessen wäre dann die Kollision.
+    expect(drift(2, true, 'core', 60)).toBeCloseTo(drift(2, true, 'core', 1), 3);
   });
 
   it('lässt die Geschwindigkeit unberührt – daran hängen vier Schwellen', () => {

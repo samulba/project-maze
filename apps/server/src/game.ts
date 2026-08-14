@@ -22,6 +22,7 @@ import {
   type Vector2,
   type WorldSnapshot
 } from '@project-maze/shared';
+import { laufwinkel, projektilStart } from '@project-maze/shared/barrels';
 import {
   SpatialHash,
   clampMagnitude,
@@ -470,7 +471,10 @@ export class MazeGame {
     const angle = Math.atan2(player.aim.y, player.aim.x) + this.barrelOffset(stats, barrel);
     const direction = { x: Math.cos(angle), y: Math.sin(angle) };
     const speed = this.barrelSpeed(stats, barrel);
-    const position = { x: player.position.x + direction.x * (GAME.playerRadius + stats.barrelLength), y: player.position.y + direction.y * (GAME.playerRadius + stats.barrelLength) };
+    // Aus dem Rohr, nicht davor (Sams Punkt 6 vom 14.08.) – die Zahl steht in
+    // `shared/barrels.ts`, damit sie zur gezeichneten Mündung passt.
+    const abstand = projektilStart(stats, stats.projectileRadius);
+    const position = { x: player.position.x + direction.x * abstand, y: player.position.y + direction.y * abstand };
     const id = crypto.randomUUID();
     this.projectiles.set(id, { id, ownerId: player.id, position, velocity: { x: direction.x * speed, y: direction.y * speed }, radius: stats.projectileRadius, integrity: stats.penetration, maxIntegrity: stats.penetration, damage: this.barrelDamage(stats, barrel), life: stats.projectileLife, plantAtLife: this.plantAtLifeFor(stats) });
   }
@@ -484,11 +488,18 @@ export class MazeGame {
     return stats.trapAfter !== undefined ? Math.max(0, stats.projectileLife - stats.trapAfter) : undefined;
   }
 
+  /**
+   * Der Winkel eines Laufs – **aus `shared/barrels.ts`, nicht mehr aus einer
+   * eigenen Rechnung.**
+   *
+   * Hier stand dieselbe Rangfolge (`barrels` → `barrelAngles` → Fächer) ein
+   * zweites Mal, und Renderer und Wahlkarten-Vorschau rechneten ein drittes und
+   * viertes Mal etwas ganz anderes: parallele Balken statt eines Fächers. Sam,
+   * 14.08.: „das Design, wie die Rohre bei einigen Tanks sind, obwohl die
+   * anders schießen, ist komisch."
+   */
   private barrelOffset(stats: RuntimeStats, barrel: number): number {
-    if (stats.barrels) return stats.barrels[barrel]?.angle ?? 0;
-    return stats.barrelAngles
-      ? stats.barrelAngles[barrel] ?? 0
-      : stats.barrelCount === 1 ? 0 : (barrel / (stats.barrelCount - 1) - 0.5) * stats.barrelSpread;
+    return laufwinkel(stats, barrel);
   }
 
   /**
@@ -546,7 +557,8 @@ export class MazeGame {
       // Position VOM AKTUELLEN Standort des Besitzers, nicht vom Moment des
       // Abzugs – wer sich während der Salve bewegt, feuert die späteren Läufe
       // von dort, wo er gerade ist, genau wie ein echter Mehrlauf-Tank.
-      const position = { x: owner.position.x + direction.x * (GAME.playerRadius + shot.barrelLength), y: owner.position.y + direction.y * (GAME.playerRadius + shot.barrelLength) };
+      const abstand = projektilStart({ barrelLength: shot.barrelLength }, shot.projectileRadius);
+      const position = { x: owner.position.x + direction.x * abstand, y: owner.position.y + direction.y * abstand };
       const id = crypto.randomUUID();
       this.projectiles.set(id, { id, ownerId: shot.ownerId, position, velocity: { x: direction.x * shot.projectileSpeed, y: direction.y * shot.projectileSpeed }, radius: shot.projectileRadius, integrity: shot.penetration, maxIntegrity: shot.penetration, damage: shot.damage, life: shot.projectileLife, plantAtLife: shot.plantAtLife });
     }

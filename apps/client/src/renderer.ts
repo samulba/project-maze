@@ -14,6 +14,7 @@ import {
   type Wall,
   type WorldSnapshot
 } from '@project-maze/shared';
+import { laeufeVon } from '@project-maze/shared/barrels';
 import type { ArenaEventSnapshot } from '@project-maze/shared/gameplay';
 import { GUARDIAN_COLOR, GUARDIAN_NAME, arenaEventStyle } from './arena-event-style';
 import { barrelHeightFor } from './barrel-geometry';
@@ -1135,31 +1136,29 @@ export class GameRenderer {
     view.name.style.fontWeight=view.isGuardian?'800':'600';
   }
 
+  /**
+   * Die Rohre – seit Sams Punkt 6 (14.08.) aus derselben Quelle wie der Schuss.
+   *
+   * Vorher zeichnete diese Schleife Mehrlauf-Tanks als PARALLELE Balken,
+   * seitlich versetzt (`y = offset * 44`), während der Server sie als
+   * Winkelfächer feuerte – Storm zeigte sechs parallele Rohre und feuerte einen
+   * 24°-Fächer aus der Mitte. Das Feld `barrels` (Pro-Lauf-Profile, z. B.
+   * Flanker mit zwei Rohren nach hinten) las die Zeichnung überhaupt nicht.
+   *
+   * `laeufeVon` in `shared/barrels.ts` liefert jetzt für beide Seiten dieselben
+   * Winkel und dieselbe Mündung. Ein Rohr, das anders aussieht als es schießt,
+   * ist danach nicht mehr baubar, ohne diese Datei UND den Server zu ändern.
+   */
   private drawClassBarrels(graphics:Graphics,playerClass:PlayerClass,color:number):void{
     const definition=CLASS_DEFINITIONS[playerClass];
-    if(definition.barrelCount<=0)return;
-    const precision=definition.branch==='precision';
-    const impact=definition.branch==='impact';
     const height=barrelHeightFor(definition,playerClass);
-    if(definition.barrelAngles){
-      for(const angle of definition.barrelAngles){
-        const start=impact?1:4;
-        const corners:[number,number][]=[[start,-height/2],[start+definition.barrelLength,-height/2],[start+definition.barrelLength,height/2],[start,height/2]];
-        const points:number[]=[];
-        for(const[x,y]of corners){
-          points.push(x*Math.cos(angle)-y*Math.sin(angle),x*Math.sin(angle)+y*Math.cos(angle));
-        }
-        graphics.poly(points).fill(this.palette.barrel).stroke({color,alpha:.36,width:2});
+    for(const lauf of laeufeVon(playerClass)){
+      const corners:[number,number][]=[[lauf.start,-height/2],[lauf.muendung,-height/2],[lauf.muendung,height/2],[lauf.start,height/2]];
+      const points:number[]=[];
+      for(const[x,y]of corners){
+        points.push(x*Math.cos(lauf.winkel)-y*Math.sin(lauf.winkel),x*Math.sin(lauf.winkel)+y*Math.cos(lauf.winkel));
       }
-      return;
-    }
-    for(let index=0;index<definition.barrelCount;index+=1){
-      const offset=definition.barrelCount===1?0:(index/(definition.barrelCount-1)-.5)*definition.barrelSpread;
-      const y=offset*44;
-      const start=impact?1:4;
-      graphics.roundRect(start,y-height/2,definition.barrelLength,height,precision?3:4)
-        .fill(this.palette.barrel)
-        .stroke({color,alpha:.36,width:2});
+      graphics.poly(points).fill(this.palette.barrel).stroke({color,alpha:.36,width:2});
     }
   }
 

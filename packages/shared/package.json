@@ -20,6 +20,10 @@
       "types": "./dist/perks.d.ts",
       "default": "./dist/perks.js"
     },
+    "./barrels": {
+      "types": "./dist/barrels.d.ts",
+      "default": "./dist/barrels.js"
+    },
     "./appearance": {
       "types": "./dist/appearance.d.ts",
       "default": "./dist/appearance.js"
