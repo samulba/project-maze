@@ -5,66 +5,64 @@
  * `html, body { height: 100%; overflow: hidden }` – richtig für eine Arena, die
  * den ganzen Bildschirm füllt, falsch für eine Seite, die gescrollt wird.
  *
- * ## Zweiter Anlauf bei der Farbwelt
+ * ## Dritter Anlauf bei der Farbwelt: Trennung vom Spiel
  *
- * Der erste Umbau hat die Struktur repariert (fünf Tafeln statt einer Rolle),
- * aber die Farbwelt vom alten Portal geerbt: gedecktes Indigo auf Grau. Sams
- * Urteil dazu war deutlich, und er hatte recht – Grau-in-Grau mit einem
- * Verlauf drüber ist die Uniform von tausend Dashboards. Was fehlte, war
- * nicht Politur, sondern eine Identität.
+ * Sams Ansage: Die Farben des Portals sollen **nichts** mit denen des Spiels
+ * zu tun haben – „super basic modern schwarz weiß mit einer Akzentfarbe".
+ * Der zweite Anlauf (Violett→Cyan-Duotone mit Aurora) war hübsch, aber er
+ * spielte in derselben Liga wie die Spiel-Themes und damit im falschen Trikot:
+ * Das Spiel darf leuchten, das Werkzeug daneben soll nüchtern sein.
  *
- * Die neue Identität, in drei Entscheidungen:
+ * Die Regeln dieser Fassung:
  *
- * 1. **Echtes Schwarz als Grund.** Vorher lag helleres Grau auf dunklerem
- *    Grau – nichts hatte Kante, alles war Brei. Auf Schwarz heben sich die
- *    Flächen von selbst ab, und Farben leuchten, statt zu verstauben.
- *    Haarlinien-Ränder kommen damit zurück: Auf Grau waren sie ein
- *    Gitternetz, auf Schwarz sind sie Kontur.
+ * 1. **Monochrom.** Neutrales Schwarz, Weiß, Grau – kein Farbstich im Grund,
+ *    keine Aurora, kein Raster. Flächen sind fast schwarz mit
+ *    Haarlinien-Kontur; Hierarchie entsteht aus Helligkeit und Größe.
  *
- * 2. **Eine Signatur: Violett → Cyan.** Das Duotone zieht sich als Verlauf
- *    durch Marke, Nordstern, Diagramme und Balken. Es ist mit dem Spiel
- *    verwandt (die Themes „neon" und „void" leben von genau solchen
- *    Leuchtfarben auf Schwarz), ohne eine Kopie zu sein. Grün, Gelb und Rot
- *    bleiben reine Bedeutungsfarben – die Signatur schmückt, die Ampel warnt.
+ * 2. **Eine Akzentfarbe: Signalblau.** Sie markiert Interaktion und das
+ *    Wichtigste – aktive Navigation, Primärknopf, Fokus, Nordstern, die
+ *    „neu"-Serie im Diagramm. Blau, weil es im Spiel nicht vorkommt (dort
+ *    Indigo/Violett, Lime, Cyan, Magenta) und die Trennung damit sichtbar
+ *    ist. Grün, Gelb und Rot bleiben reine Bedeutungsfarben der Ampel.
  *
- * 3. **Licht ist Bedeutung.** Glow gibt es nur, wo etwas lebt oder zählt:
- *    der Live-Punkt, der Nordstern, die aktive Navigation, die Ampeln im
- *    Betrieb. Eine Fläche, die leuchtet, ohne etwas zu sagen, ist Lärm.
+ * 3. **Daten dürfen Farbe tragen, Chrom nicht.** Die Zweigfarben der Klassen
+ *    und die Avatare bleiben bunt – sie unterscheiden Dinge und sind damit
+ *    Information. Rahmen, Schalter und Flächen bleiben grau.
  *
- * Was vom ersten Umbau bestehen bleibt, weil es Befunde repariert hat:
- * Größe als einziger Hierarchie-Kanal im Fließtext, `tabular-nums` auf allem
- * Numerischen (die Spalte darf beim 20-Sekunden-Takt nicht springen), eine
- * Frage je Bildschirm. Neu dazu kommt **eine** definierte Ausnahme: winzige
- * Mono-Versalien als Datenetikett (Kachel-Beschriftung, Tabellenkopf). Das ist
- * kein Rückfall in „alles schreit" – es ist genau ein Register, das Werte von
- * Prosa trennt, und es kommt nirgendwo sonst vor.
+ * Was aus den ersten Umbauten bestehen bleibt, weil es Befunde repariert hat:
+ * Größe als Hierarchie-Kanal, `tabular-nums` auf allem Numerischen, eine
+ * Frage je Bildschirm, und genau eine Versalien-Ausnahme: winzige
+ * Mono-Etiketten für Werte (Kachel-Beschriftung, Tabellenkopf).
  */
 
 :root {
-  /* Grund fast schwarz, mit einem Hauch Violett – kaltes Neutralgrau wirkt
-     daneben tot. Drei Flächenebenen darüber. */
-  --grund: #07070b;
-  --flaeche: #0e0e16;
-  --flaeche-hoch: #16161f;
-  --flaeche-tief: #050508;
+  /* Neutrales Fast-Schwarz, bewusst ohne Farbstich – die Trennung vom Spiel
+     beginnt beim Grundton. Drei Flächenebenen darüber. */
+  --grund: #0a0a0b;
+  --flaeche: #111113;
+  --flaeche-hoch: #18181b;
+  --flaeche-tief: #070708;
 
-  --linie: rgba(255, 255, 255, .07);
-  --linie-stark: rgba(255, 255, 255, .14);
+  --linie: rgba(255, 255, 255, .08);
+  --linie-stark: rgba(255, 255, 255, .15);
   --licht: rgba(255, 255, 255, .05);
 
-  --text: #f2f3fa;
-  --gedaempft: #a7abc4;
-  --leise: #6e748f;
+  --text: #fafafa;
+  --gedaempft: #a5a6ad;
+  --leise: #6f7078;
 
-  /* Die Signatur. Violett führt, Cyan antwortet – im Verlauf, im Diagramm
-     (wiederkehrend/neu), in der Treppe. */
-  --akzent: #8a76ff;
-  --akzent-2: #3fe0dc;
-  --signatur: linear-gradient(120deg, var(--akzent), var(--akzent-2));
+  /* Die eine Akzentfarbe. Wer sie tauschen will, tauscht genau diese Zeile. */
+  --akzent: #4e8cff;
 
-  --gut: #3ddc97;
-  --warn: #ffc24b;
-  --schlecht: #ff5d7a;
+  /* Die zwei Serien des Verlaufsdiagramms: Bestand grau, Neues im Akzent.
+     Grau ist hier keine Verlegenheit – „wiederkehrend" ist der Sockel,
+     „neu" die Nachricht. */
+  --serie-alt: #9d9fa8;
+  --serie-neu: var(--akzent);
+
+  --gut: #34d17e;
+  --warn: #f5b942;
+  --schlecht: #f16277;
 
   --r-s: 10px;
   --r-m: 14px;
@@ -105,35 +103,8 @@ body.admin {
 
 ::selection { background: color-mix(in srgb, var(--akzent) 45%, transparent); }
 
-/*
- * Der Hintergrund in zwei Schichten, beide fest stehend:
- * ::before trägt die Aurora – Violett oben links, Cyan oben rechts, so
- * schwach, dass man sie erst beim Scrollen als Horizont wahrnimmt.
- * ::after trägt ein feines Punktraster, das nach unten ausblendet – die
- * Textur, die Schwarz von „Seite noch nicht geladen" unterscheidet.
- */
-body.admin::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background:
-    radial-gradient(1000px 600px at 8% -12%, color-mix(in srgb, var(--akzent) 17%, transparent), transparent 60%),
-    radial-gradient(820px 500px at 94% -14%, color-mix(in srgb, var(--akzent-2) 10%, transparent), transparent 58%);
-  pointer-events: none;
-}
-body.admin::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, .055) 1px, transparent 1px);
-  background-size: 26px 26px;
-  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, .8), transparent 520px);
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, .8), transparent 520px);
-  pointer-events: none;
-}
-
+/* Kein Hintergrundbild, keine Aurora, kein Raster: Der Grund ist eine
+   Fläche, nicht ein Motiv – „super basic". */
 #admin-root { position: relative; z-index: 1; }
 
 button, select, input { font: inherit; color: inherit; }
@@ -201,9 +172,8 @@ code, .mono {
   width: 34px;
   height: 34px;
   border-radius: 11px;
-  color: #06060a;
-  background: var(--signatur);
-  box-shadow: 0 0 22px -4px color-mix(in srgb, var(--akzent) 75%, transparent);
+  color: #fff;
+  background: var(--akzent);
   font-size: 17px;
   font-weight: 900;
   letter-spacing: -.04em;
@@ -233,11 +203,11 @@ code, .mono {
 .navi-punkt .icon { color: var(--leise); transition: color var(--takt); }
 .navi-punkt:hover { color: var(--text); background: rgba(255, 255, 255, .05); }
 .navi-punkt:hover .icon { color: var(--gedaempft); }
-/* Aktiv: getönte Fläche plus Signaturstrich an der Kante. Der Strich ist die
-   Marke im Kleinen – dieselbe Sprache wie Glyphe und Nordstern. */
+/* Aktiv: neutrale Flaeche, der Akzent sitzt nur im Strich an der Kante und
+   im Symbol – eine Farbe, sparsam gesetzt, statt getoenter Flaechen. */
 .navi-punkt[aria-current='true'] {
   color: var(--text);
-  background: color-mix(in srgb, var(--akzent) 13%, transparent);
+  background: rgba(255, 255, 255, .07);
 }
 .navi-punkt[aria-current='true']::before {
   content: '';
@@ -247,9 +217,9 @@ code, .mono {
   bottom: 22%;
   width: 3px;
   border-radius: 999px;
-  background: var(--signatur);
+  background: var(--akzent);
 }
-.navi-punkt[aria-current='true'] .icon { color: var(--akzent); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--akzent) 60%, transparent)); }
+.navi-punkt[aria-current='true'] .icon { color: var(--akzent); }
 .navi-punkt span { flex: 1; min-width: 0; }
 
 .abzeichen {
@@ -362,11 +332,10 @@ code, .mono {
   width: 100%;
   height: 48px;
   border: 0;
-  color: #06060a;
-  background: var(--signatur);
+  color: #fff;
+  background: var(--akzent);
   font-size: 14px;
   font-weight: 750;
-  box-shadow: 0 10px 34px -10px color-mix(in srgb, var(--akzent) 80%, transparent);
 }
 .knopf.gross:hover { filter: brightness(1.1); }
 .knopf.laedt .icon { animation: dreh .9s linear infinite; }
@@ -394,8 +363,8 @@ code, .mono {
 .segmente button:hover { color: var(--gedaempft); }
 .segmente button.an {
   color: var(--text);
-  background: color-mix(in srgb, var(--akzent) 20%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--akzent) 30%, transparent);
+  background: rgba(255, 255, 255, .09);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12);
 }
 
 /* --- Inhalt ------------------------------------------------------- */
@@ -465,7 +434,7 @@ code, .mono {
   height: 2px;
   background: transparent;
 }
-.kachel.ton-akzent::before { background: var(--signatur); }
+.kachel.ton-akzent::before { background: var(--akzent); }
 .kachel.ton-gut::before { background: linear-gradient(90deg, var(--gut), transparent 85%); }
 .kachel.ton-warn::before { background: linear-gradient(90deg, var(--warn), transparent 85%); }
 
@@ -500,8 +469,9 @@ code, .mono {
 .funke { display: block; box-sizing: content-box; width: 100%; height: 34px; margin-top: auto; padding-top: 12px; }
 .funke-linie { fill: none; stroke: var(--akzent); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
 .funke-flaeche { fill: color-mix(in srgb, var(--akzent) 14%, transparent); stroke: none; }
-.funke.gut .funke-linie { stroke: var(--gut); }
-.funke.gut .funke-flaeche { fill: color-mix(in srgb, var(--gut) 12%, transparent); }
+/* Bewusst KEINE Sonderfarbe fuer .funke.gut: Die Bewertung traegt der
+   Trend-Chip daneben – zwei gruene Stimmen fuer dieselbe Aussage sind eine
+   zu viel, und die Kurve bleibt Teil des monochromen Chroms. */
 
 /* ------------------------------------------------------------------ *
  * Nordstern
@@ -519,17 +489,21 @@ code, .mono {
   align-items: center;
   gap: 18px 26px;
   padding: 20px 24px;
-  border: 1px solid color-mix(in srgb, var(--akzent) 34%, transparent);
+  overflow: hidden;
+  border: 1px solid var(--linie);
   border-radius: var(--r-l);
-  background:
-    radial-gradient(130% 200% at 0% 0%, color-mix(in srgb, var(--akzent) 20%, transparent), transparent 55%),
-    radial-gradient(90% 160% at 100% 100%, color-mix(in srgb, var(--akzent-2) 10%, transparent), transparent 55%),
-    var(--flaeche);
-  box-shadow: 0 0 60px -24px color-mix(in srgb, var(--akzent) 60%, transparent), var(--schatten-m);
+  background: var(--flaeche);
+  box-shadow: var(--schatten-m);
+}
+.nordstern::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: var(--akzent);
 }
 .nordstern-text { flex: 1; min-width: 220px; }
 .nordstern-label { display: flex; align-items: center; gap: 8px; color: var(--akzent); font-size: 12.5px; font-weight: 700; }
-.nordstern-label .icon { filter: drop-shadow(0 0 7px color-mix(in srgb, var(--akzent) 70%, transparent)); }
 .nordstern-text p { margin: 4px 0 0; color: var(--leise); font-size: 12.5px; }
 .nordstern-wert { display: grid; gap: 2px; }
 .nordstern-wert strong {
@@ -538,10 +512,6 @@ code, .mono {
   letter-spacing: -.045em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  background: linear-gradient(105deg, #fff 10%, var(--akzent) 55%, var(--akzent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
 }
 .nordstern-wert small { max-width: 34ch; color: var(--leise); font-size: 11.5px; line-height: 1.4; }
 
@@ -570,8 +540,7 @@ code, .mono {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--signatur);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--akzent) 45%, transparent);
+  background: var(--akzent);
   transition: width .5s cubic-bezier(.32, .72, 0, 1);
 }
 .stufe-quote { font-size: 16px; font-weight: 750; text-align: right; font-variant-numeric: tabular-nums; }
@@ -627,8 +596,8 @@ code, .mono {
 .verlauf-spitze { margin-left: auto; }
 .verlauf-spitze b { color: var(--gedaempft); }
 .punkt { display: inline-block; width: 9px; height: 9px; border-radius: 3px; }
-.punkt.neu { background: var(--akzent-2); }
-.punkt.alt { background: var(--akzent); }
+.punkt.neu { background: var(--serie-neu); }
+.punkt.alt { background: var(--serie-alt); }
 
 .verlauf-flaeche { position: relative; }
 /* Feste Seitenverhältnisse statt fester Höhe: Mit `preserveAspectRatio: none`
@@ -757,12 +726,11 @@ code, .mono {
   border-radius: 8px;
   color: #17140a;
   background: linear-gradient(140deg, #f6d268, #d9a53a);
-  box-shadow: 0 0 12px -2px rgba(246, 210, 104, .5);
   font-size: 11.5px;
   font-weight: 850;
 }
-.podest-2 .medaille { color: #14161b; background: linear-gradient(140deg, #dfe4ee, #a8b0c0); box-shadow: none; }
-.podest-3 .medaille { color: #1d1310; background: linear-gradient(140deg, #e0a878, #b47a4c); box-shadow: none; }
+.podest-2 .medaille { color: #14161b; background: linear-gradient(140deg, #dfe4ee, #a8b0c0); }
+.podest-3 .medaille { color: #1d1310; background: linear-gradient(140deg, #e0a878, #b47a4c); }
 
 .anteil { display: flex; align-items: center; gap: 10px; min-width: 168px; }
 .anteil-balken {
@@ -959,8 +927,7 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--gut), var(--akzent-2));
-  box-shadow: 0 0 12px color-mix(in srgb, var(--gut) 45%, transparent);
+  background: var(--gut);
   transition: width .5s cubic-bezier(.32, .72, 0, 1);
 }
 .wunsch-fortschritt b { color: var(--gut); font-size: 14px; font-weight: 750; font-variant-numeric: tabular-nums; }
@@ -979,8 +946,8 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
 .wunsch-filter button:hover { color: var(--gedaempft); }
 .wunsch-filter button.an {
   color: var(--text);
-  background: color-mix(in srgb, var(--akzent) 20%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--akzent) 30%, transparent);
+  background: rgba(255, 255, 255, .09);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12);
 }
 
 .wunsch-gruppen { display: grid; gap: 18px; }
@@ -1033,7 +1000,7 @@ i.familie[class*='branch-'] { background: var(--zweig, var(--leise)); }
   width: min(440px, 100%);
   padding: 30px 30px 32px;
   border-radius: var(--r-xl);
-  box-shadow: 0 0 80px -30px color-mix(in srgb, var(--akzent) 50%, transparent), var(--schatten-l);
+  box-shadow: var(--schatten-l);
 }
 .tor .marken-block { padding: 0; margin-bottom: 4px; }
 .tor h1 { margin: 0; font-size: 27px; font-weight: 850; letter-spacing: -.035em; }

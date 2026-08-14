@@ -125,12 +125,12 @@ export function verlauf(rows: readonly DailyRow[]): string {
       <svg viewBox="0 0 ${breite} ${hoehe}" role="img" aria-label="Spieler je Tag, wiederkehrend und neu">
         <defs>
           <linearGradient id="farbe-alt" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="var(--akzent)" stop-opacity=".85"/>
-            <stop offset="100%" stop-color="var(--akzent)" stop-opacity=".38"/>
+            <stop offset="0%" stop-color="var(--serie-alt)" stop-opacity=".8"/>
+            <stop offset="100%" stop-color="var(--serie-alt)" stop-opacity=".35"/>
           </linearGradient>
           <linearGradient id="farbe-neu" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="var(--akzent-2)" stop-opacity="1"/>
-            <stop offset="100%" stop-color="var(--akzent-2)" stop-opacity=".75"/>
+            <stop offset="0%" stop-color="var(--serie-neu)" stop-opacity="1"/>
+            <stop offset="100%" stop-color="var(--serie-neu)" stop-opacity=".72"/>
           </linearGradient>
         </defs>
         ${raster}${saeulen}${marken}
