@@ -855,13 +855,26 @@ export class GameUI {
       const definition = CLASS_DEFINITIONS[choice];
       const button = document.createElement('button');
       button.dataset.classChoice = choice;
+      /*
+       * Bild und Name, sonst nichts – Sam, 14.08.:
+       *
+       * > „RECHTS oben NEUE SPEZIALISIERUNG: reicht nur die BILDER und evtl.
+       * > NAME (z.B. RAPID etc.), aber nicht auch noch Beschreibung, klaut zu
+       * > viel Platz, und so können wir die BILDER größer machen!"
+       *
+       * Die Karte trug bis hierher neun Dinge: Bild, Rolle, Signature-Kurzform,
+       * Titel, Beschreibungssatz, Level, vier Balken, Perk-Zeile und
+       * „führt zu"-Zeile. Beschreibung und Level fallen hier weg, der Rest in
+       * `class-choice-enhancer.ts`.
+       *
+       * **Verloren geht nichts**: Was von der Karte verschwindet, steht im
+       * `title` und damit im Tooltip. Wer im Gefecht wählt, sieht ein großes
+       * Bild und einen Namen; wer in Ruhe vergleichen will, hält kurz drauf.
+       */
       const title = document.createElement('strong');
-      const description = document.createElement('span');
-      const level = document.createElement('small');
       title.textContent = definition.label;
-      description.textContent = definition.description;
-      level.textContent = `LEVEL ${definition.unlockLevel}`;
-      button.append(title, description, level);
+      button.append(title);
+      button.title = `${definition.label} · ab Level ${definition.unlockLevel}\n${definition.description}`;
       this.classChoices.append(button);
     }
   }

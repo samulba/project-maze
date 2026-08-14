@@ -109,16 +109,17 @@
   /* Höhe deckeln, statt in eine zweite Reihe zu wachsen: Bei drei Karten und
      einer vierten darunter wurde die Karte 460 px hoch und reichte bis in die
      Spielerkarte. Jetzt wird innen gescrollt. */
-  /* Welle B: Bild + Perk + Pfad machen die Karten hoeher - der alte Deckel
-     (320 px) liess auf 1080p keine einzige Karte vollstaendig sichtbar. */
-  max-height: min(52vh, 420px);
+  /* Seit Sams Punkt 4 (14.08.) trägt die Karte nur noch Bild und Name; sie ist
+     damit rund 150 px hoch statt 300. Der Deckel folgt: Er muss nur noch eine
+     Reihe fassen, und das Spielfeld bekommt die Hälfte zurück. */
+  max-height: min(34vh, 240px);
   overflow-y: auto;
   scrollbar-width: thin;
 }
 /* Auf flachen Fenstern reicht der Deckel oben bis in die Bestenliste – dort
    eine Stufe strenger. */
 @media (max-height: 700px) {
-  .class-selection { max-height: 34vh; }
+  .class-selection { max-height: 30vh; }
 }
 :root:has(.upgrade-panel:not([hidden])) .class-selection { --wahl-links: 300px; }
 
@@ -278,13 +279,14 @@
 .class-choices strong,
 .class-choices span { overflow-wrap: anywhere; }
 
+/* Auf niedrigen oder schmalen Fenstern schrumpft das Bild mit, statt Karten
+   unter den Sichtrand zu schieben. Beschreibung, Balken, Perk- und Pfadzeile
+   sind seit Sams Punkt 4 (14.08.) gar nicht mehr auf der Karte – die Regeln,
+   die sie hier ausgeblendet haben, sind mit ihnen gegangen. */
 @media (max-height: 760px), (max-width: 1180px) {
-  .class-choices span,
-  .class-choice-bars { display: none; }
-  .class-choice-preview { height: 44px; margin-bottom: 4px; }
-  .class-choice-preview svg { width: 40px; height: 40px; }
-  .class-choices button { min-height: 0; padding: 10px 12px; }
-  .class-choices small { margin-top: 4px; }
+  .class-choice-preview { height: 72px; margin-bottom: 5px; }
+  .class-choice-preview svg { width: 68px; height: 68px; }
+  .class-choices button { min-height: 0; padding: 10px 8px; }
   .class-selection > p { display: none; }
 }
 

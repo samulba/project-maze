@@ -15,9 +15,7 @@ function enhanceButton(button: HTMLButtonElement): void {
   const metrics = classBalanceMetrics(playerClass);
   button.dataset.branch = definition.branch;
 
-  const role = document.createElement('em');
-  role.className = 'class-choice-role';
-  role.textContent = definition.branch === 'rapid' ? 'DAUERFEUER'
+  const rollenname = definition.branch === 'rapid' ? 'DAUERFEUER'
     : definition.branch === 'precision' ? 'PRÄZISION'
       : definition.branch === 'control' ? 'KONTROLLE'
         : definition.branch === 'impact' ? 'PANZERUNG'
@@ -26,8 +24,6 @@ function enhanceButton(button: HTMLButtonElement): void {
               : definition.branch === 'siege' ? 'STELLUNG'
                 : definition.branch === 'aegis' ? 'SCHILD' : 'ALLROUNDER';
 
-  const bars = document.createElement('div');
-  bars.className = 'class-choice-bars';
   /*
    * „Angriff" heißt: was ankommt, wenn ich ziele.
    *
@@ -49,60 +45,39 @@ function enhanceButton(button: HTMLButtonElement): void {
    * in einen Balken, der „Angriff" heißt.
    */
   const attack = Math.max(metrics.forwardProjectileDps, metrics.dronePressure, metrics.bodyThreat * 0.75);
-  const values = [
+  const werte: Array<readonly [string, number]> = [
     ['Angriff', percent(attack / 1.05)],
     ['Defense', percent(metrics.effectiveDurability / 3)],
     ['Tempo', percent(metrics.mobility / 3.5)],
     ['Range', percent(metrics.projectileRange / 42)]
-  ] as const;
-  for (const [label, width] of values) {
-    const row = document.createElement('div');
-    row.innerHTML = `<span>${label}</span><i><b style="width:${width}%"></b></i>`;
-    bars.append(row);
-  }
-  // Das Bild des Tanks, gezeichnet aus denselben Werten wie im Spiel. Es steht
-  // vor dem Rollennamen: Sam wählt auf Level 10 unter Beschuss, und eine Form
-  // ist in einer Zehntelsekunde erfasst, ein Wort nicht.
+  ];
+
+  // Das Bild des Tanks, gezeichnet aus denselben Werten wie im Spiel – jetzt
+  // das einzige, was auf der Karte Platz einnimmt (Sams Punkt 4 vom 14.08.).
   const preview = document.createElement('figure');
   preview.className = 'class-choice-preview';
   preview.innerHTML = classPreviewSvg(playerClass);
-
-  button.prepend(role);
   button.prepend(preview);
-  button.append(bars);
 
-  // Die Füllbedingung der Signature auf der Karte (Befund 12): GOAL.md nennt
-  // sie das Entscheidende an den Familien, und sie stand nur im Rad auf
-  // Taste C. Sie hängt IN der Rollenzeile (absolut positioniert), weil jede
-  // zusätzliche Kartenzeile den 34-vh-Deckel sprengt – gemessen: nur noch 4/8
-  // Karten sichtbar auf 1280×720. Deshalb auch die Kurzform statt des vollen
-  // builds-Satzes.
+  /*
+   * Alles Übrige wandert in den Tooltip statt von der Karte zu verschwinden.
+   *
+   * Sam will Bild und Name – Rolle, Signature-Kurzform, vier Balken, Perk-Zeile
+   * und „führt zu" nahmen zusammen rund zwei Drittel der Kartenhöhe ein und
+   * ließen für das Bild 64 px. Gelöscht ist davon nichts: Der Tooltip trägt
+   * dieselben Angaben, nur ohne Platz zu kosten.
+   */
   const info = familyInfo(definition.branch);
-  if (info) {
-    const fill = document.createElement('i');
-    fill.className = 'class-choice-fill';
-    fill.textContent = ` · ${info.buildsKurz}`;
-    role.append(fill);
-  }
-
-  // Perk-Zeile (Welle B): das Merkmal, das nur diese Klasse hat. Starter
-  // tragen keinen - dort erklaert die Familien-Signature den Stil.
   const perk = perkFor(playerClass);
-  if (perk) {
-    const perkRow = document.createElement('span');
-    perkRow.className = 'class-choice-perk';
-    perkRow.innerHTML = `<b>${perk.label}</b> ${perk.blurb}`;
-    button.append(perkRow);
-  }
-
-  // Wohin der Weg fuehrt - nie wieder blind waehlen (MASTERPLAN, das Rad).
   const ziele = leadsTo(playerClass);
-  if (ziele) {
-    const leads = document.createElement('span');
-    leads.className = 'class-choice-leads';
-    leads.textContent = `führt zu → ${ziele.join(' · ')}`;
-    button.append(leads);
-  }
+  const zeilen = [
+    `${definition.label} · ${rollenname}${info ? ` · ${info.buildsKurz}` : ''}`,
+    definition.description,
+    werte.map(([label, wert]) => `${label} ${wert}`).join(' · '),
+    perk ? `${perk.label}: ${perk.blurb}` : '',
+    ziele ? `führt zu → ${ziele.join(' · ')}` : ''
+  ].filter(Boolean);
+  button.title = zeilen.join('\n');
 }
 
 export function enhanceClassChoices(root: HTMLElement): void {

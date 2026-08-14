@@ -1,30 +1,47 @@
-.class-choices button[data-enhanced="true"] { position:relative; overflow:hidden; min-width:220px; padding-top:34px; }
-/* Eine Farbe je Familie, dieselben Werte wie das Rad (class-tree.css) und das
-   Death-Portrait – vorher trugen nur die vier alten Familien eine Farbe (die
-   vier neueren blieben grau) und Präzision stand orange über einem blauen
-   Tank (Befund 21). */
-.class-choice-role { position:absolute; top:12px; left:14px; font-style:normal; font-size:9px; font-weight:850; letter-spacing:.11em; color:#9aa3b8; }
-.class-choices button[data-branch="rapid"] .class-choice-role { color:#5b8cff; }
-.class-choices button[data-branch="precision"] .class-choice-role { color:#e0a44a; }
-.class-choices button[data-branch="control"] .class-choice-role { color:#46b98d; }
-.class-choices button[data-branch="impact"] .class-choice-role { color:#d2606f; }
-.class-choices button[data-branch="specter"] .class-choice-role { color:#8f7ff0; }
-.class-choices button[data-branch="tempest"] .class-choice-role { color:#e0954e; }
-.class-choices button[data-branch="siege"] .class-choice-role { color:#b0a24e; }
-.class-choices button[data-branch="aegis"] .class-choice-role { color:#4ea9a4; }
-/* Die Füllbedingung der Signature (Befund 12) – als Anhang der Rollenzeile,
-   damit sie keine Kartenhöhe kostet (der 34-vh-Deckel verträgt keine). Ohne
-   Sperrspatium und ohne Farbe des Rollenworts, damit sie als Erklärung liest. */
-.class-choice-fill { font-style:normal; font-weight:650; letter-spacing:0; text-transform:none; color:#8d96aa; }
-.class-choice-bars { display:grid; gap:6px; width:100%; margin-top:13px; }
-.class-choice-bars > div { display:grid; grid-template-columns:54px 1fr; align-items:center; gap:8px; }
-.class-choice-bars span { font-size:9px !important; color:#8d96aa !important; line-height:1 !important; }
-.class-choice-bars i { display:block; height:5px; overflow:hidden; border-radius:999px; background:rgba(255,255,255,.08); }
-.class-choice-bars b { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#6874ef,#a0a8ff); }
-.class-choices button[data-branch="rapid"] .class-choice-bars b { background:linear-gradient(90deg,#579dc7,#8ad6ff); }
-.class-choices button[data-branch="precision"] .class-choice-bars b { background:linear-gradient(90deg,#bd8041,#ffc66f); }
-.class-choices button[data-branch="control"] .class-choice-bars b { background:linear-gradient(90deg,#369c78,#73e3bd); }
-.class-choices button[data-branch="impact"] .class-choice-bars b { background:linear-gradient(90deg,#b94f61,#ff8192); }
+/* ------------------------------------------------------------------ *
+ * Wahlkarte: Bild und Name, sonst nichts
+ * ------------------------------------------------------------------ *
+ * Sam, 14.08.: „RECHTS oben NEUE SPEZIALISIERUNG: reicht nur die BILDER und
+ * evtl. NAME (z.B. RAPID etc.), aber nicht auch noch Beschreibung, klaut zu
+ * viel Platz, und so können wir die BILDER größer machen!"
+ *
+ * Die Karte trug neun Dinge: Bild (64 px), Rolle, Signature-Kurzform, Titel,
+ * Beschreibungssatz, Level, vier Balken, Perk-Zeile und „führt zu"-Zeile. Für
+ * das Bild – das Einzige, was man im Gefecht in einer Zehntelsekunde erfasst –
+ * blieb ein Fünftel der Kartenhöhe.
+ *
+ * Jetzt: Bild groß, Name darunter. Alles Übrige steht im Tooltip
+ * (`class-choice-enhancer.ts`), kostet dort aber keinen Platz.
+ */
+.class-choices button[data-enhanced="true"] {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px 8px 10px;
+  justify-items: center;
+  text-align: center;
+}
+/* Der Name ist die einzige Schrift auf der Karte – entsprechend darf er
+   deutlich sein, statt neben fünf anderen Zeilen um Aufmerksamkeit zu ringen. */
+.class-choices button[data-enhanced="true"] strong {
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+/* Die Familienfarbe bleibt – sie sagt in einem Blick, in welche Richtung man
+   abbiegt, und braucht dafür kein Wort. */
+.class-choices button[data-branch] { border-color: color-mix(in srgb, var(--zweigfarbe, var(--line)) 42%, transparent); }
+.class-choices button[data-branch="rapid"]     { --zweigfarbe: #5b8cff; }
+.class-choices button[data-branch="precision"] { --zweigfarbe: #e0a44a; }
+.class-choices button[data-branch="control"]   { --zweigfarbe: #46b98d; }
+.class-choices button[data-branch="impact"]    { --zweigfarbe: #d2606f; }
+.class-choices button[data-branch="specter"]   { --zweigfarbe: #8f7ff0; }
+.class-choices button[data-branch="tempest"]   { --zweigfarbe: #e0954e; }
+.class-choices button[data-branch="siege"]     { --zweigfarbe: #b0a24e; }
+.class-choices button[data-branch="aegis"]     { --zweigfarbe: #4ea9a4; }
 
 /* ------------------------------------------------------------------ *
  * Bild des Tanks auf der Wahlkarte
@@ -38,13 +55,15 @@
   display: grid;
   place-items: center;
   width: 100%;
-  height: 64px;
+  /* Von 64 auf 104 px: Genau der Platz, den Beschreibung, Balken, Perk- und
+     Pfadzeile freigemacht haben (Sams Punkt 4). */
+  height: 104px;
   margin: 0 0 8px;
   border-radius: 11px;
   background: color-mix(in srgb, var(--text) 4%, transparent);
   color: var(--accent);
 }
-.class-choice-preview svg { width: 62px; height: 62px; overflow: visible; }
+.class-choice-preview svg { width: 100px; height: 100px; overflow: visible; }
 /* Rollen der geteilten Geometrie (shared/appearance): dieselbe Formsprache wie
    im Spiel. `hull` traegt die Familienfarbe, `armor` liegt dunkler darauf,
    `accent` hell, `void` ist Aussparung, `crown` der Apex-Ring. */
@@ -73,34 +92,15 @@
 /* Auf schmalen und niedrigen Fenstern ist das Spielfeld wichtiger als das
    Bild – die Karten müssen vollständig sichtbar bleiben (Befund G3/G4). */
 @media (max-height: 560px), (max-width: 720px) {
-  .class-choice-preview { height: 54px; margin-bottom: 6px; }
-  .class-choice-preview svg { width: 50px; height: 50px; }
+  .class-choice-preview { height: 66px; margin-bottom: 6px; }
+  .class-choice-preview svg { width: 62px; height: 62px; }
 }
 
 
-/* ------------------------------------------------------------------ *
- * Perk und Pfad auf der Wahlkarte (Welle B)
- * ------------------------------------------------------------------ */
-.class-choice-perk {
-  display: block;
-  margin-top: 7px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 1.35;
-}
-.class-choice-perk b { color: var(--text); font-weight: 800; letter-spacing: .04em; }
-.class-choice-leads {
-  display: block;
-  margin-top: 6px;
-  color: var(--faint);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .06em;
-}
-
+/* Perk- und Pfadzeile sind seit Sams Punkt 4 (14.08.) nicht mehr auf der
+   Karte, sondern im Tooltip – ihre Stile standen hier und sind mit ihnen
+   gegangen. Die Angaben selbst gibt es weiterhin, siehe
+   `class-choice-enhancer.ts`. */
 
 /* Tank-Portraet im Death-Screen: gleiche Geometrie, Familienfarbe. */
 .death-portrait { display: grid; place-items: center; margin: 4px 0 2px; color: var(--accent); }
@@ -115,6 +115,4 @@
 .death-portrait[data-branch=aegis] { color: #4ea9a4; }
 
 
-/* Traegt die Karte einen Perk, ersetzt er die generische Beschreibung - beide
-   zusammen sprengten den Hoehendeckel des Panels, und der Perk sagt mehr. */
-.class-choices button:has(.class-choice-perk) > span:not([class]) { display: none; }
+

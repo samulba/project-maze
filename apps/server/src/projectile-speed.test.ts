@@ -317,8 +317,18 @@ describe('projektiltempo – vorhalt der bots', () => {
 describe('projektiltempo – im laufenden Spiel', () => {
   const fireOnce = (playerClass: PlayerClass, level: number, points: number) => {
     const game = tuneCombatScaling(new MazeGame(0));
-    const internals = game as unknown as { players: Map<string, any>; projectiles: Map<string, any> };
+    const internals = game as unknown as { players: Map<string, any>; projectiles: Map<string, any>; shapes: Map<string, any> };
     internals.projectiles.clear();
+    /*
+     * Formen weg – sonst misst dieser Test den Zufall.
+     *
+     * Die Formen streuen zufällig über die Karte, und eine, die vor der Mündung
+     * liegt, schluckt den Schuss noch im selben Tick. Seit Sams Punkt 5 vom
+     * 14.08. („Kugeln sollen nicht durch Squares fliegen, die sie nicht töten")
+     * verschwindet die Kugel dabei, statt weiterzufliegen – der Test fand dann
+     * gar kein Projektil und meldete einen Tempo-Fehler, wo eine Form stand.
+     */
+    internals.shapes.clear();
     const id = game.addPlayer('Schuetze');
     const player = internals.players.get(id);
     player.playerClass = playerClass;
