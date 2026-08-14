@@ -40,6 +40,53 @@ export function resolveProjectilePair(a: ProjectileDurability, b: ProjectileDura
   b.integrity -= damageToB;
 }
 
+/** Ein Körper, der aus einem anderen herausgeschoben werden kann. */
+export interface Koerper { position: Vector2; velocity: Vector2; }
+
+/**
+ * Schiebt `koerper` aus einem Hindernis heraus und nimmt ihm den Anteil seiner
+ * Geschwindigkeit, der noch hineinzeigt.
+ *
+ * Sam, 14.08.: „[Drohnen] fliegen auch einfach wie Schüsse durch Objekte durch,
+ * obwohl sie die entweder killen oder dort sterben sollten." Genau so war es:
+ * `stepDrones` hat bei Kontakt Schaden verteilt und die Drohne unverändert
+ * weiterfliegen lassen. Eine Drohne, die ein Quadrat frisst, saß dabei
+ * mittendrin.
+ *
+ * Zwei getrennte Wirkungen, beide nötig:
+ *
+ * * **Position** – der Körper landet exakt auf der Berührungslinie. Ohne das
+ *   drückt ihn der nächste Tick wieder hinein, und er zittert.
+ * * **Geschwindigkeit** – nur der *einwärts* zeigende Anteil fällt weg. Der
+ *   seitliche bleibt, sonst klebt eine Drohne an der ersten Form, die sie
+ *   streift, statt an ihr entlangzugleiten.
+ *
+ * `frei` prüft, ob der Zielpunkt begehbar ist (Wände). Ist er es nicht, bleibt
+ * die Position, wie sie war – lieber eine Drohne, die kurz überlappt, als eine,
+ * die aus einer Form heraus in eine Wand geschoben wird.
+ */
+export function schiebeAuseinander(
+  koerper: Koerper,
+  hindernis: Vector2,
+  mindestabstand: number,
+  frei: (position: Vector2) => boolean
+): void {
+  const delta = { x: koerper.position.x - hindernis.x, y: koerper.position.y - hindernis.y };
+  const abstand = Math.hypot(delta.x, delta.y);
+  // Exakt aufeinander: irgendeine Richtung ist besser als NaN.
+  const normale = abstand < 0.001 ? { x: 1, y: 0 } : { x: delta.x / abstand, y: delta.y / abstand };
+  if (abstand < mindestabstand) {
+    const ziel = { x: hindernis.x + normale.x * mindestabstand, y: hindernis.y + normale.y * mindestabstand };
+    if (frei(ziel)) koerper.position = ziel;
+  }
+  const einwaerts = koerper.velocity.x * normale.x + koerper.velocity.y * normale.y;
+  if (einwaerts >= 0) return;
+  koerper.velocity = {
+    x: koerper.velocity.x - normale.x * einwaerts,
+    y: koerper.velocity.y - normale.y * einwaerts
+  };
+}
+
 export function projectileSubstepCount(maximumSpeed: number, dt: number, stepDistance: number, maximumSubsteps = 12): number {
   if (!Number.isFinite(maximumSpeed) || maximumSpeed <= 0 || dt <= 0) return 1;
   return Math.max(1, Math.min(maximumSubsteps, Math.ceil(maximumSpeed * dt / Math.max(1, stepDistance))));

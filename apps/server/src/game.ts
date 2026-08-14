@@ -29,7 +29,8 @@ import {
   moveVectorToward,
   normalize,
   projectileSubstepCount,
-  resolveProjectilePair
+  resolveProjectilePair,
+  schiebeAuseinander
 } from './physics.js';
 import {
   SHAPE_CONFIG,
@@ -227,6 +228,32 @@ function statsFor(player: GamePlayer): RuntimeStats {
     droneRespawn: Math.max(0.35, base.droneRespawn * Math.pow(0.94, player.upgrades.reload))
   };
 }
+
+/**
+ * Hat der Getroffene den Treffer überlebt? – Sam, 14.08.: „Wenn Kugeln
+ * irgendwas hitten wie z.B. einen Square, den aber nicht direkt töten, sollen
+ * die nicht einfach durch fliegen! Das macht kein Sinn!"
+ *
+ * Vorher entschied allein die `integrity`, ob eine Kugel weiterfliegt. Eine
+ * Core-Kugel (Durchschlag 20) verlor an einem Quadrat 0,18 × 60 = 10,8 Punkte
+ * und flog mit 9,2 unverändert weiter – **durch das noch stehende Quadrat
+ * hindurch**. Genau das sieht falsch aus, und es ist auch falsch: Ein Körper,
+ * der stehen bleibt, hat die Kugel aufgehalten.
+ *
+ * Die Regel ist deshalb: **Nur ein Kill schlägt durch.** Der `penetration`-Slot
+ * behält damit seine Bedeutung – er sagt, wie viele Ziele eine Kugel
+ * *wegräumen* kann, bevor sie verbraucht ist, genau wie in Diep.io. Was er
+ * nicht mehr sagt: dass man durch Dinge fliegt, die man nicht kleinbekommt.
+ */
+const survivedHit = (healthAfterHit: number): boolean => healthAfterHit > 0;
+
+/**
+ * Trefferradius einer Drohne. Die Basis legt Drohnen mit 12 px an, die
+ * Tuning-Schicht schreibt ihren Archetyp-Radius nach `gameplayRadius` – gelesen
+ * wird immer der, der wirklich dasteht, sonst schießt man auf einen Carrier
+ * (15,5 px) mit dem Trefferfeld eines Hive (7,5 px).
+ */
+const droneRadius = (drone: DroneSnapshot & { gameplayRadius?: number | undefined }): number => drone.gameplayRadius ?? 12;
 
 /** Netzform eines Spielers ohne Serverinterna. Auch der Spectator baut damit den eigenen Eintrag. */
 export function playerSnapshot(player: GamePlayer): PlayerSnapshot {
@@ -547,14 +574,21 @@ export class MazeGame {
         if (shape) {
           this.damageShape(shape, projectile.damage, projectile.ownerId, now);
           projectile.integrity -= shape.maxHealth * 0.18;
-          if (projectile.integrity <= 0) this.projectiles.delete(projectile.id);
+          if (projectile.integrity <= 0 || survivedHit(shape.health)) this.projectiles.delete(projectile.id);
+          continue;
+        }
+        const drone = [...this.drones.values()].find((candidate) => candidate.ownerId !== projectile.ownerId && distanceSquared(candidate.position, projectile.position) <= Math.pow(droneRadius(candidate) + projectile.radius, 2));
+        if (drone) {
+          this.damageDrone(drone, projectile.damage, now);
+          projectile.integrity -= drone.maxHealth * 0.18;
+          if (projectile.integrity <= 0 || survivedHit(drone.health)) this.projectiles.delete(projectile.id);
           continue;
         }
         const target = [...this.players.values()].find((candidate) => !candidate.dead && !candidate.invulnerable && candidate.id !== projectile.ownerId && distanceSquared(candidate.position, projectile.position) <= Math.pow(GAME.playerRadius + projectile.radius, 2));
         if (target) {
           this.damagePlayer(target, projectile.damage, projectile.ownerId, now);
           projectile.integrity -= target.maxHealth * 0.18;
-          if (projectile.integrity <= 0) this.projectiles.delete(projectile.id);
+          if (projectile.integrity <= 0 || survivedHit(target.health)) this.projectiles.delete(projectile.id);
         }
       }
       this.resolveProjectileCollisions();
@@ -659,6 +693,8 @@ export class MazeGame {
     for (const drone of [...this.drones.values()]) {
       const owner = this.players.get(drone.ownerId);
       if (!owner || owner.dead) { this.drones.delete(drone.id); continue; }
+      // Wer kein Leben mehr hat, bekommt keinen Zug – siehe drone-tuning.ts.
+      if (drone.health <= 0) { this.damageDrone(drone, 0, now); continue; }
       const stats = statsFor(owner);
       drone.contactCooldown = Math.max(0, drone.contactCooldown - dt);
       const aim = clampMagnitude(owner.aim, GAME.maxAimDistance);
@@ -673,29 +709,52 @@ export class MazeGame {
       drone.position = moved.position;
       drone.velocity = moved.velocity;
       drone.angle = Math.atan2(drone.velocity.y, drone.velocity.x);
+      // Berührung wird IMMER aufgelöst, Schaden nur wenn der Rempler bereit
+      // ist: Sonst fliegt eine Drohne während ihrer Nachladezeit seelenruhig
+      // durch das Quadrat hindurch, das sie gerade gebissen hat (Sam, 14.08.).
+      const radius = droneRadius(drone);
+      const shape = [...this.shapes.values()].find((candidate) => distanceSquared(candidate.position, drone.position) <= Math.pow(candidate.radius + radius, 2));
+      const targetPlayer = shape ? undefined : [...this.players.values()].find((candidate) => !candidate.dead && !candidate.invulnerable && candidate.id !== owner.id && distanceSquared(candidate.position, drone.position) <= Math.pow(GAME.playerRadius + radius, 2));
+      if (shape) schiebeAuseinander(drone, shape.position, shape.radius + radius, (position) => isFree(position, radius));
+      else if (targetPlayer) schiebeAuseinander(drone, targetPlayer.position, GAME.playerRadius + radius, (position) => isFree(position, radius));
       if (drone.contactCooldown > 0) continue;
-      const shape = [...this.shapes.values()].find((candidate) => distanceSquared(candidate.position, drone.position) <= Math.pow(candidate.radius + 12, 2));
       if (shape) {
         this.damageShape(shape, stats.damage, owner.id, now);
-        drone.health -= SHAPE_CONFIG[shape.kind].bodyDamage;
+        this.damageDrone(drone, SHAPE_CONFIG[shape.kind].bodyDamage, now);
         drone.contactCooldown = stats.reload;
-      } else {
-        const targetPlayer = [...this.players.values()].find((candidate) => !candidate.dead && !candidate.invulnerable && candidate.id !== owner.id && distanceSquared(candidate.position, drone.position) <= Math.pow(GAME.playerRadius + 12, 2));
-        if (targetPlayer) {
-          this.damagePlayer(targetPlayer, stats.damage, owner.id, now);
-          drone.health -= statsFor(targetPlayer).bodyDamage * 0.5;
-          drone.contactCooldown = stats.reload;
-        }
-      }
-      if (drone.health <= 0) {
-        this.drones.delete(drone.id);
-        this.nextDroneSpawn.set(owner.id, now + stats.droneRespawn * 1000);
+      } else if (targetPlayer) {
+        this.damagePlayer(targetPlayer, stats.damage, owner.id, now);
+        this.damageDrone(drone, statsFor(targetPlayer).bodyDamage * 0.5, now);
+        drone.contactCooldown = stats.reload;
       }
     }
   }
 
   private removeOwnerDrones(ownerId: string): void {
     for (const [id, drone] of this.drones) if (drone.ownerId === ownerId) this.drones.delete(id);
+  }
+
+  /**
+   * Schaden an einer Drohne – **eine ersetzbare Stelle statt dreier Kopien.**
+   *
+   * Sam, 14.08.: „Man kann keine Drohnen kaputt schießen!!! Das ist viel zu
+   * OP!" Er hat wörtlich recht: `stepProjectiles` prüfte `shapes` und
+   * `players`, und die Karte `drones` kam in der ganzen Funktion nicht vor.
+   * Eine Flotte war damit unangreifbar – man konnte sie nur aushungern, indem
+   * man ihren Besitzer tötete.
+   *
+   * Als Methode (wie `bodyDamageOf`), weil der Tod einer Drohne zwei Dinge
+   * auslöst, die zusammengehören: Sie verschwindet, und ihr Nachschub-Zeitpunkt
+   * wird gesetzt. Diese Buchführung stand bisher zweimal im Code (`stepDrones`
+   * hier und in `drone-tuning.ts`); mit dem dritten Aufrufer aus
+   * `stepProjectiles` wäre sie dreimal dagestanden.
+   */
+  protected damageDrone(drone: GameDrone, damage: number, now: number): void {
+    drone.health -= Math.max(0, damage);
+    if (drone.health > 0) return;
+    this.drones.delete(drone.id);
+    const owner = this.players.get(drone.ownerId);
+    if (owner) this.nextDroneSpawn.set(owner.id, now + statsFor(owner).droneRespawn * 1000);
   }
 
   private damageShape(shape: ShapeSnapshot, damage: number, ownerId: string, now: number): void {

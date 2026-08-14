@@ -2,6 +2,7 @@ import {
   CLASS_DEFINITIONS,
   ENTITY_CULL_HALF,
   GAME,
+  type DroneSnapshot,
   type PlayerSnapshot,
   type ProjectileSnapshot,
   type ShapeSnapshot,
@@ -15,13 +16,16 @@ import { SHAPE_CONFIG, isFree } from './world.js';
 type RuntimePlayer = PlayerSnapshot & { bot?: unknown; velocity: Vector2 };
 type RuntimeProjectile = ProjectileSnapshot & { damage: number; life: number; plantAtLife?: number };
 type RuntimeShape = ShapeSnapshot;
+type RuntimeDrone = DroneSnapshot & { gameplayRadius?: number | undefined };
 interface GameInternals {
   players: Map<string, RuntimePlayer>;
   projectiles: Map<string, RuntimeProjectile>;
   shapes: Map<string, RuntimeShape>;
+  drones: Map<string, RuntimeDrone>;
   __auditDelta?: number;
   damagePlayer(target: RuntimePlayer, damage: number, attackerId: string | null, now: number): void;
   damageShape(shape: RuntimeShape, damage: number, ownerId: string, now: number): void;
+  damageDrone(drone: RuntimeDrone, damage: number, now: number): void;
   fire(...args: unknown[]): void;
   resolvePlayerCollisions(now: number): void;
   /** Naht aus der Basis; `tuneCombatScaling` ersetzt sie durch die gueltige Kurve. */
@@ -61,6 +65,8 @@ const momentumMultiplier = (player: RuntimePlayer): number => {
  */
 const bodyDamage = (internals: GameInternals, player: RuntimePlayer): number =>
   internals.bodyDamageOf(player) * momentumMultiplier(player);
+/** Trefferradius einer Drohne – dieselbe Regel wie in `game.ts`. */
+const droneRadius = (drone: RuntimeDrone): number => drone.gameplayRadius ?? 12;
 /**
  * Der Entitaeten-Ausschnitt. Die Kanten stehen in `shared`
  * (`ENTITY_CULL_HALF`), damit der Client dieselbe Zahl lesen kann -- er leitet
@@ -191,7 +197,32 @@ export function hardenSimulation<T extends MazeGame>(game: T): T {
             internals.damageShape(shape, projectile.damage, projectile.ownerId, now);
             projectile.integrity -= shape.maxHealth * 0.18;
           }
-          if (projectile.integrity <= 0) internals.projectiles.delete(projectile.id);
+          if (projectile.integrity <= 0 || shape.health > 0) internals.projectiles.delete(projectile.id);
+          continue;
+        }
+        /*
+         * Drohnen sind Ziele – Sam, 14.08.: „Man kann keine Drohnen kaputt
+         * schießen!!! Das ist viel zu OP!"
+         *
+         * Diese Schicht ERSETZT `stepProjectiles`; die neue Drohnenprüfung in
+         * `game.ts` wäre also unerreichbar geblieben, wenn sie nicht auch hier
+         * stünde. Genau diese Fehlerklasse beschreibt der Kopf dieser Datei.
+         *
+         * VOR dem Spieler geprüft: Eine Flotte um ihren Besitzer herum ist in
+         * Diep.io ein Schild, und ein Schild, das man durchschießt, ist keins.
+         */
+        const drone = [...internals.drones.values()].find(
+          (candidate) => candidate.ownerId !== projectile.ownerId &&
+            distanceSquared(candidate.position, projectile.position) <= Math.pow(droneRadius(candidate) + projectile.radius, 2)
+        );
+        if (drone) {
+          const key = `drone:${drone.id}`;
+          if (!hits.has(key)) {
+            hits.add(key);
+            internals.damageDrone(drone, projectile.damage, now);
+            projectile.integrity -= drone.maxHealth * 0.18;
+          }
+          if (projectile.integrity <= 0 || drone.health > 0) internals.projectiles.delete(projectile.id);
           continue;
         }
         const target = [...internals.players.values()].find((candidate) => !candidate.dead && !candidate.invulnerable && candidate.id !== projectile.ownerId && distanceSquared(candidate.position, projectile.position) <= Math.pow(GAME.playerRadius + projectile.radius, 2));
@@ -202,7 +233,7 @@ export function hardenSimulation<T extends MazeGame>(game: T): T {
             internals.damagePlayer(target, projectile.damage, projectile.ownerId, now);
             projectile.integrity -= target.maxHealth * 0.18;
           }
-          if (projectile.integrity <= 0) internals.projectiles.delete(projectile.id);
+          if (projectile.integrity <= 0 || target.health > 0) internals.projectiles.delete(projectile.id);
         }
       }
       internals.resolveProjectileCollisions();

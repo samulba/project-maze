@@ -13,8 +13,8 @@ import {
   type PassiveModifierId
 } from '@project-maze/shared/gameplay';
 import { MazeGame } from './game.js';
-import { clampMagnitude, distanceSquared, moveVectorToward, normalize } from './physics.js';
-import { SHAPE_CONFIG, hasLineOfSight, moveCircle } from './world.js';
+import { clampMagnitude, distanceSquared, moveVectorToward, normalize, schiebeAuseinander } from './physics.js';
+import { SHAPE_CONFIG, hasLineOfSight, isFree, moveCircle } from './world.js';
 
 interface DroneArchetype {
   health: number;
@@ -171,6 +171,7 @@ interface DroneInternals {
   stepDrones(dt: number, now: number): void;
   damageShape(shape: ShapeSnapshot, damage: number, ownerId: string, now: number): void;
   damagePlayer(target: RuntimePlayer, damage: number, attackerId: string | null, now: number): void;
+  damageDrone(drone: RuntimeDrone, damage: number, now: number): void;
 }
 
 /**
@@ -369,6 +370,20 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
         internals.drones.delete(drone.id);
         continue;
       }
+      /*
+       * Wer kein Leben mehr hat, bekommt keinen Zug.
+       *
+       * Der Kehraus stand früher am ENDE der Schleife („`if (drone.health <= 0)`
+       * → löschen"), also nach Waffe und Kontakt. Seit der Tod über
+       * `damageDrone` läuft, ist er dort nicht mehr nötig – hier oben ist er
+       * aber weiterhin die Zusicherung, dass keine Drohne mit aufgebrauchtem
+       * Leben noch einen Tick schießt oder rempelt, ganz gleich, welche Schicht
+       * ihr das Leben genommen hat.
+       */
+      if (drone.health <= 0) {
+        internals.damageDrone(drone, 0, now);
+        continue;
+      }
 
       const definition = CLASS_DEFINITIONS[owner.playerClass];
       const archetype = archetypeFor(owner.playerClass);
@@ -540,32 +555,54 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
         }
       }
 
-      if (drone.contactCooldown > 0) continue;
-
+      /*
+       * Kontakt – Sam, 14.08.: „[Drohnen] fliegen auch einfach wie Schüsse
+       * durch Objekte durch, obwohl sie die entweder killen oder dort sterben
+       * sollten."
+       *
+       * Die Berührung wird JEDEN Tick aufgelöst, der Schaden nur, wenn der
+       * Rempler nachgeladen hat. Vorher stand `if (contactCooldown > 0)
+       * continue;` ganz oben – eine Drohne mit laufender Nachladezeit
+       * durchquerte das Quadrat, das sie gerade gebissen hatte, ungebremst.
+       */
       const shape = [...internals.shapes.values()].find(
         (candidate) => distanceSquared(candidate.position, drone.position) <= Math.pow(candidate.radius + radius, 2)
       );
+      const targetPlayer = shape ? undefined : [...internals.players.values()].find(
+        (candidate) => !candidate.dead && !candidate.invulnerable && candidate.id !== owner.id &&
+          distanceSquared(candidate.position, drone.position) <= Math.pow(GAME.playerRadius + radius, 2)
+      );
+      if (shape) schiebeAuseinander(drone, shape.position, shape.radius + radius, (position) => isFree(position, radius));
+      else if (targetPlayer) schiebeAuseinander(drone, targetPlayer.position, GAME.playerRadius + radius, (position) => isFree(position, radius));
+
+      if (drone.contactCooldown > 0) continue;
       if (shape) {
         internals.damageShape(shape, damage, owner.id, now);
-        drone.health -= SHAPE_CONFIG[shape.kind].bodyDamage;
+        internals.damageDrone(drone, SHAPE_CONFIG[shape.kind].bodyDamage, now);
         drone.contactCooldown = reload;
-      } else {
-        const targetPlayer = [...internals.players.values()].find(
-          (candidate) => !candidate.dead && !candidate.invulnerable && candidate.id !== owner.id &&
-            distanceSquared(candidate.position, drone.position) <= Math.pow(GAME.playerRadius + radius, 2)
-        );
-        if (targetPlayer) {
-          internals.damagePlayer(targetPlayer, damage, owner.id, now);
-          drone.health -= bodyDamageFor(targetPlayer) * 0.5;
-          drone.contactCooldown = reload;
-        }
-      }
-
-      if (drone.health <= 0) {
-        internals.drones.delete(drone.id);
-        internals.nextDroneSpawn.set(owner.id, now + Math.max(400, definition.droneRespawn * 1000));
+      } else if (targetPlayer) {
+        internals.damagePlayer(targetPlayer, damage, owner.id, now);
+        internals.damageDrone(drone, bodyDamageFor(targetPlayer) * 0.5, now);
+        drone.contactCooldown = reload;
       }
     }
+  };
+
+  /*
+   * Der Tod einer Drohne – die Naht aus `game.ts`, hier mit der Nachschubregel
+   * dieser Schicht (`Math.max(400, …)`).
+   *
+   * Sie wird jetzt von DREI Seiten aufgerufen: vom Kontakt oben, vom Wandtod
+   * und – neu, Sams Punkt 7 – von `stepProjectiles`. Deshalb ist sie eine
+   * ersetzbare Methode und keine dreimal abgeschriebene Buchführung.
+   */
+  internals.damageDrone = (drone: RuntimeDrone, schaden: number, now: number): void => {
+    drone.health -= Math.max(0, schaden);
+    if (drone.health > 0) return;
+    internals.drones.delete(drone.id);
+    const owner = internals.players.get(drone.ownerId);
+    if (!owner) return;
+    internals.nextDroneSpawn.set(owner.id, now + Math.max(400, CLASS_DEFINITIONS[owner.playerClass].droneRespawn * 1000));
   };
 
   return game;
