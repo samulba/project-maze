@@ -197,7 +197,8 @@ function wendeSucheAn(): void {
   }
 }
 
-/** Der Filter in Sams Liste blendet Einträge aus – und leere Gruppen gleich mit. */
+/** Der Filter in Sams Liste blendet Einträge aus. Die Liste ist flach –
+ *  es gibt keine Gruppen mehr, die leer zurückbleiben könnten. */
 function wendeStandFilterAn(): void {
   if (!WURZEL) return;
   for (const knopf of WURZEL.querySelectorAll<HTMLButtonElement>('[data-stand-filter]')) {
@@ -205,14 +206,8 @@ function wendeStandFilterAn(): void {
     knopf.classList.toggle('an', an);
     knopf.setAttribute('aria-pressed', String(an));
   }
-  for (const gruppe of WURZEL.querySelectorAll<HTMLElement>('.wunsch-gruppe')) {
-    let sichtbar = 0;
-    for (const eintrag of gruppe.querySelectorAll<HTMLElement>('.wunsch')) {
-      const passt = standFilter === 'alle' || eintrag.dataset['stand'] === standFilter;
-      eintrag.toggleAttribute('hidden', !passt);
-      if (passt) sichtbar += 1;
-    }
-    gruppe.toggleAttribute('hidden', sichtbar === 0);
+  for (const eintrag of WURZEL.querySelectorAll<HTMLElement>('.wunsch')) {
+    eintrag.toggleAttribute('hidden', standFilter !== 'alle' && eintrag.dataset['stand'] !== standFilter);
   }
 }
 
