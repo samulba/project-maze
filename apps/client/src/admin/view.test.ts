@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { backlogBlock, haelften, renderPortal, type ViewState } from './view';
-import { dauer, kurzId, seit, trend } from './format';
-import type { DailyRow, Overview } from './types';
+import { backlogBlock, haelften, renderPortal, renderTor, TAFELN, type ViewState } from './view';
+import { dauer, initialen, kompakt, kurzId, seit, trend } from './format';
+import { nettesMaximum } from './charts';
+import type { DailyRow, DeviceRow, Overview } from './types';
 
 /**
  * Die ersten Tests des Admin-Portals -- und sie gehoeren genau hierher.
@@ -187,6 +188,145 @@ describe('Sams Liste im Portal', () => {
     });
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;');
+  });
+});
+
+/*
+ * Der Umbau von der Endlosrolle auf fuenf Tafeln.
+ *
+ * Sam, woertlich: „schaut RICHTIG KAKE UNUEBERSICHTLICH ... ueberfull aus."
+ * Die Antwort darauf ist eine Struktur, und eine Struktur muss man pruefen --
+ * sonst ist die naechste Kachel wieder einfach unten drangehaengt und die
+ * Rolle ist zurueck, nur mit neuen Farben.
+ */
+describe('Tafeln statt Endlosrolle', () => {
+  const geraet = (id: string, name: string | null): DeviceRow => ({
+    deviceId: id,
+    firstSeen: '2026-08-01T10:00:00Z',
+    lastSeen: '2026-08-07T10:00:00Z',
+    sessions: 4,
+    runs: 9,
+    kills: 12,
+    totalSeconds: 3_600,
+    bestScore: 4_200,
+    bestLevel: 18,
+    lastUserId: null,
+    lastName: name
+  });
+
+  const zustand = (extra: Partial<ViewState> = {}): ViewState => {
+    const daily = flacheWoche();
+    const summe = { players: 70, newPlayers: 35, sessions: 140, accounts: 0, runs: 210, kills: 70, totalSeconds: 7_000, avgSessionSeconds: 120 };
+    const overview = {
+      live: { humans: 3, draining: false, features: { ROYALE: true }, tick: { averageMs: 4.2, busyRatio: 0.2 } },
+      persistence: { enabled: true },
+      sessions: { enabled: true },
+      days: 7,
+      database: true,
+      today: summe,
+      window: summe,
+      daily,
+      classes: [],
+      unusedClasses: [],
+      top: []
+    } as unknown as Overview;
+    return {
+      overview,
+      players: [geraet('abcdefghijklmnop', 'Sam Liba')],
+      playersTotal: 1,
+      sortierung: 'active',
+      tage: 7,
+      aktualisiert: Date.parse('2026-08-07T12:00:00Z'),
+      backlog: null,
+      ...extra
+    };
+  };
+
+  it('legt jede Tafel genau einmal an und oeffnet nur die gewaehlte', () => {
+    const html = renderPortal(zustand({ tafel: 'spieler' }));
+    for (const tafel of TAFELN) {
+      expect((html.match(new RegExp(`data-tafel="${tafel.name}"`, 'g')) ?? []).length).toBe(1);
+    }
+    // Genau eine Tafel steht offen -- die anderen vier sind `hidden`.
+    expect((html.match(/class="tafel" data-tafel="[a-z]+"(?! hidden)/g) ?? []).length).toBe(1);
+    expect(html).toContain('data-tafel="spieler"');
+    expect(html).toContain('data-offen="spieler"');
+  });
+
+  it('faengt ohne Angabe bei der Uebersicht an', () => {
+    expect(renderPortal(zustand())).toContain('data-offen="uebersicht"');
+  });
+
+  it('haengt der Spielerliste einen Suchschluessel an jede Zeile', () => {
+    // Die Suche in `main.ts` liest nur `data-suche` -- sie darf nichts ueber
+    // den Aufbau einer Zeile wissen muessen.
+    const html = renderPortal(zustand({ tafel: 'spieler' }));
+    expect(html).toContain('data-suche="sam liba abcdefghijklmnop"');
+  });
+
+  it('zaehlt Offenes als Abzeichen an der Navigation', () => {
+    const html = renderPortal(zustand({
+      backlog: {
+        zaehlung: { gesamt: 5, offen: 2, arbeit: 1, erledigt: 2, verworfen: 0, fortschritt: 0.4 },
+        gruppen: []
+      }
+    }));
+    // Zwei offen plus eines in Arbeit -- beides ist unerledigte Arbeit.
+    expect(html).toContain('<b class="abzeichen">3</b>');
+  });
+
+  it('entschaerft auch, was aus der Datenbank kommt', () => {
+    // Spielernamen sind Fremdeingabe wie jede andere.
+    const html = renderPortal(zustand({
+      tafel: 'spieler',
+      players: [geraet('geraet-1', '<img src=x onerror=alert(1)>')]
+    }));
+    expect(html).not.toContain('<img src=x');
+    expect(html).toContain('&lt;img src=x');
+  });
+});
+
+describe('Das Tor', () => {
+  it('nennt die eigene Konto-ID, wenn die Allowlist leer ist', () => {
+    const html = renderTor({ authEnabled: true, userId: 'a1b2c3', allowlistSize: 0, fehler: null, laedt: false });
+    expect(html).toContain('Es ist noch kein Admin eingetragen.');
+    expect(html).toContain('a1b2c3');
+    expect(html).toContain('ADMIN_USER_IDS');
+  });
+
+  it('sagt es, wenn der Login auf dem Server gar nicht an ist', () => {
+    const html = renderTor({ authEnabled: false, userId: null, allowlistSize: 0, fehler: null, laedt: false });
+    expect(html).toContain('AUTH_ENABLED=true');
+    expect(html).not.toContain('Mit Google anmelden');
+  });
+
+  it('zeigt einen Fehler aus dem Anmeldeversuch an, statt ihn zu verschlucken', () => {
+    const html = renderTor({ authEnabled: true, userId: null, allowlistSize: 1, fehler: 'Netz weg', laedt: false });
+    expect(html).toContain('Netz weg');
+    expect(html).toContain('Mit Google anmelden');
+  });
+});
+
+describe('Achse und Kuerzel', () => {
+  it('rundet die Achsenobergrenze auf etwas Vorlesbares', () => {
+    // Eine Achse, die man nachrechnen muss, hat ihren Zweck verfehlt.
+    expect(nettesMaximum(137)).toBe(150);
+    expect(nettesMaximum(7)).toBe(8);
+    expect(nettesMaximum(3)).toBe(3);
+    expect(nettesMaximum(1_100)).toBe(1_500);
+  });
+
+  it('kuerzt grosse Zahlen fuer enge Stellen', () => {
+    expect(kompakt(940)).toBe('940');
+    expect(kompakt(1_240)).toBe('1,2k');
+    expect(kompakt(2_400_000)).toBe('2,4M');
+  });
+
+  it('macht aus einem Namen zwei Buchstaben – und aus keinem ein Fragezeichen', () => {
+    expect(initialen('Sam Liba')).toBe('SL');
+    expect(initialen('mazer')).toBe('MA');
+    expect(initialen(null)).toBe('?');
+    expect(initialen('   ')).toBe('?');
   });
 });
 
