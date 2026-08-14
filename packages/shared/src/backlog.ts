@@ -111,8 +111,8 @@ export const BACKLOG: readonly BacklogEintrag[] = [
     bereich: 'klassen',
     stand: 'arbeit',
     gemeldet: '2026-08-13',
-    nachweis: '7c92e34 – Repeater, Retributor, Scorch und Inferno feuern ihre Läufe im Stakkato statt im Fächer, Gesamtschaden/Sekunde unverändert',
-    notiz: 'Stufe 4, Schritt 1 (Salve statt Fächer) erledigt. Schritt 2 (Pro-Lauf-Profile: jeder Lauf bekommt einen eigenen Schaden-/Tempo-Faktor statt überall derselben Werte) angewendet auf Storm – die beiden mittleren Läufe treffen härter und fliegen langsamer, die äußeren sind schwächer und schneller, Gesamtschaden/Sekunde unverändert (Nachweis folgt). Noch offen: fehlende Archetypen (Schritt 3 – rohrloser Smasher, stehendes Projektil, Factory-Minions).'
+    nachweis: '7c92e34 (Schritt 1 – Salve statt Fächer) · 24ec93c (Schritt 2 – Pro-Lauf-Profile auf Storm)',
+    notiz: 'Stufe 4, Schritt 1 (Salve statt Fächer) erledigt. Schritt 2 (Pro-Lauf-Profile: jeder Lauf bekommt einen eigenen Schaden-/Tempo-Faktor statt überall derselben Werte) angewendet auf Storm – die beiden mittleren Läufe treffen härter und fliegen langsamer, die äußeren sind schwächer und schneller, Gesamtschaden/Sekunde unverändert. Noch offen: fehlende Archetypen (Schritt 3 – rohrloser Smasher, stehendes Projektil, Factory-Minions).'
   },
 
   // ---------------------------------------------------------------- Spieltest 13.08., zweite Runde
