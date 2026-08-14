@@ -3,15 +3,42 @@
 Sams Auftrag: *„damit ich immer im überblick habe ob wir neue spieler haben etc
 blabla alles was wichtig ist"*.
 
-Das Portal liegt unter `https://www.mazers.de/admin`, ist ein eigenes Bündel
-(rund 15 kB, nicht das Spiel) und beantwortet drei Fragen in dieser Reihenfolge:
+Das Portal liegt unter `https://www.mazers.de/admin` und ist ein eigenes Bündel
+(rund 18 kB gzip, nicht das Spiel).
 
-1. **Läuft es gerade?** Spieler online, Takt, Laufzeit, ausgelieferter Stand,
-   Feature-Schalter.
-2. **Wachsen wir?** Spieler je Tag, davon neu, Besuche, Spielzeit – mit
-   Verlaufskurve und Vergleich zur ersten Hälfte des Zeitraums.
-3. **Wie wird gespielt?** Klassennutzung, erreichte Level, Rundendauer, und
-   welche Klassen noch **nie** jemand gespielt hat.
+## Der Aufbau: fünf Tafeln, eine Frage je Tafel
+
+Bis August 2026 war das Portal **eine einzige Rolle**: acht Abschnitte
+untereinander, gut vier Bildschirmhöhen, jeder Abschnitt im selben Gewicht wie
+der davor. Sams Urteil dazu war eindeutig – *„schaut RICHTIG KAKE
+UNÜBERSICHTLICH … überfull aus"* –, und er hatte recht: Wer alles gleichzeitig
+zeigt, zeigt nichts.
+
+Dieselben Zahlen liegen jetzt auf fünf **Tafeln**. Die Navigation links nennt
+die Fragen, und man beantwortet immer nur eine:
+
+| Tafel | Frage | Was darauf steht |
+| --- | --- | --- |
+| **Übersicht** | Läuft es, und wachsen wir? | Live-Kennzahlen, heute, Zeitraum mit Verlaufsdiagramm |
+| **Spieler** | Wer war da, wer kommt wieder? | Geräteliste mit Suche, Bestenliste |
+| **Klassen** | Wie wird gespielt? | Verteilungsring, Klassentabelle, nie gespielte Klassen |
+| **Sams Liste** | Was ist offen? | Rückmeldungen mit Stand und Filter |
+| **Betrieb** | Was meldet der Server über sich? | Puffer, Takt, Login, Feature-Schalter, Auslieferung |
+
+Welche Tafel offen ist, steht in der Adresse (`/admin#/spieler`). Damit ist ein
+Lesezeichen auf „Sams Liste" möglich, und der Zurück-Knopf tut das Erwartbare.
+
+Technisch stehen **alle** Tafeln im Dokument; sichtbar ist die mit `data-offen`
+am Rahmen. Ein Wechsel ist dadurch ein Attribut statt eines Neuaufbaus – und
+beim Nachladen alle 20 Sekunden bleibt die offene Tafel offen. Was der Mensch
+eingestellt hat (Tafel, Suchbegriff samt Schreibmarke, Filter in Sams Liste),
+legt `main.ts` nach jedem Zeichnen wieder an.
+
+Die Dateien: `view.ts` baut den Rahmen und verteilt die Bausteine auf die
+Tafeln, `panels.ts` enthält die Bausteine, `charts.ts` die drei
+handgeschriebenen SVG-Diagramme (Verlauf, Sparkline, Ring), `icons.ts` das
+Strichsymbol-Set. Nach wie vor kein Framework und keine Diagrammbibliothek –
+eine solche wäre größer als das ganze Portal.
 
 ---
 
@@ -116,6 +143,7 @@ genau einem Tag neu.
 | `GET /admin/api/session` | offen | wer der Fragende ist, inkl. eigener Konto-ID |
 | `GET /admin/api/overview?days=N` | Allowlist | Live, Tageswerte, Klassen, Bestenliste |
 | `GET /admin/api/players?sort=new\|active&limit=N` | Allowlist | Geräteliste |
+| `GET /admin/api/backlog` | Allowlist | Sams Liste mit Stand je Eintrag |
 
 `/admin/api/session` steht bewusst **vor** dem Torwächter – sie ist der einzige
 Weg zur eigenen Konto-ID und verrät nur, wer der Fragende selbst ist.
@@ -137,7 +165,11 @@ Server hält Datenbankantworten 15 Sekunden lang.
 | Portal steht, aber kein Verlauf | Migration 0005 fehlt | Schritt 2 |
 | Verlauf bleibt leer, obwohl gespielt wird | Client ohne `deviceId` (alter Stand ausgeliefert) | Client neu bauen und deployen |
 
-Der Block **Betrieb** ganz unten im Portal zeigt die Puffer beider Schichten.
-Steht dort bei „Sitzungs-Puffer" dauerhaft eine wachsende Zahl unter
-„wartend", kommt der Server nicht an die Datenbank – dann steht der Grund im
-Serverlog unter `[sessions]`.
+Die Tafel **Betrieb** zeigt die Puffer beider Schichten. Steht dort beim
+„Sitzungs-Puffer" dauerhaft eine wachsende Zahl unter „wartend", kommt der
+Server nicht an die Datenbank – dann steht der Grund im Serverlog unter
+`[sessions]`.
+
+Schlägt eine **Aktualisierung** fehl, bleibt das Portal stehen und meldet den
+Grund unten rechts. Nur beim allerersten Laden gibt es nichts zu behalten –
+dann führt der Weg zurück ans Tor.

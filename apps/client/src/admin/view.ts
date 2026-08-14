@@ -1,182 +1,66 @@
-import { dauer, komma, kurzId, seit, tag, trend, zahl, zeitpunkt } from './format';
-import type { ClassUsage, DailyRow, DeviceRow, Overview, Summary } from './types';
-import type { BacklogBereich, BacklogEintrag, BacklogStand, BacklogZaehlung } from '@project-maze/shared/backlog';
+import { dauer, komma, trend, zahl, zeitpunkt } from './format';
+import { escape, klassen } from './html';
+import { icon, type IconName } from './icons';
+import { ring, verlauf } from './charts';
+import {
+  backlogBlock,
+  bestenliste,
+  betrieb,
+  block,
+  kachel,
+  klassenTabelle,
+  spielerTabelle,
+  spielerWerkzeuge,
+  type BacklogAntwort
+} from './panels';
+import type { DailyRow, DeviceRow, Overview, Summary } from './types';
+
+export { backlogBlock, type BacklogAntwort };
 
 /**
  * Die Ansicht des Portals.
  *
- * Reines HTML aus Daten – kein Framework, keine Diagrammbibliothek. Die
- * Verlaufskurve ist ein handgeschriebenes SVG mit knapp vierzig Zeilen; eine
- * Bibliothek dafür wäre größer als alles andere auf dieser Seite zusammen.
+ * Reines HTML aus Daten – kein Framework, keine Diagrammbibliothek.
  *
- * Reihenfolge der Abschnitte = Reihenfolge der Fragen: Läuft es? Wachsen wir?
- * Wie wird gespielt? Wer war da? Und ganz unten, für den Fehlerfall, was der
- * Betrieb meldet.
+ * **Was sich geändert hat.** Die erste Fassung war eine einzige Rolle: acht
+ * Abschnitte untereinander, gut vier Bildschirmhöhen, jeder Abschnitt im selben
+ * Gewicht wie der davor. Wer sie öffnete, sah alles gleichzeitig und damit
+ * nichts – und die Frage, mit der man kam, stand irgendwo zwischen Frage drei
+ * und Frage sieben.
+ *
+ * Jetzt liegen dieselben Zahlen auf fünf **Tafeln**, eine je Frage: Läuft es?
+ * Wer war da? Wie wird gespielt? Was ist offen? Was meldet der Betrieb? Die
+ * Navigation links nennt die Fragen, und man beantwortet immer nur eine.
+ *
+ * Alle Tafeln stehen im Dokument, sichtbar ist die mit `data-tafel` am Rahmen.
+ * Das kostet ein paar Kilobyte Markup und spart dafür jeden Umbau beim
+ * Umschalten: Ein Wechsel ist ein Attribut, kein Rendern – und beim
+ * Nachladen alle zwanzig Sekunden bleibt die offene Tafel offen, ohne dass
+ * irgendwer sich etwas merken müsste.
  */
 
-const escape = (value: unknown): string => String(value)
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+export type TafelName = 'uebersicht' | 'spieler' | 'klassen' | 'liste' | 'betrieb';
 
-/** Eine Kennzahl mit Beschriftung, optional mit Vergleich zur Vorperiode. */
-function kachel(label: string, wert: string, fuss?: string, vergleich?: ReturnType<typeof trend>): string {
-  const trendMarkup = vergleich
-    ? `<em class="trend ${vergleich.richtung}">${escape(vergleich.text)}</em>`
-    : '';
-  return `<div class="kachel">
-    <span class="kachel-label">${escape(label)}</span>
-    <strong class="kachel-wert">${escape(wert)}${trendMarkup}</strong>
-    ${fuss ? `<small>${escape(fuss)}</small>` : ''}
-  </div>`;
-}
+export const TAFELN: ReadonlyArray<{ name: TafelName; titel: string; unter: string; symbol: IconName }> = [
+  { name: 'uebersicht', titel: 'Übersicht', unter: 'Läuft es gerade, und wachsen wir?', symbol: 'uebersicht' },
+  { name: 'spieler', titel: 'Spieler', unter: 'Wer war da, und wer kommt wieder?', symbol: 'spieler' },
+  { name: 'klassen', titel: 'Klassen', unter: 'Wie wird gespielt – und was spielt niemand?', symbol: 'klassen' },
+  { name: 'liste', titel: 'Sams Liste', unter: 'Was ist offen, was ist erledigt?', symbol: 'liste' },
+  { name: 'betrieb', titel: 'Betrieb', unter: 'Was meldet der Server über sich selbst?', symbol: 'betrieb' }
+];
 
-/**
- * Verlauf als gestapelte Balken: wiederkehrende Spieler unten, neue oben.
- *
- * Gestapelt und nicht nebeneinander, weil die Frage „wie viele waren da" und
- * die Frage „wie viele davon waren neu" dieselbe Säule teilen – nebeneinander
- * müsste man zwei Höhen addieren, um die erste zu beantworten.
- */
-function verlauf(rows: readonly DailyRow[]): string {
-  if (rows.length === 0) return '<p class="leer">Noch keine Tage mit Besuchen.</p>';
-  const breite = 1000;
-  const hoehe = 220;
-  const oben = 12;
-  const unten = 26;
-  const hoechst = Math.max(1, ...rows.map((row) => row.players));
-  const spalte = breite / rows.length;
-  const balken = Math.max(2, Math.min(38, spalte * 0.62));
-
-  const saeulen = rows.map((row, index) => {
-    const x = spalte * (index + 0.5) - balken / 2;
-    const gesamt = (row.players / hoechst) * (hoehe - oben - unten);
-    const neu = (Math.min(row.newPlayers, row.players) / hoechst) * (hoehe - oben - unten);
-    const basis = hoehe - unten;
-    return `<g class="saeule">
-      <title>${escape(tag(row.day))} · ${row.players} Spieler, davon ${row.newPlayers} neu · ${row.sessions} Besuche</title>
-      <rect x="${x.toFixed(1)}" y="${(basis - gesamt).toFixed(1)}" width="${balken.toFixed(1)}" height="${Math.max(0, gesamt).toFixed(1)}" rx="2" class="balken-alt"/>
-      <rect x="${x.toFixed(1)}" y="${(basis - neu).toFixed(1)}" width="${balken.toFixed(1)}" height="${Math.max(0, neu).toFixed(1)}" rx="2" class="balken-neu"/>
-    </g>`;
-  }).join('');
-
-  // Höchstens acht Beschriftungen, sonst überlappen sie sich bei 90 Tagen.
-  const schritt = Math.max(1, Math.ceil(rows.length / 8));
-  const beschriftet: number[] = [];
-  for (let index = 0; index < rows.length; index += schritt) beschriftet.push(index);
-  // Der letzte Tag ist der wichtigste – aber nur, wenn er nicht auf seinem
-  // Vorgänger klebt. Bei 30 Tagen und Schritt 4 landete er sonst direkt neben
-  // Tag 28, und aus „7.8." und „8.8." wurde ein „7.88.8.".
-  const letzter = rows.length - 1;
-  if (letzter - (beschriftet[beschriftet.length - 1] ?? 0) >= Math.ceil(schritt / 2)) beschriftet.push(letzter);
-
-  const marken = beschriftet.map((index) => {
-    // An den Rändern nach innen ausrichten, sonst schneidet die viewBox das
-    // erste und das letzte Datum an.
-    const anker = index === 0 ? 'start' : index === letzter ? 'end' : 'middle';
-    const x = index === 0 ? 0 : index === letzter ? breite : spalte * (index + 0.5);
-    return `<text x="${x.toFixed(1)}" y="${hoehe - 8}" text-anchor="${anker}" class="marke">${escape(tag(rows[index]!.day))}</text>`;
-  }).join('');
-
-  return `<figure class="verlauf">
-    <svg viewBox="0 0 ${breite} ${hoehe}" role="img" aria-label="Spieler je Tag">
-      <line x1="0" y1="${hoehe - unten}" x2="${breite}" y2="${hoehe - unten}" class="achse"/>
-      ${saeulen}${marken}
-    </svg>
-    <figcaption>
-      <span><i class="punkt neu"></i> neu</span>
-      <span><i class="punkt alt"></i> wiederkehrend</span>
-      <span class="rechts">Höchstwert ${zahl(hoechst)} Spieler/Tag</span>
-    </figcaption>
-  </figure>`;
-}
-
-function klassenTabelle(classes: readonly ClassUsage[], ungenutzt: readonly string[]): string {
-  if (classes.length === 0) {
-    return '<p class="leer">In diesem Zeitraum wurde keine Runde beendet.</p>';
-  }
-  const zeilen = classes.slice(0, 20).map((entry) => `<tr>
-    <td><i class="familie branch-${escape(entry.branch)}"></i>${escape(entry.label)}</td>
-    <td class="zahl">${zahl(entry.runs)}</td>
-    <td class="anteil">
-      <span class="anteil-balken"><b style="width:${Math.max(1, entry.share)}%"></b></span>
-      <em>${komma(entry.share)} %</em>
-    </td>
-    <td class="zahl">${komma(entry.avgLevel)}</td>
-    <td class="zahl">${zahl(entry.avgScore)}</td>
-    <td class="zahl">${dauer(entry.avgSeconds)}</td>
-  </tr>`).join('');
-
-  // Die ungespielten Klassen sind für einen Product Owner die interessantere
-  // Hälfte der Tabelle: Sie zeigen, was gebaut wurde und niemand findet.
-  const rest = ungenutzt.length > 0
-    ? `<p class="hinweis"><b>Nie gespielt (${ungenutzt.length}):</b> ${escape(ungenutzt.join(' · '))}</p>`
-    : '<p class="hinweis">Jede Klasse wurde mindestens einmal gespielt.</p>';
-
-  return `<table class="tabelle">
-    <thead><tr><th>Klasse</th><th class="zahl">Runden</th><th>Anteil</th><th class="zahl">Ø Level</th><th class="zahl">Ø Score</th><th class="zahl">Ø Dauer</th></tr></thead>
-    <tbody>${zeilen}</tbody>
-  </table>${rest}`;
-}
-
-function spielerTabelle(rows: readonly DeviceRow[], total: number, sortierung: string): string {
-  if (rows.length === 0) return '<p class="leer">Noch keine Besuche aufgezeichnet.</p>';
-  const zeilen = rows.map((row) => `<tr>
-    <td>
-      <strong>${escape(row.lastName ?? 'Gast')}</strong>
-      ${row.lastUserId ? '<em class="marke-konto">Konto</em>' : ''}
-      <small>${escape(kurzId(row.deviceId))}</small>
-    </td>
-    <td>${escape(zeitpunkt(row.firstSeen))}</td>
-    <td>${escape(seit(row.lastSeen))}</td>
-    <td class="zahl">${zahl(row.sessions)}</td>
-    <td class="zahl">${zahl(row.runs)}</td>
-    <td class="zahl">${dauer(row.totalSeconds)}</td>
-    <td class="zahl">${zahl(row.bestScore)}</td>
-    <td class="zahl">${zahl(row.bestLevel)}</td>
-  </tr>`).join('');
-  return `<table class="tabelle">
-    <thead><tr>
-      <th>Spieler</th><th>Erster Besuch</th><th>Zuletzt</th>
-      <th class="zahl">Besuche</th><th class="zahl">Runden</th><th class="zahl">Spielzeit</th>
-      <th class="zahl">Bester Score</th><th class="zahl">Bestes Level</th>
-    </tr></thead>
-    <tbody>${zeilen}</tbody>
-  </table>
-  <p class="hinweis">${zahl(rows.length)} von ${zahl(total)} Geräten, sortiert nach ${sortierung}.</p>`;
-}
-
-/** Feature-Schalter als Ampelreihe – falsch gesetzte ENV-Variablen sieht man hier. */
-function schalter(features: Record<string, unknown> | undefined): string {
-  if (!features) return '';
-  const eintraege = Object.entries(features).map(([name, value]) => {
-    const an = value === true || (typeof value === 'string' && value.length > 0);
-    const text = typeof value === 'string' ? value : an ? 'an' : 'aus';
-    return `<span class="flag ${an ? 'an' : 'aus'}"><b>${escape(name)}</b>${escape(text)}</span>`;
-  });
-  return `<div class="flags">${eintraege.join('')}</div>`;
-}
-
-const ampel = (ok: boolean): string => `<i class="ampel ${ok ? 'gut' : 'schlecht'}"></i>`;
-
-function betrieb(overview: Overview): string {
-  const live = overview.live;
-  const tick = live.tick ?? {};
-  const auth = live.auth ?? {};
-  const sessions = (overview.sessions ?? {}) as Record<string, number | boolean | null>;
-  const persistence = (overview.persistence ?? {}) as Record<string, number | boolean | null>;
-  const zeilen: Array<[string, string, boolean]> = [
-    ['Takt', `Ø ${komma(Number(tick.averageMs ?? 0))} ms · p95 ${komma(Number(tick.p95Ms ?? 0))} ms · Spitze ${komma(Number(tick.maxMs ?? 0))} ms · ${zahl(Number(tick.overrunsTotal ?? 0))} Überläufe bei ${zahl(Number(tick.ticksTotal ?? 0))} Ticks`,
-      // Nicht am Mittelwert messen, sondern an der Auslastung: Ein Takt, der im
-      // Schnitt schnell ist und in jeder zehnten Runde das Budget reißt, ruckelt.
-      Number(tick.busyRatio ?? 0) < 0.5 && Number(tick.overrunsTotal ?? 0) === 0],
-    ['Login', `${auth.enabled ? `an (${escape(String(auth.mode ?? ''))})` : 'aus'} · ${zahl(Number(auth.verified ?? 0))} geprüft · ${zahl(Number(auth.rejected ?? 0))} abgelehnt`,
-      Boolean(auth.enabled)],
-    ['Runs-Puffer', `${zahl(Number(persistence['queued'] ?? 0))} wartend · ${zahl(Number(persistence['written'] ?? 0))} geschrieben · ${zahl(Number(persistence['dropped'] ?? 0))} verworfen`,
-      Number(persistence['dropped'] ?? 0) === 0 && persistence['enabled'] === true],
-    ['Sitzungs-Puffer', `${zahl(Number(sessions['open'] ?? 0))} offen · ${zahl(Number(sessions['queued'] ?? 0))} wartend · ${zahl(Number(sessions['written'] ?? 0))} geschrieben · ${zahl(Number(sessions['discarded'] ?? 0))} zu kurz`,
-      Number(sessions['dropped'] ?? 0) === 0 && sessions['enabled'] === true]
-  ];
-  const liste = zeilen.map(([name, wert, ok]) => `<li>${ampel(ok)}<b>${escape(name)}</b><span>${wert}</span></li>`).join('');
-  return `<ul class="betrieb">${liste}</ul>${schalter(live.features)}`;
+export interface ViewState {
+  overview: Overview;
+  players: DeviceRow[];
+  playersTotal: number;
+  sortierung: 'new' | 'active';
+  tage: number;
+  aktualisiert: number;
+  backlog: BacklogAntwort | null;
+  /** Welche Tafel offen ist. Fehlt sie, ist es die Übersicht. */
+  tafel?: TafelName;
+  /** Name des angemeldeten Kontos, für den Fuß der Seitenleiste. */
+  konto?: string | null;
 }
 
 /**
@@ -213,183 +97,242 @@ export function haelften(rows: readonly DailyRow[]): { jung: Summary; alt: Summa
   return { alt: summe(rows.slice(rows.length - 2 * k, rows.length - k)), jung: summe(rows.slice(rows.length - k)) };
 }
 
-export interface ViewState {
-  overview: Overview;
-  players: DeviceRow[];
-  playersTotal: number;
-  sortierung: 'new' | 'active';
-  tage: number;
-  aktualisiert: number;
-  backlog: BacklogAntwort | null;
+/* ------------------------------------------------------------------ *
+ * Rahmen: Seitenleiste, Kopfleiste
+ * ------------------------------------------------------------------ */
+
+/** Die Pille, die sagt, ob gerade jemand spielt. Der einzige Wert, der blinkt. */
+function livePille(overview: Overview): string {
+  const online = Number(overview.live.humans ?? 0);
+  const zustand = overview.live.draining ? 'draining' : online > 0 ? 'aktiv' : 'ruhig';
+  const text = overview.live.draining ? 'fährt herunter' : online > 0 ? `${zahl(online)} online` : 'niemand online';
+  return `<span class="live ${zustand}"><i></i>${escape(text)}</span>`;
 }
 
-export interface BacklogAntwort {
-  zaehlung: BacklogZaehlung;
-  gruppen: Array<{ bereich: BacklogBereich; eintraege: BacklogEintrag[] }>;
-}
-
-const STAND_TEXT: Record<BacklogStand, string> = {
-  offen: 'offen',
-  arbeit: 'in Arbeit',
-  erledigt: 'erledigt',
-  verworfen: 'verworfen'
-};
-
-const BEREICH_TEXT: Record<BacklogBereich, string> = {
-  drohnen: 'Drohnen',
-  projektile: 'Projektile',
-  karte: 'Karte',
-  klassen: 'Klassen',
-  bots: 'Bots',
-  ui: 'Oberfläche',
-  bug: 'Fehler'
-};
-
-/**
- * Sams Rückmeldungen mit Stand. „Ich will die Liste im Admin-Bereich sehen
- * können und auch, was erledigt wurde, was noch offen ist."
- *
- * Offenes steht oben, in jeder Gruppe und über alle Gruppen hinweg – wer die
- * Liste öffnet, will wissen, was noch fehlt, nicht was schon geht. Erledigtes
- * bleibt trotzdem stehen: Es ist der Beleg, und es beantwortet die Frage
- * „habe ich das schon einmal gesagt?".
- */
-export function backlogBlock(antwort: BacklogAntwort | null): string {
-  if (!antwort) return '';
-  const { zaehlung, gruppen } = antwort;
-  const prozent = Math.round(zaehlung.fortschritt * 100);
-  const zeilen = gruppen.map((gruppe) => {
-    const punkte = gruppe.eintraege.map((eintrag) => `<li class="wunsch ${eintrag.stand}">
-      <span class="wunsch-kennung">${escape(eintrag.id)}</span>
-      <span class="wunsch-text">
-        <b>${escape(eintrag.wunsch)}</b>
-        ${eintrag.notiz ? `<i>${escape(eintrag.notiz)}</i>` : ''}
-      </span>
-      <span class="wunsch-stand">${escape(STAND_TEXT[eintrag.stand])}${eintrag.nachweis ? `<em>${escape(eintrag.nachweis)}</em>` : ''}</span>
-    </li>`).join('');
-    const offen = gruppe.eintraege.filter((e) => e.stand === 'offen' || e.stand === 'arbeit').length;
-    return `<div class="wunsch-gruppe">
-      <h3>${escape(BEREICH_TEXT[gruppe.bereich] ?? gruppe.bereich)} <span>${offen > 0 ? `${offen} offen` : 'alles erledigt'}</span></h3>
-      <ul class="wunsch-liste">${punkte}</ul>
-    </div>`;
+function seitenleiste(state: ViewState, offeneWuensche: number): string {
+  const punkte = TAFELN.map((tafel) => {
+    const abzeichen = tafel.name === 'liste' && offeneWuensche > 0
+      ? `<b class="abzeichen">${offeneWuensche}</b>`
+      : tafel.name === 'spieler' && state.playersTotal > 0
+        ? `<b class="abzeichen leise">${zahl(state.playersTotal)}</b>`
+        : '';
+    return `<button type="button" class="navi-punkt" data-ziel="${tafel.name}" aria-current="${state.tafel === tafel.name}">
+      ${icon(tafel.symbol)}<span>${escape(tafel.titel)}</span>${abzeichen}
+    </button>`;
   }).join('');
 
-  return `<section class="block">
-    <h2>Sams Liste</h2>
-    <p class="wunsch-bilanz">
-      <b>${zaehlung.erledigt} von ${zaehlung.gesamt - zaehlung.verworfen} erledigt</b>
-      · ${zaehlung.offen} offen${zaehlung.arbeit > 0 ? ` · ${zaehlung.arbeit} in Arbeit` : ''}
-      <span class="wunsch-balken"><i style="width:${prozent}%"></i></span>
-    </p>
-    ${zeilen}
-  </section>`;
+  const live = state.overview.live;
+  return `<aside class="seitenleiste">
+    <div class="marken-block">
+      <span class="marken-glyphe" aria-hidden="true">M</span>
+      <span class="marken-text">
+        <b>MAZERS</b>
+        <i>Zentrale</i>
+      </span>
+    </div>
+    <nav class="navi" aria-label="Bereiche">${punkte}</nav>
+    <div class="seitenleiste-fuss">
+      ${livePille(state.overview)}
+      <dl class="server-fakten">
+        <div><dt>Laufzeit</dt><dd>${escape(dauer(Number(live.uptimeSeconds ?? 0)))}</dd></div>
+        <div><dt>Stand</dt><dd class="mono">${escape(String(live.commit ?? '?')).slice(0, 8)}</dd></div>
+      </dl>
+      ${state.konto ? `<p class="konto">${escape(state.konto)}</p>` : ''}
+      <button id="abmelden" type="button" class="navi-punkt leise">${icon('abmelden')}<span>Abmelden</span></button>
+    </div>
+  </aside>`;
 }
 
-export function renderPortal(state: ViewState): string {
+function kopfleiste(state: ViewState): string {
+  const auswahl = [7, 14, 30, 90].map((d) => `<button type="button" data-tage="${d}" class="${d === state.tage ? 'an' : ''}" aria-pressed="${d === state.tage}">${d}&thinsp;T</button>`).join('');
+  return `<header class="kopfleiste">
+    <button id="navi-auf" type="button" class="nur-schmal" aria-label="Bereiche öffnen">${icon('menue')}</button>
+    <div class="kopf-titel">
+      ${TAFELN.map((tafel) => `<div data-titel="${tafel.name}">
+        <h1>${escape(tafel.titel)}</h1>
+        <p>${escape(tafel.unter)}</p>
+      </div>`).join('')}
+    </div>
+    <div class="kopf-werkzeuge">
+      <div class="segmente zeitraum" role="group" aria-label="Zeitraum">${auswahl}</div>
+      <button id="neu" type="button" class="knopf" title="Jetzt neu laden">${icon('aktualisieren')}<span class="nur-breit">Aktualisieren</span></button>
+    </div>
+  </header>`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Die Tafeln
+ * ------------------------------------------------------------------ */
+
+function tafelUebersicht(state: ViewState): string {
   const { overview } = state;
   const live = overview.live;
   const heute = overview.today;
   const fenster = overview.window;
   const vergleich = haelften(overview.daily);
-
   const online = Number(live.humans ?? 0);
-  const kopf = `<header class="kopf">
-    <div>
-      <span class="marke">MAZERS</span>
-      <h1>Zentrale</h1>
-    </div>
-    <div class="kopf-rechts">
-      <span class="live ${live.draining ? 'draining' : online > 0 ? 'aktiv' : 'ruhig'}">
-        <i></i>${live.draining ? 'fährt herunter' : `${zahl(online)} online`}
-      </span>
-      <select id="tage" aria-label="Zeitraum">
-        ${[7, 14, 30, 90].map((d) => `<option value="${d}"${d === state.tage ? ' selected' : ''}>${d} Tage</option>`).join('')}
-      </select>
-      <button id="neu" type="button">Aktualisieren</button>
-      <button id="abmelden" type="button" class="leise">Abmelden</button>
-    </div>
-  </header>`;
+  const takt = Number(live.tick?.averageMs ?? 0);
+  const last = Math.round(Number(live.tick?.busyRatio ?? 0) * 100);
 
-  const jetzt = `<section class="block">
-    <h2>Jetzt</h2>
-    <div class="kacheln">
-      ${kachel('Spieler online', zahl(online), `${zahl(Number(live.bots ?? 0))} Bots in der Arena`)}
-      ${kachel('Projektile', zahl(Number(live.projectiles ?? 0)), `${zahl(Number(live.drones ?? 0))} Drohnen · ${zahl(Number(live.shapes ?? 0))} Formen`)}
-      ${kachel('Läuft seit', dauer(Number(live.uptimeSeconds ?? 0)), `Stand ${escape(String(live.commit ?? '?'))} · Deploy ${escape(String(live.deploymentId ?? '?'))}`)}
-      ${kachel('Takt', `${komma(Number(live.tick?.averageMs ?? 0))} ms`, `Budget ${zahl(Number(live.tick?.budgetMs ?? 25))} ms · ${Math.round(Number(live.tick?.busyRatio ?? 0) * 100)} % ausgelastet · ${zahl(Number(live.tick?.overrunsTotal ?? 0))} Überläufe`)}
-    </div>
-  </section>`;
+  const jetzt = block('Jetzt in der Arena', `<div class="kacheln">
+    ${kachel({
+      label: 'Spieler online',
+      wert: zahl(online),
+      fuss: `${zahl(Number(live.bots ?? 0))} Bots in der Arena`,
+      ton: online > 0 ? 'gut' : undefined
+    })}
+    ${kachel({
+      label: 'Projektile',
+      wert: zahl(Number(live.projectiles ?? 0)),
+      fuss: `${zahl(Number(live.drones ?? 0))} Drohnen · ${zahl(Number(live.shapes ?? 0))} Formen`
+    })}
+    ${kachel({
+      label: 'Läuft seit',
+      wert: dauer(Number(live.uptimeSeconds ?? 0)),
+      fuss: `Deploy ${String(live.deploymentId ?? '?')}`
+    })}
+    ${kachel({
+      label: 'Takt',
+      wert: `${komma(takt)} ms`,
+      fuss: `Budget ${zahl(Number(live.tick?.budgetMs ?? 25))} ms · ${last} % ausgelastet`,
+      ton: last >= 50 ? 'warn' : 'gut'
+    })}
+  </div>`, '', 'Direkt aus dem Prozess – keine Datenbank beteiligt.');
 
-  const wachstum = `<section class="block">
-    <h2>Heute</h2>
-    <div class="kacheln">
-      ${kachel('Spieler', zahl(heute.players), `${zahl(heute.sessions)} Besuche`)}
-      ${kachel('Davon neu', zahl(heute.newPlayers), heute.players > 0 ? `${Math.round(heute.newPlayers / heute.players * 100)} % der Besucher` : 'noch niemand da')}
-      ${kachel('Runden', zahl(heute.runs), `${zahl(heute.kills)} Abschüsse`)}
-      ${kachel('Spielzeit', dauer(heute.totalSeconds), `Ø ${dauer(heute.avgSessionSeconds)} je Besuch`)}
-    </div>
-  </section>
+  const heuteBlock = block('Heute', `<div class="kacheln">
+    ${kachel({ label: 'Spieler', wert: zahl(heute.players), fuss: `${zahl(heute.sessions)} Besuche` })}
+    ${kachel({
+      label: 'Davon neu',
+      wert: zahl(heute.newPlayers),
+      fuss: heute.players > 0 ? `${Math.round((heute.newPlayers / heute.players) * 100)} % der Besucher` : 'noch niemand da'
+    })}
+    ${kachel({ label: 'Runden', wert: zahl(heute.runs), fuss: `${zahl(heute.kills)} Abschüsse` })}
+    ${kachel({ label: 'Spielzeit', wert: dauer(heute.totalSeconds), fuss: `Ø ${dauer(heute.avgSessionSeconds)} je Besuch` })}
+  </div>`);
 
-  <section class="block">
-    <h2>Letzte ${state.tage} Tage</h2>
-    <div class="kacheln">
-      ${kachel('Spielertage', zahl(fenster.players), 'Summe der Tageswerte – wer an drei Tagen spielt, zählt dreimal',
-        vergleich ? trend(vergleich.jung.players, vergleich.alt.players) : undefined)}
-      ${kachel('Neue Spieler', zahl(fenster.newPlayers), 'exakt: jedes Gerät ist an genau einem Tag neu',
-        vergleich ? trend(vergleich.jung.newPlayers, vergleich.alt.newPlayers) : undefined)}
-      ${kachel('Besuche', zahl(fenster.sessions), `Ø ${dauer(fenster.avgSessionSeconds)} lang`,
-        vergleich ? trend(vergleich.jung.sessions, vergleich.alt.sessions) : undefined)}
-      ${kachel('Spielzeit', dauer(fenster.totalSeconds), `${zahl(fenster.runs)} Runden · ${zahl(fenster.kills)} Abschüsse`,
-        vergleich ? trend(vergleich.jung.totalSeconds, vergleich.alt.totalSeconds) : undefined)}
-    </div>
-    ${verlauf(overview.daily)}
-  </section>`;
+  const daily = overview.daily;
+  const zeitraum = block(`Letzte ${state.tage} Tage`, `<div class="kacheln">
+    ${kachel({
+      label: 'Spielertage',
+      wert: zahl(fenster.players),
+      fuss: 'Summe der Tageswerte – wer an drei Tagen spielt, zählt dreimal',
+      vergleich: vergleich ? trend(vergleich.jung.players, vergleich.alt.players) : undefined,
+      verlauf: daily.map((row) => row.players)
+    })}
+    ${kachel({
+      label: 'Neue Spieler',
+      wert: zahl(fenster.newPlayers),
+      fuss: 'exakt: jedes Gerät ist an genau einem Tag neu',
+      vergleich: vergleich ? trend(vergleich.jung.newPlayers, vergleich.alt.newPlayers) : undefined,
+      verlauf: daily.map((row) => row.newPlayers)
+    })}
+    ${kachel({
+      label: 'Besuche',
+      wert: zahl(fenster.sessions),
+      fuss: `Ø ${dauer(fenster.avgSessionSeconds)} lang`,
+      vergleich: vergleich ? trend(vergleich.jung.sessions, vergleich.alt.sessions) : undefined,
+      verlauf: daily.map((row) => row.sessions)
+    })}
+    ${kachel({
+      label: 'Spielzeit',
+      wert: dauer(fenster.totalSeconds),
+      fuss: `${zahl(fenster.runs)} Runden · ${zahl(fenster.kills)} Abschüsse`,
+      vergleich: vergleich ? trend(vergleich.jung.totalSeconds, vergleich.alt.totalSeconds) : undefined,
+      verlauf: daily.map((row) => row.totalSeconds)
+    })}
+  </div>
+  ${verlauf(daily)}`, '', vergleich ? 'Der Trend vergleicht die zweite Hälfte des Zeitraums mit der ersten.' : 'Für einen Trendvergleich fehlen noch Tage.');
 
-  const klassen = `<section class="block">
-    <h2>Wie gespielt wird</h2>
-    ${klassenTabelle(overview.classes, overview.unusedClasses)}
-  </section>`;
-
-  const spieler = `<section class="block">
-    <h2>Spieler
-      <span class="schalterreihe">
-        <button type="button" data-sort="active" class="${state.sortierung === 'active' ? 'an' : ''}">zuletzt da</button>
-        <button type="button" data-sort="new" class="${state.sortierung === 'new' ? 'an' : ''}">neu</button>
-      </span>
-    </h2>
-    ${spielerTabelle(state.players, state.playersTotal, state.sortierung === 'new' ? 'erstem Besuch' : 'letztem Besuch')}
-  </section>`;
-
-  const bestenliste = overview.top.length > 0
-    ? `<section class="block">
-        <h2>Bestenliste</h2>
-        <table class="tabelle">
-          <thead><tr><th>#</th><th>Name</th><th class="zahl">Score</th><th class="zahl">Level</th><th>Klasse</th><th class="zahl">Dauer</th><th>Wann</th></tr></thead>
-          <tbody>${overview.top.map((run) => `<tr>
-            <td class="zahl">${run.rank}</td>
-            <td><strong>${escape(run.playerName)}</strong></td>
-            <td class="zahl">${zahl(run.score)}</td>
-            <td class="zahl">${zahl(run.level)}</td>
-            <td>${escape(run.playerClass)}</td>
-            <td class="zahl">${dauer(run.durationSeconds)}</td>
-            <td>${escape(seit(run.achievedAt))}</td>
-          </tr>`).join('')}</tbody>
-        </table>
-      </section>`
-    : '';
-
-  const technik = `<section class="block">
-    <h2>Betrieb</h2>
-    ${betrieb(overview)}
-  </section>`;
-
-  const warnung = overview.database
-    ? ''
-    : `<p class="warnung">${escape(overview.hint ?? 'Ohne Datenbank gibt es keinen Verlauf.')}</p>`;
-
-  return `${kopf}${warnung}${backlogBlock(state.backlog)}${jetzt}${wachstum}${klassen}${spieler}${bestenliste}${technik}
-    <footer class="fuss">Zuletzt aktualisiert ${escape(zeitpunkt(new Date(state.aktualisiert).toISOString()))} · aktualisiert sich alle 20 Sekunden</footer>`;
+  return `${jetzt}${heuteBlock}${zeitraum}`;
 }
+
+function tafelSpieler(state: ViewState): string {
+  const sortierText = state.sortierung === 'new' ? 'erstem Besuch' : 'letztem Besuch';
+  return `${block('Geräte', spielerTabelle(state.players, state.playersTotal, sortierText), spielerWerkzeuge(state.sortierung),
+    'Wiedererkannt wird der Browser, nicht die Person – zwei Browser sind zwei Zeilen.')}
+    ${block('Bestenliste', bestenliste(state.overview.top))}`;
+}
+
+function tafelKlassen(state: ViewState): string {
+  const { overview } = state;
+  const verteilung = ring(overview.classes);
+  return `${verteilung ? block('Verteilung', verteilung, '', `Alle beendeten Runden der letzten ${state.tage} Tage.`) : ''}
+    ${block('Klassen im Einzelnen', klassenTabelle(overview.classes, overview.unusedClasses))}`;
+}
+
+/**
+ * Diese Tafel bekommt keinen Blocktitel: Die Kopfzeile sagt bereits „Sams
+ * Liste", und eine Überschrift, die den Titel darüber wiederholt, ist genau die
+ * Sorte Füllung, gegen die der ganze Umbau hier antritt.
+ */
+function tafelListe(state: ViewState): string {
+  const inhalt = backlogBlock(state.backlog);
+  if (!inhalt) {
+    return `<div class="leer">
+      <strong>Die Liste ist gerade nicht erreichbar.</strong>
+      <span>Das Portal steht trotzdem – sie ist eine Beigabe, kein Betriebswert.</span>
+    </div>`;
+  }
+  return inhalt;
+}
+
+function tafelBetrieb(state: ViewState): string {
+  const live = state.overview.live;
+  return `${block('Selbstauskunft', betrieb(state.overview), '', 'Grün heißt: Der Server hält seine eigenen Zusagen ein.')}
+    ${block('Auslieferung', `<dl class="fakten">
+      <div><dt>Commit</dt><dd class="mono">${escape(String(live.commit ?? '?'))}</dd></div>
+      <div><dt>Deploy</dt><dd class="mono">${escape(String(live.deploymentId ?? '?'))}</dd></div>
+      <div><dt>Snapshot-Rate</dt><dd>${escape(String(live.snapshotRate ?? '?'))} Hz</dd></div>
+      <div><dt>Debug-Werkzeuge</dt><dd>${live.debugTools ? 'an' : 'aus'}</dd></div>
+      <div><dt>Datenbank</dt><dd>${state.overview.database ? 'verbunden' : 'nicht verbunden'}</dd></div>
+      <div><dt>Zeitfenster</dt><dd>${zahl(state.overview.days)} Tage</dd></div>
+    </dl>`)}`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Zusammenbau
+ * ------------------------------------------------------------------ */
+
+export function renderPortal(state: ViewState): string {
+  const tafel = state.tafel ?? 'uebersicht';
+  const offeneWuensche = state.backlog
+    ? state.backlog.zaehlung.offen + state.backlog.zaehlung.arbeit
+    : 0;
+
+  const warnung = state.overview.database
+    ? ''
+    : `<div class="warnung">${icon('warnung')}<span>${escape(state.overview.hint ?? 'Ohne Datenbank gibt es keinen Verlauf.')}</span></div>`;
+
+  const inhalte: Record<TafelName, string> = {
+    uebersicht: tafelUebersicht(state),
+    spieler: tafelSpieler(state),
+    klassen: tafelKlassen(state),
+    liste: tafelListe(state),
+    betrieb: tafelBetrieb(state)
+  };
+
+  const tafeln = TAFELN.map((eintrag) => `<section class="tafel" data-tafel="${eintrag.name}"${eintrag.name === tafel ? '' : ' hidden'}>
+    ${eintrag.name === 'uebersicht' ? warnung : ''}
+    ${inhalte[eintrag.name]}
+  </section>`).join('');
+
+  return `<div class="${klassen('portal')}" data-offen="${tafel}">
+    ${seitenleiste({ ...state, tafel }, offeneWuensche)}
+    <div class="haupt">
+      ${kopfleiste(state)}
+      <main class="inhalt">${tafeln}</main>
+      <footer class="fuss">
+        <span>Zuletzt aktualisiert ${escape(zeitpunkt(new Date(state.aktualisiert).toISOString()))}</span>
+        <span class="fuss-takt">${icon('puls')}aktualisiert sich alle 20 Sekunden</span>
+      </footer>
+    </div>
+    <div class="navi-schleier" hidden></div>
+  </div>`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Das Tor
+ * ------------------------------------------------------------------ */
 
 /** Der Zustand vor dem Login – und der, in dem die Allowlist noch leer ist. */
 export function renderTor(zustand: {
@@ -399,39 +342,43 @@ export function renderTor(zustand: {
   fehler: string | null;
   laedt: boolean;
 }): string {
-  if (zustand.laedt) return '<div class="tor"><p>Einen Moment …</p></div>';
+  const rahmen = (inhalt: string): string => `<div class="tor-buehne">
+    <div class="tor">
+      <div class="marken-block gross">
+        <span class="marken-glyphe" aria-hidden="true">M</span>
+        <span class="marken-text"><b>MAZERS</b><i>Zentrale</i></span>
+      </div>
+      ${inhalt}
+    </div>
+  </div>`;
+
+  if (zustand.laedt) {
+    return rahmen('<div class="tor-laden"><span class="spinner" aria-hidden="true"></span><p>Einen Moment …</p></div>');
+  }
 
   if (!zustand.authEnabled) {
-    return `<div class="tor">
-      <span class="marke">MAZERS</span>
-      <h1>Zentrale</h1>
-      <p class="warnung">Der Login ist auf diesem Server abgeschaltet. Das Portal braucht ihn.</p>
-      <p>Setze in Railway <code>AUTH_ENABLED=true</code> (dazu <code>SUPABASE_JWT_SECRET</code> oder die JWKS-Konfiguration, siehe <code>docs/SUPABASE.md</code>) und starte neu.</p>
-    </div>`;
+    return rahmen(`<h1>Der Login fehlt</h1>
+      <p class="warnung">${icon('warnung')}<span>Der Login ist auf diesem Server abgeschaltet. Das Portal braucht ihn.</span></p>
+      <p class="tor-text">Setze in Railway <code>AUTH_ENABLED=true</code> (dazu <code>SUPABASE_JWT_SECRET</code> oder die JWKS-Konfiguration, siehe <code>docs/SUPABASE.md</code>) und starte neu.</p>`);
   }
 
   if (zustand.userId) {
     // Angemeldet, aber nicht eingetragen: Hier steht die ID, die in die
     // Allowlist gehört. Ohne diesen Bildschirm käme niemand je hinein.
-    return `<div class="tor">
-      <span class="marke">MAZERS</span>
-      <h1>Zentrale</h1>
-      <p class="warnung">${zustand.allowlistSize === 0
+    return rahmen(`<h1>Noch kein Zutritt</h1>
+      <p class="warnung">${icon('warnung')}<span>${zustand.allowlistSize === 0
         ? 'Es ist noch kein Admin eingetragen.'
-        : 'Dieses Konto steht nicht auf der Liste.'}</p>
-      <p>Deine Konto-ID:</p>
+        : 'Dieses Konto steht nicht auf der Liste.'}</span></p>
+      <p class="tor-text">Deine Konto-ID:</p>
       <code class="id" id="konto-id">${escape(zustand.userId)}</code>
-      <button id="kopieren" type="button">ID kopieren</button>
+      <button id="kopieren" type="button" class="knopf">${icon('kopieren')}<span>ID kopieren</span></button>
       <p class="klein">Trage sie in Railway unter <code>ADMIN_USER_IDS</code> ein (mehrere durch Komma getrennt) und starte den Dienst neu. Danach lädst du diese Seite neu.</p>
-      <button id="abmelden" type="button" class="leise">Abmelden</button>
-    </div>`;
+      <button id="abmelden" type="button" class="knopf leise">${icon('abmelden')}<span>Abmelden</span></button>`);
   }
 
-  return `<div class="tor">
-    <span class="marke">MAZERS</span>
-    <h1>Zentrale</h1>
-    <p>Anmelden, um die Zahlen zu sehen.</p>
-    ${zustand.fehler ? `<p class="warnung">${escape(zustand.fehler)}</p>` : ''}
-    <button id="anmelden" type="button" class="gross">Mit Google anmelden</button>
-  </div>`;
+  return rahmen(`<h1>Anmelden</h1>
+    <p class="tor-text">Die Zahlen hinter MAZERS – Spieler, Wachstum, Betrieb.</p>
+    ${zustand.fehler ? `<p class="warnung">${icon('warnung')}<span>${escape(zustand.fehler)}</span></p>` : ''}
+    <button id="anmelden" type="button" class="knopf gross">${icon('google')}<span>Mit Google anmelden</span></button>
+    <p class="klein">Zutritt hat nur, wer in <code>ADMIN_USER_IDS</code> steht.</p>`);
 }

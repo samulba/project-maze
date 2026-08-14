@@ -63,3 +63,39 @@ export function trend(current: number, previous: number): { text: string; richtu
 
 /** Kürzt eine Geräte-ID auf etwas, das man vorlesen kann. */
 export const kurzId = (value: string): string => (value.length > 10 ? `${value.slice(0, 6)}…${value.slice(-4)}` : value);
+
+/**
+ * Kurzform für enge Stellen – Achsenbeschriftungen, Kacheln in der Seitenleiste.
+ * `1.200` braucht dort dreimal so viel Platz wie `1,2k` und sagt dasselbe.
+ */
+export function kompakt(value: number): string {
+  const betrag = Math.abs(value);
+  if (betrag < 1_000) return zahl(value);
+  if (betrag < 1_000_000) return `${komma(value / 1_000)}k`;
+  return `${komma(value / 1_000_000)}M`;
+}
+
+/**
+ * Initialen für den Kreis vor einem Spielernamen.
+ *
+ * Ein Avatar ist hier kein Schmuck: Die Spielerliste ist die einzige Tabelle,
+ * in der die erste Spalte kein Wert ist, sondern ein Mensch. Ein Anker fürs
+ * Auge macht aus 50 Zeilen 50 unterscheidbare Zeilen.
+ */
+export function initialen(name: string | null): string {
+  const teile = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (teile.length === 0) return '?';
+  if (teile.length === 1) return teile[0]!.slice(0, 2).toUpperCase();
+  return `${teile[0]![0]}${teile[teile.length - 1]![0]}`.toUpperCase();
+}
+
+/**
+ * Ein stabiler Farbton je Name – gleiche Person, gleiche Farbe, über Neuladen
+ * hinweg. Bewusst ein Hash und keine Zufallszahl: Ein Avatar, der bei jedem
+ * Poll die Farbe wechselt, ist schlimmer als gar keiner.
+ */
+export function farbton(saat: string): number {
+  let hash = 0;
+  for (let index = 0; index < saat.length; index += 1) hash = (hash * 31 + saat.charCodeAt(index)) % 360;
+  return hash;
+}
