@@ -20,6 +20,13 @@ import { GUARDIAN_COLOR, GUARDIAN_NAME, arenaEventStyle } from './arena-event-st
 import { barrelHeightFor } from './barrel-geometry';
 import { ParticleField } from './particles';
 import { QUALITY_TIERS, type QualitySettings, type QualityTier } from './quality';
+import {
+  type VerglimmendeKugel,
+  stepVerglimmende,
+  trifftWand,
+  verglimmenLassen,
+  zeichneVerglimmende
+} from './projectile-fade';
 import { type RecoilState, startRecoil, stepRecoil } from './recoil';
 import type { RenderQuality } from './perf-metrics';
 import { hullGeometry } from '@project-maze/shared/appearance';
@@ -220,6 +227,8 @@ export class GameRenderer {
   private selfPredictor:SelfPredictor|null=null;
   private readonly wallFlashes:WallFlash[]=[];
   private readonly muzzleBlips:MuzzleBlip[]=[];
+  /** Kugeln, die aus dem Snapshot gefallen sind und noch ausgeblendet werden. */
+  private readonly verglimmende:VerglimmendeKugel[]=[];
 
   /** Erst true, wenn PixiJS fertig initialisiert ist – vorher darf nichts auf app.renderer zugreifen. */
   get ready():boolean{return this.initialized}
@@ -618,8 +627,22 @@ export class GameRenderer {
         this.ownImpacts.push({position:{...view.current},at:now});
         if(this.ownImpacts.length>24)this.ownImpacts.shift();
       }
+      this.verglimmenLassen(view,snapshot);
       this.projectileViews.delete(id);
     }
+  }
+
+  /**
+   * Übergibt eine verschwundene Kugel ans Ausblenden (Sams Punkt 2 vom 14.08.).
+   * Die Logik selbst steht als reine Funktion in `projectile-fade.ts` – hier
+   * wird nur zusammengetragen, was der Renderer über sie weiß.
+   */
+  private verglimmenLassen(view:MotionView<ProjectileSnapshot>,snapshot:WorldSnapshot):void{
+    verglimmenLassen(
+      this.verglimmende,
+      {position:view.current,velocity:view.velocity,radius:view.snapshot.radius,color:this.ownerColor(view.snapshot.ownerId)},
+      trifftWand(view.current,view.velocity,view.snapshot.radius,snapshot.walls)
+    );
   }
 
   private syncDrones(snapshot:WorldSnapshot,now:number):void{
@@ -767,6 +790,7 @@ export class GameRenderer {
     }
     this.checkPixelRatio(delta);
     this.emitOverchargeSparks(delta);
+    stepVerglimmende(this.verglimmende,delta);
     this.drawDynamic(now);
     this.particles.update(delta);
     this.particles.draw();
@@ -1065,6 +1089,8 @@ export class GameRenderer {
       this.projectiles.circle(view.current.x,view.current.y,view.snapshot.radius).fill(color).stroke({color:outline,alpha:.7,width:1.5});
       this.projectiles.circle(view.current.x-view.snapshot.radius*.22,view.current.y-view.snapshot.radius*.22,Math.max(1.2,view.snapshot.radius*.28)).fill({color:0xffffff,alpha:.48});
     }
+    // Verglimmende Kugeln in DERSELBEN Ebene wie die lebenden (Sams Punkt 2).
+    zeichneVerglimmende(this.projectiles,this.verglimmende);
     // Das Zeichnen selbst liegt in `drone-draw.ts` – als reine Funktion, damit
     // es Tests gibt. Sams Strich-Bug (arc ohne moveTo) konnte nur entstehen,
     // weil keine einzige Client-Testdatei je einen Zeichenaufruf angefasst hat.

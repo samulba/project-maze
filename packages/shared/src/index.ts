@@ -1101,6 +1101,55 @@ export const SIGNATURE_MOVEMENT = {
  * (0,018 → 0,03), sonst würde volles Tempo-Investment einen Tank bauen, der
  * schnell fährt, aber trödelig lenkt.
  */
+/**
+ * **Weicher Deckel auf das Fahrtempo** – Sams Spieltest vom 14.08., Punkt 9:
+ * „Ich finde, paar Tanks bewegen sich noch überdurchschnittlich schnell, OP!"
+ *
+ * Gemessen über alle 67 Klassen bei vollem Tempo-Slot und dem schnellsten
+ * Rahmen (`lightweight`, ×1,06):
+ *
+ * ```
+ * comet     541 px/s     Median   401 px/s
+ * blitz     509 px/s     Langsamste 353 px/s
+ * smasher   485 px/s
+ * ```
+ *
+ * Die eigentliche Zahl steht aber woanders: Das ganze Projektilsystem rechnet
+ * seine Deckel und seinen Boden gegen `fastestPlayerSpeed` – und das sind
+ * **447 px/s** (`projectile-speed.ts`). Ein voll ausgebauter Comet fuhr also
+ * 21 % schneller als der Wert, gegen den jede Kugel im Spiel kalibriert ist.
+ * Der Boden „keine Kugel ist langsamer als 1,25× Spielertempo" war für diese
+ * Klassen schlicht falsch – sie liefen den Kugeln davon, gegen die sie
+ * ausbalanciert sein sollten.
+ *
+ * Ein harter Deckel würde die Spitze einebnen (derselbe Fehler, den der
+ * Tempo-Deckel der Projektile schon einmal gemacht hat, siehe dort). Deshalb
+ * geht nur der ÜBERSCHUSS über dem Deckel zu 20 % durch: Die Reihenfolge bleibt,
+ * der Abstand schrumpft.
+ *
+ * | | vorher | jetzt |
+ * |---|---:|---:|
+ * | comet | 541 | 452 |
+ * | blitz | 509 | 446 |
+ * | rapid | 461 | 436 |
+ * | Median | 401 | 401 |
+ *
+ * 430 liegt bewusst ÜBER dem Median: Wer nichts in Tempo investiert, merkt
+ * nichts – kein Grundtempo einer Klasse (Höchstwert 340) kommt in die Nähe.
+ * Getroffen wird genau der voll ausgebaute Tempo-Build, also das, was Sam
+ * gesehen hat. Danach liegt der schnellste überhaupt baubare Panzer bei
+ * 452 px/s, also 1,2 % neben dem Bezugswert des Projektilsystems statt 21 %.
+ *
+ * Die Regel steht in `shared`, weil die Client-Vorhersage dieselbe Funktion
+ * ruft: Zwei Fassungen wären in jedem Tick sichtbares Gummiband.
+ */
+export const TEMPO_DECKEL = 430;
+export const TEMPO_WEICHHEIT = 0.2;
+
+/** Unterhalb des Deckels unverändert, darüber geht nur der Überschuss anteilig durch. */
+export const weichesTempo = (tempo: number): number =>
+  (tempo <= TEMPO_DECKEL ? tempo : TEMPO_DECKEL + (tempo - TEMPO_DECKEL) * TEMPO_WEICHHEIT);
+
 export function movementStatsFor(
   base: { moveSpeed: number; acceleration: number },
   moveUpgradeLevel: number,
@@ -1108,7 +1157,7 @@ export function movementStatsFor(
 ): { moveSpeed: number; acceleration: number } {
   const punkte = Math.max(0, moveUpgradeLevel);
   return {
-    moveSpeed: base.moveSpeed * (1 + punkte * 0.05) * moveMultiplier,
+    moveSpeed: weichesTempo(base.moveSpeed * (1 + punkte * 0.05) * moveMultiplier),
     acceleration: base.acceleration * ACCELERATION_SCALE * (1 + punkte * 0.03) * moveMultiplier
   };
 }

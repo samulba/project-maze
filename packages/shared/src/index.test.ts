@@ -4,6 +4,8 @@ import {
   GAME,
   PLAYER_CLASS_IDS,
   PROJECTILE_UPGRADE_IDS,
+  TEMPO_DECKEL,
+  movementStatsFor,
   SIGNATURE_UPGRADE_IDS,
   UPGRADE_IDS,
   upgradeAppliesTo,
@@ -303,5 +305,60 @@ describe('progression and input rules', () => {
       const summe = tank.barrels.reduce((sum, barrel) => sum + (barrel.damageScale ?? 1), 0);
       expect(summe, id).toBeCloseTo(tank.barrelCount, 6);
     }
+  });
+});
+
+/**
+ * Fahrtempo-Deckel – Sams Spieltest vom 14.08., Punkt 9: „Ich finde, paar Tanks
+ * bewegen sich noch überdurchschnittlich schnell, OP!"
+ *
+ * Geprüft wird die Regel, nicht die Zahl: Unten ändert sich nichts, oben wird
+ * gestaucht, und die Reihenfolge bleibt erhalten – ein harter Deckel hätte die
+ * Spitze eingeebnet.
+ */
+describe('Fahrtempo-Deckel', () => {
+  const SCHNELLSTER_RAHMEN = 1.06;
+  const voll = (id: (typeof PLAYER_CLASS_IDS)[number]): number =>
+    movementStatsFor(CLASS_DEFINITIONS[id], GAME.maxUpgradeLevel, SCHNELLSTER_RAHMEN).moveSpeed;
+
+  it('lässt jede Klasse ohne Tempo-Punkte unberührt', () => {
+    for (const id of PLAYER_CLASS_IDS) {
+      expect(movementStatsFor(CLASS_DEFINITIONS[id], 0).moveSpeed, id).toBe(CLASS_DEFINITIONS[id].moveSpeed);
+      expect(CLASS_DEFINITIONS[id].moveSpeed, `${id} kommt schon ohne Punkte an den Deckel`).toBeLessThan(TEMPO_DECKEL);
+    }
+  });
+
+  it('staucht die Spitze, statt sie einzuebnen', () => {
+    const sortiert = [...PLAYER_CLASS_IDS].sort((a, b) => voll(b) - voll(a));
+    const schnellster = sortiert[0]!;
+    const zweiter = sortiert[1]!;
+    // Beide liegen über dem Deckel – und sind trotzdem verschieden schnell.
+    expect(voll(schnellster)).toBeGreaterThan(TEMPO_DECKEL);
+    expect(voll(zweiter)).toBeGreaterThan(TEMPO_DECKEL);
+    expect(voll(schnellster)).toBeGreaterThan(voll(zweiter));
+  });
+
+  it('hält die Reihenfolge aller Klassen', () => {
+    const roh = [...PLAYER_CLASS_IDS].sort((a, b) => CLASS_DEFINITIONS[b].moveSpeed - CLASS_DEFINITIONS[a].moveSpeed);
+    const gedeckelt = [...PLAYER_CLASS_IDS].sort((a, b) => voll(b) - voll(a));
+    expect(gedeckelt.map((id) => CLASS_DEFINITIONS[id].moveSpeed)).toEqual(roh.map((id) => CLASS_DEFINITIONS[id].moveSpeed));
+  });
+
+  /**
+   * Der Grund, aus dem der Deckel dort liegt, wo er liegt: Das Projektilsystem
+   * kalibriert Deckel und Boden gegen „den schnellsten Spieler". Läuft ein
+   * Panzer davon, ist die Zusicherung „jede Kugel holt einen Fliehenden ein"
+   * für ihn falsch.
+   */
+  it('hält den schnellsten baubaren Panzer nah am Bezugswert des Projektilsystems', () => {
+    const schnellster = Math.max(...PLAYER_CLASS_IDS.map(voll));
+    // 447 px/s ist `fastestPlayerSpeed` in apps/server/src/projectile-speed.ts.
+    expect(schnellster).toBeLessThan(447 * 1.05);
+  });
+
+  it('lässt die Beschleunigung unberührt – gedeckelt wird das Tempo', () => {
+    const schnell = CLASS_DEFINITIONS.comet;
+    expect(movementStatsFor(schnell, GAME.maxUpgradeLevel, 1.06).acceleration)
+      .toBeGreaterThan(movementStatsFor(schnell, 0, 1.06).acceleration);
   });
 });
