@@ -51,7 +51,6 @@ import {
 import { DEFAULT_BOT_PACING, tuneBotBrain } from './bot-brain.js';
 import { tuneDrones } from './drone-tuning.js';
 import { tuneFamilyUpgrades, type SignatureFamily } from './family-upgrades.js';
-import { tuneFireCadence } from './fire-cadence.js';
 import { tuneFireRecoil } from './fire-recoil.js';
 import { tuneHitDirection } from './hit-direction.js';
 import { MazeGame } from './game.js';
@@ -482,13 +481,15 @@ const encodedGame = tuneSnapshotEncoding(
                                   // wie die AEGIS-Entladung, die aussen nicht
                                   // vorbeikommen.
                                   tuneHitDirection(
-                                  // Halbautomatik direkt um das Kampf-Tuning
-                                  // (Sams Punkt 6 vom 14.08.): Dort steht die
-                                  // Zeile, die bei gedrueckter Taste feuert.
-                                  // INNERHALB des Ladeschusses – eine Klasse,
-                                  // deren ganzes Spiel das Halten ist, darf
-                                  // keine Halbautomatik bekommen.
-                                  tuneFireCadence(
+                                  // Hier stand bis zum 14.08. abends die
+                                  // Halbautomatik (`tuneFireCadence`): ein Klick
+                                  // = eine Salve, Dauerfeuer erst nach 200 ms
+                                  // Halten. Sam hat sie im selben Spieltest
+                                  // wieder abbestellt – „zäh beim Reagieren".
+                                  // Die Begruendung steht in Bericht 34; kurz:
+                                  // Die Schwelle betraf nur Klassen unter
+                                  // 150 ms Nachladezeit, und genau dort war die
+                                  // Luecke am deutlichsten zu spueren.
                                   tuneCombatScaling(
                                     // Projektiltempo vor allem anderen: Es
                                     // aendert die Statik, aus der jede weitere
@@ -497,7 +498,6 @@ const encodedGame = tuneSnapshotEncoding(
                                       tuneSpectator(hardenSimulation(new MazeGame(BOT_COUNT)), SPECTATOR_ENABLED),
                                       PROJECTILE_SPEED_V2
                                     )
-                                  )
                                   )
                                   ),
                                   FAMILY_UPGRADE_BRANCHES

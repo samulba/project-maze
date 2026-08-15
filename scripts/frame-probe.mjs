@@ -44,6 +44,12 @@ async function main() {
   const browser = await chromium.launch({ executablePath: EXE, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   await page.addInitScript(SHIM);
+  // Konsole und Ausnahmen mitschreiben: Eine Ausnahme je Bild kostet mehr
+  // Bildrate als jede Zeichenarbeit – und wird ohne diese Zeilen nie sichtbar.
+  const meldungen = new Map();
+  const merken = (text) => meldungen.set(text.slice(0, 160), (meldungen.get(text.slice(0, 160)) ?? 0) + 1);
+  page.on('console', (nachricht) => { if (['error', 'warning'].includes(nachricht.type())) merken(`${nachricht.type()}: ${nachricht.text()}`); });
+  page.on('pageerror', (fehler) => merken(`pageerror: ${fehler.message}`));
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#join-button:not([disabled])', { timeout: 60_000 });
   await page.fill('#player-name', 'Messung');
@@ -63,6 +69,10 @@ async function main() {
 
   const frames = await page.evaluate('window.__frames');
   await browser.close();
+  if (meldungen.size > 0) {
+    console.log('Konsole:');
+    for (const [text, anzahl] of [...meldungen.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12)) console.log(`  ${String(anzahl).padStart(5)}x ${text}`);
+  }
 
   const sortiert = [...frames].sort((a, b) => a - b);
   const summe = frames.reduce((a, b) => a + b, 0);

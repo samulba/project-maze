@@ -94,6 +94,34 @@ die falsche Zwischenmessung und die offenen Verdächtigen in
 [Bericht 33](33-lag.md). Neu: `node scripts/frame-probe.mjs` misst Bildzeiten im
 echten Browser.
 
+## Vierter Nachtrag: Zeitlupe und Halbautomatik
+
+Sam: „zäh beim reagieren, mach die 200ms halteschwelle weg" – und danach:
+„locker 1–2 SEKUNDEN LAGGY und super langsam fast in abgehackter Zeitlupe".
+
+**Die Halbautomatik ist weg.** `fire-cadence.ts` gelöscht. Sie verzögerte den
+zweiten Schuss um bis zu 200 ms und änderte dabei nur bei drei Klassen etwas
+(rapid, gatling, storm – alle unter 150 ms Nachladezeit); bezahlt haben es alle.
+
+**Die Zeitlupe kam aus einer Zeile im Renderer**, älter als das Paket vom 14.08.:
+
+```ts
+this.render(Math.min(.05, ticker.deltaMS / 1000))
+```
+
+Unterhalb von 20 fps rechnete der Client die Welt **langsamer als die Uhr** – bei
+10 fps auf halbem Tempo, bei 5 fps auf einem Viertel. Und weil die Annäherung an
+die Serverposition denselben zu kleinen Schritt benutzt, blieb der Tank
+sekundenlang zurück. Beide Worte aus einer Zeile.
+
+Jetzt zählt bis 5 fps die echte Zeit (ruckelig statt zeitlupig), darüber wird
+gesprungen statt gekrochen. Die Entscheidung steht als reine Funktion in
+`frame-step.ts`, mit `welttempo()` als Test – die Frage „läuft die Welt in
+Echtzeit?" hatte vorher niemand gestellt.
+
+Der Server war es nicht: Tickintervall 26,7 ms bei 44 Spielern (Ziel 25).
+Details in [Bericht 34](34-zeitlupe.md).
+
 ## Was Sam beim nächsten Test ansehen sollte
 
 1. **Halbautomatik**: Sind 200 ms die richtige Grenze zwischen „Klick" und

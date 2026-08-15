@@ -27,6 +27,7 @@ import {
   verglimmenLassen,
   zeichneVerglimmende
 } from './projectile-fade';
+import { bildschritt } from './frame-step';
 import { type RecoilState, startRecoil, stepRecoil } from './recoil';
 import type { RenderQuality } from './perf-metrics';
 import { hullGeometry } from '@project-maze/shared/appearance';
@@ -355,7 +356,7 @@ export class GameRenderer {
     };
     watchRatio();
     this.drawBackground();
-    this.app.ticker.add(ticker=>this.render(Math.min(.05,ticker.deltaMS/1000)));
+    this.app.ticker.add(ticker=>this.bildSchritt(ticker.deltaMS/1000));
   }
 
   setSnapshot(snapshot:WorldSnapshot):void{
@@ -748,6 +749,55 @@ export class GameRenderer {
   private viewAnchor(self:Vector2):Vector2{
     const spectated=this.spectatorId?this.playerViews.get(this.spectatorId):undefined;
     return spectated?.current??self;
+  }
+
+  /**
+   * Ein Bild – mit der Zeit, die WIRKLICH vergangen ist.
+   *
+   * Sam, 14.08. abends: „locker 1–2 SEKUNDEN LAGGY / Verzögerung und super
+   * langsam, fast in abgehackter Zeitlupe."
+   *
+   * Hier stand `Math.min(.05, ticker.deltaMS/1000)`, und an diesem einen Wert
+   * hängt ALLES, was der Client über Zeit weiß: Interpolation auf die
+   * Serverposition, Rückstoßfeder, Partikel, Ringe, Schadenszahlen, das
+   * Ausblenden der Kugeln. Ein Deckel von 50 ms heißt: **Unterhalb von 20
+   * Bildern je Sekunde rechnet der Client die Welt langsamer als die Uhr.** Bei
+   * 10 fps vergehen je Bild 100 ms, angerechnet werden 50 – die Welt läuft auf
+   * halbem Tempo. Bei 5 fps auf einem Viertel. Genau das sieht man als
+   * Zeitlupe, und weil die Interpolation mit demselben zu kleinen Schritt auf
+   * die Serverposition zuläuft, bleibt der Tank zusätzlich hinterher.
+   *
+   * Der Deckel selbst ist richtig – ohne ihn schleudert ein Tab-Wechsel nach
+   * zehn Sekunden alles quer. Falsch war seine Höhe und was danach passiert:
+   *
+   * * bis `ECHTZEIT_DECKEL` (200 ms, also bis hinunter zu 5 fps) zählt die
+   *   echte Zeit. Ein niedriges Bildmaß bleibt damit **ruckelig statt
+   *   zeitlupig** – das ist ehrlich und fühlt sich richtig an.
+   * * darüber war es kein langsames Bild, sondern eine Pause. Dann wird
+   *   **gesprungen** statt gerechnet: Jede Ansicht setzt sich auf ihren
+   *   Zielpunkt, und das nächste Bild beginnt wieder synchron.
+   *
+   * Alle Verbraucher des Schritts sind exponentielle Annäherungen oder
+   * Abklingzeiten (`1-exp(-k·delta)`, `life -= delta`). Die vertragen einen
+   * größeren Schritt ohne Überschwingen; das war beim alten Deckel nicht der
+   * Grund und ist beim neuen keine Gefahr.
+   */
+  private bildSchritt(roh:number):void{
+    const schritt=bildschritt(roh);
+    if(!schritt)return;
+    if(schritt.sprung)this.holeZeitAuf();
+    this.render(schritt.schritt);
+  }
+
+  /**
+   * Nach einer Pause: Alles sitzt sofort dort, wo der Server es zuletzt gemeldet
+   * hat. Sich über eine Sekunde Rückstand „heranzuinterpolieren" wäre genau das
+   * Kriechen, das Sam als Verzögerung beschreibt.
+   */
+  private holeZeitAuf():void{
+    for(const view of this.playerViews.values())view.current={...view.target};
+    for(const view of this.projectileViews.values())view.current={...view.target};
+    for(const view of this.droneViews.values())view.current={...view.target};
   }
 
   private render(delta:number):void{
