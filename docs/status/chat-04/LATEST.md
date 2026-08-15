@@ -122,6 +122,33 @@ Echtzeit?" hatte vorher niemand gestellt.
 Der Server war es nicht: Tickintervall 26,7 ms bei 44 Spielern (Ziel 25).
 Details in [Bericht 34](34-zeitlupe.md).
 
+## Fünfter Nachtrag: Performance auf 1A
+
+Sam: „lass jetzt die komplette PERFORMANCE dieses GAMES zu einer 1A machen, soll
+überall extrem smooth laufen, auf allen Geräten!"
+
+Erst gemessen, wo die Zeit hingeht – und sie lag nicht dort, wo man sie vermutet:
+
+| Befund | Vorher | Jetzt |
+| --- | ---: | ---: |
+| `querySelectorAll` im HUD, 200×/s für Punkte, die sich nie bewegen | 30 % der gesamten Client-JS-Zeit | einmal eingesammelt |
+| Unterste Qualitätsstufe (`resolutionCap` stand auf 1, Boden klemmte bei 1) | ~3,4 fps | **7,6 fps** |
+| Erstes Qualitätsurteil der Automatik | nach 10 s | nach **3 s** |
+| Wandkennung: 9-kB-Zeichenkette je Snapshot | 180 kB Müll/s | Streuzahl, 0 |
+| Client-JS je 20 s | 1220 ms | **852 ms** |
+
+Der Server ist seit [Bericht 33](33-lag.md) fertig: unter 30 Clients **76 %
+Leerlauf**, Tick p50 1,4 ms von 25 ms Budget.
+
+Das JS-Profil ist danach flach – kein Posten über 0,3 %. Details, Messmethode
+und der ehrliche Rest in [Bericht 35](35-performance.md). Neu: `STUFE=low node
+scripts/frame-probe.mjs` misst eine erzwungene Qualitätsstufe.
+
+**Was fehlt: Sams echte Zahlen.** Der Client meldet Bildrate, Gerät und Stufe an
+`/client-metrics`; nach dem nächsten Spiel zeigt `node scripts/perf-live.mjs
+--url <host>`, was sein Gerät wirklich schafft. Ohne das ist jeder weitere
+Eingriff geraten.
+
 ## Was Sam beim nächsten Test ansehen sollte
 
 1. **Halbautomatik**: Sind 200 ms die richtige Grenze zwischen „Klick" und

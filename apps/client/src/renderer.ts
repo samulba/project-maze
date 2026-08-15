@@ -28,6 +28,7 @@ import {
   zeichneVerglimmende
 } from './projectile-fade';
 import { bildschritt } from './frame-step';
+import { wandKennung } from './wall-signature';
 import { type RecoilState, startRecoil, stepRecoil } from './recoil';
 import type { RenderQuality } from './perf-metrics';
 import { hullGeometry } from '@project-maze/shared/appearance';
@@ -199,7 +200,7 @@ export class GameRenderer {
   private worldView:WorldView={width:GAME.visibleWorldWidth,height:GAME.visibleWorldHeight};
   private viewMode:ViewMode=DEFAULT_VIEW_MODE;
   private time=0;
-  private wallsSignature='';
+  private wallsSignature=0;
   private knownShapes=new Map<string,ShapeSnapshot>();
   private knownEliteIds=new Set<string>();
   private hadArenaEvent=false;
@@ -364,7 +365,19 @@ export class GameRenderer {
     this.lastSnapshotAt=now;
     this.snapshot=snapshot;
     this.selfId=snapshot.selfId;
-    const signature=snapshot.walls.map(wall=>`${wall.id}:${wall.x}:${wall.y}:${wall.width}:${wall.height}`).join('|');
+    /*
+     * Haben sich die Wände geändert?
+     *
+     * Hier stand `walls.map(...).join('|')` – für rund 230 Wände eine
+     * Zeichenkette von etwa neun Kilobyte, gebaut bei JEDEM Snapshot, also
+     * zwanzigmal je Sekunde, nur um sie mit der vorigen zu vergleichen. Das
+     * sind 180 kB Müll je Sekunde für eine Frage, die fast immer „nein" lautet.
+     *
+     * Die Wände sind statisch; was sich ändert, ist ihre Anzahl (Fracture
+     * schaltet eine ab) oder ihr Ausschnitt (der Spieler läuft weiter). Beides
+     * fängt eine Zahl ein, die ohne Zwischenspeicher entsteht.
+     */
+    const signature=wandKennung(snapshot.walls);
     if(signature!==this.wallsSignature){this.wallsSignature=signature;this.syncWallChanges(snapshot);this.drawWalls(snapshot)}
     const extended=snapshot as WorldSnapshot&{arenaEvent?:ArenaEventSnapshot|null;arenaGuardianId?:string|null;spectatorTargetId?:string|null;dischargeBursts?:Array<{id:number;x:number;y:number;radius:number;ownerId:string|null}>};
     this.arenaEvent=extended.arenaEvent??null;
@@ -1017,7 +1030,15 @@ export class GameRenderer {
   }
 
   /** Auflösung: Gerätedichte, gedeckelt von der Qualitätsstufe. */
-  private pixelRatio():number{return Math.max(1,Math.min(window.devicePixelRatio||1,this.settings.resolutionCap))}
+  /**
+   * Wie viele Bildpunkte je Weltpunkt gerechnet werden.
+   *
+   * Der Boden lag bei 1 und machte damit `resolutionCap` unter 1 wirkungslos –
+   * ausgerechnet den stärksten Hebel für schwache Geräte (siehe `quality.ts`).
+   * Jetzt liegt er bei 0,5: Darunter wird das Bild matschig, und ein Spiel,
+   * das man nicht mehr lesen kann, ist auch nicht flüssig.
+   */
+  private pixelRatio():number{return Math.max(.5,Math.min(window.devicePixelRatio||1,this.settings.resolutionCap))}
 
   /**
    * Sicherheitsnetz für Zoom und Monitorwechsel: Die Medienabfrage auf die
@@ -1140,21 +1161,30 @@ export class GameRenderer {
       }
     }
     this.projectiles.clear();
+    /*
+     * Vier Flächen je Kugel – Schweif, Streulicht, Körper, Glanz –, und bei
+     * achtzig Kugeln im Bild sind das über dreihundert gefüllte Flächen je
+     * Bild. Auf der untersten Stufe bleibt der Körper: Er trägt Ort, Größe und
+     * Besitzer, also die ganze Information. Der Rest ist Verzierung.
+     */
+    const schmuck=this.settings.detail;
     for(const view of this.projectileViews.values()){
       const color=this.ownerColor(view.snapshot.ownerId);
       const outline=view.snapshot.ownerId===this.selfId?0xe9edff:0xffd5db;
-      const speed=Math.hypot(view.velocity.x,view.velocity.y);
-      if(speed>60){
-        const trail=Math.min(30,speed*.032);
-        const tail={x:view.current.x-view.velocity.x/speed*trail,y:view.current.y-view.velocity.y/speed*trail};
-        this.projectiles.moveTo(tail.x,tail.y).lineTo(view.current.x,view.current.y).stroke({color,alpha:.3,width:Math.max(2,view.snapshot.radius*.9)});
+      if(schmuck){
+        const speed=Math.hypot(view.velocity.x,view.velocity.y);
+        if(speed>60){
+          const trail=Math.min(30,speed*.032);
+          const tail={x:view.current.x-view.velocity.x/speed*trail,y:view.current.y-view.velocity.y/speed*trail};
+          this.projectiles.moveTo(tail.x,tail.y).lineTo(view.current.x,view.current.y).stroke({color,alpha:.3,width:Math.max(2,view.snapshot.radius*.9)});
+        }
+        this.projectiles.circle(view.current.x,view.current.y,view.snapshot.radius+3).fill({color,alpha:.14});
       }
-      this.projectiles.circle(view.current.x,view.current.y,view.snapshot.radius+3).fill({color,alpha:.14});
       this.projectiles.circle(view.current.x,view.current.y,view.snapshot.radius).fill(color).stroke({color:outline,alpha:.7,width:1.5});
-      this.projectiles.circle(view.current.x-view.snapshot.radius*.22,view.current.y-view.snapshot.radius*.22,Math.max(1.2,view.snapshot.radius*.28)).fill({color:0xffffff,alpha:.48});
+      if(schmuck)this.projectiles.circle(view.current.x-view.snapshot.radius*.22,view.current.y-view.snapshot.radius*.22,Math.max(1.2,view.snapshot.radius*.28)).fill({color:0xffffff,alpha:.48});
     }
     // Verglimmende Kugeln in DERSELBEN Ebene wie die lebenden (Sams Punkt 2).
-    zeichneVerglimmende(this.projectiles,this.verglimmende);
+    zeichneVerglimmende(this.projectiles,this.verglimmende,schmuck);
     // Das Zeichnen selbst liegt in `drone-draw.ts` – als reine Funktion, damit
     // es Tests gibt. Sams Strich-Bug (arc ohne moveTo) konnte nur entstehen,
     // weil keine einzige Client-Testdatei je einen Zeichenaufruf angefasst hat.

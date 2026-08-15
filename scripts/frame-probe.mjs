@@ -24,6 +24,13 @@ import { chromium } from 'playwright-core';
 const URL = process.env.URL ?? 'http://127.0.0.1:2599';
 const EXE = process.env.PW_CHROMIUM ?? '/opt/pw-browsers/chromium';
 const SEKUNDEN = Number(process.env.SEKUNDEN ?? 20);
+/**
+ * Qualitätsstufe erzwingen (`high` | `mid` | `low` | `auto`). Ohne Angabe
+ * entscheidet die Automatik. Diese Umgebung rasterisiert in Software – sie ist
+ * damit ein brauchbares Modell für ein füllratenschwaches Gerät, und der
+ * Vergleich `high` gegen `low` ist die einzige Messung, für die sie taugt.
+ */
+const STUFE = process.env.STUFE ?? '';
 
 /** Sammelt rAF-Abstände in `window.__frames`, bevor der Client startet. */
 const SHIM = `
@@ -44,6 +51,7 @@ async function main() {
   const browser = await chromium.launch({ executablePath: EXE, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   await page.addInitScript(SHIM);
+  if (STUFE) await page.addInitScript(`try{window.localStorage.setItem('project-maze-quality',${JSON.stringify(STUFE)})}catch{}`);
   // Konsole und Ausnahmen mitschreiben: Eine Ausnahme je Bild kostet mehr
   // Bildrate als jede Zeichenarbeit – und wird ohne diese Zeilen nie sichtbar.
   const meldungen = new Map();

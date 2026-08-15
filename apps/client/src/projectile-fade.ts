@@ -121,13 +121,16 @@ export interface Zeichenflaeche {
  * im Moment des Verschwindens vor oder hinter alles andere, und genau dieser
  * Sprung ist das „abrupt", das Sam meint.
  */
-export function zeichneVerglimmende(flaeche: Zeichenflaeche, liste: readonly VerglimmendeKugel[]): void {
+export function zeichneVerglimmende(flaeche: Zeichenflaeche, liste: readonly VerglimmendeKugel[], schmuck = true): void {
+  // Auf der untersten Qualitätsstufe entfällt der Hof: zwei gefüllte Flächen je
+  // ausblendender Kugel, mal bis zu neunzig gleichzeitig, für einen Schimmer.
+  // Das Ausblenden selbst bleibt – es ist Sams Punkt 2, nicht Verzierung.
   for (const kugel of liste) {
     const rest = Math.max(0, Math.min(1, kugel.life / kugel.maxLife));
     // Einschlag: dehnt sich kurz auf. Reichweitenende: schrumpft weg.
     const radius = kugel.einschlag ? kugel.radius * (1 + (1 - rest) * 0.8) : kugel.radius * (0.35 + rest * 0.65);
     if (radius <= 0.2) continue;
-    flaeche.circle(kugel.position.x, kugel.position.y, radius + 2).fill({ color: kugel.color, alpha: rest * 0.12 });
+    if (schmuck) flaeche.circle(kugel.position.x, kugel.position.y, radius + 2).fill({ color: kugel.color, alpha: rest * 0.12 });
     flaeche.circle(kugel.position.x, kugel.position.y, radius).fill({ color: kugel.color, alpha: rest * (kugel.einschlag ? 0.55 : 0.8) });
   }
 }

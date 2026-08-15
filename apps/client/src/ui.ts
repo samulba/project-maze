@@ -147,6 +147,23 @@ export class GameUI {
   /** Rundenstand auf der Todeskarte – nur im Battle Royale sichtbar. */
   private readonly royaleDeathNote: HTMLElement;
   private readonly upgradeButtons = new Map<UpgradeSlotId, HTMLButtonElement>();
+  /**
+   * Die Punkte-Reihen und Beschriftungen der Aufwertungs-Slots, EINMAL gesucht.
+   *
+   * Hier stand `this.root.querySelectorAll('[data-pips="…"] i')` – in einer
+   * Schleife über alle Slots, bei JEDEM Snapshot, also zwanzigmal je Sekunde.
+   * Im Profil des Clients war das mit Abstand der größte JS-Posten: **30 % der
+   * gesamten JavaScript-Zeit** für eine Suche über das ganze Dokument, deren
+   * Ergebnis sich nie ändert – die Punkte hängen seit dem Aufbau des HUD an
+   * derselben Stelle.
+   *
+   * Dazu `gesetzteStufen`: Der Füllstand wird nur angefasst, wenn er sich
+   * geändert hat. Zehn Slots × acht Punkte × zwanzigmal je Sekunde sind 1600
+   * `classList.toggle` in der Sekunde, von denen fast alle nichts tun.
+   */
+  private readonly upgradePips = new Map<UpgradeSlotId, HTMLElement[]>();
+  private readonly upgradeLabels = new Map<UpgradeSlotId, HTMLElement | null>();
+  private readonly gesetzteStufen = new Map<UpgradeSlotId, number>();
   private readonly vignette: HTMLElement;
   private entered = false;
   private wasBooting = false;
@@ -517,6 +534,13 @@ export class GameUI {
       this.upgradeButtons.set(upgrade, button);
       button.addEventListener('click', () => onUpgrade(upgrade));
     });
+    // Punkte und Beschriftungen einmal einsammeln (siehe `upgradePips`). Beides
+    // steht im Markup und wandert nie – gesucht wurde es trotzdem bei jedem
+    // Snapshot neu.
+    for (const id of UPGRADE_SLOT_IDS) {
+      this.upgradePips.set(id, [...root.querySelectorAll<HTMLElement>(`[data-pips="${id}"] i`)]);
+      this.upgradeLabels.set(id, root.querySelector<HTMLElement>(`[data-upgrade-label="${id}"]`));
+    }
     this.autoFire.addEventListener('click', () => this.setAutoFire(onAutoFire()));
     this.respawnButton.addEventListener('click', onRespawn);
 
@@ -716,8 +740,13 @@ export class GameUI {
       const wirkt = family || upgradeAppliesTo(self.playerClass, id as UpgradeId);
       const known = wirkt && (!family || levels[id] !== undefined);
       const currentLevel = levels[id] ?? 0;
-      const pips = this.root.querySelectorAll<HTMLElement>(`[data-pips="${id}"] i`);
-      pips.forEach((pip, index) => pip.classList.toggle('filled', index < currentLevel));
+      // Nur anfassen, was sich geändert hat: Der Füllstand steht in aller Regel
+      // schon richtig da.
+      if (this.gesetzteStufen.get(id) !== currentLevel) {
+        this.gesetzteStufen.set(id, currentLevel);
+        const pips = this.upgradePips.get(id);
+        if (pips) for (let index = 0; index < pips.length; index += 1) pips[index]!.classList.toggle('filled', index < currentLevel);
+      }
       const button = this.upgradeButtons.get(id);
       if (!button) continue;
       button.hidden = !known;
@@ -730,7 +759,7 @@ export class GameUI {
       }
       const locked = family && familyLocked;
       if (family) {
-        const label = this.root.querySelector<HTMLElement>(`[data-upgrade-label="${id}"]`);
+        const label = this.upgradeLabels.get(id) ?? null;
         // Sperrgrund als sichtbarer Text: `title` ist auf Touch kein Text,
         // sondern nichts (Befund 17). Kompakt – der volle Satz lief auf den
         // Handy-Formaten 84 px über die Panelbreite (Layout-Matrix); die
