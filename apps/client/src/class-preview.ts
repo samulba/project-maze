@@ -33,6 +33,9 @@ const points = (values: number[]): string => {
 
 /** Ein Zeichenbefehl als SVG-Element – die Rollen sind in CSS gestylt. */
 function opMarkup(op: DrawOp): string {
+  // Offener Strich (Familienmarkierung, Auftrag Abschnitt 3): eine Polyline,
+  // keine Fläche – gefüllt wäre jede davon ein Klecks.
+  if (op.kind === 'line') return `<polyline points="${points(op.points)}" class="cp-linie cp-${op.role}"/>`;
   if (op.kind === 'poly') return `<polygon points="${points(op.points)}" class="cp-${op.role}"/>`;
   if (op.kind === 'ring') return `<circle cx="${op.x}" cy="${op.y}" r="${op.r}" class="cp-ring cp-${op.role}"/>`;
   return `<circle cx="${op.x}" cy="${op.y}" r="${op.r}" class="cp-${op.role}"/>`;
@@ -94,7 +97,7 @@ function rahmen(playerClass: PlayerClass): { x: number; y: number; groesse: numb
     oben = Math.min(oben, y); unten = Math.max(unten, y);
   };
   for (const op of hullGeometry(playerClass)) {
-    if (op.kind === 'poly') {
+    if (op.kind === 'poly' || op.kind === 'line') {
       for (let index = 0; index < op.points.length; index += 2) punkt(op.points[index]!, op.points[index + 1]!);
     } else {
       punkt(op.x - op.r, op.y - op.r);

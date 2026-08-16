@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CLASS_DEFINITIONS, PLAYER_CLASS_IDS } from './index';
+import { basisReichweite } from './appearance';
 import {
   GRUPPENWINKEL,
   ROOT_DISTANCE,
@@ -117,5 +118,45 @@ describe('Waffenformen', () => {
     // ROOT_DISTANCE liegt innerhalb des Rumpfes (r22) – die Base verdeckt die
     // Wurzel, so verlangt es Abschnitt 8.
     expect(ROOT_DISTANCE).toBeLessThan(22);
+  });
+});
+
+describe('Jedes Rohr ragt sichtbar aus dem Rumpf', () => {
+  /*
+   * Eine Lücke im finalen Klassenauftrag, beim Nachmessen aufgefallen:
+   * Abschnitt 4 setzt die Mindestlänge (11 px) ab der ROHRWURZEL, nicht ab der
+   * Rumpfkante. Für die kurzläufigen IMPACT-Klassen ergab das eine Mündung bei
+   * 24,5 px, während ihre Base bis 23,2 px reicht – **1,3 px sichtbares Rohr**.
+   * Juggernaut, Fortress und Leviathan wären Quadrate ohne Waffe gewesen.
+   */
+  it('lässt bei jeder Klasse jede Rohrrichtung aus der Base herausschauen', () => {
+    /*
+     * Geprüft wird die SILHOUETTE, nicht jedes Einzelteil: Ein gemeinsames
+     * Gehäuse endet zwölf Pixel vor der kürzesten Mündung und liegt deshalb
+     * absichtlich fast ganz unter dem Rumpf – sichtbar sind dort die Mündungen.
+     * Ein erster, zu strenger Anlauf dieses Tests hat genau daran Scorch
+     * gemeldet, obwohl der Tank richtig aussieht.
+     */
+    for (const id of PLAYER_CLASS_IDS) {
+      if (id === 'smasher') continue;
+      const formen = waffenformenVon(id);
+      expect(formen.length, `${id} zeichnet gar nichts`).toBeGreaterThan(0);
+      // Je Richtung das weiteste gezeichnete Stück gegen die Rumpfkante halten.
+      const jeRichtung = new Map<string, { weiteste: number; winkel: number }>();
+      for (const form of formen) {
+        for (let i = 0; i < form.punkte.length; i += 2) {
+          const abstand = Math.hypot(form.punkte[i]!, form.punkte[i + 1]!);
+          const winkel = Math.atan2(form.punkte[i + 1]!, form.punkte[i]!);
+          const fach = (Math.round(winkel * 180 / Math.PI / 15) * 15).toString();
+          const vorher = jeRichtung.get(fach);
+          if (!vorher || abstand > vorher.weiteste) jeRichtung.set(fach, { weiteste: abstand, winkel });
+        }
+      }
+      let bestesUeberstehen = -Infinity;
+      for (const { weiteste, winkel } of jeRichtung.values()) {
+        bestesUeberstehen = Math.max(bestesUeberstehen, weiteste - basisReichweite(id, winkel));
+      }
+      expect(bestesUeberstehen, `${id}: nur ${bestesUeberstehen.toFixed(1)} px Rohr sichtbar`).toBeGreaterThan(5);
+    }
   });
 });

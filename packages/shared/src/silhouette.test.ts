@@ -23,26 +23,62 @@ const silhouette = (id: (typeof PLAYER_CLASS_IDS)[number]): string =>
       .map((wert) => (typeof wert === 'number' ? wert.toFixed(2) : wert)).join('|'))
     .join(';');
 
-describe('Rumpf', () => {
-  it('ist für jede Klasse derselbe Kreis – außer der Smasher-Linie', () => {
-    const kreis = JSON.stringify(hullGeometry('core'));
+describe('Rumpf: eine Base je Familie', () => {
+  /*
+   * Dritte Fassung dieser Regel, jede mit ihrem Anlass:
+   *
+   * 1. 67 eigene Silhouetten – von Sam dreimal abgelehnt.
+   * 2. Für alle derselbe Kreis (Sam: „alle als Kreis wie bei Diep") – näher am
+   *    Vorbild, aber die neun Familien wurden ununterscheidbar.
+   * 3. Der finale Klassenauftrag, Abschnitt 3: **eine Base je Familie, von
+   *    allen Unterklassen geerbt.** Das ist dort ein Abnahmekriterium.
+   */
+  it('gibt jeder Unterklasse exakt die Base ihrer Familie', () => {
+    const jeFamilie = new Map<string, string>();
     for (const id of PLAYER_CLASS_IDS) {
       if (id === 'smasher') continue;
-      expect(JSON.stringify(hullGeometry(id)), id).toBe(kreis);
+      const familie = CLASS_DEFINITIONS[id].branch;
+      const form = JSON.stringify(hullGeometry(id));
+      const bekannt = jeFamilie.get(familie);
+      if (bekannt) expect(form, `${id} weicht von seiner Familie ${familie} ab`).toBe(bekannt);
+      else jeFamilie.set(familie, form);
     }
+    expect(jeFamilie.size).toBe(9);
   });
 
-  it('zeichnet den Körper genau so groß, wie er getroffen wird', () => {
-    // Vorher lag der gezeichnete Radius je Klasse zwischen 20 und 24 px,
-    // während die Trefferabfrage immer mit GAME.playerRadius rechnete.
-    const [op] = hullGeometry('core');
-    expect(op).toMatchObject({ kind: 'circle', r: GAME.playerRadius });
+  it('gibt keinen zwei Familien dieselbe Base', () => {
+    const formen = new Map<string, string>();
+    const doppelt: string[] = [];
+    for (const [familie, form] of Object.entries(
+      Object.fromEntries(PLAYER_CLASS_IDS.filter((id) => id !== 'smasher')
+        .map((id) => [CLASS_DEFINITIONS[id].branch, JSON.stringify(hullGeometry(id))]))
+    )) {
+      const vorher = formen.get(form);
+      if (vorher) doppelt.push(`${vorher} = ${familie}`);
+      else formen.set(form, familie);
+    }
+    // core, control und tempest teilen sich bewusst den reinen Kreis als
+    // Grundform; tempest trägt zusätzlich seine vier Reaktorbögen. Der Auftrag
+    // sagt dazu ausdrücklich: CONTROL unterscheidet sich nicht durch den Rumpf,
+    // sondern durch seine Spawner.
+    expect(doppelt).toEqual(['core = control']);
+  });
+
+  it('zeichnet den Körper in der Größenordnung des Trefferradius', () => {
+    for (const id of PLAYER_CLASS_IDS) {
+      for (const op of hullGeometry(id)) {
+        if (op.kind !== 'poly') continue;
+        for (let i = 0; i < op.points.length; i += 2) {
+          const abstand = Math.hypot(op.points[i]!, op.points[i + 1]!);
+          expect(abstand, `${id} Rumpfpunkt ${abstand.toFixed(1)} px`).toBeLessThan(GAME.playerRadius * 1.5);
+        }
+      }
+    }
   });
 
   it('gibt der Smasher-Linie einen eigenen Körper – sie hat kein Rohr', () => {
     expect(CLASS_DEFINITIONS.smasher.barrelCount).toBe(0);
     expect(laeufeVon('smasher')).toHaveLength(0);
-    // Ohne Sonderform wäre sie ein merkmalsloser Kreis ohne jedes Rohr.
     expect(JSON.stringify(hullGeometry('smasher'))).not.toBe(JSON.stringify(hullGeometry('core')));
   });
 });

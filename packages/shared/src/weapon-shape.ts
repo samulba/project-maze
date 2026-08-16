@@ -1,4 +1,5 @@
 import { CLASS_DEFINITIONS, type BarrelProfile, type ClassDefinition, type PlayerClass } from './index.js';
+import { basisReichweite } from './appearance.js';
 
 /**
  * Die gezeichnete Waffe – **Gehäuse statt Drähte** (finaler Klassenauftrag,
@@ -54,6 +55,22 @@ export const TEILUNGS_ABSTAND = 12;
  * verboten („keine sichtbaren Quer-/Segmentnähte").
  */
 export const NAHT_UEBERLAPPUNG = 0.7;
+/**
+ * So weit muss jedes Rohr MINDESTENS aus dem Rumpf ragen.
+ *
+ * Eine Lücke im Auftrag, aufgefallen beim Nachmessen: Abschnitt 4 setzt die
+ * Mindestlänge (11 px) ab der Rohrwurzel, also ab `ROOT_DISTANCE` – nicht ab
+ * der Rumpfkante. Für die kurzläufigen IMPACT-Klassen ergibt das eine Mündung
+ * bei 24,5 px, während ihre Base bis rund 23 px reicht: **1,5 px sichtbares
+ * Rohr.** Juggernaut, Fortress und Leviathan wären damit Quadrate ohne Waffe
+ * gewesen.
+ *
+ * Der Auftrag verlangt an keiner Stelle unsichtbare Rohre; er setzt
+ * stillschweigend voraus, dass sie herausragen. Diese Untergrenze stellt genau
+ * das her – gemessen von der Rumpfkante in DIESE Richtung, weil ein
+ * IMPACT-Quadrat in der Diagonale weiter reicht als an der Kante.
+ */
+export const MIN_SICHTBAR = 9;
 
 export const clamp = (wert: number, tief: number, hoch: number): number => Math.max(tief, Math.min(hoch, wert));
 
@@ -106,12 +123,16 @@ const sichtbareLaenge = (basislaenge: number, profil: BarrelProfile): number =>
   clamp(basislaenge * (profil.laenge ?? 1) * LAENGEN_FAKTOR, MIN_LAENGE, MAX_LAENGE);
 
 /** Ein Profil in einen fertig gerechneten Emitter übersetzen. */
-function emitter(profil: BarrelProfile, basislaenge: number, breitenfaktor: number): Emitter {
+function emitter(profil: BarrelProfile, basislaenge: number, breitenfaktor: number, rumpf?: PlayerClass): Emitter {
   const wurzelbreite = BREITEN_EINHEIT * (profil.breite ?? 1) * breitenfaktor;
+  const winkel = profil.angle ?? 0;
+  const gerechnet = ROOT_DISTANCE + sichtbareLaenge(basislaenge, profil);
+  // Untergrenze an der Rumpfkante statt an der Rohrwurzel – siehe MIN_SICHTBAR.
+  const kante = rumpf ? basisReichweite(rumpf, winkel) : 0;
   return {
-    winkel: profil.angle ?? 0,
+    winkel,
     versatz: (profil.versatz ?? 0) * BREITEN_EINHEIT,
-    muendung: ROOT_DISTANCE + sichtbareLaenge(basislaenge, profil),
+    muendung: Math.max(gerechnet, kante + MIN_SICHTBAR),
     wurzelbreite,
     muendungsbreite: BREITEN_EINHEIT * (profil.muendungsbreite ?? profil.breite ?? 1) * breitenfaktor
   };
@@ -219,7 +240,7 @@ function gehaeuseform(mitte: number, von: number, bis: number, a: { tief: number
  * (Auftrag, Abschnitt 8): erst Zier-Rohre, dann Einzelrohre, dann Gehäuse und
  * zuletzt die kurzen Mündungen.
  */
-export function waffenformen(definition: Formdefinition): Waffenform[] {
+export function waffenformen(definition: Formdefinition, rumpf?: PlayerClass): Waffenform[] {
   const basislaenge = definition.barrelLength > 0 ? definition.barrelLength : 26;
   const feuernd = definition.barrels ?? [];
   const zuschlag = rundumZuschlag(feuernd.length);
@@ -228,11 +249,11 @@ export function waffenformen(definition: Formdefinition): Waffenform[] {
 
   // 1. Zier-Rohre: nie gruppiert, nie mit Zuschlag – sie sind Beiwerk.
   for (const profil of definition.launchers ?? []) {
-    const e = emitter(profil, basislaenge, 1);
+    const e = emitter(profil, basislaenge, 1, rumpf);
     formen.push({ art: 'rohr', punkte: balken(e.winkel, e.versatz, ROOT_DISTANCE, e.muendung, e.wurzelbreite, e.muendungsbreite) });
   }
 
-  const gruppen = gruppiere(feuernd.map((profil) => emitter(profil, basislaenge, 1)));
+  const gruppen = gruppiere(feuernd.map((profil) => emitter(profil, basislaenge, 1, rumpf)));
   const gehaeuse: Waffenform[] = [];
   const muendungen: Waffenform[] = [];
 
@@ -240,10 +261,10 @@ export function waffenformen(definition: Formdefinition): Waffenform[] {
     if (gruppe.length === 1) {
       // Alleinstehendes Rohr: hier – und nur hier – greift der Rundum-Zuschlag.
       const profil = feuernd[feuernd.findIndex((p) => {
-        const e = emitter(p, basislaenge, 1);
+        const e = emitter(p, basislaenge, 1, rumpf);
         return e.winkel === gruppe[0]!.winkel && e.versatz === gruppe[0]!.versatz && e.muendung === gruppe[0]!.muendung;
       })];
-      const e = profil ? emitter(profil, basislaenge, zuschlag) : gruppe[0]!;
+      const e = profil ? emitter(profil, basislaenge, zuschlag, rumpf) : gruppe[0]!;
       formen.push({ art: 'rohr', punkte: balken(e.winkel, e.versatz, ROOT_DISTANCE, e.muendung, e.wurzelbreite, e.muendungsbreite) });
       continue;
     }
@@ -269,7 +290,7 @@ export function waffenformen(definition: Formdefinition): Waffenform[] {
   return [...formen, ...gehaeuse, ...muendungen];
 }
 
-export const waffenformenVon = (playerClass: PlayerClass): Waffenform[] => waffenformen(CLASS_DEFINITIONS[playerClass]);
+export const waffenformenVon = (playerClass: PlayerClass): Waffenform[] => waffenformen(CLASS_DEFINITIONS[playerClass], playerClass);
 
 /**
  * Der Abstand, in dem eine Kugel dieses Laufs entsteht.
@@ -290,9 +311,9 @@ export function projektilVersatz(definition: Formdefinition, lauf: number): numb
   return (definition.barrels?.[lauf]?.versatz ?? 0) * BREITEN_EINHEIT;
 }
 
-export function projektilAbstand(definition: Formdefinition, lauf: number, projektilradius: number): number {
+export function projektilAbstand(definition: Formdefinition, lauf: number, projektilradius: number, rumpf?: PlayerClass): number {
   const basislaenge = definition.barrelLength > 0 ? definition.barrelLength : 26;
   const profil = definition.barrels?.[lauf];
-  const muendung = ROOT_DISTANCE + sichtbareLaenge(basislaenge, profil ?? {});
+  const muendung = emitter(profil ?? {}, basislaenge, 1, rumpf).muendung;
   return Math.max(ROOT_DISTANCE + 2, muendung - projektilradius * 0.65);
 }

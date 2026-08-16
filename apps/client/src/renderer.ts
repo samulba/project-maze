@@ -1324,10 +1324,12 @@ export class GameRenderer {
     for(const op of hullGeometry(playerClass)){
       switch(op.role){
         case'hull':
+          if(op.kind==='line')break;
           if(op.kind==='poly')body.poly(op.points).fill(color).stroke(kante);
           else body.circle(op.x,op.y,op.r).fill(color).stroke(kante);
           break;
         case'armor':{
+          if(op.kind==='line')break;
           // Die Panzerung liegt DUNKLER auf dem Rumpf, nicht durchscheinend:
           // Eine Platte mit Alpha 0,82 war auf jeder Familienfarbe ein Hauch,
           // gemischt ist sie eine eigene Fläche.
@@ -1338,19 +1340,34 @@ export class GameRenderer {
         }
         case'accent':{
           const hell=mischen(0xffffff,color,.78);
-          if(op.kind==='ring')detail.circle(op.x,op.y,op.r).stroke({color:mischen(0xffffff,color,.6),width:2.5});
+          if(op.kind==='line'){
+            /*
+             * Familienmarkierung: ein OFFENER Strich (Auftrag, Abschnitt 3 –
+             * die Rapid-Linien, die Precision-Mittelachse, die vier
+             * Tempest-Reaktorbögen). Als gefüllte Fläche gezeichnet wäre jede
+             * davon ein Klecks; sie sind bewusst „sehr zurückhaltend".
+             */
+            const p=op.points;
+            if(p.length>=4){
+              detail.moveTo(p[0]!,p[1]!);
+              for(let i=2;i<p.length;i+=2)detail.lineTo(p[i]!,p[i+1]!);
+              detail.stroke({color:mischen(0xffffff,color,.55),width:2.5});
+            }
+          }
+          else if(op.kind==='ring')detail.circle(op.x,op.y,op.r).stroke({color:mischen(0xffffff,color,.6),width:2.5});
           else if(op.kind==='poly')detail.poly(op.points).fill(hell).stroke(feineKante);
           else detail.circle(op.x,op.y,op.r).fill(hell).stroke(feineKante);
           break;
         }
         case'void':
+          if(op.kind==='line')break;
           if(op.kind==='poly')detail.poly(op.points).fill({color:SCHATTEN,alpha:.78});
           else detail.circle(op.x,op.y,op.r).fill({color:SCHATTEN,alpha:.78});
           break;
         case'crown':
           // Der Apex-Ring: gestrichelt kann Pixi Graphics nicht ohne Umweg –
           // ein doppelter Ring liest sich als dieselbe Krone.
-          if(op.kind!=='poly'){
+          if(op.kind==='circle'||op.kind==='ring'){
             detail.circle(op.x,op.y,op.r).stroke({color:mischen(0xffffff,color,.74),width:3});
             detail.circle(op.x,op.y,op.r-4).stroke({color:mischen(0xffffff,color,.4),width:1.5});
           }

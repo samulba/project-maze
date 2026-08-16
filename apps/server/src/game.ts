@@ -522,7 +522,7 @@ export class MazeGame {
      * Zeile stünde jede Kugel rund 15 px vor dem nun kürzeren Rohr, und das ist
      * wörtlich Sams Punkt 6b vom 14.08.
      */
-    const abstand = projektilAbstand(stats, barrel, stats.projectileRadius);
+    const abstand = projektilAbstand(stats, barrel, stats.projectileRadius, player.playerClass);
     /*
      * Der SEITLICHE Versatz des Laufs (Sam, 16.08., mit dem Diep.io-Baum als
      * Beleg). Bis dahin entstand jede Kugel auf der Mittellinie – ein Twin sah

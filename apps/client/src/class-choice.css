@@ -101,12 +101,31 @@
   stroke: color-mix(in srgb, currentColor 26%, #080a11);
   stroke-width: 2;
 }
+/*
+ * Familienmarkierung als offener Strich (finaler Klassenauftrag, Abschnitt 3):
+ * die beiden Rapid-Linien, die Precision-Mittelachse, die vier
+ * Tempest-Reaktorbögen. Ohne `fill: none` würde jede davon als Fläche
+ * geschlossen und wäre ein Klecks statt einer Linie.
+ */
+.cp-linie {
+  fill: none;
+  stroke: color-mix(in srgb, #fff 55%, currentColor);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .cp-void { fill: #080a11; opacity: .78; }
 .cp-ring { fill: none; stroke-width: 2.5; }
 .cp-ring.cp-accent { fill: none; stroke: color-mix(in srgb, #fff 60%, currentColor); }
 .cp-ring.cp-crown { fill: none; stroke: color-mix(in srgb, #fff 74%, currentColor); stroke-width: 3; stroke-dasharray: 6 5; }
 /* Neutrales Grau mit derselben dunklen Kante – das Rohr ist Metall, nicht Panzer. */
 .cp-barrel { fill: #99a1b3; stroke: #262c39; stroke-width: 3; stroke-linejoin: round; }
+/*
+ * Das kurze Mündungsstück vor einem gemeinsamen Gehäuse bekommt KEINE eigene
+ * Umrandung: Sonst stünde an der Teilung genau die Quernaht, die der Auftrag
+ * verbietet („keine sichtbaren Quer-/Segmentnähte").
+ */
+.cp-muendung { stroke: none; }
 .cp-drone { fill: currentColor; stroke: color-mix(in srgb, currentColor 26%, #080a11); stroke-width: 2; }
 
 /* Jede Familie hat ihre Farbe – dieselbe Zuordnung wie Rollenwort und Rad.
