@@ -391,6 +391,20 @@ describe('fracture event', () => {
     expect(isWallDisabled(wall.id)).toBe(true);
 
     shape.position = { x: 240, y: 240 };
+    /*
+     * Der Besitzer steht neben seiner Drohne.
+     *
+     * Seit Teil D des Klassenauftrags zerstört die harte Leine jede Drohne
+     * jenseits von Leine + 120 px – gegen Desync und Teleport. Eine Drohne, die
+     * hunderte Pixel von ihrem Besitzer entfernt in einer Wand parkt, kann es
+     * im Spiel nicht geben; ohne diese Zeile prüfte der Test eine Lage, die
+     * nicht vorkommt, und wäre an der Leine gescheitert statt an der Fracture-
+     * Logik, um die es hier geht.
+     *
+     * NEBEN die Wand, nicht hinein: Ein Besitzer im Wandsegment hielte es
+     * seinerseits deaktiviert, und der Test prüfte dann nichts mehr.
+     */
+    internals.players.get(viewerId)!.position = { x: center.x + 300, y: center.y + 300 };
     internals.drones.set('parked-drone', {
       id: 'parked-drone',
       ownerId: viewerId,

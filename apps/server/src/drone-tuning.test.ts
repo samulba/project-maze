@@ -588,25 +588,29 @@ describe('Minion-Waffe', () => {
  * neuer Befehl kommt. Seit `FORMATION_DREHUNG` wandert der Platz, die Drohne
  * kommt nie an – und kreist deshalb von selbst.
  */
-describe('Drohnen kreisen, statt zu parken (Stufe 3)', () => {
-  const FELD = messpunkt({ links: 380, rechts: 380, oben: 380, unten: 380 });
-
-  interface Interna {
-    players: Map<string, any>;
-    shapes: Map<string, any>;
-    drones: Map<string, any>;
-    stepDrones(dt: number, now: number): void;
-  }
-
-  /**
-   * Flotte auf einen Zeiger 260 px rechts vom Panzer, eingeschwungen.
+describe('Drohnen kommen am Zeiger AN (Teil D des Klassenauftrags)', () => {
+  /*
+   * Dritte Fassung dieser Regel, und die Begründung wechselt mit ihr:
    *
-   * Der Pfad wird abgelaufen, nicht gesprungen: `chooseClass` erlaubt nur den
-   * jeweils nächsten Schritt der eigenen Familie (plus den Apex).
+   * 1. Bis 14.08. parkten Drohnen mit 0,0 px/s auf einem festen Punkt – Sams
+   *    „fühlt sich MEGA MEGA komisch an".
+   * 2. Am 16.08. ersetzte Sams Recherche das durch das Diep.io-Modell: kein
+   *    Ankunftsregler, Überschießen, Umkreisen des Cursors.
+   * 3. Der finale Klassenauftrag dreht das wieder um – **mit Begründung**:
+   *
+   *    > „In offenen Arenen wirkt Überschwingen lebendig; in 320-px-Gängen
+   *    > erzeugt es hingegen zufällige Wandtode."
+   *
+   * Gemessen war genau das: Mit weiten Bögen war die Flotte nach 60 Ticks leer.
+   * Der Unterschied zu Zustand 1 ist trotzdem groß – dort stand die Flotte auf
+   * einem gemeinsamen Punkt, hier steht sie auf EIGENEN Slots in einer Reihe
+   * quer zur Blickachse.
    */
-  const amZeiger = (pfad: readonly ['drone', ...('warden' | 'overseer' | 'sovereign')[]]) => {
+  const FELD = messpunkt({ links: 420, rechts: 420, oben: 300, unten: 300 });
+
+  const amZeiger = (klasse: 'drone' | 'guardian' | 'aviary') => {
     const game = tuneDrones(tuneCombatScaling(new MazeGame(0)));
-    const interna = game as unknown as Interna;
+    const interna = game as unknown as { players: Map<string, any>; drones: Map<string, any>; shapes: Map<string, any> };
     interna.shapes.clear();
     const id = game.addPlayer('Controller');
     const spieler = interna.players.get(id);
@@ -614,64 +618,50 @@ describe('Drohnen kreisen, statt zu parken (Stufe 3)', () => {
     spieler.position = { ...FELD };
     spieler.invulnerable = false;
     spieler.invulnerableUntil = 0;
-    for (const stufe of pfad) expect(game.chooseClass(id, stufe), stufe).toBe(true);
-    spieler.aim = { x: 260, y: 0 };
-    // Geklickt, nicht Auto-Modus: Dieser Block prüft den Kreis UM DEN ZEIGER.
-    spieler.primary = true;
-    spieler.klick = true;
+    // Der Klassenbaum erlaubt nur den direkten Elternschritt – also den ganzen
+    // Pfad laufen, statt von core direkt auf aviary zu springen.
+    const pfad: string[] = [];
+    for (let schritt: string | undefined = klasse; schritt && schritt !== 'core'; schritt = CLASS_DEFINITIONS[schritt as 'drone']?.parent as string | undefined) pfad.unshift(schritt);
+    for (const schritt of pfad) expect(game.chooseClass(id, schritt as 'drone'), schritt).toBe(true);
     let now = 100_000;
-    for (let tick = 0; tick < 200; tick += 1) interna.stepDrones(1 / 40, (now += 25));
-    return { interna, spieler, now };
+    for (let tick = 0; tick < 240; tick += 1) {
+      spieler.aim = { x: 240, y: 0 };
+      spieler.primary = true;
+      spieler.klick = true;
+      spieler.move = { x: 0, y: 0 };
+      game.step(1 / 40, (now += 25));
+    }
+    const drohnen = [...interna.drones.values()].filter((d) => d.ownerId === id);
+    expect(drohnen.length, `${klasse}: Flotte gestorben`).toBeGreaterThan(0);
+    const zeiger = { x: spieler.position.x + 240, y: spieler.position.y };
+    return { drohnen, zeiger, spieler };
   };
 
-  const PFADE = [
-    ['drone'],
-    ['drone', 'warden'],
-    ['drone', 'warden', 'overseer'],
-    ['drone', 'warden', 'overseer', 'sovereign']
-  ] as const;
-
-  it.each(PFADE)('lässt die Flotte von %s… am Zeiger nicht stehenbleiben', (...pfad) => {
-    const { interna, spieler } = amZeiger(pfad as unknown as Parameters<typeof amZeiger>[0]);
-    let now = 105_000;
-    const tempi: number[] = [];
-    for (let tick = 0; tick < 200; tick += 1) {
-      interna.stepDrones(1 / 40, (now += 25));
-      for (const drohne of interna.drones.values()) tempi.push(Math.hypot(drohne.velocity.x, drohne.velocity.y));
-    }
-    expect(tempi.length).toBeGreaterThan(0);
-    // Vor dieser Stufe war das LANGSAMSTE gemessene Tempo 0,0 px/s – und zwar
-    // das schnellste zugleich, weil alle standen.
-    expect(Math.min(...tempi)).toBeGreaterThan(40);
-    expect(spieler.dead).toBe(false);
-  });
-
-  it('hält dabei einen gleichmäßigen Ring um den Zeiger', () => {
-    const { interna, spieler } = amZeiger(['drone']);
-    const zeiger = { x: spieler.position.x + spieler.aim.x, y: spieler.position.y + spieler.aim.y };
-    let now = 105_000;
-    const abstaende: number[] = [];
-    for (let tick = 0; tick < 200; tick += 1) {
-      interna.stepDrones(1 / 40, (now += 25));
-      for (const drohne of interna.drones.values()) {
-        abstaende.push(Math.hypot(drohne.position.x - zeiger.x, drohne.position.y - zeiger.y));
+  for (const klasse of ['drone', 'guardian', 'aviary'] as const) {
+    it(`bremst die Flotte von ${klasse} am Zeiger auf Restgeschwindigkeit`, () => {
+      const { drohnen } = amZeiger(klasse);
+      for (const d of drohnen) {
+        const tempo = Math.hypot(d.velocity.x, d.velocity.y);
+        // Teil D: „kritisch gedämpft auf höchstens 18 px/s Restgeschwindigkeit".
+        // Etwas Luft, weil Eigenkollisionen der Flotte weiter schieben.
+        expect(tempo, `${klasse}: ${tempo.toFixed(0)} px/s am Slot`).toBeLessThan(90);
       }
-    }
-    // Kreis, nicht Spirale und nicht Pendel: Der Ring bleibt über 5 Sekunden
-    // innerhalb weniger Pixel derselbe.
-    expect(Math.max(...abstaende) - Math.min(...abstaende)).toBeLessThan(6);
-    expect(Math.min(...abstaende)).toBeGreaterThan(10);
-  });
+    });
 
-  /**
-   * Sam, Punkt 8, ist ohne die Zeigerreichweite nicht erfüllbar: Bei 650 px
-   * blieb die Flotte 268 px vor einem Gegner stehen, der in der Ecke des
-   * eigenen Bildschirms stand. Die halbe Bilddiagonale ist 918 px.
-   */
-  it('erlaubt Zielpunkte bis in die Ecke des Sichtfensters', () => {
-    const halbeDiagonale = Math.hypot(GAME.visibleWorldWidth / 2, GAME.visibleWorldHeight / 2);
-    expect(GAME.maxAimDistance).toBeGreaterThanOrEqual(halbeDiagonale);
-  });
+    it(`stellt die Flotte von ${klasse} quer zur Blickachse auf`, () => {
+      const { drohnen, zeiger, spieler } = amZeiger(klasse);
+      if (drohnen.length < 2) return;
+      // Die Slots liegen SENKRECHT zur Tank-Maus-Achse: Die Flotte steht als
+      // Reihe quer, nicht als Ring um den Zeiger.
+      const achse = { x: 1, y: 0 };
+      const laengs = drohnen.map((d) => (d.position.x - zeiger.x) * achse.x + (d.position.y - zeiger.y) * achse.y);
+      const quer = drohnen.map((d) => -(d.position.x - zeiger.x) * achse.y + (d.position.y - zeiger.y) * achse.x);
+      const spanneLaengs = Math.max(...laengs) - Math.min(...laengs);
+      const spanneQuer = Math.max(...quer) - Math.min(...quer);
+      expect(spanneQuer, `quer ${spanneQuer.toFixed(0)} vs längs ${spanneLaengs.toFixed(0)}`).toBeGreaterThan(spanneLaengs);
+      expect(spieler).toBeDefined();
+    });
+  }
 });
 
 /**

@@ -235,31 +235,6 @@ const reloadFor = (player: RuntimePlayer): number => Math.max(
 );
 const bodyDamageFor = (player: RuntimePlayer): number => CLASS_DEFINITIONS[player.playerClass].bodyDamage * (1 + player.upgrades.bodyDamage * 0.1);
 
-/**
- * Wie weit ein Rechtsklick die Drohnen vom Zeiger wegschiebt. Weit genug, dass
- * die Flotte sichtbar auffächert, kurz genug, dass sie beim Loslassen sofort
- * wieder da ist.
- */
-const ABSTOSS_WEG = 260;
-/**
- * Öffnungswinkel des Rechtsklick-Fächers – Sam: „Rechtsklick […] geht noch
- * wesentlich smoother."
- *
- * Der erste Rechtsklick-Fix (D3) hat den alten Spiegel-Bug behoben, aber
- * einen neuen Fehler eingeführt: Das Ziel wurde jeden Tick neu aus der
- * AKTUELLEN Position der Drohne berechnet – 260 px vor ihr, in ihre eigene
- * Fluchtrichtung. Das ist eine Möhre am Stock, keine Ankunft: Die Drohne
- * beschleunigt auf Höchsttempo und bleibt dort, bis die Leine (`LEINE`)
- * greift, statt sanft abzubremsen und stehenzubleiben.
- *
- * Jetzt ist das Ziel fest: `Besitzer + Richtung × ABSTOSS_WEG`, wobei die
- * Richtung „weg vom Zeiger" ist – aber pro Drohne um einen Fächerwinkel
- * gedreht, sonst laufen wieder alle auf denselben Punkt zusammen (genau der
- * Fehler, den D3 beheben sollte). 150° Gesamtöffnung sind breit genug für
- * eine sichtbare Front, eng genug, dass die Flotte klar „weg vom Zeiger"
- * bleibt und nicht in Cursor-Richtung zurückfächert.
- */
-const FAECHER_OEFFNUNG = Math.PI * (5 / 6);
 
 /**
  * Schwellen für den Wandtod (Sam: „Alles was gegen Wände geht sollte
@@ -275,45 +250,82 @@ const WANDTOD_REST_ANTEIL = 0.3;
  * selben Kreis, in dem der Spieler zeigen kann.
  */
 /**
- * Reibungsrate der Drohnenbewegung, je Sekunde.
+ * Die Bewegungswerte je Drohnenklasse – Teil D des finalen Klassenauftrags.
  *
- * Diep.io zieht **10 % der Geschwindigkeit je Tick** ab; die
- * Grenzgeschwindigkeit ist damit das Zehnfache der Beschleunigung je Tick
- * (Sams Recherche vom 16.08., DiepInDepth-Physik). In stetiger Form ist das
- * `exp(-Rate · dt)` mit `Rate = -ln(0,9) · Tickrate` – bei 40 Hz also rund
- * 4,21 je Sekunde. So gilt dieselbe Physik unabhängig davon, mit welchem
- * Zeitschritt der Server gerade rechnet.
+ * ## Warum das die Recherche vom 16.08. ersetzt
+ *
+ * Sams Recherche (DiepInDepth, arras.io-Quellcode) beschreibt für Diep.io
+ * **kein** Ankommen: dauerhafter Schub, Trägheit, Überschießen, Umkreisen des
+ * Cursors. Genau so war es hier auch gebaut. Der Auftrag weicht davon
+ * ausdrücklich ab und begründet es mit derselben Beobachtung, die diese
+ * Umsetzung gestern gemessen hat:
+ *
+ * > „Die Flotte folgt bewusst keinem weit ausschwingenden Orbit um den
+ * > Mauspunkt. In offenen Arenen wirkt Überschwingen lebendig; in 320-px-Gängen
+ * > erzeugt es hingegen zufällige Wandtode."
+ *
+ * Gemessen war das drastisch: Mit vollem Schub und ohne Ankunftsbremse war die
+ * Flotte nach 60 Ticks leer, weil die weiten Bögen in die Gangwände liefen.
+ * Diep.io hat diese Wände nicht, Mazers schon.
+ *
+ * Also: stabile Slots, kritisch gedämpfte Ankunft, kein Umkreisen.
  */
-const REIBUNG_RATE = -Math.log(0.9) * GAME.tickRate;
+interface Drohnensteuerung {
+  /** Höchstgeschwindigkeit in px/s. */
+  vMax: number;
+  /** Beschleunigungsdeckel in px/s². */
+  beschleunigung: number;
+  /** Harte Leine zum Besitzer in px. */
+  leine: number;
+  /** Ruheorbit: Radius in px und Winkelgeschwindigkeit in rad/s. */
+  orbit: number;
+  drehung: number;
+}
 
-/**
- * Wie schnell eine Drohne ihre STEUERRICHTUNG zum Ziel dreht (je Sekunde,
- * exponentiell) – „smoothToTarget" aus arras.io.
- *
- * Das ist der wichtigste Regler des ganzen Drohnengefühls, weil er den
- * Bahnradius bestimmt: Sie fliegt mit Tempo v und dreht mit Rate ω, also
- * umkreist sie ihr Ziel im Abstand von ungefähr v/ω. Bei 317 px/s und 6 je
- * Sekunde sind das rund 50 px – ein Schwarm, der eng um den Zeiger kreist.
- *
- * 11 ist gemessen, nicht geraten – die Reihe über 5/8/11/14/18/24 ergab:
- *
- * ```
- * Drehrate   5 →  Orbit 64 px, Tempo 272 px/s
- * Drehrate  11 →  Orbit 26 px, Tempo 207 px/s
- * Drehrate  18 →  Orbit 19 px, Tempo 184 px/s
- * ```
- *
- * Bei 5 fliegt die Flotte so weite Bögen, dass sie im Labyrinth reihenweise in
- * Wände läuft und stirbt – Diep.io hat diese Wände nicht, wir schon. Ab 11
- * bleibt der Orbit eng genug für die Gänge und trotzdem deutlich sichtbar.
- */
+const STEUERUNG: Partial<Record<PlayerClass, Drohnensteuerung>> = {
+  drone: { vMax: 540, beschleunigung: 1600, leine: 560, orbit: 72, drehung: 1.35 },
+  warden: { vMax: 500, beschleunigung: 1450, leine: 500, orbit: 78, drehung: 1.55 },
+  factory: { vMax: 400, beschleunigung: 900, leine: 500, orbit: 82, drehung: 0.85 },
+  guardian: { vMax: 460, beschleunigung: 1250, leine: 420, orbit: 60, drehung: 1.7 },
+  sentinel: { vMax: 380, beschleunigung: 750, leine: 470, orbit: 92, drehung: 0.65 },
+  overseer: { vMax: 590, beschleunigung: 1900, leine: 680, orbit: 88, drehung: 1.45 },
+  carrier: { vMax: 390, beschleunigung: 850, leine: 560, orbit: 96, drehung: 0.72 },
+  hive: { vMax: 650, beschleunigung: 2300, leine: 610, orbit: 84, drehung: 2.1 },
+  aviary: { vMax: 700, beschleunigung: 2600, leine: 720, orbit: 94, drehung: 1.9 },
+  sovereign: { vMax: 560, beschleunigung: 1700, leine: 650, orbit: 86, drehung: 1.6 }
+};
+
+const steuerungFuer = (klasse: PlayerClass): Drohnensteuerung =>
+  STEUERUNG[klasse] ?? STEUERUNG.drone!;
+
+/** Slotabstand in Drohnenradien (Auftrag, Teil D: „Abstand ist 2,4 × Drohnenradius"). */
+const SLOT_ABSTAND = 2.4;
+/** Bremsfaktor: Zielgeschwindigkeit ist `min(vMax, BREMSE × Distanz)`. */
+const BREMSE = 5;
+/** Restgeschwindigkeit, die am Slot noch erlaubt ist. */
+const REST_TEMPO = 18;
+/** Ab Leine + diesem Abstand ignoriert eine Drohne Eingaben und kehrt heim. */
+const LEINEN_TOLERANZ = 24;
+/** Ab Leine + diesem Abstand wird sie zerstört (Schutz gegen Desync/Teleport). */
+const LEINEN_TOD = 120;
+/** Tempo auf dem Heimweg, als Faktor auf vMax. */
+const HEIMKEHR_TEMPO = 1.15;
+/** Öffnung der Abwehrfront beim Abstoßen, in Grad. */
+const ABWEHR_FRONT = 110;
+/** Vorausschau des Wand-Raycasts: mindestens so weit, sonst Tempo × dieser Zeit. */
+const WAND_VORSCHAU = 48;
+const WAND_VORSCHAU_SEKUNDEN = 0.16;
+/** Anteil der Lenkbeschleunigung, der bei erkannter Wand auf die Tangente geht. */
+const WAND_AUSWEICHEN = 0.7;
+/** Drehrate der Ausrichtung („smoothToTarget"), je Sekunde. */
 const DREH_RATE = 11;
 
-/**
- * Anteil des Tempos im Ruhezustand (kein Kommando, kein Ziel). Siehe die
- * Begründung an der Verwendungsstelle: Der Orbit ist eng, unsere Wände töten.
- */
-const RUHE_TEMPO = 0.45;
+/** Gerade oder ungerade Spieler-Id – bestimmt die Orbitrichtung (Teil D). */
+function idIstGerade(id: string): boolean {
+  let summe = 0;
+  for (let i = 0; i < id.length; i += 1) summe += id.charCodeAt(i);
+  return summe % 2 === 0;
+}
 
 /** Kürzester Weg von einem Winkel zum anderen, anteilig. */
 function drehenNach(von: number, nach: number, anteil: number): number {
@@ -323,39 +335,11 @@ function drehenNach(von: number, nach: number, anteil: number): number {
   return von + differenz * anteil;
 }
 
-const LEINE = GAME.maxAimDistance;
 /**
  * Grundradius des Rings, auf dem sich die Flotte um ihr gemeinsames Ziel
  * verteilt. `formationsring` weitet ihn für große Flotten auf.
  */
 const FORMATION_RING = 30;
-/**
- * Der Ring wächst mit der Flotte – sonst überlappen sich neun Vögel auf einem
- * 30-px-Kreis (Bogenabstand 21 px bei 17 px Körperdurchmesser) zu einem
- * einzigen Klumpen, und der ganze Zweck der Formation ist wieder weg. Der
- * Faktor 0,85 je Körper hält den Bogenabstand bei rund dem 5,3-fachen des
- * Durchmessers, unabhängig von der Flottengröße.
- */
-const formationsring = (droneCount: number, koerperradius: number): number =>
-  Math.max(FORMATION_RING, droneCount * koerperradius * 0.85);
-/**
- * **Wie schnell dieser Ring sich dreht** – der Kern von Sams Punkt 8
- * („eins zu eins wie in Diep.io vom Feeling").
- *
- * In Diep.io steht eine Drohne nie. Sie fliegt zum Zeiger und **kreist dort**,
- * bis ein neuer Befehl kommt; genau dieses ständige Schwirren ist das Gefühl,
- * das Sam meint. Hier war der Formationsplatz eine feste Zahl je Slot: Die
- * Flotte flog hin, bremste (siehe `ANKUNFT_RADIUS`) und **parkte**. Eine
- * parkende Flotte ist ein Standbild.
- *
- * Mit einer Drehung wird aus demselben Formationsplatz ein wanderndes Ziel –
- * die Drohne kommt nie an und kreist deshalb von selbst. 2,2 rad/s sind rund
- * 2,9 Sekunden je Umlauf: schnell genug, dass es lebt, langsam genug, dass man
- * einzelne Drohnen mit dem Auge verfolgen kann.
- */
-const FORMATION_DREHUNG = 2.2;
-/** Über diese Zeit wird die Restdistanz abgebremst – gegen das Überschwingen. */
-const BREMS_SEKUNDEN = 0.18;
 /**
  * Mit wie viel Schwung eine frische Drohne aus dem Spawner kommt, als Anteil
  * ihres Archetyp-Tempos.
@@ -539,11 +523,6 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
       if (archetype.minionWaffe) drone.fireCooldown = Math.max(0, (drone.fireCooldown ?? 0) - dt);
 
       const aim = clampMagnitude(owner.aim, GAME.maxAimDistance);
-      const orbitAngle = now / 850 + drone.slot * Math.PI * 2 / Math.max(1, definition.droneCount);
-      const orbit = {
-        x: owner.position.x + Math.cos(orbitAngle) * archetype.orbitRadius,
-        y: owner.position.y + Math.sin(orbitAngle) * archetype.orbitRadius
-      };
       /** Der Punkt unter dem Mauszeiger – das Gegenstück zum Diep.io-Cursor. */
       const zeiger = { x: owner.position.x + aim.x, y: owner.position.y + aim.y };
 
@@ -564,191 +543,147 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
        * 3. Sonst: das nächste Ziel im Suchradius um den Besitzer angreifen.
        * 4. Findet sich keins: der alte Orbit. Er bleibt die Nahverteidigung.
        */
-      let ziel = orbit;
-      let formation = true;
-      // Für Minion-Waffen (siehe unten): der rohe Angriffspunkt VOR der
-      // Formations-Verschiebung, oder `null`, wenn dieser Tick kein Angriff
-      // ist (Rückzug, Orbit). Beim Rechtsklick nie gesetzt – eine fliehende
-      // Drohne feuert nicht zurück.
+      /*
+       * Nur noch EINE Frage bleibt hier: Gibt es ein Angriffsziel?
+       *
+       * Wohin die einzelne Drohne fliegt, entscheidet danach die Slot-Rechnung
+       * aus Teil D. Die alte Kette („Ziel setzen, dann Formation draufrechnen")
+       * ist damit aufgelöst; `kampfziel` bleibt, weil die Minion-Waffen von
+       * Factory und Carrier wissen müssen, ob dieser Tick ein Angriff ist.
+       */
       let kampfziel: Vector2 | null = null;
       if (owner.secondary) {
-        // Weg vom Zeiger – aber als FESTER Punkt relativ zum Besitzer, nicht
-        // mehr relativ zur eigenen (wandernden) Position der Drohne. Die alte
-        // Fassung hat das Ziel jeden Tick neu 260 px vor der Drohne berechnet:
-        // eine Möhre am Stock, die nie ankam, sondern nur bis zur Leine
-        // beschleunigte (Sam: „Rechtsklick […] geht noch wesentlich
-        // smoother"). Der Fächerwinkel pro Slot verhindert dabei, dass die
-        // Flotte wieder auf einem einzigen Punkt zusammenläuft – genau der
-        // Fehler, den der vorige Rechtsklick-Fix schon einmal behoben hat.
-        /*
-         * `repelGoal = 2 × Drohnenposition − Cursor` – wörtlich die Formel aus
-         * dem arras.io-Controller (Sams Recherche, 16.08.). Der entscheidende
-         * Unterschied zur vorigen Fassung: Die Drohne flieht vom **Cursor**,
-         * nicht vom eigenen Panzer. Genau daraus entsteht die bekannte
-         * Overlord-„Claw" – man schiebt die Flotte mit dem Zeiger vor sich her,
-         * statt sie nur radial vom Tank wegzudrücken.
-         *
-         * Der Slot-Fächer von vorher entfällt damit ersatzlos: Er war nötig,
-         * weil alle Drohnen denselben Fluchtpunkt bekamen. Jetzt hat jede ihren
-         * eigenen, aus ihrer eigenen Position.
-         */
-        ziel = { x: drone.position.x * 2 - zeiger.x, y: drone.position.y * 2 - zeiger.y };
-        formation = false;
+        // Abstoßen ist kein Angriff – eine fliehende Drohne feuert nicht zurück.
+        kampfziel = null;
       } else if (owner.primary) {
         /*
-         * **Auto-Fire ist nicht Auto-Aim** – die wichtigste Korrektur aus Sams
-         * Recherche vom 16.08. (DiepInDepth, Diep-Wiki, arras.io-Quellcode).
-         *
-         * Bis dahin galt hier Sams Regel vom 14.08.: E-Modus = Drohnen suchen
-         * selbst, Klick = zum Zeiger. Die Recherche zeigt, dass beide Spiele es
-         * genau andersherum machen: Linksklick UND gehaltenes Auto-Fire führen
-         * dieselbe manuelle Steuerung aus – Ziel ist die Cursor-Weltposition.
-         * Die eigene Zielsuche greift nur, wenn **gar nichts** gedrückt ist.
-         *
-         * `primary` ist Klick ODER Auto-Fire, deckt also genau diesen Fall ab;
-         * `klick` wird für die Drohnen dadurch bedeutungslos und bleibt nur
-         * noch für die Rohre relevant.
+         * **Auto-Fire ist nicht Auto-Aim** (Sams Recherche vom 16.08.):
+         * Linksklick UND gehaltenes Auto-Feuer führen dieselbe manuelle
+         * Steuerung aus. `primary` ist Klick ODER Auto-Feuer und deckt damit
+         * genau diesen Fall ab. Teil D ändert daran nichts – es ändert nur,
+         * WIE die Flotte den Zeiger anfliegt.
          */
-        ziel = zeiger;
         kampfziel = zeiger;
       } else {
-        /*
-         * Nichts gedrückt: eigene Zielsuche in der Nähe, sonst Aufenthalt beim
-         * Besitzer. In Diep.io ist das der dokumentierte Ruhezustand („kreisen
-         * im Uhrzeigersinn um den Besitzer und verlassen den Orbit für nahe
-         * Ziele"), in arras.io `hangOutNearMaster`.
-         */
-        const gesucht = sucheZiel(internals, owner, archetype.searchRadius, zielSpeicher);
-        if (gesucht) { ziel = gesucht; kampfziel = gesucht; }
-        else formation = false;
+        // Gar nichts gedrückt: eigene Zielsuche, sonst Schutzorbit.
+        kampfziel = sucheZiel(internals, owner, archetype.searchRadius, zielSpeicher) ?? null;
       }
 
       /*
-       * **Alle Drohnen bekommen denselben Zielpunkt.** Hier stand bis zum
-       * 16.08. ein Formationsring: Jede Drohne flog einen eigenen, um das Ziel
-       * kreisenden Platz an. Das war erfunden, nicht abgeschaut.
+       * **Slots statt gemeinsamem Zielpunkt** – Teil D des finalen
+       * Klassenauftrags. Das ersetzt die Fassung vom 16.08., die dem Vorbild
+       * folgte (ein Zielpunkt für alle, Überschießen, Umkreisen). Der Auftrag
+       * begründet die Abweichung selbst, und die Messung von gestern sagt
+       * dasselbe:
        *
-       * Sams Recherche (DiepInDepth, Diep-Wiki, arras.io-Quellcode):
+       * > „In offenen Arenen wirkt Überschwingen lebendig; in 320-px-Gängen
+       * > erzeugt es hingegen zufällige Wandtode."
        *
-       * > „Alle Drohnen erhalten denselben Zielpunkt. Ihre Verteilung entsteht
-       * > durch Eigenkollisionen, unterschiedliche Positionen und
-       * > Restgeschwindigkeiten – nicht durch feste Winkel oder Phasen."
-       *
-       * Der Ring hat den Schwarm damit falsch geordnet: sauber verteilt, wo er
-       * unordentlich sein soll. Genau das ist das „fühlt sich komisch an" –
-       * eine Flotte, die wie ein Zahnrad läuft statt wie ein Schwarm.
+       * Gemessen war das drastisch: mit weiten Bögen war die Flotte nach 60
+       * Ticks leer.
        */
-      /*
-       * Die Leine – bewusst eine ABWEICHUNG vom Vorbild, mit Grund.
-       *
-       * Sams Recherche: In beiden Spielen gibt es keine harte Leine, Drohnen
-       * bleiben bis an die Arenagrenze steuerbar. Hier bleibt sie trotzdem,
-       * weil zwei Dinge anders sind: Unsere Karte ist ein Labyrinth mit
-       * tödlichen Wänden, und ein gehaltener Rechtsklick schiebt die Flotte
-       * sonst außer Sicht, von wo sie nicht zurückkommt. Die Grenze ist die
-       * Zeigerreichweite – für Klick und Zielsuche bindet sie also nie, nur
-       * beim Abstoßen.
-       */
-      const zumZiel = clampMagnitude({ x: ziel.x - owner.position.x, y: ziel.y - owner.position.y }, LEINE);
-      const target = { x: owner.position.x + zumZiel.x, y: owner.position.y + zumZiel.y };
+      const steuerung = steuerungFuer(owner.playerClass);
+      const flotte = Math.max(1, definition.droneCount);
+      const slotAbstand = SLOT_ABSTAND * radius;
+
+      let slot: Vector2;
+      if (owner.secondary) {
+        /*
+         * Abstoßen: Sollpunkt ist `Tank − norm(Maus − Tank) × Leine`, die
+         * Formation verteilt sich auf eine 110°-Abwehrfront. Das ist echtes
+         * Wegdrücken von der Zeigerrichtung, kein Rückruf.
+         */
+        const weg = normalize({ x: owner.position.x - zeiger.x, y: owner.position.y - zeiger.y });
+        const richtung = weg.x === 0 && weg.y === 0 ? { x: 1, y: 0 } : weg;
+        const basis = Math.atan2(richtung.y, richtung.x);
+        const anteil = flotte > 1 ? (drone.slot / (flotte - 1) - 0.5) : 0;
+        const winkel = basis + anteil * (ABWEHR_FRONT * Math.PI / 180);
+        slot = { x: owner.position.x + Math.cos(winkel) * steuerung.leine, y: owner.position.y + Math.sin(winkel) * steuerung.leine };
+        kampfziel = null;
+      } else if (owner.primary) {
+        /*
+         * Zeigerbefehl: Formationszentrum ist die Mausposition, auf die Leine
+         * begrenzt. Die Slots liegen SENKRECHT zur Tank-Maus-Achse – eine Reihe
+         * quer zur Blickrichtung, kein Ring um den Cursor.
+         */
+        const zumZeiger = clampMagnitude({ x: zeiger.x - owner.position.x, y: zeiger.y - owner.position.y }, steuerung.leine);
+        const mitte = { x: owner.position.x + zumZeiger.x, y: owner.position.y + zumZeiger.y };
+        const achse = normalize(zumZeiger);
+        const quer = achse.x === 0 && achse.y === 0 ? { x: 0, y: 1 } : { x: -achse.y, y: achse.x };
+        const platz = (drone.slot - (flotte - 1) / 2) * slotAbstand;
+        slot = { x: mitte.x + quer.x * platz, y: mitte.y + quer.y * platz };
+        kampfziel = mitte;
+      } else if (kampfziel) {
+        // Selbst gesuchtes Ziel: dieselbe Querreihe wie beim Zeigerbefehl.
+        const zumZiel = clampMagnitude({ x: kampfziel.x - owner.position.x, y: kampfziel.y - owner.position.y }, steuerung.leine);
+        const mitte = { x: owner.position.x + zumZiel.x, y: owner.position.y + zumZiel.y };
+        const achse = normalize(zumZiel);
+        const quer = achse.x === 0 && achse.y === 0 ? { x: 0, y: 1 } : { x: -achse.y, y: achse.x };
+        const platz = (drone.slot - (flotte - 1) / 2) * slotAbstand;
+        slot = { x: mitte.x + quer.x * platz, y: mitte.y + quer.y * platz };
+      } else {
+        /*
+         * Ruhe: phasenversetzter Schutzorbit. Der Sollwinkel ist
+         * `2π × Slot / Flotte`; die Drehrichtung hängt an der Spieler-Id –
+         * gerade im Uhrzeigersinn, ungerade dagegen. Dadurch drehen nicht alle
+         * Flotten der Arena gleich, innerhalb einer Flotte bleiben die Slots
+         * aber stabil.
+         */
+        const richtung = idIstGerade(owner.id) ? 1 : -1;
+        const winkel = (drone.slot / flotte) * Math.PI * 2 + richtung * (now / 1000) * steuerung.drehung;
+        slot = { x: owner.position.x + Math.cos(winkel) * steuerung.orbit, y: owner.position.y + Math.sin(winkel) * steuerung.orbit };
+      }
 
       /*
-       * Diep-Physik statt Ankunftsbremse.
-       *
-       * Vorher: Wunschgeschwindigkeit Richtung Ziel, gedeckelt durch
-       * `abstand / BREMS_SEKUNDEN`, linear angesteuert. Das ist ein
-       * Ankunfts-Regler – und die Recherche sagt ausdrücklich, dass Diep.io
-       * keinen hat:
-       *
-       * > „Die Drohnen haben keinen normalen Arrival/Stop-Controller. Sie
-       * > beschleunigen weiterhin in ihre aktuelle Steuerungsrichtung, besitzen
-       * > Trägheit und können nur begrenzt schnell drehen. Daher überschießen
-       * > sie den Punkt, drehen zurück, können dadurch den Cursor umkreisen."
-       *
-       * Also: **voller Schub Richtung Ziel, immer**, plus Reibung. Diep zieht
-       * je Tick 10 % Geschwindigkeit ab, die Grenzgeschwindigkeit ist damit das
-       * Zehnfache der Beschleunigung je Tick. In stetiger Form ist die Reibung
-       * `exp(-REIBUNG_RATE · dt)` mit `REIBUNG_RATE = -ln(0,9) · Tickrate`, und
-       * der Schub ergibt sich aus dem gewünschten Endtempo: `a = v* · Rate`.
-       *
-       * Das Umkreisen entsteht dadurch von selbst – aus Trägheit, nicht aus
-       * einer Formel, die einen Kreis vorschreibt.
+       * Die harte Leine. Jenseits von Leine + 24 px ignoriert die Drohne jede
+       * Eingabe und kehrt heim; jenseits von Leine + 120 px stirbt sie, damit
+       * ein Desync oder Teleport keine unendlichen Drohnen erzeugt.
        */
+      const heimAbstand = Math.hypot(drone.position.x - owner.position.x, drone.position.y - owner.position.y);
+      let heimkehr = false;
+      if (heimAbstand > steuerung.leine + LEINEN_TOD) { internals.damageDrone(drone, drone.health, now); continue; }
+      if (heimAbstand > steuerung.leine + LEINEN_TOLERANZ) { slot = owner.position; heimkehr = true; kampfziel = null; }
+
+      /*
+       * Kritisch gedämpfte Ankunft: Die Wunschgeschwindigkeit fällt linear mit
+       * der Reststrecke (`BREMSE × Distanz`), gedeckelt auf `vMax`. Bei einer
+       * Standarddrohne beginnt das Bremsen damit unter 108 px. Am Slot bleibt
+       * höchstens `REST_TEMPO` übrig – kein Umkreisen, kein Zittern.
+       */
+      const zumSlot = { x: slot.x - drone.position.x, y: slot.y - drone.position.y };
+      const abstand = Math.hypot(zumSlot.x, zumSlot.y);
+      const richtungSlot = normalize(zumSlot);
       const travelMultiplier = modifier.moveMultiplier * modifier.projectileSpeedMultiplier;
+      const vMax = steuerung.vMax * travelMultiplier * (heimkehr ? HEIMKEHR_TEMPO : 1);
+      const wunschTempo = Math.min(vMax, Math.max(abstand <= 1 ? 0 : REST_TEMPO, BREMSE * abstand));
+      let wunsch = { x: richtungSlot.x * wunschTempo, y: richtungSlot.y * wunschTempo };
+
       /*
-       * Im Ruhezustand fliegt die Flotte gedrosselt.
-       *
-       * Zweite bewusste Abweichung vom Vorbild, aus demselben Grund wie die
-       * Leine: Der Orbitpunkt wandert mit rund 96 px/s um den Besitzer, die
-       * Drohne kann also mit weniger als halbem Schub folgen. Mit vollem Schub
-       * schießt sie über den engen Ring hinaus, sweept in die Gänge – und
-       * stirbt an der Wand. Gemessen: Bei vollem Schub war die Flotte nach 60
-       * Ticks leer. Diep.io hat keine tödlichen Wände, wir schon.
-       *
-       * Sobald ein Kommando anliegt (Zeiger, gesuchtes Ziel, Abstoßen), gilt
-       * wieder das volle Tempo – dort ist die Bahn das Spielgefühl.
+       * Wandausweichen ohne Wegfindung: ein Vorwärts-Raycast; steht dort eine
+       * Wand, wandern 70 % der Lenkung auf die Wandtangente. Der Kontakt bleibt
+       * tödlich – das Labyrinth soll eine Fähigkeit bleiben, kein Autopilot.
        */
-      const vollTempo = archetype.speed * travelMultiplier;
-      /*
-       * Die Drosselung darf die Flotte nie abhängen. Ein gedrosseltes Tempo
-       * von 143 px/s gegen einen Besitzer, der 430 px/s fährt, hieße: Wer ohne
-       * Kommando losfährt, lässt seine Drohnen stehen. Deshalb ist die Ruhe-
-       * Drosselung eine Untergrenze am Besitzertempo, kein fester Deckel –
-       * steht er, bleibt der Ring eng; fährt er, kommen sie mit.
-       */
-      const besitzerTempo = Math.hypot(owner.velocity.x, owner.velocity.y);
-      const tempoZiel = formation
-        ? vollTempo
-        : Math.min(vollTempo, Math.max(vollTempo * RUHE_TEMPO, besitzerTempo * 1.25));
-      const reibung = Math.exp(-REIBUNG_RATE * dt);
-      /*
-       * **Der Schub folgt der geglätteten Steuerrichtung, nicht dem Ziel.**
-       *
-       * Das ist der Mechanismus, aus dem das Umkreisen entsteht – und er hat im
-       * ersten Anlauf am 16.08. gefehlt. Zeigt der Schub in jedem Tick exakt
-       * auf das Ziel, dann kann eine Drohne nicht überschießen: Sie läuft
-       * sauber hinein und zittert dort mit Tempo 0. Gemessen: 0,5 px/s.
-       *
-       * Die Recherche benennt beide Teile: „besitzen Trägheit und können nur
-       * begrenzt schnell drehen. Daher überschießen sie den Punkt, drehen
-       * zurück, können dadurch den Cursor umkreisen." Und zur Ausrichtung:
-       * „Darstellung UND Schubbeschleunigung folgen der geglätteten
-       * Steuerungsrichtung zum Ziel."
-       *
-       * Also eine Steuerrichtung je Drohne (`drone.angle`), die sich mit
-       * begrenztem Tempo zum Ziel dreht – und der Schub liegt auf ihr. Der
-       * Bahnradius ergibt sich daraus von selbst als Tempo geteilt durch
-       * Drehrate; er ist nicht vorgeschrieben, sondern eine Folge, genau wie im
-       * Vorbild.
-       */
-      const zielwinkel = Math.atan2(target.y - drone.position.y, target.x - drone.position.x);
-      drone.angle = drehenNach(drone.angle, zielwinkel, 1 - Math.exp(-DREH_RATE * dt));
-      const schub = tempoZiel * REIBUNG_RATE * dt;
-      drone.velocity = {
-        x: drone.velocity.x * reibung + Math.cos(drone.angle) * schub,
-        y: drone.velocity.y * reibung + Math.sin(drone.angle) * schub
-      };
+      const tempoJetzt = Math.hypot(drone.velocity.x, drone.velocity.y);
+      const vorschau = Math.max(WAND_VORSCHAU, tempoJetzt * WAND_VORSCHAU_SEKUNDEN);
+      const spitze = { x: drone.position.x + richtungSlot.x * vorschau, y: drone.position.y + richtungSlot.y * vorschau };
+      if (!isFree(spitze, radius)) {
+        const tangente = { x: -richtungSlot.y, y: richtungSlot.x };
+        const seite = (tangente.x * drone.velocity.x + tangente.y * drone.velocity.y) >= 0 ? 1 : -1;
+        wunsch = {
+          x: wunsch.x * (1 - WAND_AUSWEICHEN) + tangente.x * seite * wunschTempo * WAND_AUSWEICHEN,
+          y: wunsch.y * (1 - WAND_AUSWEICHEN) + tangente.y * seite * wunschTempo * WAND_AUSWEICHEN
+        };
+      }
+
+      // Beschleunigung ist auf den Klassenwert gedeckelt.
+      drone.velocity = moveVectorToward(drone.velocity, wunsch, steuerung.beschleunigung * travelMultiplier * dt);
       const anlaufTempo = Math.hypot(drone.velocity.x, drone.velocity.y);
       const moved = moveCircle(drone.position, drone.velocity, dt, radius);
       drone.position = moved.position;
       drone.velocity = moved.velocity;
+      // Ausrichtung weich zum Slot (arras.io: „smoothToTarget").
+      drone.angle = drehenNach(drone.angle, Math.atan2(zumSlot.y, zumSlot.x), 1 - Math.exp(-DREH_RATE * dt));
 
-      /*
-       * **Drohnen schieben einander auseinander.**
-       *
-       * Das ist kein Detail, sondern der Mechanismus, der den Schwarm überhaupt
-       * verteilt. Sams Recherche zum Zielpunkt:
-       *
-       * > „Alle Drohnen erhalten denselben Zielpunkt. Ihre Verteilung entsteht
-       * > durch Eigenkollisionen […] – nicht durch feste Winkel oder Phasen."
-       *
-       * Ohne diese Zeilen läge die ganze Flotte nach dem Wegfall des
-       * Formationsrings auf einer Koordinate und sähe aus wie EINE Drohne.
-       * Der Ring hat dieses Loch bisher zugedeckt.
-       *
-       * Über das Drohnenraster der Basis (`game.ts`), also ohne den linearen
-       * Durchlauf über alle Drohnen, den der 14.08. gerade abgeschafft hat.
-       */
       const nachbar = internals.drohnenraster.finde(
         drone.position,
         radius,
