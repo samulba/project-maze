@@ -1,4 +1,5 @@
 import type { Vector2 } from '@project-maze/shared';
+import { drohnenEcken, type Drohnenform } from '@project-maze/shared/drone-shape';
 
 /**
  * Das Zeichnen der Drohnen – als reine Funktion, damit es prüfbar ist.
@@ -36,6 +37,12 @@ export interface DrohnenBild {
   angle: number;
   /** Kollisionsradius vom Server; 13 nur, falls das Feld einmal fehlt. */
   radius: number;
+  /**
+   * Die Form aus Teil D des Klassenauftrags. Bis dahin war jede Drohne in allen
+   * zehn Klassen ein Dreieck – der letzte Ort, an dem sich die Drohnenklassen
+   * NICHT unterschieden haben. Fehlt sie, bleibt es beim Dreieck.
+   */
+  form?: string | undefined;
   health: number;
   maxHealth: number;
   color: number;
@@ -89,8 +96,11 @@ export function zeichneDrohnen(flaeche: Zeichenflaeche, bilder: Iterable<Drohnen
 
     // Echte Größe statt Einheitsdreieck (Befund 41): Der Server rechnet mit
     // Radien von 7,5 (Hive) bis 15,5 (Carrier) – gezeichnet wurde immer 13.
+    // Die Form kommt aus `shared/drone-shape.ts` – dieselbe Quelle, aus der der
+    // Server seinen Trefferradius nimmt. Eine Form, die nur der Client kennt,
+    // sähe früher oder später anders aus, als sie getroffen wird.
     flaeche
-      .poly(versetzt(ecken(3, bild.radius, winkel), bild.position))
+      .poly(versetzt(gedreht(drohnenEcken((bild.form ?? 'triangle') as Drohnenform, bild.radius), winkel), bild.position))
       .fill(bild.color)
       .stroke({ color: 0xffffff, alpha: 0.3, width: 2 });
 
@@ -110,4 +120,15 @@ export function zeichneDrohnen(flaeche: Zeichenflaeche, bilder: Iterable<Drohnen
         .stroke({ color: anteil > 0.3 ? 0x65d39a : 0xf05e72, alpha: 0.7, width: 2 });
     }
   }
+}
+
+/** Eckenliste um den Ursprung drehen – die Formen zeigen nach +X. */
+function gedreht(punkte: number[], winkel: number): number[] {
+  const cos = Math.cos(winkel);
+  const sin = Math.sin(winkel);
+  const raus: number[] = [];
+  for (let i = 0; i < punkte.length; i += 2) {
+    raus.push(punkte[i]! * cos - punkte[i + 1]! * sin, punkte[i]! * sin + punkte[i + 1]! * cos);
+  }
+  return raus;
 }

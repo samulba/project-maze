@@ -12,11 +12,18 @@ import {
   PASSIVE_MODIFIER_DEFINITIONS,
   type PassiveModifierId
 } from '@project-maze/shared/gameplay';
+import type { Drohnenform } from '@project-maze/shared/drone-shape';
 import { MazeGame } from './game.js';
 import { clampMagnitude, distanceSquared, moveVectorToward, normalize, schiebeAuseinander, schwarmAbstand } from './physics.js';
 import { SHAPE_CONFIG, hasLineOfSight, isFree, moveCircle } from './world.js';
 
 interface DroneArchetype {
+  /**
+   * Die gezeichnete Form (Teil D des Klassenauftrags). Bis dahin war jede
+   * Drohne in allen zehn Klassen ein Dreieck – der letzte Ort, an dem sich die
+   * Drohnenklassen NICHT unterschieden haben.
+   */
+  form: Drohnenform;
   health: number;
   speed: number;
   acceleration: number;
@@ -59,8 +66,8 @@ interface MinionWaffe {
  * verändert keine Verhältnisse, nur die absolute Größe.
  */
 const DRONE_ARCHETYPES_ROH: Partial<Record<PlayerClass, DroneArchetype>> = {
-  drone: { health: 36, speed: 440, acceleration: 1450, radius: 12, orbitRadius: 82, searchRadius: 520 },
-  warden: { health: 32, speed: 480, acceleration: 1650, radius: 10.5, orbitRadius: 88, searchRadius: 560 },
+  drone: { health: 36, speed: 440, acceleration: 1450, radius: 9, form: 'triangle', orbitRadius: 82, searchRadius: 520 },
+  warden: { health: 39.6, speed: 480, acceleration: 1650, radius: 9, form: 'diamond', orbitRadius: 88, searchRadius: 560 },
   // Minion-Waffe (siehe `MinionWaffe`): moderates Tempo, kurze Reichweite –
   // ein Vorstoß, kein Ersatz für die Hauptwaffe des Besitzers. Schaden und
   // Nachladezeit gemessen gegen die reinen Kontaktarchetypen derselben Stufe
@@ -68,16 +75,16 @@ const DRONE_ARCHETYPES_ROH: Partial<Record<PlayerClass, DroneArchetype>> = {
   // Suchradius, damit ein Minion erst kurz vor dem Kontakt zu schießen
   // beginnt und nicht quer durchs halbe Suchfeld feuert.
   factory: {
-    health: 54, speed: 390, acceleration: 1250, radius: 13.5, orbitRadius: 86, searchRadius: 540,
+    health: 52.2, speed: 390, acceleration: 1250, radius: 10, form: 'square', orbitRadius: 86, searchRadius: 540,
     minionWaffe: { damage: 6, reload: 1.1, projectileSpeed: 460, projectileLife: 0.65, projectileRadius: 5 }
   },
-  overseer: { health: 28, speed: 510, acceleration: 1780, radius: 9.5, orbitRadius: 94, searchRadius: 620 },
+  overseer: { health: 30.6, speed: 510, acceleration: 1780, radius: 8, form: 'small-triangle', orbitRadius: 94, searchRadius: 620 },
   carrier: {
-    health: 72, speed: 350, acceleration: 1050, radius: 15.5, orbitRadius: 92, searchRadius: 580,
+    health: 57.6, speed: 350, acceleration: 1050, radius: 10, form: 'rectangle', orbitRadius: 92, searchRadius: 580,
     minionWaffe: { damage: 7.5, reload: 1.2, projectileSpeed: 430, projectileLife: 0.74, projectileRadius: 5.5 }
   },
-  guardian: { health: 62, speed: 380, acceleration: 1200, radius: 13, orbitRadius: 62, searchRadius: 420 },
-  hive: { health: 18, speed: 530, acceleration: 1900, radius: 7.5, orbitRadius: 100, searchRadius: 700 },
+  guardian: { health: 48.6, speed: 380, acceleration: 1200, radius: 11, form: 'shield-kite', orbitRadius: 62, searchRadius: 420 },
+  hive: { health: 19.8, speed: 530, acceleration: 1900, radius: 6, form: 'micro-diamond', orbitRadius: 100, searchRadius: 700 },
   /*
    * Klassen 4.0/4.1: drei Drohnenklassen kamen dazu, die Tabelle nicht.
    *
@@ -96,13 +103,13 @@ const DRONE_ARCHETYPES_ROH: Partial<Record<PlayerClass, DroneArchetype>> = {
   // „Drei schwere Waechter" – wenige, dicke Koerper im engen Orbit. Flotte 216,
   // also zwischen warden (192) und factory (270), aber auf drei Ziele verteilt.
 
-  sentinel: { health: 72, speed: 340, acceleration: 1020, radius: 15.5, orbitRadius: 70, searchRadius: 460 },
+  sentinel: { health: 68.4, speed: 340, acceleration: 1020, radius: 14, form: 'hexagon', orbitRadius: 70, searchRadius: 460 },
   // „Neun flinke Voegel" – leicht und schnell, zwischen hive (10 x 18) und
   // overseer (8 x 28). Flotte 207.
-  aviary: { health: 23, speed: 545, acceleration: 1850, radius: 8.5, orbitRadius: 104, searchRadius: 720 },
+  aviary: { health: 23.4, speed: 545, acceleration: 1850, radius: 7, form: 'chevron', orbitRadius: 104, searchRadius: 720 },
   // Apex der Familie: „Sieben Waechter, ein Wille." Flotte 462 – oberhalb von
   // carrier (432), wie es sich fuer eine Endstufe auf Level 42 gehoert.
-  sovereign: { health: 66, speed: 430, acceleration: 1400, radius: 13.5, orbitRadius: 88, searchRadius: 640 }
+  sovereign: { health: 43.2, speed: 430, acceleration: 1400, radius: 10, form: 'royal-kite', orbitRadius: 88, searchRadius: 640 }
 };
 
 /**
@@ -487,7 +494,8 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
       maxHealth: maximum,
       slot,
       contactCooldown: 0,
-      gameplayRadius: archetype.radius
+      gameplayRadius: archetype.radius,
+      form: archetype.form
     });
   };
 

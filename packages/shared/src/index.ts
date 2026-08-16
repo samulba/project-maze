@@ -1367,7 +1367,15 @@ export interface ProjectileSnapshot { id:string; ownerId:string; position:Vector
  * durch „Luft" bzw. großzügiges Ausweichen vor kleinen Drohnen zu erzeugen.
  * Optional, weil die Basisklasse ohne Tuning-Schicht ihn nicht setzt.
  */
-export interface DroneSnapshot { id:string; ownerId:string; position:Vector2; velocity:Vector2; angle:number; health:number; maxHealth:number; gameplayRadius?:number; }
+/**
+ * `form` (Teil D des Klassenauftrags) reist auf der Leitung mit, statt beim
+ * Client aus der Besitzerklasse abgeleitet zu werden: Der Besitzer kann aus dem
+ * Sichtfenster fallen, während seine Drohne sichtbar bleibt. Optional, damit
+ * ein gepufferter Snapshot nach einem Deploy nicht stolpert – ohne das Feld
+ * bleibt es beim Dreieck. Mit Delta-Kodierung kostet ein Feld, das sich nie
+ * ändert, genau einmal Bandbreite.
+ */
+export interface DroneSnapshot { id:string; ownerId:string; position:Vector2; velocity:Vector2; angle:number; health:number; maxHealth:number; gameplayRadius?:number; form?:string; }
 export interface Wall { id:string; x:number; y:number; width:number; height:number; }
 /**
  * Antwort von `GET /map` – die STATISCHE Kartenlayout, einmal beim Start

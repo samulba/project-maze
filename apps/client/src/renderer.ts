@@ -1195,6 +1195,7 @@ export class GameRenderer {
       // Echte Größe statt Einheitsdreieck (Befund 41): Der Server rechnet mit
       // Radien von 7,5 (Hive) bis 15,5 (Carrier) – gezeichnet wurde immer 13.
       radius:view.snapshot.gameplayRadius??13,
+      form:view.snapshot.form,
       health:view.snapshot.health,
       maxHealth:view.snapshot.maxHealth,
       color:this.ownerColor(view.snapshot.ownerId)

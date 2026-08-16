@@ -35,6 +35,10 @@
     "./weapon-shape": {
       "types": "./dist/weapon-shape.d.ts",
       "default": "./dist/weapon-shape.js"
+    },
+    "./drone-shape": {
+      "types": "./dist/drone-shape.d.ts",
+      "default": "./dist/drone-shape.js"
     }
   },
   "types": "./dist/index.d.ts",
