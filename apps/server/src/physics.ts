@@ -87,6 +87,38 @@ export function schiebeAuseinander(
   };
 }
 
+/**
+ * Zwei Schwarmkörper auseinanderschieben – **ohne ihnen das Tempo zu nehmen.**
+ *
+ * Der Unterschied zu `schiebeAuseinander` ist der ganze Sinn dieser Funktion.
+ * Jene löscht zusätzlich die Geschwindigkeit, die in das Hindernis zeigt – für
+ * eine Wand oder ein Quadrat genau richtig, für Drohnen untereinander fatal:
+ * Eine Flotte, die auf denselben Punkt zufliegt, keilt sich gegenseitig ein,
+ * jede Drohne bekommt ihre Einwärtsbewegung gestrichen, und der ganze Schwarm
+ * **steht still** – gemessen am 16.08.: Tempo 0 direkt neben dem Zeiger.
+ *
+ * Hier wird deshalb nur der Ort korrigiert. Der Schub bleibt, die Drohnen
+ * schieben sich weiter aneinander vorbei, und daraus entsteht die
+ * unregelmäßige Verteilung, die Diep.io zeigt.
+ */
+export function schwarmAbstand(
+  koerper: Koerper,
+  nachbar: Vector2,
+  mindestabstand: number,
+  frei: (position: Vector2) => boolean
+): void {
+  const delta = { x: koerper.position.x - nachbar.x, y: koerper.position.y - nachbar.y };
+  const abstand = Math.hypot(delta.x, delta.y);
+  if (abstand >= mindestabstand) return;
+  // Exakt aufeinander: irgendeine Richtung ist besser als NaN.
+  const normale = abstand < 0.001 ? { x: 1, y: 0 } : { x: delta.x / abstand, y: delta.y / abstand };
+  // Nur zur Hälfte: Der Nachbar wird in seinem eigenen Schritt ebenso
+  // geschoben. Ganz zu schieben ließe zwei Drohnen aneinander zappeln.
+  const weg = (mindestabstand - abstand) * 0.5;
+  const ziel = { x: koerper.position.x + normale.x * weg, y: koerper.position.y + normale.y * weg };
+  if (frei(ziel)) koerper.position = ziel;
+}
+
 export function projectileSubstepCount(maximumSpeed: number, dt: number, stepDistance: number, maximumSubsteps = 12): number {
   if (!Number.isFinite(maximumSpeed) || maximumSpeed <= 0 || dt <= 0) return 1;
   return Math.max(1, Math.min(maximumSubsteps, Math.ceil(maximumSpeed * dt / Math.max(1, stepDistance))));

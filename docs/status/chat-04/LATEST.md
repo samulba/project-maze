@@ -149,6 +149,37 @@ scripts/frame-probe.mjs` misst eine erzwungene Qualitätsstufe.
 --url <host>`, was sein Gerät wirklich schafft. Ohne das ist jeder weitere
 Eingriff geraten.
 
+## Sechster Nachtrag: Rohr-Vokabular und Drohnen nach Vorbild (16.08.)
+
+Sam mit dem Diep.io-Klassenbaum und einer eigenen Recherche.
+
+**Die Rohre.** Es fehlte EINE Zahl: `versatz`. Ohne sie strahlen mehrere Rohre
+zwangsläufig aus einem Punkt, ein Twin (zwei PARALLELE Rohre) ist nicht
+darstellbar. Von 67 Klassen hatten 46 genau ein Rohr, 18 einen generischen
+Fächer, drei echte Profile – die Abwechslung steckte im Rumpf, wo Diep.io einen
+Kreis zeichnet. Jetzt: `angle`, `versatz`, `laenge`, `breite`,
+`muendungsbreite`, dazu `launchers` für die zehn Drohnenklassen, die vorher
+buchstäblich kein Rohr zeichneten. **66 unterschiedliche Rohr-Silhouetten bei
+67 Klassen.**
+
+**Die Drohnen.** Fünf Regeln waren erfunden statt abgeschaut – Formationsring,
+Ankunftsbremse, Schub direkt aufs Ziel, Ausrichtung in Flugrichtung, Abstoßen
+vom Besitzer. Und eine Regel war schlicht falsch herum:
+
+| Eingabe | vorher | jetzt |
+| --- | --- | --- |
+| Auto-Feuer (E) | sucht selbst ein Ziel | **zum Zeiger** |
+| nichts gedrückt | Orbit, greift nichts an | **sucht selbst ein Ziel** |
+
+Das dreht Sams Regel vom 14.08. um – auf Grundlage seiner eigenen Recherche
+(„Auto-Fire ist nicht Auto-Aim").
+
+Gemessen am Zeiger: vorher fester Ring bei ~66 px/s, jetzt **23–28 px Abstand
+bei 205–239 px/s mit wechselnder Streuung** – ein Schwarm statt eines Zahnrads.
+
+Details, die drei von Tests gefangenen Fehler und die zwei bewussten
+Abweichungen vom Vorbild in [Bericht 36](36-rohre-und-drohnen.md).
+
 ## Was Sam beim nächsten Test ansehen sollte
 
 1. **Halbautomatik**: Sind 200 ms die richtige Grenze zwischen „Klick" und

@@ -125,7 +125,15 @@ describe('Drohnen-Verhalten (Stufe 1)', () => {
    * Klarstellung vom 14.08. selbst auf Jagd gehen dürfen. Voreinstellung ist
    * AN, weil die Tests dieses Blocks alle die Selbstsuche prüfen.
    */
-  const aufbau = (klasse: 'drone' | 'guardian' | 'aviary' = 'drone', autoModus = true) => {
+  /**
+   * `zeigerbefehl = true` heißt seit dem 16.08.: Der Spieler hält Linksklick
+   * ODER Auto-Feuer, die Flotte fliegt also zum Zeiger. Vorher hieß dasselbe
+   * Flag `autoModus` und bedeutete das Gegenteil – „Flotte sucht sich selbst
+   * ein Ziel". Sams Recherche hat das umgedreht: **Auto-Fire ist nicht
+   * Auto-Aim.** Standard ist deshalb jetzt „nichts gedrückt", der Zustand, in
+   * dem die Flotte selbst jagt.
+   */
+  const aufbau = (klasse: 'drone' | 'guardian' | 'aviary' = 'drone', zeigerbefehl = false) => {
     const game = tuneDrones(tuneCombatScaling(new MazeGame(0)));
     const interna = game as unknown as Interna;
     // Formen weg: Sie sind gültige Ziele und würden jede Messung stören.
@@ -136,8 +144,8 @@ describe('Drohnen-Verhalten (Stufe 1)', () => {
     spieler.position = { ...OFFENES_FELD };
     spieler.invulnerable = false;
     spieler.invulnerableUntil = 0;
-    spieler.primary = autoModus;
-    spieler.klick = false;
+    spieler.primary = zeigerbefehl;
+    spieler.klick = zeigerbefehl;
     expect(game.chooseClass(id, klasse === 'drone' ? 'drone' : klasse)).toBe(true);
     game.step(1 / 40, 100_000);
     return { game, interna, id, spieler };
@@ -448,10 +456,11 @@ describe('Minion-Waffe', () => {
     spieler.position = { ...OFFENES_FELD };
     spieler.invulnerable = false;
     spieler.invulnerableUntil = 0;
-    // E-Auto-Modus: feuert, aber klickt nicht. Seit Sams Klarstellung vom
-    // 14.08. ist das die einzige Lage, in der Drohnen sich selbst ein Ziel
-    // suchen – und ohne Ziel gibt es auch keinen Minion-Schuss.
-    spieler.primary = true;
+    // GAR NICHTS gedrückt: Seit der Recherche vom 16.08. ist das die Lage, in
+    // der Drohnen sich selbst ein Ziel suchen – und ohne Ziel gibt es auch
+    // keinen Minion-Schuss. Vorher stand hier `primary = true` („E-Auto-Modus"),
+    // was seitdem das Gegenteil bedeutet: der Flotte den Zeiger befehlen.
+    spieler.primary = false;
     spieler.klick = false;
     for (const schritt of KLASSENPFAD[klasse]) expect(game.chooseClass(id, schritt)).toBe(true);
     game.step(1 / 40, 100_000);
@@ -680,7 +689,7 @@ describe('Drohnen kreisen, statt zu parken (Stufe 3)', () => {
  * Drei Zustände, drei Tests. Gemessen wird am Schaden und am Ort der Flotte,
  * nicht an einem Zustandsfeld.
  */
-describe('Drohnen greifen nur im Auto-Modus von selbst an', () => {
+describe('Drohnen: Auto-Fire ist nicht Auto-Aim (Recherche 16.08.)', () => {
   const FELD = messpunkt({ links: 380, rechts: 380, oben: 380, unten: 380 });
 
   interface Interna {
@@ -726,18 +735,32 @@ describe('Drohnen greifen nur im Auto-Modus von selbst an', () => {
     return { spieler, gegner, zumGegner, schaden: gegner.maxHealth - gegner.health };
   };
 
-  it('greift im Auto-Modus ohne Klick von selbst an', () => {
+  /*
+   * **Die Umkehrung vom 16.08.** Bis dahin galt hier Sams Regel vom 14.08.:
+   * „die sollen nur angreifen, wenn du im E-Auto-Modus bist und man nix
+   * klickt". Seine eigene Recherche (DiepInDepth, Diep-Wiki,
+   * arras.io-Quellcode) hat das widerlegt – und zwar als erste Zeile:
+   *
+   * > „Auto-Fire ist nicht Auto-Aim. Mit aktiviertem Auto-Fire folgen die
+   * > steuerbaren Drohnen permanent dem Cursor und wechseln deshalb nicht in
+   * > ihre normale Idle-AI."
+   *
+   * Also: Auto-Feuer verhält sich wie ein gehaltener Linksklick, und die eigene
+   * Zielsuche greift nur, wenn GAR NICHTS gedrückt ist. Diese beiden Tests
+   * stehen genau andersherum als vorher, mit Absicht.
+   */
+  it('folgt bei Auto-Feuer dem Zeiger – und sucht sich NICHT selbst ein Ziel', () => {
+    // Zeiger nach links, Gegner rechts: Wer selbst zielt, greift an. Wer dem
+    // Zeiger folgt, fliegt weg.
     const { zumGegner, schaden } = feld({ primary: true, klick: false });
-    expect(schaden, `kein Schaden, Flotte ${zumGegner.toFixed(0)} px entfernt`).toBeGreaterThan(0);
-    expect(zumGegner).toBeLessThan(120);
+    expect(schaden, `Flotte hat trotz Auto-Feuer selbst gejagt (${zumGegner.toFixed(0)} px)`).toBe(0);
+    expect(zumGegner).toBeGreaterThan(120);
   });
 
-  it('greift ohne Auto-Modus und ohne Klick GAR NICHTS an', () => {
+  it('sucht sich selbst ein Ziel, wenn gar nichts gedrückt ist', () => {
     const { zumGegner, schaden } = feld({ primary: false, klick: false });
-    expect(schaden, 'Flotte hat ohne Kommando angegriffen').toBe(0);
-    // Sie bleibt beim Besitzer – der Gegner steht 200 px weg, der Orbit liegt
-    // bei 82 px, also sicher jenseits von 100 px vom Gegner.
-    expect(zumGegner).toBeGreaterThan(120);
+    expect(schaden, `kein Schaden, Flotte ${zumGegner.toFixed(0)} px entfernt`).toBeGreaterThan(0);
+    expect(zumGegner).toBeLessThan(120);
   });
 
   it('folgt dem Klick zum Zeiger, auch wenn der Auto-Modus läuft', () => {
@@ -746,5 +769,41 @@ describe('Drohnen greifen nur im Auto-Modus von selbst an', () => {
     const { zumGegner, schaden } = feld({ primary: true, klick: true });
     expect(zumGegner, 'Flotte ist zum Gegner gejagt statt zum Zeiger').toBeGreaterThan(300);
     expect(schaden).toBe(0);
+  });
+});
+
+/**
+ * Die Ruhe-Drosselung darf die Flotte nicht abhängen (16.08.).
+ *
+ * Der Ruhezustand fliegt gedrosselt, damit der enge Orbit nicht in die Wände
+ * des Labyrinths sweept. Ein fester Deckel wäre aber ein neuer Fehler gewesen:
+ * Ein Besitzer, der ohne Kommando losfährt, hätte seine Drohnen stehen lassen.
+ */
+describe('Ruhende Flotte folgt einem fahrenden Besitzer', () => {
+  // Ein Gangstück: waagerecht Platz zum Fahren, seitlich nur so viel, wie ein
+  // Gang wirklich hergibt (320 px breit).
+  const FELD = messpunkt({ links: 260, rechts: 420, oben: 130, unten: 130 });
+
+  it('bleibt beim Besitzer, auch wenn er ohne Kommando volle Fahrt macht', () => {
+    const game = tuneDrones(tuneCombatScaling(new MazeGame(0)));
+    const interna = game as unknown as { players: Map<string, any>; drones: Map<string, any>; shapes: Map<string, any> };
+    interna.shapes.clear();
+    const id = game.addPlayer('Controller');
+    const spieler = interna.players.get(id);
+    spieler.level = 45;
+    spieler.position = { ...FELD, x: FELD.x - 200 };
+    spieler.invulnerable = false;
+    spieler.invulnerableUntil = 0;
+    expect(game.chooseClass(id, 'drone')).toBe(true);
+
+    let now = 100_000;
+    // Erst sammeln lassen, dann losfahren – ohne jedes Kommando.
+    for (let tick = 0; tick < 80; tick += 1) { spieler.move = { x: 0, y: 0 }; spieler.primary = false; spieler.klick = false; game.step(1 / 40, (now += 25)); }
+    for (let tick = 0; tick < 60; tick += 1) { spieler.move = { x: 1, y: 0 }; spieler.primary = false; spieler.klick = false; game.step(1 / 40, (now += 25)); }
+
+    const drohnen = [...interna.drones.values()];
+    expect(drohnen.length).toBeGreaterThan(0);
+    const abstand = drohnen.reduce((summe, d) => summe + Math.hypot(d.position.x - spieler.position.x, d.position.y - spieler.position.y), 0) / drohnen.length;
+    expect(abstand, `Flotte ${abstand.toFixed(0)} px hinter dem Besitzer`).toBeLessThan(220);
   });
 });

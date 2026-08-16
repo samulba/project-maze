@@ -13,7 +13,7 @@ import {
   type PassiveModifierId
 } from '@project-maze/shared/gameplay';
 import { MazeGame } from './game.js';
-import { clampMagnitude, distanceSquared, moveVectorToward, normalize, schiebeAuseinander } from './physics.js';
+import { clampMagnitude, distanceSquared, moveVectorToward, normalize, schiebeAuseinander, schwarmAbstand } from './physics.js';
 import { SHAPE_CONFIG, hasLineOfSight, isFree, moveCircle } from './world.js';
 
 interface DroneArchetype {
@@ -204,6 +204,8 @@ interface DroneInternals {
    * ein Drittel der Tickzeit (gemessen 14.08.).
    */
   formenraster: { finde(position: Vector2, radius: number, passt?: (kandidat: ShapeSnapshot) => boolean): ShapeSnapshot | undefined };
+  /** Dasselbe für Drohnen – gebraucht für die Eigenkollisionen des Schwarms. */
+  drohnenraster: { finde(position: Vector2, radius: number, passt?: (kandidat: RuntimeDrone) => boolean): RuntimeDrone | undefined; entwerten(): void };
   gegnerAmPunkt(position: Vector2, radius: number, ownerId: string): RuntimePlayer | undefined;
   spawnDrone(owner: RuntimePlayer, slot: number): void;
   stepDrones(dt: number, now: number): void;
@@ -272,6 +274,55 @@ const WANDTOD_REST_ANTEIL = 0.3;
  * dieselbe Reichweite, die auch der Zeiger hat. Die Drohnen bleiben damit im
  * selben Kreis, in dem der Spieler zeigen kann.
  */
+/**
+ * Reibungsrate der Drohnenbewegung, je Sekunde.
+ *
+ * Diep.io zieht **10 % der Geschwindigkeit je Tick** ab; die
+ * Grenzgeschwindigkeit ist damit das Zehnfache der Beschleunigung je Tick
+ * (Sams Recherche vom 16.08., DiepInDepth-Physik). In stetiger Form ist das
+ * `exp(-Rate · dt)` mit `Rate = -ln(0,9) · Tickrate` – bei 40 Hz also rund
+ * 4,21 je Sekunde. So gilt dieselbe Physik unabhängig davon, mit welchem
+ * Zeitschritt der Server gerade rechnet.
+ */
+const REIBUNG_RATE = -Math.log(0.9) * GAME.tickRate;
+
+/**
+ * Wie schnell eine Drohne ihre STEUERRICHTUNG zum Ziel dreht (je Sekunde,
+ * exponentiell) – „smoothToTarget" aus arras.io.
+ *
+ * Das ist der wichtigste Regler des ganzen Drohnengefühls, weil er den
+ * Bahnradius bestimmt: Sie fliegt mit Tempo v und dreht mit Rate ω, also
+ * umkreist sie ihr Ziel im Abstand von ungefähr v/ω. Bei 317 px/s und 6 je
+ * Sekunde sind das rund 50 px – ein Schwarm, der eng um den Zeiger kreist.
+ *
+ * 11 ist gemessen, nicht geraten – die Reihe über 5/8/11/14/18/24 ergab:
+ *
+ * ```
+ * Drehrate   5 →  Orbit 64 px, Tempo 272 px/s
+ * Drehrate  11 →  Orbit 26 px, Tempo 207 px/s
+ * Drehrate  18 →  Orbit 19 px, Tempo 184 px/s
+ * ```
+ *
+ * Bei 5 fliegt die Flotte so weite Bögen, dass sie im Labyrinth reihenweise in
+ * Wände läuft und stirbt – Diep.io hat diese Wände nicht, wir schon. Ab 11
+ * bleibt der Orbit eng genug für die Gänge und trotzdem deutlich sichtbar.
+ */
+const DREH_RATE = 11;
+
+/**
+ * Anteil des Tempos im Ruhezustand (kein Kommando, kein Ziel). Siehe die
+ * Begründung an der Verwendungsstelle: Der Orbit ist eng, unsere Wände töten.
+ */
+const RUHE_TEMPO = 0.45;
+
+/** Kürzester Weg von einem Winkel zum anderen, anteilig. */
+function drehenNach(von: number, nach: number, anteil: number): number {
+  let differenz = (nach - von) % (Math.PI * 2);
+  if (differenz > Math.PI) differenz -= Math.PI * 2;
+  if (differenz < -Math.PI) differenz += Math.PI * 2;
+  return von + differenz * anteil;
+}
+
 const LEINE = GAME.maxAimDistance;
 /**
  * Grundradius des Rings, auf dem sich die Flotte um ihr gemeinsames Ziel
@@ -529,88 +580,184 @@ export function tuneDrones<T extends MazeGame>(game: T): T {
         // smoother"). Der Fächerwinkel pro Slot verhindert dabei, dass die
         // Flotte wieder auf einem einzigen Punkt zusammenläuft – genau der
         // Fehler, den der vorige Rechtsklick-Fix schon einmal behoben hat.
-        const weg = normalize({ x: owner.position.x - zeiger.x, y: owner.position.y - zeiger.y });
-        const richtung = weg.x === 0 && weg.y === 0 ? { x: 1, y: 0 } : weg;
-        const basiswinkel = Math.atan2(richtung.y, richtung.x);
-        const faecher = definition.droneCount > 1
-          ? (drone.slot / (definition.droneCount - 1) - 0.5) * FAECHER_OEFFNUNG
-          : 0;
-        const winkel = basiswinkel + faecher;
-        ziel = { x: owner.position.x + Math.cos(winkel) * ABSTOSS_WEG, y: owner.position.y + Math.sin(winkel) * ABSTOSS_WEG };
+        /*
+         * `repelGoal = 2 × Drohnenposition − Cursor` – wörtlich die Formel aus
+         * dem arras.io-Controller (Sams Recherche, 16.08.). Der entscheidende
+         * Unterschied zur vorigen Fassung: Die Drohne flieht vom **Cursor**,
+         * nicht vom eigenen Panzer. Genau daraus entsteht die bekannte
+         * Overlord-„Claw" – man schiebt die Flotte mit dem Zeiger vor sich her,
+         * statt sie nur radial vom Tank wegzudrücken.
+         *
+         * Der Slot-Fächer von vorher entfällt damit ersatzlos: Er war nötig,
+         * weil alle Drohnen denselben Fluchtpunkt bekamen. Jetzt hat jede ihren
+         * eigenen, aus ihrer eigenen Position.
+         */
+        ziel = { x: drone.position.x * 2 - zeiger.x, y: drone.position.y * 2 - zeiger.y };
         formation = false;
-      } else if (zeigerbefehl(owner)) {
-        // Geklickt heißt: dorthin. Immer, auch wenn der Auto-Modus läuft.
+      } else if (owner.primary) {
+        /*
+         * **Auto-Fire ist nicht Auto-Aim** – die wichtigste Korrektur aus Sams
+         * Recherche vom 16.08. (DiepInDepth, Diep-Wiki, arras.io-Quellcode).
+         *
+         * Bis dahin galt hier Sams Regel vom 14.08.: E-Modus = Drohnen suchen
+         * selbst, Klick = zum Zeiger. Die Recherche zeigt, dass beide Spiele es
+         * genau andersherum machen: Linksklick UND gehaltenes Auto-Fire führen
+         * dieselbe manuelle Steuerung aus – Ziel ist die Cursor-Weltposition.
+         * Die eigene Zielsuche greift nur, wenn **gar nichts** gedrückt ist.
+         *
+         * `primary` ist Klick ODER Auto-Fire, deckt also genau diesen Fall ab;
+         * `klick` wird für die Drohnen dadurch bedeutungslos und bleibt nur
+         * noch für die Rohre relevant.
+         */
         ziel = zeiger;
         kampfziel = zeiger;
-      } else if (autoModus(owner)) {
-        // Auto-Modus und die Maustaste ist oben: Jetzt – und nur jetzt – suchen
-        // sich die Drohnen selbst ein Ziel.
+      } else {
+        /*
+         * Nichts gedrückt: eigene Zielsuche in der Nähe, sonst Aufenthalt beim
+         * Besitzer. In Diep.io ist das der dokumentierte Ruhezustand („kreisen
+         * im Uhrzeigersinn um den Besitzer und verlassen den Orbit für nahe
+         * Ziele"), in arras.io `hangOutNearMaster`.
+         */
         const gesucht = sucheZiel(internals, owner, archetype.searchRadius, zielSpeicher);
         if (gesucht) { ziel = gesucht; kampfziel = gesucht; }
         else formation = false;
-      } else {
-        // Weder Klick noch Auto: Orbit, und sie greifen nichts an. Bis zum
-        // 14.08. jagten sie auch hier – das war der Stand, den Sam mit „nur
-        // wenn du im E-Auto-Modus bist" korrigiert hat.
-        formation = false;
-        zielSpeicher.delete(owner.id);
       }
 
       /*
-       * Formation statt Pulk – und seit Sams Punkt 8 eine KREISENDE Formation.
+       * **Alle Drohnen bekommen denselben Zielpunkt.** Hier stand bis zum
+       * 16.08. ein Formationsring: Jede Drohne flog einen eigenen, um das Ziel
+       * kreisenden Platz an. Das war erfunden, nicht abgeschaut.
        *
-       * Jede Drohne bekommt ihren Slot-Winkel auch beim Angriff, fliegt also
-       * einen eigenen Punkt auf einem kleinen Ring um das gemeinsame Ziel an.
-       * Ohne das stapelt sich die ganze Flotte auf einer Koordinate und sieht
-       * aus wie eine Drohne.
+       * Sams Recherche (DiepInDepth, Diep-Wiki, arras.io-Quellcode):
        *
-       * Neu ist der Zeitanteil (`FORMATION_DREHUNG`): Der Platz wandert um das
-       * Ziel herum, die Drohne kommt also nie an und umkreist es. Genau das
-       * macht Diep.io, und genau das fehlte hier – die Flotte flog hin und
-       * blieb stehen.
+       * > „Alle Drohnen erhalten denselben Zielpunkt. Ihre Verteilung entsteht
+       * > durch Eigenkollisionen, unterschiedliche Positionen und
+       * > Restgeschwindigkeiten – nicht durch feste Winkel oder Phasen."
        *
-       * Auch bei EINER Drohne (die Bedingung stand vorher auf `> 1`): Ein
-       * einzelner Wächter, der auf seinem Ziel parkt, sieht genauso tot aus wie
-       * sieben.
+       * Der Ring hat den Schwarm damit falsch geordnet: sauber verteilt, wo er
+       * unordentlich sein soll. Genau das ist das „fühlt sich komisch an" –
+       * eine Flotte, die wie ein Zahnrad läuft statt wie ein Schwarm.
        */
-      if (formation) {
-        const platz = drone.slot * Math.PI * 2 / Math.max(1, definition.droneCount) + (now / 1000) * FORMATION_DREHUNG;
-        const ring = formationsring(definition.droneCount, radius);
-        ziel = { x: ziel.x + Math.cos(platz) * ring, y: ziel.y + Math.sin(platz) * ring };
-      }
-      // Leine: Kein Zielpunkt liegt weiter vom Besitzer entfernt als sein
-      // Zeiger reichen kann. Ohne sie schiebt ein gehaltener Rechtsklick die
-      // Flotte bis an den Kartenrand, und sie käme nicht zurück.
+      /*
+       * Die Leine – bewusst eine ABWEICHUNG vom Vorbild, mit Grund.
+       *
+       * Sams Recherche: In beiden Spielen gibt es keine harte Leine, Drohnen
+       * bleiben bis an die Arenagrenze steuerbar. Hier bleibt sie trotzdem,
+       * weil zwei Dinge anders sind: Unsere Karte ist ein Labyrinth mit
+       * tödlichen Wänden, und ein gehaltener Rechtsklick schiebt die Flotte
+       * sonst außer Sicht, von wo sie nicht zurückkommt. Die Grenze ist die
+       * Zeigerreichweite – für Klick und Zielsuche bindet sie also nie, nur
+       * beim Abstoßen.
+       */
       const zumZiel = clampMagnitude({ x: ziel.x - owner.position.x, y: ziel.y - owner.position.y }, LEINE);
       const target = { x: owner.position.x + zumZiel.x, y: owner.position.y + zumZiel.y };
 
-      const abstand = Math.hypot(target.x - drone.position.x, target.y - drone.position.y);
-      const direction = normalize({ x: target.x - drone.position.x, y: target.y - drone.position.y });
+      /*
+       * Diep-Physik statt Ankunftsbremse.
+       *
+       * Vorher: Wunschgeschwindigkeit Richtung Ziel, gedeckelt durch
+       * `abstand / BREMS_SEKUNDEN`, linear angesteuert. Das ist ein
+       * Ankunfts-Regler – und die Recherche sagt ausdrücklich, dass Diep.io
+       * keinen hat:
+       *
+       * > „Die Drohnen haben keinen normalen Arrival/Stop-Controller. Sie
+       * > beschleunigen weiterhin in ihre aktuelle Steuerungsrichtung, besitzen
+       * > Trägheit und können nur begrenzt schnell drehen. Daher überschießen
+       * > sie den Punkt, drehen zurück, können dadurch den Cursor umkreisen."
+       *
+       * Also: **voller Schub Richtung Ziel, immer**, plus Reibung. Diep zieht
+       * je Tick 10 % Geschwindigkeit ab, die Grenzgeschwindigkeit ist damit das
+       * Zehnfache der Beschleunigung je Tick. In stetiger Form ist die Reibung
+       * `exp(-REIBUNG_RATE · dt)` mit `REIBUNG_RATE = -ln(0,9) · Tickrate`, und
+       * der Schub ergibt sich aus dem gewünschten Endtempo: `a = v* · Rate`.
+       *
+       * Das Umkreisen entsteht dadurch von selbst – aus Trägheit, nicht aus
+       * einer Formel, die einen Kreis vorschreibt.
+       */
       const travelMultiplier = modifier.moveMultiplier * modifier.projectileSpeedMultiplier;
       /*
-       * Ankommen statt Überschwingen: Auf den letzten Metern wird die
-       * Wunschgeschwindigkeit von der Reststrecke gedeckelt. Ohne das pendelte
-       * eine Drohne am Zielpunkt mit bis zu 71 px Amplitude, weil sie mit
-       * vollem Tempo hineinfuhr und erst dahinter bremste.
+       * Im Ruhezustand fliegt die Flotte gedrosselt.
        *
-       * Die Bremse BLEIBT, obwohl sie im Zielpunkt 0 ergibt – seit der
-       * Formationsplatz wandert (`FORMATION_DREHUNG`), gibt es diesen Zielpunkt
-       * nämlich nicht mehr: Die Drohne verfolgt einen mit 66 px/s kreisenden
-       * Punkt und stellt sich auf rund 12 px Rückstand ein. Das ergibt einen
-       * sauberen Kreis statt eines Zitterns um eine Stelle – ein Tempo-Boden
-       * hätte genau dieses Zittern zurückgebracht.
+       * Zweite bewusste Abweichung vom Vorbild, aus demselben Grund wie die
+       * Leine: Der Orbitpunkt wandert mit rund 96 px/s um den Besitzer, die
+       * Drohne kann also mit weniger als halbem Schub folgen. Mit vollem Schub
+       * schießt sie über den engen Ring hinaus, sweept in die Gänge – und
+       * stirbt an der Wand. Gemessen: Bei vollem Schub war die Flotte nach 60
+       * Ticks leer. Diep.io hat keine tödlichen Wände, wir schon.
+       *
+       * Sobald ein Kommando anliegt (Zeiger, gesuchtes Ziel, Abstoßen), gilt
+       * wieder das volle Tempo – dort ist die Bahn das Spielgefühl.
        */
-      const speed = Math.min(archetype.speed * travelMultiplier, abstand / BREMS_SEKUNDEN);
-      drone.velocity = moveVectorToward(
-        drone.velocity,
-        { x: direction.x * speed, y: direction.y * speed },
-        archetype.acceleration * travelMultiplier * dt
-      );
+      const vollTempo = archetype.speed * travelMultiplier;
+      /*
+       * Die Drosselung darf die Flotte nie abhängen. Ein gedrosseltes Tempo
+       * von 143 px/s gegen einen Besitzer, der 430 px/s fährt, hieße: Wer ohne
+       * Kommando losfährt, lässt seine Drohnen stehen. Deshalb ist die Ruhe-
+       * Drosselung eine Untergrenze am Besitzertempo, kein fester Deckel –
+       * steht er, bleibt der Ring eng; fährt er, kommen sie mit.
+       */
+      const besitzerTempo = Math.hypot(owner.velocity.x, owner.velocity.y);
+      const tempoZiel = formation
+        ? vollTempo
+        : Math.min(vollTempo, Math.max(vollTempo * RUHE_TEMPO, besitzerTempo * 1.25));
+      const reibung = Math.exp(-REIBUNG_RATE * dt);
+      /*
+       * **Der Schub folgt der geglätteten Steuerrichtung, nicht dem Ziel.**
+       *
+       * Das ist der Mechanismus, aus dem das Umkreisen entsteht – und er hat im
+       * ersten Anlauf am 16.08. gefehlt. Zeigt der Schub in jedem Tick exakt
+       * auf das Ziel, dann kann eine Drohne nicht überschießen: Sie läuft
+       * sauber hinein und zittert dort mit Tempo 0. Gemessen: 0,5 px/s.
+       *
+       * Die Recherche benennt beide Teile: „besitzen Trägheit und können nur
+       * begrenzt schnell drehen. Daher überschießen sie den Punkt, drehen
+       * zurück, können dadurch den Cursor umkreisen." Und zur Ausrichtung:
+       * „Darstellung UND Schubbeschleunigung folgen der geglätteten
+       * Steuerungsrichtung zum Ziel."
+       *
+       * Also eine Steuerrichtung je Drohne (`drone.angle`), die sich mit
+       * begrenztem Tempo zum Ziel dreht – und der Schub liegt auf ihr. Der
+       * Bahnradius ergibt sich daraus von selbst als Tempo geteilt durch
+       * Drehrate; er ist nicht vorgeschrieben, sondern eine Folge, genau wie im
+       * Vorbild.
+       */
+      const zielwinkel = Math.atan2(target.y - drone.position.y, target.x - drone.position.x);
+      drone.angle = drehenNach(drone.angle, zielwinkel, 1 - Math.exp(-DREH_RATE * dt));
+      const schub = tempoZiel * REIBUNG_RATE * dt;
+      drone.velocity = {
+        x: drone.velocity.x * reibung + Math.cos(drone.angle) * schub,
+        y: drone.velocity.y * reibung + Math.sin(drone.angle) * schub
+      };
       const anlaufTempo = Math.hypot(drone.velocity.x, drone.velocity.y);
       const moved = moveCircle(drone.position, drone.velocity, dt, radius);
       drone.position = moved.position;
       drone.velocity = moved.velocity;
-      drone.angle = Math.atan2(drone.velocity.y, drone.velocity.x);
+
+      /*
+       * **Drohnen schieben einander auseinander.**
+       *
+       * Das ist kein Detail, sondern der Mechanismus, der den Schwarm überhaupt
+       * verteilt. Sams Recherche zum Zielpunkt:
+       *
+       * > „Alle Drohnen erhalten denselben Zielpunkt. Ihre Verteilung entsteht
+       * > durch Eigenkollisionen […] – nicht durch feste Winkel oder Phasen."
+       *
+       * Ohne diese Zeilen läge die ganze Flotte nach dem Wegfall des
+       * Formationsrings auf einer Koordinate und sähe aus wie EINE Drohne.
+       * Der Ring hat dieses Loch bisher zugedeckt.
+       *
+       * Über das Drohnenraster der Basis (`game.ts`), also ohne den linearen
+       * Durchlauf über alle Drohnen, den der 14.08. gerade abgeschafft hat.
+       */
+      const nachbar = internals.drohnenraster.finde(
+        drone.position,
+        radius,
+        (kandidat) => kandidat.id !== drone.id && kandidat.ownerId === drone.ownerId
+      );
+      if (nachbar) {
+        const nachbarradius = nachbar.gameplayRadius ?? 12;
+        schwarmAbstand(drone, nachbar.position, radius + nachbarradius, (position) => isFree(position, radius));
+      }
 
       /*
        * Wandtod – Sam: „Alles was gegen Wände geht sollte kaputtgehen
