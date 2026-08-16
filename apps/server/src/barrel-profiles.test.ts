@@ -55,28 +55,34 @@ const salve = (game: MazeGame, spieler: any, now: number): number => {
 };
 
 describe('Pro-Lauf-Profile (Klassen 4.2, Schritt 2)', () => {
-  it('setzt Testannahmen: Storm ist ein Doppel-Twin, Gesamt-damageScale = barrelCount', () => {
+  it('setzt Testannahmen: Storm ist ein gestaffelter Vierer-Fächer, Gesamt-damageScale = barrelCount', () => {
     const storm = CLASS_DEFINITIONS.storm;
-    expect(storm.barrels).toBeDefined();
     expect(storm.barrels).toHaveLength(4);
     /*
-     * Bis zum 16.08. stand hier: „dieselben Winkel wie die alte Fächer-Formel,
-     * weil die Client-Rohrgrafik weiter über barrelSpread rechnet". Diese
-     * Begründung ist zweimal überholt – seit dem 14.08. zeichnet der Client aus
-     * `laeufe()`, und seit dem 16.08. ist Storm ein Doppel-Twin: zwei PAARE
-     * paralleler Rohre statt vier Strahlen aus einem Punkt (Sams Diep.io-Bild).
+     * Dritte Fassung dieser Annahme, und die Begründung steht jedes Mal im
+     * Auftrag, der sie gesetzt hat:
      *
-     * Was bleibt, ist die Regel, die wirklich zählt: Die Summe der
-     * damageScale-Werte ergibt barrelCount, der Gesamtschaden je Sekunde
-     * ändert sich also nicht – nur seine Verteilung über die Läufe.
+     * 1. Ursprünglich der ausgeschriebene Fächer aus `barrelCount`/`barrelSpread`.
+     * 2. Am 16.08. ein Doppel-Twin (zwei parallele Paare), nach Sams Diep.io-Bild.
+     * 3. Seit dem finalen Klassenauftrag ein GESTAFFELTER Fächer: vier Winkel
+     *    (−18/−6/+6/+18°), die inneren Läufe länger und stärker, die äußeren
+     *    kürzer und schwächer.
+     *
+     * Der Auftrag löst dabei ausdrücklich einen Widerspruch auf (Vorwort,
+     * Punkt 3): Der alte Text versprach unterschiedliche Kugeltempos je Lauf,
+     * obwohl es nur EINEN Klassenwert für Kugeltempo gibt. Deshalb trägt Storm
+     * jetzt kein `speedScale` mehr – verteilt wird allein der Schaden.
      */
-    const winkel = storm.barrels!.map((b) => b.angle ?? 0);
-    expect(new Set(winkel.map((w) => w.toFixed(4))).size).toBe(2);
-    const versaetze = storm.barrels!.map((b) => b.versatz ?? 0);
-    expect(versaetze.filter((v) => v < 0)).toHaveLength(2);
-    expect(versaetze.filter((v) => v > 0)).toHaveLength(2);
+    const winkel = storm.barrels!.map((profil) => Math.round((profil.angle ?? 0) * 180 / Math.PI));
+    expect(winkel).toEqual([-18, -6, 6, 18]);
+    expect(storm.barrels!.some((profil) => profil.speedScale !== undefined)).toBe(false);
 
-    const summe = storm.barrels!.reduce((sum, b) => sum + (b.damageScale ?? 1), 0);
+    // Innen länger und stärker als außen – das ist die Aussage der Form.
+    const [aussenLinks, innenLinks] = storm.barrels!;
+    expect(innenLinks!.laenge!).toBeGreaterThan(aussenLinks!.laenge!);
+    expect(innenLinks!.damageScale!).toBeGreaterThan(aussenLinks!.damageScale!);
+
+    const summe = storm.barrels!.reduce((sum, profil) => sum + (profil.damageScale ?? 1), 0);
     expect(summe).toBeCloseTo(storm.barrelCount, 6);
   });
 
@@ -105,7 +111,7 @@ describe('Pro-Lauf-Profile (Klassen 4.2, Schritt 2)', () => {
     expect(rechts!.versatz).toBeGreaterThan(0);
   });
 
-  it('lässt die beiden mittleren Läufe härter und langsamer, die äußeren schwächer und schneller fliegen', () => {
+  it('lässt die beiden mittleren Läufe härter treffen – bei gleichem Kugeltempo', () => {
     const { game, interna } = bauen();
     const { id, spieler } = schuetze(game, interna, 'storm');
     const stats = tunedStatsFor(spieler);
@@ -117,27 +123,24 @@ describe('Pro-Lauf-Profile (Klassen 4.2, Schritt 2)', () => {
     const schuesse = [...interna.projectiles.values()];
     for (const schuss of schuesse) expect(schuss.ownerId).toBe(id);
 
-    const geschwindigkeiten = schuesse.map((s) => Math.hypot(s.velocity.x, s.velocity.y)).sort((a, b) => a - b);
     const schaeden = schuesse.map((s) => s.damage).sort((a, b) => a - b);
+    // Außen 0,75×, innen 1,25× – Summe 4 = barrelCount, also derselbe
+    // Gesamtschaden je Salve wie ohne Profil.
+    expect(schaeden[0]).toBeCloseTo(stats.damage * 0.75, 5);
+    expect(schaeden[1]).toBeCloseTo(stats.damage * 0.75, 5);
+    expect(schaeden[2]).toBeCloseTo(stats.damage * 1.25, 5);
+    expect(schaeden[3]).toBeCloseTo(stats.damage * 1.25, 5);
+    expect(schaeden.reduce((summe, wert) => summe + wert, 0)).toBeCloseTo(stats.damage * 4, 5);
 
-    // Zwei schwache/schnelle außen, zwei starke/langsame in der Mitte.
-    expect(schaeden[0]).toBeCloseTo(stats.damage * 0.65, 5);
-    expect(schaeden[1]).toBeCloseTo(stats.damage * 0.65, 5);
-    expect(schaeden[2]).toBeCloseTo(stats.damage * 1.35, 5);
-    expect(schaeden[3]).toBeCloseTo(stats.damage * 1.35, 5);
-
-    expect(geschwindigkeiten[0]).toBeCloseTo(stats.projectileSpeed * 0.92, 5);
-    expect(geschwindigkeiten[1]).toBeCloseTo(stats.projectileSpeed * 0.92, 5);
-    expect(geschwindigkeiten[2]).toBeCloseTo(stats.projectileSpeed * 1.15, 5);
-    expect(geschwindigkeiten[3]).toBeCloseTo(stats.projectileSpeed * 1.15, 5);
-
-    // Der schwächere Lauf ist der schnellere und umgekehrt – exakt gegenläufig gepaart.
-    const stark = schuesse.filter((s) => s.damage > stats.damage);
-    const schwach = schuesse.filter((s) => s.damage < stats.damage);
-    expect(stark).toHaveLength(2);
-    expect(schwach).toHaveLength(2);
-    for (const s of stark) expect(Math.hypot(s.velocity.x, s.velocity.y)).toBeCloseTo(stats.projectileSpeed * 0.92, 5);
-    for (const s of schwach) expect(Math.hypot(s.velocity.x, s.velocity.y)).toBeCloseTo(stats.projectileSpeed * 1.15, 5);
+    /*
+     * **Alle vier Kugeln fliegen gleich schnell.** Vorher trugen die Läufe
+     * `speedScale` 1,15/0,92 – der Klassentext versprach das auch. Der finale
+     * Klassenauftrag löst den Widerspruch auf (Vorwort, Punkt 3): Es gibt nur
+     * EINEN Klassenwert für Kugeltempo, ein Tempo je Lauf war nie eine echte
+     * Eigenschaft. Verteilt wird allein der Schaden.
+     */
+    const tempi = schuesse.map((s) => Math.hypot(s.velocity.x, s.velocity.y));
+    for (const tempo of tempi) expect(tempo).toBeCloseTo(stats.projectileSpeed, 5);
   });
 
   it('schüttet pro Salve exakt denselben Gesamtschaden aus wie ohne Pro-Lauf-Profil', () => {

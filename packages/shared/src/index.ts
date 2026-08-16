@@ -369,7 +369,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     unlockLevel: 1, branch: 'core', maxHealth: 110, regen: 2.2, acceleration: 1500, moveSpeed: 270,
     reload: 0.3, projectileSpeed: 820, projectileLife: 1.55, damage: 16, projectileRadius: 7,
     penetration: 20, bodyDamage: 13, barrelCount: 1, barrelSpread: 0, barrelLength: 36,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { laenge: 1, breite: 1, muendungsbreite: 0.82, damageScale: 1 }
+    ]
   }),
   rapid: classDef({
     id: 'rapid', label: 'Rapid', description: 'Schneller Drucktank mit guter Mobilität.', parent: 'core',
@@ -378,7 +381,7 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 15, bodyDamage: 10, barrelCount: 1, barrelSpread: 0, barrelLength: 34,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { muendungsbreite: 1.3 }
+      { laenge: 0.94, breite: 0.82, muendungsbreite: 0.76, damageScale: 1 }
     ]
   }),
   sniper: classDef({
@@ -388,7 +391,7 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 46, bodyDamage: 9, barrelCount: 1, barrelSpread: 0, barrelLength: 52,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.72 }
+      { laenge: 1, breite: 0.62, muendungsbreite: 0.52, damageScale: 1 }
     ]
   }),
   drone: classDef({
@@ -398,8 +401,8 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 0, bodyDamage: 11, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
     droneCount: 4, droneRespawn: 1.45,
     launchers: [
-      { angle: -90 * Math.PI / 180, laenge: 0.9, breite: 0.85, muendungsbreite: 1.35 },
-      { angle: 90 * Math.PI / 180, laenge: 0.9, breite: 0.85, muendungsbreite: 1.35 }
+      { laenge: 0.72, breite: 0.86, muendungsbreite: 1.22 },
+      { angle: 180 * Math.PI / 180, laenge: 0.72, breite: 0.86, muendungsbreite: 1.22 }
     ]
   }),
   rammer: classDef({
@@ -409,10 +412,7 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 12, bodyDamage: 29, barrelCount: 1, barrelSpread: 0, barrelLength: 27,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.95 }
-    ],
-    launchers: [
-      { angle: 180 * Math.PI / 180, laenge: 0.7, breite: 0.9, muendungsbreite: 1.3 }
+      { laenge: 0.82, breite: 0.8, muendungsbreite: 0.68, damageScale: 1 }
     ]
   }),
   twin: classDef({
@@ -422,8 +422,8 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 15, bodyDamage: 10, barrelCount: 2, barrelSpread: 0.15, barrelLength: 35,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { versatz: -0.58, breite: 0.82 },
-      { versatz: 0.58, breite: 0.82 }
+      { versatz: -0.58, laenge: 1, breite: 0.78, muendungsbreite: 0.72, damageScale: 1 },
+      { versatz: 0.58, laenge: 1, breite: 0.78, muendungsbreite: 0.72, damageScale: 1 }
     ]
   }),
   repeater: classDef({
@@ -433,9 +433,9 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 14, bodyDamage: 10, barrelCount: 3, barrelSpread: 0.22, barrelLength: 32, burstDelay: 0.07,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      {},
-      { angle: -34 * Math.PI / 180, laenge: 0.86 },
-      { angle: 34 * Math.PI / 180, laenge: 0.86 }
+      { angle: -2 * Math.PI / 180, versatz: -0.78, laenge: 0.9, breite: 0.66, muendungsbreite: 0.6, damageScale: 1 },
+      { laenge: 1.06, breite: 0.66, muendungsbreite: 0.6, damageScale: 1 },
+      { angle: 2 * Math.PI / 180, versatz: 0.78, laenge: 0.9, breite: 0.66, muendungsbreite: 0.6, damageScale: 1 }
     ]
   }),
   railgun: classDef({
@@ -445,7 +445,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 78, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 62,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.62 }
+      { laenge: 1.12, breite: 0.5, muendungsbreite: 0.42, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 180 * Math.PI / 180, laenge: 0.42, breite: 0.85, muendungsbreite: 1.05 }
     ]
   }),
   hunter: classDef({
@@ -455,7 +458,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 36, bodyDamage: 9, barrelCount: 1, barrelSpread: 0, barrelLength: 47,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.7 }
+      { laenge: 0.92, breite: 0.68, muendungsbreite: 0.56, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 145 * Math.PI / 180, laenge: 0.34, breite: 0.34, muendungsbreite: 0.24 },
+      { angle: 215 * Math.PI / 180, laenge: 0.34, breite: 0.34, muendungsbreite: 0.24 }
     ]
   }),
   warden: classDef({
@@ -465,8 +472,8 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
     droneCount: 6, droneRespawn: 1.12,
     launchers: [
-      { angle: -90 * Math.PI / 180, laenge: 1.0, breite: 0.95, muendungsbreite: 1.5 },
-      { angle: 90 * Math.PI / 180, laenge: 1.0, breite: 0.95, muendungsbreite: 1.5 }
+      { angle: -35 * Math.PI / 180, laenge: 0.7, breite: 0.76, muendungsbreite: 1.1 },
+      { angle: 35 * Math.PI / 180, laenge: 0.7, breite: 0.76, muendungsbreite: 1.1 }
     ]
   }),
   factory: classDef({
@@ -476,7 +483,7 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 0, bodyDamage: 13, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
     droneCount: 5, droneRespawn: 1.4,
     launchers: [
-      { laenge: 1.05, breite: 1.15, muendungsbreite: 1.75 }
+      { laenge: 0.82, breite: 1.28, muendungsbreite: 1.55 }
     ]
   }),
   crusher: classDef({
@@ -486,11 +493,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 13, bodyDamage: 42, barrelCount: 1, barrelSpread: 0, barrelLength: 24,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.25 }
+      { laenge: 0.74, breite: 0.86, muendungsbreite: 0.72, damageScale: 1 }
     ],
     launchers: [
-      { angle: 158 * Math.PI / 180, laenge: 0.6, breite: 0.85, muendungsbreite: 1.25 },
-      { angle: -158 * Math.PI / 180, laenge: 0.6, breite: 0.85, muendungsbreite: 1.25 }
+      { angle: 150 * Math.PI / 180, laenge: 0.3, breite: 0.52, muendungsbreite: 0.82 },
+      { angle: 210 * Math.PI / 180, laenge: 0.3, breite: 0.52, muendungsbreite: 0.82 }
     ]
   }),
   bulwark: classDef({
@@ -500,35 +507,25 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 22, bodyDamage: 34, barrelCount: 1, barrelSpread: 0, barrelLength: 22,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { laenge: 0.9, breite: 1.45 }
+      { laenge: 0.82, breite: 1.12, muendungsbreite: 0.92, damageScale: 1 }
     ],
     launchers: [
-      { angle: 90 * Math.PI / 180, laenge: 0.62, breite: 1.3 },
-      { angle: -90 * Math.PI / 180, laenge: 0.62, breite: 1.3 }
+      { angle: 90 * Math.PI / 180, laenge: 0.34, breite: 1.2, muendungsbreite: 1.38 },
+      { angle: 270 * Math.PI / 180, laenge: 0.34, breite: 1.2, muendungsbreite: 1.38 }
     ]
   }),
   storm: classDef({
-    id: 'storm', label: 'Storm', description: 'Vier Läufe fächern auf – die Mitte trifft härter, außen schwirrt es schneller und leichter heraus.', parent: 'twin',
+    id: 'storm', label: 'Storm', description: 'Vier Läufe fächern auf – die Mitte bohrt, außen schließt der Fächer.', parent: 'twin',
     unlockLevel: 28, branch: 'rapid', maxHealth: 108, regen: 2.2, acceleration: 1550, moveSpeed: 276,
     reload: 0.26, projectileSpeed: 860, projectileLife: 1.35, damage: 6, projectileRadius: 6,
     penetration: 12, bodyDamage: 10, barrelCount: 4, barrelSpread: 0.3, barrelLength: 34,
-    /*
-     * Pro-Lauf-Profile, erster Anwendungsfall: dieselben vier Winkel wie
-     * bisher (aus barrelCount/barrelSpread, hier nur ausgeschrieben, damit
-     * Server-Feuerrichtung und Client-Rohrgrafik – die weiter über
-     * barrelSpread rechnet – exakt zusammenbleiben), aber die beiden
-     * mittleren Läufe treffen härter und fliegen dafür langsamer, die
-     * äußeren sind schwächer und schneller. Summe der damageScale 0,65+1,35+
-     * 1,35+0,65 = 4 = barrelCount: derselbe Gesamtschaden pro Sekunde wie vor
-     * diesem Profil, nur anders über die Läufe verteilt.
-     */
+    droneCount: 0, droneRespawn: 0,
     barrels: [
-      { angle: -0.15, versatz: -0.5, breite: 0.8, damageScale: 0.65, speedScale: 1.15 },
-      { angle: -0.15, versatz: 0.5, breite: 0.8, damageScale: 1.35, speedScale: 0.92 },
-      { angle: 0.15, versatz: -0.5, breite: 0.8, damageScale: 1.35, speedScale: 0.92 },
-      { angle: 0.15, versatz: 0.5, breite: 0.8, damageScale: 0.65, speedScale: 1.15 }
-    ],
-    droneCount: 0, droneRespawn: 0
+      { angle: -18 * Math.PI / 180, laenge: 0.86, breite: 0.6, muendungsbreite: 0.54, damageScale: 0.75 },
+      { angle: -6 * Math.PI / 180, versatz: -0.28, laenge: 1.04, breite: 0.66, muendungsbreite: 0.58, damageScale: 1.25 },
+      { angle: 6 * Math.PI / 180, versatz: 0.28, laenge: 1.04, breite: 0.66, muendungsbreite: 0.58, damageScale: 1.25 },
+      { angle: 18 * Math.PI / 180, laenge: 0.86, breite: 0.6, muendungsbreite: 0.54, damageScale: 0.75 }
+    ]
   }),
   gatling: classDef({
     id: 'gatling', label: 'Gatling', description: 'Sechs leichte Läufe liefern konzentriertes Dauerfeuer.', parent: 'repeater',
@@ -536,21 +533,13 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     reload: 0.28, projectileSpeed: 875, projectileLife: 1.3, damage: 4.3, projectileRadius: 5.5,
     penetration: 10, bodyDamage: 10, barrelCount: 6, barrelSpread: 0.42, barrelLength: 31,
     droneCount: 0, droneRespawn: 0,
-    /*
-     * Sechs Läufe im Fächer, nach außen kürzer und schmaler – und der Fächer
-     * ZIEHT SICH ZUSAMMEN, solange gefeuert wird (`class-mechanics.ts`,
-     * Hitze). Genau deshalb ist Gatling kein Teleskop-Stapel geworden: Der
-     * erste Anlauf am 16.08. stellte alle sechs Rohre auf Winkel 0 und machte
-     * damit die Klassenmechanik still zu einer Attrappe. Der Test
-     * „tightens Gatling spread" hat es gefangen.
-     */
     barrels: [
-      { angle: -0.18, laenge: 0.78, breite: 0.78 },
-      { angle: -0.108, laenge: 0.88, breite: 0.86 },
-      { angle: -0.036, laenge: 1.0, breite: 0.94 },
-      { angle: 0.036, laenge: 1.0, breite: 0.94 },
-      { angle: 0.108, laenge: 0.88, breite: 0.86 },
-      { angle: 0.18, laenge: 0.78, breite: 0.78 }
+      { angle: -7 * Math.PI / 180, laenge: 0.84, breite: 0.48, muendungsbreite: 0.44, damageScale: 1 },
+      { angle: -4 * Math.PI / 180, versatz: -0.28, laenge: 0.94, breite: 0.48, muendungsbreite: 0.44, damageScale: 1 },
+      { angle: -1 * Math.PI / 180, versatz: -0.55, laenge: 1.04, breite: 0.48, muendungsbreite: 0.44, damageScale: 1 },
+      { angle: 1 * Math.PI / 180, versatz: 0.55, laenge: 1.04, breite: 0.48, muendungsbreite: 0.44, damageScale: 1 },
+      { angle: 4 * Math.PI / 180, versatz: 0.28, laenge: 0.94, breite: 0.48, muendungsbreite: 0.44, damageScale: 1 },
+      { angle: 7 * Math.PI / 180, laenge: 0.84, breite: 0.48, muendungsbreite: 0.44, damageScale: 1 }
     ]
   }),
   lancer: classDef({
@@ -560,7 +549,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 112, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 70,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.68 }
+      { laenge: 1.18, breite: 0.42, muendungsbreite: 0.3, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 180 * Math.PI / 180, laenge: 0.62, breite: 0.68, muendungsbreite: 0.92 }
     ]
   }),
   phantom: classDef({
@@ -570,7 +562,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 72, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 58,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.66 }
+      { laenge: 1.02, breite: 0.45, muendungsbreite: 0.38, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 155 * Math.PI / 180, laenge: 0.48, breite: 0.28, muendungsbreite: 0.18 },
+      { angle: 205 * Math.PI / 180, laenge: 0.48, breite: 0.28, muendungsbreite: 0.18 }
     ]
   }),
   overseer: classDef({
@@ -582,8 +578,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
     droneCount: 8, droneRespawn: 0.88,
     launchers: [
-      { angle: -90 * Math.PI / 180, laenge: 1.1, breite: 1.05, muendungsbreite: 1.65 },
-      { angle: 90 * Math.PI / 180, laenge: 1.1, breite: 1.05, muendungsbreite: 1.65 }
+      { laenge: 0.64, breite: 0.74, muendungsbreite: 1.08 },
+      { angle: 90 * Math.PI / 180, laenge: 0.64, breite: 0.74, muendungsbreite: 1.08 },
+      { angle: 180 * Math.PI / 180, laenge: 0.64, breite: 0.74, muendungsbreite: 1.08 },
+      { angle: 270 * Math.PI / 180, laenge: 0.64, breite: 0.74, muendungsbreite: 1.08 }
     ]
   }),
   carrier: classDef({
@@ -593,9 +591,8 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 0, bodyDamage: 15, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
     droneCount: 6, droneRespawn: 1.5,
     launchers: [
-      { angle: -90 * Math.PI / 180, laenge: 1.0, breite: 0.95, muendungsbreite: 1.45 },
-      { angle: 90 * Math.PI / 180, laenge: 1.0, breite: 0.95, muendungsbreite: 1.45 },
-      { laenge: 0.9, breite: 0.9, muendungsbreite: 1.35 }
+      { angle: -65 * Math.PI / 180, laenge: 0.74, breite: 1.15, muendungsbreite: 1.4 },
+      { angle: 65 * Math.PI / 180, laenge: 0.74, breite: 1.15, muendungsbreite: 1.4 }
     ]
   }),
   juggernaut: classDef({
@@ -605,7 +602,12 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 13, bodyDamage: 60, barrelCount: 1, barrelSpread: 0, barrelLength: 21,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { laenge: 0.85, breite: 1.9 }
+      { laenge: 0.68, breite: 0.72, muendungsbreite: 0.62, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 90 * Math.PI / 180, laenge: 0.38, breite: 1.06, muendungsbreite: 1.26 },
+      { angle: 180 * Math.PI / 180, laenge: 0.32, breite: 1.06, muendungsbreite: 1.26 },
+      { angle: 270 * Math.PI / 180, laenge: 0.38, breite: 1.06, muendungsbreite: 1.26 }
     ]
   }),
   fortress: classDef({
@@ -615,12 +617,12 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 28, bodyDamage: 45, barrelCount: 1, barrelSpread: 0, barrelLength: 20,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { laenge: 0.9, breite: 1.5 }
+      { laenge: 0.7, breite: 1.42, muendungsbreite: 1.12, damageScale: 1 }
     ],
     launchers: [
-      { angle: 90 * Math.PI / 180, laenge: 0.6, breite: 1.2 },
-      { angle: -90 * Math.PI / 180, laenge: 0.6, breite: 1.2 },
-      { angle: 180 * Math.PI / 180, laenge: 0.6, breite: 1.2 }
+      { angle: 90 * Math.PI / 180, laenge: 0.46, breite: 1.35, muendungsbreite: 1.55 },
+      { angle: 180 * Math.PI / 180, laenge: 0.46, breite: 1.35, muendungsbreite: 1.55 },
+      { angle: 270 * Math.PI / 180, laenge: 0.46, breite: 1.35, muendungsbreite: 1.55 }
     ]
   }),
   flanker: classDef({
@@ -629,8 +631,8 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     reload: 0.24, projectileSpeed: 845, projectileLife: 1.45, damage: 11, projectileRadius: 6,
     penetration: 15, bodyDamage: 10, barrelCount: 2, barrelSpread: 0, barrelLength: 34, droneCount: 0, droneRespawn: 0,
     barrels: [
-      {},
-      { angle: 180 * Math.PI / 180, laenge: 0.82, breite: 0.9 }
+      { laenge: 1, breite: 0.82, muendungsbreite: 0.74, damageScale: 1 },
+      { angle: 180 * Math.PI / 180, laenge: 0.86, breite: 0.78, muendungsbreite: 0.7, damageScale: 1 }
     ]
   }),
   octo: classDef({
@@ -640,14 +642,14 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 12, bodyDamage: 11, barrelCount: 8, barrelSpread: 0, barrelLength: 32,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      {},
-      { angle: 45 * Math.PI / 180 },
-      { angle: 90 * Math.PI / 180 },
-      { angle: 135 * Math.PI / 180 },
-      { angle: 180 * Math.PI / 180 },
-      { angle: -135 * Math.PI / 180 },
-      { angle: -90 * Math.PI / 180 },
-      { angle: -45 * Math.PI / 180 }
+      { laenge: 1, breite: 0.6, muendungsbreite: 0.54, damageScale: 1 },
+      { angle: 45 * Math.PI / 180, laenge: 0.88, breite: 0.6, muendungsbreite: 0.54, damageScale: 1 },
+      { angle: 90 * Math.PI / 180, laenge: 0.82, breite: 0.6, muendungsbreite: 0.54, damageScale: 1 },
+      { angle: 135 * Math.PI / 180, laenge: 0.88, breite: 0.6, muendungsbreite: 0.54, damageScale: 1 },
+      { angle: 180 * Math.PI / 180, laenge: 1, breite: 0.6, muendungsbreite: 0.54, damageScale: 1 },
+      { angle: 225 * Math.PI / 180, laenge: 0.88, breite: 0.6, muendungsbreite: 0.54, damageScale: 1 },
+      { angle: 270 * Math.PI / 180, laenge: 0.82, breite: 0.6, muendungsbreite: 0.54, damageScale: 1 },
+      { angle: 315 * Math.PI / 180, laenge: 0.88, breite: 0.6, muendungsbreite: 0.54, damageScale: 1 }
     ]
   }),
   arbalest: classDef({
@@ -657,8 +659,8 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 40, bodyDamage: 9, barrelCount: 2, barrelSpread: 0.09, barrelLength: 50,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { versatz: -0.6, breite: 0.7 },
-      { versatz: 0.6, breite: 0.7 }
+      { versatz: -0.46, laenge: 1, breite: 0.52, muendungsbreite: 0.44, damageScale: 1 },
+      { versatz: 0.46, laenge: 1, breite: 0.52, muendungsbreite: 0.44, damageScale: 1 }
     ]
   }),
   deadeye: classDef({
@@ -668,8 +670,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 60, bodyDamage: 8, barrelCount: 2, barrelSpread: 0.07, barrelLength: 56,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { laenge: 0.58, breite: 1.3 },
-      { breite: 0.7 }
+      { angle: -1.5 * Math.PI / 180, versatz: -0.42, laenge: 1.06, breite: 0.48, muendungsbreite: 0.4, damageScale: 1 },
+      { angle: 1.5 * Math.PI / 180, versatz: 0.42, laenge: 1.06, breite: 0.48, muendungsbreite: 0.4, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 180 * Math.PI / 180, laenge: 0.3, breite: 0.46, muendungsbreite: 0.62 }
     ]
   }),
   guardian: classDef({
@@ -679,9 +684,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
     droneCount: 5, droneRespawn: 1.3,
     launchers: [
-      { angle: -90 * Math.PI / 180, laenge: 0.95, breite: 0.9, muendungsbreite: 1.4 },
-      { angle: 90 * Math.PI / 180, laenge: 0.95, breite: 0.9, muendungsbreite: 1.4 },
-      { angle: 180 * Math.PI / 180, laenge: 0.85, breite: 0.85, muendungsbreite: 1.25 }
+      { angle: 45 * Math.PI / 180, laenge: 0.62, breite: 0.82, muendungsbreite: 1.12 },
+      { angle: 135 * Math.PI / 180, laenge: 0.62, breite: 0.82, muendungsbreite: 1.12 },
+      { angle: 225 * Math.PI / 180, laenge: 0.62, breite: 0.82, muendungsbreite: 1.12 },
+      { angle: 315 * Math.PI / 180, laenge: 0.62, breite: 0.82, muendungsbreite: 1.12 }
     ]
   }),
   hive: classDef({
@@ -691,10 +697,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
     droneCount: 10, droneRespawn: 0.55,
     launchers: [
-      { laenge: 1.05, breite: 1.0, muendungsbreite: 1.55 },
-      { angle: 90 * Math.PI / 180, laenge: 1.05, breite: 1.0, muendungsbreite: 1.55 },
-      { angle: 180 * Math.PI / 180, laenge: 1.05, breite: 1.0, muendungsbreite: 1.55 },
-      { angle: -90 * Math.PI / 180, laenge: 1.05, breite: 1.0, muendungsbreite: 1.55 }
+      { laenge: 0.58, breite: 0.58, muendungsbreite: 0.92 },
+      { angle: 72 * Math.PI / 180, laenge: 0.58, breite: 0.58, muendungsbreite: 0.92 },
+      { angle: 144 * Math.PI / 180, laenge: 0.58, breite: 0.58, muendungsbreite: 0.92 },
+      { angle: 216 * Math.PI / 180, laenge: 0.58, breite: 0.58, muendungsbreite: 0.92 },
+      { angle: 288 * Math.PI / 180, laenge: 0.58, breite: 0.58, muendungsbreite: 0.92 }
     ]
   }),
   blitz: classDef({
@@ -704,11 +711,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 12, bodyDamage: 30, barrelCount: 1, barrelSpread: 0, barrelLength: 25,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.85 }
+      { laenge: 0.86, breite: 0.66, muendungsbreite: 0.54, damageScale: 1 }
     ],
     launchers: [
-      { angle: 148 * Math.PI / 180, laenge: 0.72, breite: 0.8, muendungsbreite: 1.35 },
-      { angle: -148 * Math.PI / 180, laenge: 0.72, breite: 0.8, muendungsbreite: 1.35 }
+      { angle: 180 * Math.PI / 180, laenge: 0.44, breite: 0.58, muendungsbreite: 1.1 }
     ]
   }),
   comet: classDef({
@@ -718,13 +724,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 12, bodyDamage: 44, barrelCount: 1, barrelSpread: 0, barrelLength: 22,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.8 }
+      { laenge: 0.76, breite: 0.54, muendungsbreite: 0.44, damageScale: 1 }
     ],
     launchers: [
-      { angle: 132 * Math.PI / 180, laenge: 0.8, breite: 0.75, muendungsbreite: 1.4 },
-      { angle: -132 * Math.PI / 180, laenge: 0.8, breite: 0.75, muendungsbreite: 1.4 },
-      { angle: 164 * Math.PI / 180, laenge: 0.62, breite: 0.7, muendungsbreite: 1.3 },
-      { angle: -164 * Math.PI / 180, laenge: 0.62, breite: 0.7, muendungsbreite: 1.3 }
+      { angle: 165 * Math.PI / 180, laenge: 0.48, breite: 0.42, muendungsbreite: 0.9 },
+      { angle: 195 * Math.PI / 180, laenge: 0.48, breite: 0.42, muendungsbreite: 0.9 }
     ]
   }),
   /*
@@ -749,7 +753,7 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
   // Klassen 4.0, Welle A - Apex-Klassen der Altfamilien (L42)
   // ------------------------------------------------------------------
   vortex: classDef({
-    id: 'vortex', label: 'Vortex', description: 'Fünf Läufe im Fächer, Momentum ohne Ende – die wandelnde Schrotwand.', parent: 'rapid',
+    id: 'vortex', label: 'Vortex', description: 'Fünf eng getaktete Läufe schieben eine wandernde Schrotwand durch den Gang.', parent: 'rapid',
     unlockLevel: 42, branch: 'rapid', apexOf: 'rapid', maxHealth: 118, regen: 2.4, acceleration: 1580, moveSpeed: 280,
     // 5 Laeufe zwingen den Einzelschaden nach unten: 5,2 / 0,27 x 5 = 96 DPS,
     // knapp unter dem Korridor-Deckel von 100 - der Test hat die erste
@@ -758,11 +762,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 13, bodyDamage: 11, barrelCount: 5, barrelSpread: 0.55, barrelLength: 33,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      {},
-      { angle: -24 * Math.PI / 180, laenge: 0.86 },
-      { angle: 24 * Math.PI / 180, laenge: 0.86 },
-      { angle: -48 * Math.PI / 180, laenge: 0.72 },
-      { angle: 48 * Math.PI / 180, laenge: 0.72 }
+      { angle: -26 * Math.PI / 180, laenge: 0.76, breite: 0.64, muendungsbreite: 0.58, damageScale: 1 },
+      { angle: -13 * Math.PI / 180, laenge: 0.9, breite: 0.66, muendungsbreite: 0.6, damageScale: 1 },
+      { laenge: 1.08, breite: 0.7, muendungsbreite: 0.62, damageScale: 1 },
+      { angle: 13 * Math.PI / 180, laenge: 0.9, breite: 0.66, muendungsbreite: 0.6, damageScale: 1 },
+      { angle: 26 * Math.PI / 180, laenge: 0.76, breite: 0.64, muendungsbreite: 0.58, damageScale: 1 }
     ]
   }),
   eclipse: classDef({
@@ -785,7 +789,12 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 100, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 66,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.6 }
+      { laenge: 1.12, breite: 0.9, muendungsbreite: 0.26, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 150 * Math.PI / 180, laenge: 0.38, breite: 0.3, muendungsbreite: 0.18 },
+      { angle: 180 * Math.PI / 180, laenge: 0.48, breite: 0.7, muendungsbreite: 0.92 },
+      { angle: 210 * Math.PI / 180, laenge: 0.38, breite: 0.3, muendungsbreite: 0.18 }
     ]
   }),
   sovereign: classDef({
@@ -807,11 +816,12 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 0, bodyDamage: 13, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
     droneCount: 7, droneRespawn: 1,
     launchers: [
-      { laenge: 1.15, breite: 1.1, muendungsbreite: 1.7 },
-      { angle: 72 * Math.PI / 180, laenge: 1.05, breite: 1.0, muendungsbreite: 1.55 },
-      { angle: 144 * Math.PI / 180, laenge: 0.95, breite: 0.95, muendungsbreite: 1.45 },
-      { angle: -144 * Math.PI / 180, laenge: 0.95, breite: 0.95, muendungsbreite: 1.45 },
-      { angle: -72 * Math.PI / 180, laenge: 1.05, breite: 1.0, muendungsbreite: 1.55 }
+      { laenge: 0.72, breite: 0.88, muendungsbreite: 1.2 },
+      { angle: 60 * Math.PI / 180, laenge: 0.64, breite: 0.88, muendungsbreite: 1.2 },
+      { angle: 120 * Math.PI / 180, laenge: 0.64, breite: 0.88, muendungsbreite: 1.2 },
+      { angle: 180 * Math.PI / 180, laenge: 0.72, breite: 0.88, muendungsbreite: 1.2 },
+      { angle: 240 * Math.PI / 180, laenge: 0.64, breite: 0.88, muendungsbreite: 1.2 },
+      { angle: 300 * Math.PI / 180, laenge: 0.64, breite: 0.88, muendungsbreite: 1.2 }
     ]
   }),
   leviathan: classDef({
@@ -824,13 +834,13 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 30, bodyDamage: 63, barrelCount: 1, barrelSpread: 0, barrelLength: 20,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { laenge: 0.82, breite: 2.0 }
+      { laenge: 0.68, breite: 1.58, muendungsbreite: 1.28, damageScale: 1 }
     ],
     launchers: [
-      { angle: 90 * Math.PI / 180, laenge: 0.7, breite: 1.35 },
-      { angle: -90 * Math.PI / 180, laenge: 0.7, breite: 1.35 },
-      { angle: 142 * Math.PI / 180, laenge: 0.58, breite: 1.05 },
-      { angle: -142 * Math.PI / 180, laenge: 0.58, breite: 1.05 }
+      { angle: 70 * Math.PI / 180, laenge: 0.4, breite: 1.16, muendungsbreite: 1.38 },
+      { angle: 110 * Math.PI / 180, laenge: 0.34, breite: 1.1, muendungsbreite: 1.3 },
+      { angle: 250 * Math.PI / 180, laenge: 0.34, breite: 1.1, muendungsbreite: 1.3 },
+      { angle: 290 * Math.PI / 180, laenge: 0.4, breite: 1.16, muendungsbreite: 1.38 }
     ]
   }),
   // ------------------------------------------------------------------
@@ -845,7 +855,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 26, bodyDamage: 12, barrelCount: 1, barrelSpread: 0, barrelLength: 40,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.85 }
+      { laenge: 1, breite: 0.72, muendungsbreite: 0.54, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 180 * Math.PI / 180, laenge: 0.28, breite: 0.26, muendungsbreite: 0.16 }
     ]
   }),
   wraith: classDef({
@@ -855,7 +868,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 20, bodyDamage: 12, barrelCount: 1, barrelSpread: 0, barrelLength: 36,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.8 }
+      { laenge: 0.9, breite: 0.64, muendungsbreite: 0.46, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 150 * Math.PI / 180, laenge: 0.38, breite: 0.28, muendungsbreite: 0.16 },
+      { angle: 210 * Math.PI / 180, laenge: 0.38, breite: 0.28, muendungsbreite: 0.16 }
     ]
   }),
   shade: classDef({
@@ -865,7 +882,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 44, bodyDamage: 11, barrelCount: 1, barrelSpread: 0, barrelLength: 48,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.75 }
+      { laenge: 1.08, breite: 0.92, muendungsbreite: 0.58, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 180 * Math.PI / 180, laenge: 0.46, breite: 0.68, muendungsbreite: 0.34 }
     ]
   }),
   mirage: classDef({
@@ -875,8 +895,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 22, bodyDamage: 12, barrelCount: 2, barrelSpread: 0.12, barrelLength: 38,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { versatz: -0.55, breite: 0.8 },
-      { versatz: 0.55, breite: 0.8 }
+      { angle: -3 * Math.PI / 180, versatz: -0.42, laenge: 1, breite: 0.56, muendungsbreite: 0.4, damageScale: 1 },
+      { angle: 3 * Math.PI / 180, versatz: 0.42, laenge: 1, breite: 0.56, muendungsbreite: 0.4, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 180 * Math.PI / 180, laenge: 0.34, breite: 0.26, muendungsbreite: 0.14 }
     ]
   }),
   revenant: classDef({
@@ -886,7 +909,12 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 12, bodyDamage: 38, barrelCount: 1, barrelSpread: 0, barrelLength: 26,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.9, muendungsbreite: 1.3 }
+      { laenge: 0.78, breite: 0.78, muendungsbreite: 0.6, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 160 * Math.PI / 180, laenge: 0.42, breite: 0.34, muendungsbreite: 0.72 },
+      { angle: 180 * Math.PI / 180, laenge: 0.52, breite: 0.42, muendungsbreite: 0.86 },
+      { angle: 200 * Math.PI / 180, laenge: 0.42, breite: 0.34, muendungsbreite: 0.72 }
     ]
   }),
   eidolon: classDef({
@@ -896,7 +924,12 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 50, bodyDamage: 14, barrelCount: 1, barrelSpread: 0, barrelLength: 52,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.72 }
+      { laenge: 1.12, breite: 0.82, muendungsbreite: 0.44, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 130 * Math.PI / 180, laenge: 0.46, breite: 0.3, muendungsbreite: 0.16 },
+      { angle: 180 * Math.PI / 180, laenge: 0.4, breite: 0.56, muendungsbreite: 0.26 },
+      { angle: 230 * Math.PI / 180, laenge: 0.46, breite: 0.3, muendungsbreite: 0.16 }
     ]
   }),
   // ------------------------------------------------------------------
@@ -909,7 +942,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 18, bodyDamage: 14, barrelCount: 1, barrelSpread: 0, barrelLength: 34,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { muendungsbreite: 1.4 }
+      { laenge: 1, breite: 0.78, muendungsbreite: 1.06, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 165 * Math.PI / 180, laenge: 0.28, breite: 0.36, muendungsbreite: 0.74 },
+      { angle: 195 * Math.PI / 180, laenge: 0.28, breite: 0.36, muendungsbreite: 0.74 }
     ]
   }),
   scorch: classDef({
@@ -919,8 +956,12 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 14, bodyDamage: 13, barrelCount: 2, barrelSpread: 0.18, barrelLength: 33, burstDelay: 0.05,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { angle: -14 * Math.PI / 180, muendungsbreite: 1.35 },
-      { angle: 14 * Math.PI / 180, muendungsbreite: 1.35 }
+      { versatz: -0.5, laenge: 1, breite: 0.66, muendungsbreite: 0.92, damageScale: 1 },
+      { versatz: 0.5, laenge: 0.86, breite: 0.66, muendungsbreite: 0.92, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 170 * Math.PI / 180, versatz: -0.28, laenge: 0.34, breite: 0.34, muendungsbreite: 0.78 },
+      { angle: 190 * Math.PI / 180, versatz: 0.28, laenge: 0.34, breite: 0.34, muendungsbreite: 0.78 }
     ]
   }),
   surge: classDef({
@@ -930,7 +971,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 26, bodyDamage: 15, barrelCount: 1, barrelSpread: 0, barrelLength: 38,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { muendungsbreite: 1.5 }
+      { laenge: 1.05, breite: 1.15, muendungsbreite: 1.35, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 90 * Math.PI / 180, laenge: 0.34, breite: 0.62, muendungsbreite: 1.02 },
+      { angle: 270 * Math.PI / 180, laenge: 0.34, breite: 0.62, muendungsbreite: 1.02 }
     ]
   }),
   inferno: classDef({
@@ -940,9 +985,14 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 12, bodyDamage: 13, barrelCount: 3, barrelSpread: 0.3, barrelLength: 32, burstDelay: 0.06,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { muendungsbreite: 1.4 },
-      { angle: -30 * Math.PI / 180, laenge: 0.85, muendungsbreite: 1.3 },
-      { angle: 30 * Math.PI / 180, laenge: 0.85, muendungsbreite: 1.3 }
+      { angle: -6 * Math.PI / 180, versatz: -0.45, laenge: 0.9, breite: 0.56, muendungsbreite: 0.82, damageScale: 1 },
+      { laenge: 1.04, breite: 0.6, muendungsbreite: 0.88, damageScale: 1 },
+      { angle: 6 * Math.PI / 180, versatz: 0.45, laenge: 0.9, breite: 0.56, muendungsbreite: 0.82, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 155 * Math.PI / 180, laenge: 0.3, breite: 0.3, muendungsbreite: 0.72 },
+      { angle: 180 * Math.PI / 180, laenge: 0.36, breite: 0.34, muendungsbreite: 0.82 },
+      { angle: 205 * Math.PI / 180, laenge: 0.3, breite: 0.3, muendungsbreite: 0.72 }
     ]
   }),
   overload: classDef({
@@ -952,7 +1002,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 34, bodyDamage: 16, barrelCount: 1, barrelSpread: 0, barrelLength: 40,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.1, muendungsbreite: 1.62 }
+      { laenge: 1.1, breite: 1.48, muendungsbreite: 1.72, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 180 * Math.PI / 180, laenge: 0.58, breite: 0.92, muendungsbreite: 1.52 }
     ]
   }),
   // ------------------------------------------------------------------
@@ -965,7 +1018,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 30, bodyDamage: 12, barrelCount: 1, barrelSpread: 0, barrelLength: 44,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { muendungsbreite: 1.45 }
+      { laenge: 1, breite: 1.2, muendungsbreite: 1, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 180 * Math.PI / 180, laenge: 0.44, breite: 0.82, muendungsbreite: 1.12 }
     ]
   }),
   /*
@@ -983,7 +1039,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 34, bodyDamage: 13, barrelCount: 1, barrelSpread: 0, barrelLength: 40, trapAfter: 0.28,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { laenge: 0.86, muendungsbreite: 1.7 }
+      { laenge: 0.9, breite: 0.95, muendungsbreite: 1.45, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: -18 * Math.PI / 180, versatz: -0.48, laenge: 0.64, breite: 0.32, muendungsbreite: 0.22 },
+      { angle: 18 * Math.PI / 180, versatz: 0.48, laenge: 0.64, breite: 0.32, muendungsbreite: 0.22 }
     ]
   }),
   bombard: classDef({
@@ -993,8 +1053,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 28, bodyDamage: 13, barrelCount: 2, barrelSpread: 0.2, barrelLength: 42,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { versatz: -0.58, muendungsbreite: 1.4 },
-      { versatz: 0.58, muendungsbreite: 1.4 }
+      { angle: -3 * Math.PI / 180, versatz: -0.6, laenge: 1, breite: 1.05, muendungsbreite: 0.9, damageScale: 1 },
+      { angle: 3 * Math.PI / 180, versatz: 0.6, laenge: 1, breite: 1.05, muendungsbreite: 0.9, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 180 * Math.PI / 180, laenge: 0.5, breite: 1, muendungsbreite: 1.3 }
     ]
   }),
   mortar: classDef({
@@ -1004,7 +1067,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 42, bodyDamage: 14, barrelCount: 1, barrelSpread: 0, barrelLength: 38,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.2, muendungsbreite: 1.5 }
+      { laenge: 0.82, breite: 1.5, muendungsbreite: 1.7, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 90 * Math.PI / 180, laenge: 0.38, breite: 0.8, muendungsbreite: 1.12 },
+      { angle: 270 * Math.PI / 180, laenge: 0.38, breite: 0.8, muendungsbreite: 1.12 }
     ]
   }),
   howitzer: classDef({
@@ -1014,9 +1081,13 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 24, bodyDamage: 13, barrelCount: 3, barrelSpread: 0.34, barrelLength: 40,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { muendungsbreite: 1.45 },
-      { angle: -28 * Math.PI / 180, laenge: 0.82, muendungsbreite: 1.35 },
-      { angle: 28 * Math.PI / 180, laenge: 0.82, muendungsbreite: 1.35 }
+      { angle: -10 * Math.PI / 180, laenge: 0.9, breite: 0.94, muendungsbreite: 0.8, damageScale: 1 },
+      { laenge: 1.06, breite: 1.02, muendungsbreite: 0.86, damageScale: 1 },
+      { angle: 10 * Math.PI / 180, laenge: 0.9, breite: 0.94, muendungsbreite: 0.8, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 160 * Math.PI / 180, laenge: 0.42, breite: 0.72, muendungsbreite: 1.02 },
+      { angle: 200 * Math.PI / 180, laenge: 0.42, breite: 0.72, muendungsbreite: 1.02 }
     ]
   }),
   trebuchet: classDef({
@@ -1026,7 +1097,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 62, bodyDamage: 15, barrelCount: 1, barrelSpread: 0, barrelLength: 48,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.9, muendungsbreite: 1.6 }
+      { laenge: 1.15, breite: 1.65, muendungsbreite: 1.25, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 180 * Math.PI / 180, laenge: 0.7, breite: 1.2, muendungsbreite: 1.6 }
     ]
   }),
   ragnarok: classDef({
@@ -1036,8 +1110,13 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 50, bodyDamage: 15, barrelCount: 2, barrelSpread: 0.14, barrelLength: 46,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { angle: -16 * Math.PI / 180, muendungsbreite: 1.5 },
-      { angle: 16 * Math.PI / 180, muendungsbreite: 1.5 }
+      { angle: -6 * Math.PI / 180, versatz: -0.55, laenge: 1.06, breite: 1.25, muendungsbreite: 1.04, damageScale: 1 },
+      { angle: 6 * Math.PI / 180, versatz: 0.55, laenge: 1.06, breite: 1.25, muendungsbreite: 1.04, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 145 * Math.PI / 180, laenge: 0.46, breite: 0.82, muendungsbreite: 1.12 },
+      { angle: 180 * Math.PI / 180, laenge: 0.58, breite: 1.02, muendungsbreite: 1.38 },
+      { angle: 215 * Math.PI / 180, laenge: 0.46, breite: 0.82, muendungsbreite: 1.12 }
     ]
   }),
   // ------------------------------------------------------------------
@@ -1050,7 +1129,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 20, bodyDamage: 16, barrelCount: 1, barrelSpread: 0, barrelLength: 30,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.2 }
+      { laenge: 0.92, breite: 0.92, muendungsbreite: 0.78, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 90 * Math.PI / 180, laenge: 0.3, breite: 1.18, muendungsbreite: 1.38 },
+      { angle: 270 * Math.PI / 180, laenge: 0.3, breite: 1.18, muendungsbreite: 1.38 }
     ]
   }),
   bulwarker: classDef({
@@ -1060,7 +1143,12 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 22, bodyDamage: 18, barrelCount: 1, barrelSpread: 0, barrelLength: 28,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.3 }
+      { laenge: 0.86, breite: 1.02, muendungsbreite: 0.84, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 70 * Math.PI / 180, laenge: 0.34, breite: 1.22, muendungsbreite: 1.48 },
+      { angle: 180 * Math.PI / 180, laenge: 0.3, breite: 1.16, muendungsbreite: 1.4 },
+      { angle: 290 * Math.PI / 180, laenge: 0.34, breite: 1.22, muendungsbreite: 1.48 }
     ]
   }),
   reflector: classDef({
@@ -1070,8 +1158,12 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 20, bodyDamage: 17, barrelCount: 2, barrelSpread: 0.16, barrelLength: 30,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { versatz: -0.58, breite: 0.9 },
-      { versatz: 0.58, breite: 0.9 }
+      { angle: -5 * Math.PI / 180, versatz: -0.45, laenge: 0.92, breite: 0.72, muendungsbreite: 0.62, damageScale: 1 },
+      { angle: 5 * Math.PI / 180, versatz: 0.45, laenge: 0.92, breite: 0.72, muendungsbreite: 0.62, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 90 * Math.PI / 180, laenge: 0.36, breite: 1.08, muendungsbreite: 1.46 },
+      { angle: 270 * Math.PI / 180, laenge: 0.36, breite: 1.08, muendungsbreite: 1.46 }
     ]
   }),
   paladin: classDef({
@@ -1081,7 +1173,13 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 24, bodyDamage: 22, barrelCount: 1, barrelSpread: 0, barrelLength: 27,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.35 }
+      { laenge: 0.88, breite: 1.12, muendungsbreite: 0.92, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 60 * Math.PI / 180, laenge: 0.36, breite: 1.12, muendungsbreite: 1.38 },
+      { angle: 120 * Math.PI / 180, laenge: 0.36, breite: 1.12, muendungsbreite: 1.38 },
+      { angle: 240 * Math.PI / 180, laenge: 0.36, breite: 1.12, muendungsbreite: 1.38 },
+      { angle: 300 * Math.PI / 180, laenge: 0.36, breite: 1.12, muendungsbreite: 1.38 }
     ]
   }),
   retributor: classDef({
@@ -1091,9 +1189,14 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 22, bodyDamage: 19, barrelCount: 3, barrelSpread: 0.26, barrelLength: 29, burstDelay: 0.09,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.1 },
-      { angle: -40 * Math.PI / 180, laenge: 0.8, breite: 0.9 },
-      { angle: 40 * Math.PI / 180, laenge: 0.8, breite: 0.9 }
+      { angle: -8 * Math.PI / 180, versatz: -0.48, laenge: 0.86, breite: 0.64, muendungsbreite: 0.54, damageScale: 1 },
+      { laenge: 1, breite: 0.68, muendungsbreite: 0.58, damageScale: 1 },
+      { angle: 8 * Math.PI / 180, versatz: 0.48, laenge: 0.86, breite: 0.64, muendungsbreite: 0.54, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 90 * Math.PI / 180, laenge: 0.34, breite: 1, muendungsbreite: 1.3 },
+      { angle: 180 * Math.PI / 180, laenge: 0.3, breite: 1, muendungsbreite: 1.3 },
+      { angle: 270 * Math.PI / 180, laenge: 0.34, breite: 1, muendungsbreite: 1.3 }
     ]
   }),
   sanctum: classDef({
@@ -1103,8 +1206,15 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 26, bodyDamage: 24, barrelCount: 2, barrelSpread: 0.12, barrelLength: 31,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { angle: -18 * Math.PI / 180, breite: 1.05 },
-      { angle: 18 * Math.PI / 180, breite: 1.05 }
+      { angle: -3 * Math.PI / 180, versatz: -0.52, laenge: 0.96, breite: 0.86, muendungsbreite: 0.72, damageScale: 1 },
+      { angle: 3 * Math.PI / 180, versatz: 0.52, laenge: 0.96, breite: 0.86, muendungsbreite: 0.72, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 60 * Math.PI / 180, laenge: 0.38, breite: 1.16, muendungsbreite: 1.44 },
+      { angle: 120 * Math.PI / 180, laenge: 0.38, breite: 1.16, muendungsbreite: 1.44 },
+      { angle: 180 * Math.PI / 180, laenge: 0.42, breite: 1.2, muendungsbreite: 1.5 },
+      { angle: 240 * Math.PI / 180, laenge: 0.38, breite: 1.16, muendungsbreite: 1.44 },
+      { angle: 300 * Math.PI / 180, laenge: 0.38, breite: 1.16, muendungsbreite: 1.44 }
     ]
   }),
   // ------------------------------------------------------------------
@@ -1116,35 +1226,27 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     reload: 0.33, projectileSpeed: 831, projectileLife: 1.4, damage: 6.5, projectileRadius: 5.5,
     penetration: 13, bodyDamage: 11, barrelCount: 4, barrelSpread: 0.16, barrelLength: 32,
     droneCount: 0, droneRespawn: 0,
-    /*
-     * „Eine Wand aus Nadeln" (eigene Beschreibung) – also vier PARALLELE
-     * Rohre nebeneinander, nicht vier Strahlen aus einem Punkt. Der erste
-     * Anlauf am 16.08. machte daraus einen Quad-Tank (0/90/180/270); die
-     * Balance-Prüfung hat ihn gefangen, weil dann nur noch ein Lauf nach vorn
-     * zeigte und der Frontschaden auf ein Viertel fiel. Der Klassentext ist
-     * hier die Vorgabe, nicht das Diep.io-Vorbild.
-     */
     barrels: [
-      { versatz: -1.68, breite: 0.62, laenge: 0.86 },
-      { versatz: -0.56, breite: 0.62 },
-      { versatz: 0.56, breite: 0.62 },
-      { versatz: 1.68, breite: 0.62, laenge: 0.86 }
+      { angle: -12 * Math.PI / 180, laenge: 0.84, breite: 0.62, muendungsbreite: 0.56, damageScale: 1 },
+      { angle: -4 * Math.PI / 180, versatz: -0.3, laenge: 1, breite: 0.62, muendungsbreite: 0.56, damageScale: 1 },
+      { angle: 4 * Math.PI / 180, versatz: 0.3, laenge: 1, breite: 0.62, muendungsbreite: 0.56, damageScale: 1 },
+      { angle: 12 * Math.PI / 180, laenge: 0.84, breite: 0.62, muendungsbreite: 0.56, damageScale: 1 }
     ]
   }),
   hailstorm: classDef({
-    id: 'hailstorm', label: 'Hailstorm', description: 'Sieben Läufe, ein Hagelschlag - Deckung gibt es nicht.', parent: 'vanguard',
+    id: 'hailstorm', label: 'Hailstorm', description: 'Sieben Läufe verriegeln einen ganzen Gang mit einem einzigen Hagelschlag.', parent: 'vanguard',
     unlockLevel: 28, branch: 'rapid', maxHealth: 110, regen: 2.2, acceleration: 1540, moveSpeed: 274,
     reload: 0.36, projectileSpeed: 847, projectileLife: 1.3, damage: 4.2, projectileRadius: 5,
     penetration: 11, bodyDamage: 11, barrelCount: 7, barrelSpread: 0.5, barrelLength: 30,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { laenge: 1.1 },
-      { angle: -18 * Math.PI / 180, laenge: 0.95 },
-      { angle: 18 * Math.PI / 180, laenge: 0.95 },
-      { angle: -36 * Math.PI / 180, laenge: 0.85 },
-      { angle: 36 * Math.PI / 180, laenge: 0.85 },
-      { angle: -54 * Math.PI / 180, laenge: 0.74 },
-      { angle: 54 * Math.PI / 180, laenge: 0.74 }
+      { angle: -24 * Math.PI / 180, laenge: 0.78, breite: 0.5, muendungsbreite: 0.46, damageScale: 1 },
+      { angle: -16 * Math.PI / 180, laenge: 0.86, breite: 0.5, muendungsbreite: 0.46, damageScale: 1 },
+      { angle: -8 * Math.PI / 180, laenge: 0.94, breite: 0.5, muendungsbreite: 0.46, damageScale: 1 },
+      { laenge: 1.04, breite: 0.54, muendungsbreite: 0.48, damageScale: 1 },
+      { angle: 8 * Math.PI / 180, laenge: 0.94, breite: 0.5, muendungsbreite: 0.46, damageScale: 1 },
+      { angle: 16 * Math.PI / 180, laenge: 0.86, breite: 0.5, muendungsbreite: 0.46, damageScale: 1 },
+      { angle: 24 * Math.PI / 180, laenge: 0.78, breite: 0.5, muendungsbreite: 0.46, damageScale: 1 }
     ]
   }),
   ballista: classDef({
@@ -1154,7 +1256,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 68, bodyDamage: 9, barrelCount: 1, barrelSpread: 0, barrelLength: 58,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.7 }
+      { laenge: 1.08, breite: 0.86, muendungsbreite: 0.36, damageScale: 1 }
+    ],
+    launchers: [
+      { versatz: -0.82, laenge: 0.78, breite: 0.22, muendungsbreite: 0.18 },
+      { versatz: 0.82, laenge: 0.78, breite: 0.22, muendungsbreite: 0.18 }
     ]
   }),
   siegebreaker: classDef({
@@ -1164,7 +1270,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 96, bodyDamage: 9, barrelCount: 1, barrelSpread: 0, barrelLength: 68,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 0.66 }
+      { laenge: 1.15, breite: 1.05, muendungsbreite: 0.44, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 90 * Math.PI / 180, laenge: 0.28, breite: 0.46, muendungsbreite: 0.72 },
+      { angle: 270 * Math.PI / 180, laenge: 0.28, breite: 0.46, muendungsbreite: 0.72 }
     ]
   }),
   sentinel: classDef({
@@ -1174,7 +1284,9 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 0, bodyDamage: 14, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
     droneCount: 3, droneRespawn: 1.7,
     launchers: [
-      { laenge: 0.95, breite: 0.9, muendungsbreite: 1.4 }
+      { laenge: 0.72, breite: 1.08, muendungsbreite: 1.34 },
+      { angle: 120 * Math.PI / 180, laenge: 0.72, breite: 1.08, muendungsbreite: 1.34 },
+      { angle: 240 * Math.PI / 180, laenge: 0.72, breite: 1.08, muendungsbreite: 1.34 }
     ]
   }),
   aviary: classDef({
@@ -1184,9 +1296,9 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
     droneCount: 9, droneRespawn: 0.7,
     launchers: [
-      { angle: -55 * Math.PI / 180, laenge: 1.0, breite: 0.9, muendungsbreite: 1.45 },
-      { angle: 55 * Math.PI / 180, laenge: 1.0, breite: 0.9, muendungsbreite: 1.45 },
-      { laenge: 1.05, breite: 0.95, muendungsbreite: 1.5 }
+      { angle: -40 * Math.PI / 180, laenge: 0.64, breite: 0.66, muendungsbreite: 1.02 },
+      { laenge: 0.64, breite: 0.66, muendungsbreite: 1.02 },
+      { angle: 40 * Math.PI / 180, laenge: 0.64, breite: 0.66, muendungsbreite: 1.02 }
     ]
   }),
   rampart: classDef({
@@ -1196,11 +1308,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 24, bodyDamage: 32, barrelCount: 1, barrelSpread: 0, barrelLength: 23,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.35 }
+      { laenge: 0.76, breite: 1.18, muendungsbreite: 0.98, damageScale: 1 }
     ],
     launchers: [
-      { angle: 112 * Math.PI / 180, laenge: 0.55, breite: 1.15 },
-      { angle: -112 * Math.PI / 180, laenge: 0.55, breite: 1.15 }
+      { angle: -28 * Math.PI / 180, laenge: 0.38, breite: 0.82, muendungsbreite: 1.02 },
+      { angle: 28 * Math.PI / 180, laenge: 0.38, breite: 0.82, muendungsbreite: 1.02 }
     ]
   }),
   behemoth: classDef({
@@ -1210,11 +1322,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 28, bodyDamage: 52, barrelCount: 1, barrelSpread: 0, barrelLength: 21,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { laenge: 0.88, breite: 1.75 }
+      { laenge: 0.72, breite: 1.48, muendungsbreite: 1.18, damageScale: 1 }
     ],
     launchers: [
-      { angle: 90 * Math.PI / 180, laenge: 0.75, breite: 1.25 },
-      { angle: -90 * Math.PI / 180, laenge: 0.75, breite: 1.25 }
+      { angle: -42 * Math.PI / 180, laenge: 0.42, breite: 1.08, muendungsbreite: 1.3 },
+      { angle: 42 * Math.PI / 180, laenge: 0.42, breite: 1.08, muendungsbreite: 1.3 }
     ]
   }),
   cataclysm: classDef({
@@ -1224,8 +1336,14 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 24, bodyDamage: 15, barrelCount: 2, barrelSpread: 0.22, barrelLength: 36,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { versatz: -0.55, muendungsbreite: 1.4 },
-      { versatz: 0.55, muendungsbreite: 1.4 }
+      { angle: -8 * Math.PI / 180, versatz: -0.44, laenge: 1.04, breite: 0.92, muendungsbreite: 1.26, damageScale: 1 },
+      { angle: 8 * Math.PI / 180, versatz: 0.44, laenge: 1.04, breite: 0.92, muendungsbreite: 1.26, damageScale: 1 }
+    ],
+    launchers: [
+      { angle: 150 * Math.PI / 180, laenge: 0.36, breite: 0.34, muendungsbreite: 0.8 },
+      { angle: 170 * Math.PI / 180, laenge: 0.42, breite: 0.38, muendungsbreite: 0.9 },
+      { angle: 190 * Math.PI / 180, laenge: 0.42, breite: 0.38, muendungsbreite: 0.9 },
+      { angle: 210 * Math.PI / 180, laenge: 0.36, breite: 0.34, muendungsbreite: 0.8 }
     ]
   })
 };
