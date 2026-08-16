@@ -316,16 +316,27 @@ export interface ClassDefinition {
    */
   barrels?: BarrelProfile[];
   /**
-   * Launcher: Rohre, die **gezeichnet** werden, aber nicht feuern.
+   * Rohre, die **gezeichnet** werden, aber nicht feuern.
    *
-   * Sam, 16.08.: Die Drohnenklassen sahen aus wie nackte Kreise – und das
-   * stimmte wörtlich. Alle zehn tragen `barrelCount: 0`, zeichneten also gar
-   * kein Rohr, während in Diep.io ausgerechnet sie die auffälligsten Teile
-   * haben: die trapezförmigen Launcher, aus denen die Drohnen kommen.
+   * Zwei Verwendungen, beide aus Sams Runden vom 16.08.:
+   *
+   * 1. **Drohnen-Launcher.** Die Drohnenklassen sahen aus wie nackte Kreise –
+   *    und das stimmte wörtlich. Alle zehn tragen `barrelCount: 0`, zeichneten
+   *    also gar kein Rohr, während in Diep.io ausgerechnet sie die
+   *    auffälligsten Teile haben: die Trapeze, aus denen die Drohnen kommen.
+   * 2. **Schubdüsen und Panzerplatten der IMPACT-Familie.** Sam: „mach die
+   *    Impact-Klassen auch noch unterschiedlicher." Sie waren zehnmal derselbe
+   *    Kreis mit einem verschieden breiten Stummel. In Diep.io trägt die
+   *    Ramm-Linie (Tri-Angle, Booster, Fighter) Düsen nach hinten – genau das
+   *    Merkmal, das eine Familie ohne nennenswerte Bewaffnung sichtbar macht.
    *
    * Ein eigenes Feld und nicht `barrels`, weil `barrelCount` die Feuerschleife
-   * des Servers steuert: Ein Launcher in `barrels` würde die Drohnenklassen
-   * sofort zu Kanonen machen. Getrennt gezeichnet, getrennt geschossen.
+   * des Servers steuert: Was hier steht, kann die Balance nicht verschieben.
+   *
+   * **Ehrlich dazu:** In Diep.io feuern die Düsen der Booster-Linie wirklich –
+   * der Rückstoß IST dort der Antrieb. Bei uns sind sie Zierde. Das ist eine
+   * bewusste Abweichung: Sie hier feuern zu lassen hieße, zehn Klassen die
+   * Schadensrechnung zu verschieben, für eine Formsprache.
    */
   launchers?: BarrelProfile[];
   /**
@@ -398,7 +409,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 12, bodyDamage: 29, barrelCount: 1, barrelSpread: 0, barrelLength: 27,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.15 }
+      { breite: 0.95 }
+    ],
+    launchers: [
+      { angle: 180 * Math.PI / 180, laenge: 0.7, breite: 0.9, muendungsbreite: 1.3 }
     ]
   }),
   twin: classDef({
@@ -472,7 +486,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 13, bodyDamage: 42, barrelCount: 1, barrelSpread: 0, barrelLength: 24,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.3 }
+      { breite: 1.25 }
+    ],
+    launchers: [
+      { angle: 158 * Math.PI / 180, laenge: 0.6, breite: 0.85, muendungsbreite: 1.25 },
+      { angle: -158 * Math.PI / 180, laenge: 0.6, breite: 0.85, muendungsbreite: 1.25 }
     ]
   }),
   bulwark: classDef({
@@ -482,7 +500,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 22, bodyDamage: 34, barrelCount: 1, barrelSpread: 0, barrelLength: 22,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.35 }
+      { laenge: 0.9, breite: 1.45 }
+    ],
+    launchers: [
+      { angle: 90 * Math.PI / 180, laenge: 0.62, breite: 1.3 },
+      { angle: -90 * Math.PI / 180, laenge: 0.62, breite: 1.3 }
     ]
   }),
   storm: classDef({
@@ -583,7 +605,7 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 13, bodyDamage: 60, barrelCount: 1, barrelSpread: 0, barrelLength: 21,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.5 }
+      { laenge: 0.85, breite: 1.9 }
     ]
   }),
   fortress: classDef({
@@ -593,7 +615,12 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 28, bodyDamage: 45, barrelCount: 1, barrelSpread: 0, barrelLength: 20,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.55 }
+      { laenge: 0.9, breite: 1.5 }
+    ],
+    launchers: [
+      { angle: 90 * Math.PI / 180, laenge: 0.6, breite: 1.2 },
+      { angle: -90 * Math.PI / 180, laenge: 0.6, breite: 1.2 },
+      { angle: 180 * Math.PI / 180, laenge: 0.6, breite: 1.2 }
     ]
   }),
   flanker: classDef({
@@ -677,7 +704,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 12, bodyDamage: 30, barrelCount: 1, barrelSpread: 0, barrelLength: 25,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.1 }
+      { breite: 0.85 }
+    ],
+    launchers: [
+      { angle: 148 * Math.PI / 180, laenge: 0.72, breite: 0.8, muendungsbreite: 1.35 },
+      { angle: -148 * Math.PI / 180, laenge: 0.72, breite: 0.8, muendungsbreite: 1.35 }
     ]
   }),
   comet: classDef({
@@ -687,7 +718,13 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 12, bodyDamage: 44, barrelCount: 1, barrelSpread: 0, barrelLength: 22,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.05 }
+      { breite: 0.8 }
+    ],
+    launchers: [
+      { angle: 132 * Math.PI / 180, laenge: 0.8, breite: 0.75, muendungsbreite: 1.4 },
+      { angle: -132 * Math.PI / 180, laenge: 0.8, breite: 0.75, muendungsbreite: 1.4 },
+      { angle: 164 * Math.PI / 180, laenge: 0.62, breite: 0.7, muendungsbreite: 1.3 },
+      { angle: -164 * Math.PI / 180, laenge: 0.62, breite: 0.7, muendungsbreite: 1.3 }
     ]
   }),
   /*
@@ -787,7 +824,13 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 30, bodyDamage: 63, barrelCount: 1, barrelSpread: 0, barrelLength: 20,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.62 }
+      { laenge: 0.82, breite: 2.0 }
+    ],
+    launchers: [
+      { angle: 90 * Math.PI / 180, laenge: 0.7, breite: 1.35 },
+      { angle: -90 * Math.PI / 180, laenge: 0.7, breite: 1.35 },
+      { angle: 142 * Math.PI / 180, laenge: 0.58, breite: 1.05 },
+      { angle: -142 * Math.PI / 180, laenge: 0.58, breite: 1.05 }
     ]
   }),
   // ------------------------------------------------------------------
@@ -1153,7 +1196,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 24, bodyDamage: 32, barrelCount: 1, barrelSpread: 0, barrelLength: 23,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.4 }
+      { breite: 1.35 }
+    ],
+    launchers: [
+      { angle: 112 * Math.PI / 180, laenge: 0.55, breite: 1.15 },
+      { angle: -112 * Math.PI / 180, laenge: 0.55, breite: 1.15 }
     ]
   }),
   behemoth: classDef({
@@ -1163,7 +1210,11 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     penetration: 28, bodyDamage: 52, barrelCount: 1, barrelSpread: 0, barrelLength: 21,
     droneCount: 0, droneRespawn: 0,
     barrels: [
-      { breite: 1.5 }
+      { laenge: 0.88, breite: 1.75 }
+    ],
+    launchers: [
+      { angle: 90 * Math.PI / 180, laenge: 0.75, breite: 1.25 },
+      { angle: -90 * Math.PI / 180, laenge: 0.75, breite: 1.25 }
     ]
   }),
   cataclysm: classDef({

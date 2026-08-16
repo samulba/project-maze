@@ -177,6 +177,16 @@ Das dreht Sams Regel vom 14.08. um – auf Grundlage seiner eigenen Recherche
 Gemessen am Zeiger: vorher fester Ring bei ~66 px/s, jetzt **23–28 px Abstand
 bei 205–239 px/s mit wechselnder Streuung** – ein Schwarm statt eines Zahnrads.
 
+**Die Rümpfe sind jetzt alle Kreise** (`appearance.ts`: 274 → 104 Zeilen), einzige
+Ausnahme ist die Smasher-Linie – im Vorbild die eine Familie ohne Rohr. Und die
+IMPACT-Familie trägt endlich, was ihre eigenen Beschreibungen versprechen:
+Schubdüsen für die Ramm-Linie, fette Rohre und Platten für die Anker-Linie.
+
+Neu ist auch, dass der **Blindtest aus dem MASTERPLAN zum ersten Mal ein Test
+ist** (`silhouette.test.ts`) – er stand seit jeher als Grundsatz da und hatte
+keine einzige Prüfung. Genau deshalb konnten 46 von 67 Klassen mit einem
+einzigen Rohr durchs Raster fallen.
+
 Details, die drei von Tests gefangenen Fehler und die zwei bewussten
 Abweichungen vom Vorbild in [Bericht 36](36-rohre-und-drohnen.md).
 

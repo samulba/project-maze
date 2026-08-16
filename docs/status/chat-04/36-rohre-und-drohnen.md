@@ -187,10 +187,43 @@ für alle derselbe Kreis ist (außer Smasher), dass keine zwei Klassen dieselbe
 Rohr-Silhouette tragen, dass keine Klasse ohne sichtbares Rohr dasteht und dass
 jede Drohnenklasse ihre Launcher hat, ohne feuern zu können.
 
-### Was der neue Kontaktbogen zeigt – und was noch nicht sitzt
+## Teil 4: Die IMPACT-Familie
 
-Die IMPACT-Klassen liegen visuell eng beieinander: Kreis plus kurzer, etwas
-unterschiedlich breiter Stummel (Blitz, Comet, Rampart, Behemoth, Juggernaut,
-Fortress). Der Blindtest besteht, weil die Breiten sich messbar unterscheiden –
-mit dem Auge auf einer Kachel ist es knapp. Das ist die nächste Stelle, an der
-das Vokabular mehr hergeben müsste als bisher genutzt.
+Sam, direkt danach: „mach die Impact-Klassen auch noch unterschiedlicher."
+
+Er hatte recht, und ich hatte es im Bogen selbst angemerkt: zehn Klassen, alle
+„Kreis plus verschieden breiter Stummel". Der Blindtest bestand, weil die
+Breiten sich messbar unterscheiden – mit dem Auge war es knapp.
+
+**Die Beschreibungen teilen die Familie längst selbst in zwei Hälften**, es hat
+nur nie jemand gezeichnet:
+
+| Linie | Wortlaut aus den Klassen | Form |
+| --- | --- | --- |
+| **Ramm-Linie** | „Sturm-Rammer: Körperschaden wächst mit deinem Tempo", „der schnellste Tank der Arena" | schmales Frontrohr, **Schubdüsen nach hinten** |
+| **Anker-Linie** | „Defensivanker mit maximaler Haltbarkeit", „eine Wand aus Stahl, die auf dich zurollt" | **sehr fettes Frontrohr**, Seitenplatten |
+
+Das ist zugleich die Formsprache des Vorbilds: In Diep.io trägt die Ramm-Linie
+(Tri-Angle, Booster, Fighter) Düsen nach hinten, die Destroyer-Linie ein
+einzelnes, sehr breites Rohr.
+
+| Klasse | Was sie jetzt trägt |
+| --- | --- |
+| rammer | eine Düse nach hinten |
+| blitz | zwei Düsen bei ±148° (Tri-Angle) |
+| comet | **vier** Düsen bei ±132° und ±164° (Booster) – der schnellste trägt die meisten |
+| crusher | zwei Düsen bei ±158°, breiteres Frontrohr |
+| bulwark | Frontrohr 1,45× plus zwei Seitenplatten |
+| rampart | Frontrohr 1,35× plus zwei Platten bei ±112° |
+| juggernaut | ein einzelnes Rohr mit 1,9× Breite (Annihilator) |
+| fortress | Frontrohr 1,5× plus Platten auf drei Seiten |
+| behemoth | Frontrohr 1,75× plus zwei lange Seitenplatten |
+| leviathan | Frontrohr 2,0× plus vier Platten – der Apex trägt am meisten |
+
+**Ohne jede Balance-Wirkung.** Die Frontrohre ändern nur ihre gezeichnete
+Breite, Düsen und Platten liegen in `launchers` – dem Feld, das gezeichnet, aber
+nie gefeuert wird. `barrelCount` bleibt überall unangetastet.
+
+Ehrlich dazu: In Diep.io **feuern** die Düsen der Booster-Linie wirklich, der
+Rückstoß ist dort der Antrieb. Bei uns sind sie Zierde. Sie feuern zu lassen
+hieße, zehn Klassen die Schadensrechnung zu verschieben – für eine Formsprache.
