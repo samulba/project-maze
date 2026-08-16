@@ -31,6 +31,10 @@
     "./backlog": {
       "types": "./dist/backlog.d.ts",
       "default": "./dist/backlog.js"
+    },
+    "./weapon-shape": {
+      "types": "./dist/weapon-shape.d.ts",
+      "default": "./dist/weapon-shape.js"
     }
   },
   "types": "./dist/index.d.ts",

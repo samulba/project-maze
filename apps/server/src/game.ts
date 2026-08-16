@@ -24,7 +24,8 @@ import {
   type Vector2,
   type WorldSnapshot
 } from '@project-maze/shared';
-import { laufversatz, laufwinkel, projektilStart } from '@project-maze/shared/barrels';
+import { laufwinkel } from '@project-maze/shared/barrels';
+import { projektilAbstand, projektilVersatz } from '@project-maze/shared/weapon-shape';
 import {
   SpatialHash,
   clampMagnitude,
@@ -515,7 +516,13 @@ export class MazeGame {
     const speed = this.barrelSpeed(stats, barrel);
     // Aus dem Rohr, nicht davor (Sams Punkt 6 vom 14.08.) – die Zahl steht in
     // `shared/barrels.ts`, damit sie zur gezeichneten Mündung passt.
-    const abstand = projektilStart(stats, stats.projectileRadius, barrel);
+    /*
+     * Die Kugel entsteht an der GEZEICHNETEN Mündung (finaler Klassenauftrag,
+     * Abschnitt 4 – Begründung ausführlich in `projektilAbstand`). Ohne diese
+     * Zeile stünde jede Kugel rund 15 px vor dem nun kürzeren Rohr, und das ist
+     * wörtlich Sams Punkt 6b vom 14.08.
+     */
+    const abstand = projektilAbstand(stats, barrel, stats.projectileRadius);
     /*
      * Der SEITLICHE Versatz des Laufs (Sam, 16.08., mit dem Diep.io-Baum als
      * Beleg). Bis dahin entstand jede Kugel auf der Mittellinie – ein Twin sah
@@ -523,7 +530,7 @@ export class MazeGame {
      * Jetzt kommt jede Kugel aus IHREM Rohr, und zwei parallele Rohre liefern
      * zwei parallele Ströme, wie in Diep.io.
      */
-    const seite = laufversatz(stats, barrel);
+    const seite = projektilVersatz(stats, barrel);
     const position = {
       x: player.position.x + direction.x * abstand - direction.y * seite,
       y: player.position.y + direction.y * abstand + direction.x * seite
@@ -610,7 +617,7 @@ export class MazeGame {
       // Position VOM AKTUELLEN Standort des Besitzers, nicht vom Moment des
       // Abzugs – wer sich während der Salve bewegt, feuert die späteren Läufe
       // von dort, wo er gerade ist, genau wie ein echter Mehrlauf-Tank.
-      const abstand = projektilStart({ barrelLength: shot.barrelLength, barrelCount: 1, barrelSpread: 0 }, shot.projectileRadius);
+      const abstand = projektilAbstand({ barrelLength: shot.barrelLength }, 0, shot.projectileRadius);
       const position = { x: owner.position.x + direction.x * abstand, y: owner.position.y + direction.y * abstand };
       const id = crypto.randomUUID();
       this.projectiles.set(id, { id, ownerId: shot.ownerId, position, velocity: { x: direction.x * shot.projectileSpeed, y: direction.y * shot.projectileSpeed }, radius: shot.projectileRadius, integrity: shot.penetration, maxIntegrity: shot.penetration, damage: shot.damage, life: shot.projectileLife, plantAtLife: shot.plantAtLife });

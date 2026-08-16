@@ -14,7 +14,7 @@ import {
   type Wall,
   type WorldSnapshot
 } from '@project-maze/shared';
-import { laeufeVon } from '@project-maze/shared/barrels';
+import { waffenformenVon } from '@project-maze/shared/weapon-shape';
 import type { ArenaEventSnapshot } from '@project-maze/shared/gameplay';
 import { GUARDIAN_COLOR, GUARDIAN_NAME, arenaEventStyle } from './arena-event-style';
 import { ParticleField } from './particles';
@@ -1268,29 +1268,36 @@ export class GameRenderer {
    * Winkel und dieselbe Mündung. Ein Rohr, das anders aussieht als es schießt,
    * ist danach nicht mehr baubar, ohne diese Datei UND den Server zu ändern.
    */
-  private drawClassBarrels(graphics:Graphics,playerClass:PlayerClass,color:number):void{
-    const definition=CLASS_DEFINITIONS[playerClass];
-    for(const lauf of laeufeVon(playerClass)){
-      // Vier Ecken statt zweier Breiten: Wurzel und Mündung dürfen sich
-      // unterscheiden (Trapez = Machine Gun und Drohnen-Launcher), und der
-      // Versatz schiebt das ganze Rohr seitlich – erst damit gibt es einen
-      // Twin aus zwei PARALLELEN Rohren (Sam, 16.08.).
-      const corners:[number,number][]=[
-        [lauf.start,lauf.versatz-lauf.breite/2],
-        [lauf.muendung,lauf.versatz-lauf.muendungsbreite/2],
-        [lauf.muendung,lauf.versatz+lauf.muendungsbreite/2],
-        [lauf.start,lauf.versatz+lauf.breite/2]
-      ];
-      const points:number[]=[];
-      for(const[x,y]of corners){
-        points.push(x*Math.cos(lauf.winkel)-y*Math.sin(lauf.winkel),x*Math.sin(lauf.winkel)+y*Math.cos(lauf.winkel));
-      }
-      // Neutrales Metall mit dunkler Kante: Das Rohr gehört sichtbar NICHT zum
-      // Körper. Vorher trug es die Spielerfarbe als Umriss und verschmolz mit
-      // dem Rumpf zu einem Klumpen (Sam, 14.08.).
-      graphics.poly(points).fill(this.palette.barrel).stroke({color:mischen(this.palette.barrel,SCHATTEN,.28),width:3});
+  private drawClassBarrels(graphics:Graphics,playerClass:PlayerClass,_color:number):void{
+    /*
+     * Gehäuse statt Drähte – der finale Klassenauftrag, Abschnitt 5.
+     *
+     * Vorher zeichnete diese Schleife jedes Rohr einzeln bis in den Rumpf. Bei
+     * einem Gatling mit sechs eng stehenden Läufen sah das aus wie „Drähte aus
+     * einer Kugel" (Wortlaut des Auftrags) – der Grund, aus dem vier Entwürfe
+     * abgelehnt wurden. Jetzt liefert `waffenformen` fertige Polygone: ein
+     * geschlossenes Gehäuse je Rohrgruppe, davor nur kurze Mündungsstücke.
+     *
+     * Die Mündungsstücke bekommen KEINE hintere Abschlusskante: Sonst stünde an
+     * der Teilung eine sichtbare Quernaht, die der Auftrag ausdrücklich verbietet.
+     * Umgesetzt wird das über die Zeichenreihenfolge – erst Gehäuse, dann
+     * Mündungen mit derselben Füllung darüber – und über die Überlappung aus
+     * `NAHT_UEBERLAPPUNG`.
+     */
+    const kante=mischen(this.palette.barrel,SCHATTEN,.28);
+    for(const form of waffenformenVon(playerClass)){
+      if(form.art==='muendung')graphics.poly(form.punkte).fill(this.palette.barrel);
+      else graphics.poly(form.punkte).fill(this.palette.barrel).stroke({color:kante,width:3});
+    }
+    // Die Kanten der Mündungen zuletzt, damit sie über der Gehäusefüllung
+    // liegen, aber nie quer über die Teilung laufen.
+    for(const form of waffenformenVon(playerClass)){
+      if(form.art!=='muendung')continue;
+      const p=form.punkte;
+      graphics.moveTo(p[0]!,p[1]!).lineTo(p[2]!,p[3]!).lineTo(p[4]!,p[5]!).lineTo(p[6]!,p[7]!).stroke({color:kante,width:3});
     }
   }
+
 
   /**
    * Rumpf aus der geteilten Geometrie (shared/appearance) – dieselben Befehle

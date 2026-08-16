@@ -1,6 +1,6 @@
 import { CLASS_DEFINITIONS, GAME, type PlayerClass } from '@project-maze/shared';
 import { hullGeometry, type DrawOp } from '@project-maze/shared/appearance';
-import { laeufeVon, type Lauf } from '@project-maze/shared/barrels';
+import { waffenformenVon } from '@project-maze/shared/weapon-shape';
 
 /**
  * Bild des Tanks für Wahlkarten, Rad und Death-Screen.
@@ -24,19 +24,6 @@ import { laeufeVon, type Lauf } from '@project-maze/shared/barrels';
  */
 const RAND = 6;
 
-function barrelPolygon(lauf: Lauf): string {
-  // Wurzel und Mündung getrennt (Trapez) plus seitlicher Versatz – dieselben
-  // vier Ecken wie im Renderer, aus derselben Quelle (Sam, 16.08.).
-  const corners: [number, number][] = [
-    [lauf.start, lauf.versatz - lauf.breite / 2],
-    [lauf.muendung, lauf.versatz - lauf.muendungsbreite / 2],
-    [lauf.muendung, lauf.versatz + lauf.muendungsbreite / 2],
-    [lauf.start, lauf.versatz + lauf.breite / 2]
-  ];
-  return corners
-    .map(([x, y]) => `${(x * Math.cos(lauf.winkel) - y * Math.sin(lauf.winkel)).toFixed(1)},${(x * Math.sin(lauf.winkel) + y * Math.cos(lauf.winkel)).toFixed(1)}`)
-    .join(' ');
-}
 
 const points = (values: number[]): string => {
   const parts: string[] = [];
@@ -61,8 +48,11 @@ export function classSilhouetteMarkup(playerClass: PlayerClass): string {
    * Winkelfächers, den der Server wirklich feuert. Die Wahlkarte zeigte damit
    * einen anderen Tank, als man danach spielte (Sams Punkt 6).
    */
-  const barrels = laeufeVon(playerClass).map(
-    (lauf) => `<polygon points="${barrelPolygon(lauf)}" class="cp-barrel"/>`
+  // Dieselben Polygone wie im Spiel (`shared/weapon-shape.ts`): Gehäuse und
+  // kurze Mündungen statt einzelner Rohre. Läuft die Wahlkarte hier auseinander,
+  // ist das ein Fehler und kein Stilmittel.
+  const barrels = waffenformenVon(playerClass).map(
+    (form) => `<polygon points="${points(form.punkte)}" class="cp-barrel cp-${form.art}"/>`
   );
 
   const drones: string[] = [];
@@ -118,16 +108,8 @@ function rahmen(playerClass: PlayerClass): { x: number; y: number; groesse: numb
     punkt(-weite, -weite);
     punkt(weite, weite);
   }
-  for (const lauf of laeufeVon(playerClass)) {
-    const kanten: Array<readonly [number, number]> = [
-      [lauf.start, lauf.versatz - lauf.breite / 2],
-      [lauf.muendung, lauf.versatz - lauf.muendungsbreite / 2],
-      [lauf.muendung, lauf.versatz + lauf.muendungsbreite / 2],
-      [lauf.start, lauf.versatz + lauf.breite / 2]
-    ];
-    for (const [x, y] of kanten) {
-      punkt(x * Math.cos(lauf.winkel) - y * Math.sin(lauf.winkel), x * Math.sin(lauf.winkel) + y * Math.cos(lauf.winkel));
-    }
+  for (const form of waffenformenVon(playerClass)) {
+    for (let index = 0; index < form.punkte.length; index += 2) punkt(form.punkte[index]!, form.punkte[index + 1]!);
   }
   // Quadratisch, damit ein langer Tank nicht breiter gezeigt wird als ein
   // runder hoch – sonst wären die Rümpfe von Kachel zu Kachel verschieden groß.
