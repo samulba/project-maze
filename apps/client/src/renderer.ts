@@ -17,7 +17,6 @@ import {
 import { laeufeVon } from '@project-maze/shared/barrels';
 import type { ArenaEventSnapshot } from '@project-maze/shared/gameplay';
 import { GUARDIAN_COLOR, GUARDIAN_NAME, arenaEventStyle } from './arena-event-style';
-import { barrelHeightFor } from './barrel-geometry';
 import { ParticleField } from './particles';
 import { QUALITY_TIERS, type QualitySettings, type QualityTier } from './quality';
 import {
@@ -1271,9 +1270,17 @@ export class GameRenderer {
    */
   private drawClassBarrels(graphics:Graphics,playerClass:PlayerClass,color:number):void{
     const definition=CLASS_DEFINITIONS[playerClass];
-    const height=barrelHeightFor(definition,playerClass);
     for(const lauf of laeufeVon(playerClass)){
-      const corners:[number,number][]=[[lauf.start,-height/2],[lauf.muendung,-height/2],[lauf.muendung,height/2],[lauf.start,height/2]];
+      // Vier Ecken statt zweier Breiten: Wurzel und Mündung dürfen sich
+      // unterscheiden (Trapez = Machine Gun und Drohnen-Launcher), und der
+      // Versatz schiebt das ganze Rohr seitlich – erst damit gibt es einen
+      // Twin aus zwei PARALLELEN Rohren (Sam, 16.08.).
+      const corners:[number,number][]=[
+        [lauf.start,lauf.versatz-lauf.breite/2],
+        [lauf.muendung,lauf.versatz-lauf.muendungsbreite/2],
+        [lauf.muendung,lauf.versatz+lauf.muendungsbreite/2],
+        [lauf.start,lauf.versatz+lauf.breite/2]
+      ];
       const points:number[]=[];
       for(const[x,y]of corners){
         points.push(x*Math.cos(lauf.winkel)-y*Math.sin(lauf.winkel),x*Math.sin(lauf.winkel)+y*Math.cos(lauf.winkel));

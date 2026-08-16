@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLASS_DEFINITIONS } from '@project-maze/shared';
+import { CLASS_DEFINITIONS, PLAYER_CLASS_IDS } from '@project-maze/shared';
 import { tuneCombatScaling, tunedStatsFor } from './combat-tuning';
 import { MazeGame } from './game';
 import { messfeld } from './messfeld';
@@ -55,22 +55,54 @@ const salve = (game: MazeGame, spieler: any, now: number): number => {
 };
 
 describe('Pro-Lauf-Profile (Klassen 4.2, Schritt 2)', () => {
-  it('setzt Testannahmen: Storm trägt vier Läufe mit derselben Winkelaufteilung wie zuvor, Gesamt-damageScale = barrelCount', () => {
+  it('setzt Testannahmen: Storm ist ein Doppel-Twin, Gesamt-damageScale = barrelCount', () => {
     const storm = CLASS_DEFINITIONS.storm;
     expect(storm.barrels).toBeDefined();
     expect(storm.barrels).toHaveLength(4);
-    // Dieselben Winkel, die auch die alte Fächer-Formel (barrel/(N-1)-0.5)*spread
-    // für barrelCount 4 / barrelSpread 0.3 liefert – Client-Rohrgrafik rechnet
-    // weiter über barrelSpread und darf sich NICHT verschieben.
-    const erwarteteWinkel = [0, 1, 2, 3].map((barrel) => (barrel / 3 - 0.5) * storm.barrelSpread);
-    storm.barrels!.forEach((b, i) => expect(b.angle).toBeCloseTo(erwarteteWinkel[i], 9));
+    /*
+     * Bis zum 16.08. stand hier: „dieselben Winkel wie die alte Fächer-Formel,
+     * weil die Client-Rohrgrafik weiter über barrelSpread rechnet". Diese
+     * Begründung ist zweimal überholt – seit dem 14.08. zeichnet der Client aus
+     * `laeufe()`, und seit dem 16.08. ist Storm ein Doppel-Twin: zwei PAARE
+     * paralleler Rohre statt vier Strahlen aus einem Punkt (Sams Diep.io-Bild).
+     *
+     * Was bleibt, ist die Regel, die wirklich zählt: Die Summe der
+     * damageScale-Werte ergibt barrelCount, der Gesamtschaden je Sekunde
+     * ändert sich also nicht – nur seine Verteilung über die Läufe.
+     */
+    const winkel = storm.barrels!.map((b) => b.angle ?? 0);
+    expect(new Set(winkel.map((w) => w.toFixed(4))).size).toBe(2);
+    const versaetze = storm.barrels!.map((b) => b.versatz ?? 0);
+    expect(versaetze.filter((v) => v < 0)).toHaveLength(2);
+    expect(versaetze.filter((v) => v > 0)).toHaveLength(2);
+
     const summe = storm.barrels!.reduce((sum, b) => sum + (b.damageScale ?? 1), 0);
     expect(summe).toBeCloseTo(storm.barrelCount, 6);
+  });
 
-    // Klassen ohne das Feld feuern unverändert mit stats.damage/-speed für jeden Lauf.
-    for (const id of ['twin', 'gatling', 'arbalest'] as const) {
-      expect(CLASS_DEFINITIONS[id].barrels).toBeUndefined();
+  it('lässt kein Lauf-Profil den Gesamtschaden einer Klasse verschieben', () => {
+    // Die Regel gilt für JEDE Klasse mit Profilen, nicht nur für Storm: Ein
+    // Profil verteilt Schaden über die Läufe, es erfindet keinen.
+    for (const id of PLAYER_CLASS_IDS) {
+      const tank = CLASS_DEFINITIONS[id];
+      if (!tank.barrels) continue;
+      const summe = tank.barrels.reduce((sum, b) => sum + (b.damageScale ?? 1), 0);
+      expect(summe, id).toBeCloseTo(tank.barrelCount, 6);
     }
+  });
+
+  it('gibt einem Twin zwei PARALLELE Rohre – nicht zwei Strahlen aus einem Punkt', () => {
+    /*
+     * Sam, 16.08., mit dem Diep.io-Klassenbaum: „vor allem wenn's mehrere Rohre
+     * sind, dann haben die das viel cleaner hinbekommen." Die Ursache war eine
+     * fehlende Zahl – `versatz`. Ohne sie ist ein Twin nicht darstellbar.
+     */
+    const twin = CLASS_DEFINITIONS.twin;
+    expect(twin.barrels).toHaveLength(2);
+    const [links, rechts] = twin.barrels!;
+    expect(links!.angle ?? 0).toBeCloseTo(rechts!.angle ?? 0, 9);
+    expect(links!.versatz).toBeLessThan(0);
+    expect(rechts!.versatz).toBeGreaterThan(0);
   });
 
   it('lässt die beiden mittleren Läufe härter und langsamer, die äußeren schwächer und schneller fliegen', () => {

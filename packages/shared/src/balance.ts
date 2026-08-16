@@ -30,11 +30,21 @@ const normalizeAngle = (angle: number): number => {
   return result;
 };
 
-/** Läufe, die grob nach vorn zeigen (±60°); ohne barrelAngles zählen alle Läufe. */
+/**
+ * Läufe, die grob nach vorn zeigen (±60°); ohne gesetzte Winkel zählen alle.
+ *
+ * **Liest seit dem 16.08. auch `barrels`.** Vorher sah diese Rechnung nur
+ * `barrelAngles` – und als die Lauf-Profile (`barrels`) die festen Winkel
+ * ablösten, hielt sie Octos acht Rundum-Läufe für acht Frontläufe und meldete
+ * 173 statt 92 DPS. Die drei Balance-Tests haben genau das gefangen; ohne sie
+ * wäre eine Klasse still um 88 % über ihr Rollenkorridor gerutscht.
+ */
 export function forwardBarrelCount(playerClass: PlayerClass): number {
   const tank = CLASS_DEFINITIONS[playerClass];
+  const nachVorn = (winkel: number): boolean => Math.abs(normalizeAngle(winkel)) <= Math.PI / 3;
+  if (tank.barrels) return tank.barrels.filter((profil) => nachVorn(profil.angle ?? 0)).length;
   if (!tank.barrelAngles) return tank.barrelCount;
-  return tank.barrelAngles.filter((angle) => Math.abs(normalizeAngle(angle)) <= Math.PI / 3).length;
+  return tank.barrelAngles.filter(nachVorn).length;
 }
 
 export function classBalanceMetrics(playerClass: PlayerClass): ClassBalanceMetrics {

@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
 import {
+  type BarrelProfile,
+  type ClassDefinition,
   CLASS_DEFINITIONS,
   EMPTY_UPGRADES,
   GAME,
@@ -22,7 +24,7 @@ import {
   type Vector2,
   type WorldSnapshot
 } from '@project-maze/shared';
-import { laufwinkel, projektilStart } from '@project-maze/shared/barrels';
+import { laufversatz, laufwinkel, projektilStart } from '@project-maze/shared/barrels';
 import {
   SpatialHash,
   clampMagnitude,
@@ -46,6 +48,14 @@ import {
 } from './world.js';
 
 interface RuntimeStats {
+  /**
+   * Herkunft der Werte. Sie steht hier, seit der seitliche Lauf-Versatz in
+   * ROHRBREITEN gerechnet wird (16.08.): Die Breite hängt an Familie und Id,
+   * und eine zweite Rechnung dafür wäre genau die Doppelquelle, gegen die
+   * `shared/barrels.ts` angetreten ist.
+   */
+  id: string;
+  branch: ClassDefinition['branch'];
   maxHealth: number;
   regen: number;
   acceleration: number;
@@ -61,7 +71,7 @@ interface RuntimeStats {
   barrelSpread: number;
   barrelLength: number;
   barrelAngles?: number[] | undefined;
-  barrels?: Array<{ angle: number; damageScale?: number; speedScale?: number }> | undefined;
+  barrels?: BarrelProfile[] | undefined;
   burstDelay?: number | undefined;
   trapAfter?: number | undefined;
   droneCount: number;
@@ -215,6 +225,8 @@ export function botState(index: number): BotState {
 function statsFor(player: GamePlayer): RuntimeStats {
   const base = CLASS_DEFINITIONS[player.playerClass];
   return {
+    id: base.id,
+    branch: base.branch,
     maxHealth: Math.round(base.maxHealth * (1 + player.upgrades.maxHealth * 0.12)),
     regen: base.regen + player.upgrades.regen * 0.62,
     acceleration: base.acceleration * (1 + player.upgrades.moveSpeed * 0.025),
@@ -504,7 +516,18 @@ export class MazeGame {
     // Aus dem Rohr, nicht davor (Sams Punkt 6 vom 14.08.) – die Zahl steht in
     // `shared/barrels.ts`, damit sie zur gezeichneten Mündung passt.
     const abstand = projektilStart(stats, stats.projectileRadius, barrel);
-    const position = { x: player.position.x + direction.x * abstand, y: player.position.y + direction.y * abstand };
+    /*
+     * Der SEITLICHE Versatz des Laufs (Sam, 16.08., mit dem Diep.io-Baum als
+     * Beleg). Bis dahin entstand jede Kugel auf der Mittellinie – ein Twin sah
+     * nach zwei Rohren aus und feuerte zwei Kugeln übereinander aus der Mitte.
+     * Jetzt kommt jede Kugel aus IHREM Rohr, und zwei parallele Rohre liefern
+     * zwei parallele Ströme, wie in Diep.io.
+     */
+    const seite = laufversatz(stats, barrel);
+    const position = {
+      x: player.position.x + direction.x * abstand - direction.y * seite,
+      y: player.position.y + direction.y * abstand + direction.x * seite
+    };
     const id = crypto.randomUUID();
     this.projectiles.set(id, { id, ownerId: player.id, position, velocity: { x: direction.x * speed, y: direction.y * speed }, radius: stats.projectileRadius, integrity: stats.penetration, maxIntegrity: stats.penetration, damage: this.barrelDamage(stats, barrel), life: stats.projectileLife, plantAtLife: this.plantAtLifeFor(stats) });
   }

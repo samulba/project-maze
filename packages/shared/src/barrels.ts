@@ -1,4 +1,4 @@
-import { CLASS_DEFINITIONS, GAME, type ClassDefinition, type PlayerClass } from './index.js';
+import { CLASS_DEFINITIONS, GAME, type BarrelProfile, type ClassDefinition, type PlayerClass } from './index.js';
 
 /**
  * Lauf-Geometrie – **eine Quelle für Server und Client** (Sams Spieltest vom
@@ -39,19 +39,43 @@ import { CLASS_DEFINITIONS, GAME, type ClassDefinition, type PlayerClass } from 
 export interface Lauf {
   /** Winkel relativ zur Zielrichtung, in Radiant. */
   winkel: number;
+  /**
+   * Seitlicher Versatz in Pixeln, senkrecht zur Richtung – **die Zahl, die bis
+   * zum 16.08. fehlte.** Ohne sie strahlen mehrere Rohre zwangsläufig aus einem
+   * Punkt, und ein Twin (zwei parallele Rohre nebeneinander) ist weder
+   * zeichenbar noch schießbar.
+   */
+  versatz: number;
   /** Abstand vom Panzermittelpunkt, an dem der Lauf beginnt. */
   start: number;
   /** Abstand vom Panzermittelpunkt, an dem er endet – hier tritt die Kugel aus. */
   muendung: number;
+  /** Breite an der Wurzel, in Pixeln. */
+  breite: number;
+  /**
+   * Breite an der Mündung, in Pixeln. Größer als `breite` heißt Trapez – in
+   * Diep.io die Machine Gun und jeder Drohnen-Launcher.
+   */
+  muendungsbreite: number;
   /** Schadensfaktor dieses Laufs (Pro-Lauf-Profile), Standard 1. */
   schadensfaktor: number;
   /** Tempofaktor dieses Laufs, Standard 1. */
   tempofaktor: number;
+  /** Feuert dieses Rohr (`waffe`) oder speit es Drohnen aus (`starter`)? */
+  art: 'waffe' | 'starter';
 }
 
 /** Was für die MÜNDUNG nötig ist – Winkel plus Rohrlänge, weiterhin ohne `branch`. */
 type Muendungsdefinition = Pick<ClassDefinition, 'barrelLength'> & Winkeldefinition;
-type Laufdefinition = Pick<ClassDefinition, 'branch'> & Muendungsdefinition;
+type Laufdefinition = Breitendefinition & Muendungsdefinition;
+/** Mit Launchern – alles, was gezeichnet wird. */
+type Zeichendefinition = Laufdefinition & { launchers?: BarrelProfile[] | undefined };
+/**
+ * Länge eines Launchers, wenn die Klasse gar keine Rohrlänge trägt. Die
+ * Drohnenklassen stehen auf `barrelLength: 0`, weil sie nicht feuern – ihre
+ * Launcher brauchen trotzdem ein Maß.
+ */
+export const STARTER_LAENGE = 24;
 
 /**
  * Wo ein Lauf am Rumpf ansetzt. Impact-Klassen sitzen tiefer im Körper – das
@@ -60,6 +84,40 @@ type Laufdefinition = Pick<ClassDefinition, 'branch'> & Muendungsdefinition;
  */
 export const laufStart = (definition: Pick<ClassDefinition, 'branch'>): number =>
   (definition.branch === 'impact' ? 1 : 4);
+
+/**
+ * Die GRUNDBREITE eines Rohres – aus `barrel-geometry.ts` des Clients hierher
+ * gezogen (16.08.).
+ *
+ * Sie muss hier stehen, seit ein Lauf-Profil sie skalieren darf (`breite`,
+ * `muendungsbreite`) und der Versatz in Rohrbreiten gerechnet wird: Eine
+ * Breite, die nur der Client kennt, kann kein Profil verschieben.
+ *
+ * Die Regel selbst ist unverändert und stammt aus Sams Runden C2 und C3:
+ *
+ * > C2: „Bei den Tanks könnte man die Schussröhre etwas dicker machen, von Tank
+ * > zu Tank unterschiedlich – außer Sniper."
+ * > C3: „Bei Sniper ist ein mini dünnes Rohr, aber lang, dafür eine richtig
+ * > fette Kugel – die passt da ja gar nicht durch."
+ *
+ * Also: Grundstufe je Familie, plus ein Zuschlag nach Rohrlänge, mindestens so
+ * breit, dass die eigene Kugel hindurchpasst – und Sniper bleibt das dünnste
+ * Rohr im Spiel.
+ */
+const FAMILIENSTUFE = (branch: ClassDefinition['branch']): number =>
+  (branch === 'precision' ? 12 : branch === 'impact' ? 16 : 14);
+/** Realistische Obergrenze, damit ein Ausreißer nicht komisch aussieht. */
+const MAX_BREITE = 28;
+type Breitendefinition = Pick<ClassDefinition, 'branch' | 'barrelLength' | 'projectileRadius'> & { id?: string };
+
+export function grundbreite(definition: Breitendefinition): number {
+  const kugel = definition.projectileRadius * 1.7;
+  // Sniper bleibt das dünnste, längste Rohr im Spiel (Sam: „außer Sniper") –
+  // aber breit genug für die eigene Kugel, nicht die allgemeine Regel.
+  if (definition.id === 'sniper') return Math.max(14, kugel);
+  const nachLaenge = FAMILIENSTUFE(definition.branch) + 2 + Math.min(6, Math.max(0, (definition.barrelLength - 20) / 50) * 6);
+  return Math.min(MAX_BREITE, Math.max(nachLaenge, kugel));
+}
 
 /**
  * **Wie viel kürzer ein Lauf am Rand des Fächers ist.**
@@ -77,6 +135,9 @@ export const laufStart = (definition: Pick<ClassDefinition, 'branch'>): number =
 export const FAECHER_STAFFELUNG = 0.3;
 
 export function laengenfaktor(definition: Winkeldefinition, lauf: number): number {
+  // Ein Profil sagt seine Länge selbst – dann staffelt hier nichts mehr.
+  const profil = definition.barrels?.[lauf];
+  if (profil) return profil.laenge ?? 1;
   if (definition.barrels || definition.barrelAngles || definition.barrelCount <= 1) return 1;
   // −1 außen links, 0 in der Mitte, +1 außen rechts.
   const lage = (lauf / (definition.barrelCount - 1)) * 2 - 1;
@@ -130,7 +191,7 @@ interface Winkeldefinition {
   barrelCount: number;
   barrelSpread: number;
   barrelAngles?: number[] | undefined;
-  barrels?: Array<{ angle: number; damageScale?: number | undefined; speedScale?: number | undefined }> | undefined;
+  barrels?: BarrelProfile[] | undefined;
 }
 
 /**
@@ -151,20 +212,64 @@ export function laufwinkel(definition: Winkeldefinition, lauf: number): number {
 }
 
 /**
+ * Der seitliche Versatz eines Laufs in Pixeln – die Zahl, die den Twin erst
+ * zum Twin macht. Server und Zeichnung lesen dieselbe.
+ */
+export function laufversatz(definition: Breitendefinition & Winkeldefinition, lauf: number): number {
+  return (definition.barrels?.[lauf]?.versatz ?? 0) * grundbreite(definition);
+}
+
+/**
  * Die Läufe einer Klasse – Winkel, Länge und Pro-Lauf-Faktoren, fertig zum
  * Zeichnen.
  */
 export function laeufe(definition: Laufdefinition): Lauf[] {
   if (definition.barrelCount <= 0) return [];
   const start = laufStart(definition);
-  return Array.from({ length: definition.barrelCount }, (_, index) => ({
-    winkel: laufwinkel(definition, index),
-    start,
-    muendung: muendungsabstand(definition, index),
-    schadensfaktor: definition.barrels?.[index]?.damageScale ?? 1,
-    tempofaktor: definition.barrels?.[index]?.speedScale ?? 1
+  const grund = grundbreite(definition);
+  return Array.from({ length: definition.barrelCount }, (_, index) => {
+    const profil = definition.barrels?.[index];
+    const breite = grund * (profil?.breite ?? 1);
+    return {
+      winkel: laufwinkel(definition, index),
+      // Der Versatz steht im Profil in ROHRBREITEN und wird hier zu Pixeln:
+      // So bleiben zwei Rohre auch dann bündig, wenn die Klasse dicker wird.
+      versatz: (profil?.versatz ?? 0) * grund,
+      start,
+      muendung: muendungsabstand(definition, index),
+      breite,
+      muendungsbreite: grund * (profil?.muendungsbreite ?? profil?.breite ?? 1),
+      schadensfaktor: profil?.damageScale ?? 1,
+      tempofaktor: profil?.speedScale ?? 1,
+      art: 'waffe' as const
+    };
+  });
+}
+
+/**
+ * Die Launcher einer Klasse – gezeichnet, nie gefeuert (siehe `launchers` in
+ * `ClassDefinition`).
+ */
+export function starter(definition: Zeichendefinition): Lauf[] {
+  const profile = definition.launchers;
+  if (!profile || profile.length === 0) return [];
+  const grund = grundbreite(definition);
+  const laenge = definition.barrelLength > 0 ? definition.barrelLength : STARTER_LAENGE;
+  return profile.map((profil) => ({
+    winkel: profil.angle ?? 0,
+    versatz: (profil.versatz ?? 0) * grund,
+    start: laufStart(definition),
+    muendung: GAME.playerRadius + laenge * (profil.laenge ?? 1),
+    breite: grund * (profil.breite ?? 1),
+    muendungsbreite: grund * (profil.muendungsbreite ?? profil.breite ?? 1),
+    schadensfaktor: 1,
+    tempofaktor: 1,
+    art: 'starter' as const
   }));
 }
 
+/** Alles, was am Panzer gezeichnet wird: Waffenrohre UND Launcher. */
+export const gezeichneteLaeufe = (definition: Zeichendefinition): Lauf[] => [...starter(definition), ...laeufe(definition)];
+
 /** Bequemer Zugriff über die Klassen-Id – für Renderer und Vorschau. */
-export const laeufeVon = (playerClass: PlayerClass): Lauf[] => laeufe(CLASS_DEFINITIONS[playerClass]);
+export const laeufeVon = (playerClass: PlayerClass): Lauf[] => gezeichneteLaeufe(CLASS_DEFINITIONS[playerClass]);

@@ -221,6 +221,58 @@ export interface UpgradeLevels {
   moduleCooldown: number;
 }
 
+/**
+ * Das Profil EINES Laufs – die Sprache, in der ein Panzer aussieht und schießt.
+ *
+ * Sam, 16.08. (mit dem Diep.io-Klassenbaum als Beleg): „vor allem wenn's
+ * mehrere Rohre sind, dann haben die das viel cleaner hingekommen."
+ *
+ * Er hat recht, und die Ursache war **eine fehlende Zahl**: `versatz`. Bis
+ * dahin kannte ein Lauf nur einen Winkel, also strahlten mehrere Rohre
+ * zwangsläufig aus EINEM Punkt. Ein Diep.io-Twin sind aber zwei **parallele**
+ * Rohre nebeneinander – nicht darstellbar, nicht schießbar. Von 67 Klassen
+ * hatten 46 genau ein Rohr und 18 einen Fächer; drei hatten echte Profile.
+ * Die ganze Abwechslung steckte im Rumpf, wo Diep.io schlicht einen Kreis
+ * zeichnet.
+ *
+ * Vier Zahlen reichen für das ganze Vokabular:
+ *
+ * | Feld | Was es macht | Diep.io-Vorbild |
+ * | --- | --- | --- |
+ * | `angle` | Richtung | Triple Shot, Octo |
+ * | `versatz` | seitlich, senkrecht zur Richtung | **Twin, Triple Twin, Hexa** |
+ * | `laenge` | Faktor auf `barrelLength` | Penta (mittig lang, außen kurz) |
+ * | `breite` / `muendungsbreite` | Rohrbreite an Wurzel und Mündung | Destroyer (fett), Sniper (dünn), **Machine Gun und Launcher (Trapez)** |
+ *
+ * Alle Angaben sind Faktoren auf die Grundwerte der Klasse, nicht Pixel:
+ * Ändert jemand `barrelLength`, wandert das ganze Profil mit.
+ */
+export interface BarrelProfile {
+  /** Richtung relativ zur Zielrichtung, in Radiant. Standard 0 (geradeaus). */
+  angle?: number;
+  /**
+   * Seitlicher Versatz in **Rohrbreiten**, senkrecht zur Richtung. Zwei Rohre
+   * mit `versatz: -0.55` und `+0.55` stehen genau nebeneinander, ohne Lücke und
+   * ohne Überlappung – das ist der Twin.
+   */
+  versatz?: number;
+  /** Faktor auf `barrelLength`. Standard 1. */
+  laenge?: number;
+  /** Faktor auf die Grundbreite der Klasse. Standard 1. */
+  breite?: number;
+  /**
+   * Breite an der MÜNDUNG, als Faktor auf die Grundbreite. Ohne Angabe gleich
+   * `breite` (Rechteck). Größer heißt Trapez, das sich nach vorn öffnet – in
+   * Diep.io die Machine Gun und jeder Drohnen-Launcher. Kleiner heißt ein
+   * Rohr, das sich verjüngt.
+   */
+  muendungsbreite?: number;
+  /** Schadensfaktor dieses Laufs. Standard 1. */
+  damageScale?: number;
+  /** Tempofaktor dieses Laufs. Standard 1. */
+  speedScale?: number;
+}
+
 export interface ClassDefinition {
   id: PlayerClass;
   label: string;
@@ -262,7 +314,20 @@ export interface ClassDefinition {
    * Zahl, mit der `damage` in jeder Balance-Rechnung auftaucht – unverändert
    * bleibt und nur die Verteilung ÜBER die Läufe wechselt.
    */
-  barrels?: Array<{ angle: number; damageScale?: number; speedScale?: number }>;
+  barrels?: BarrelProfile[];
+  /**
+   * Launcher: Rohre, die **gezeichnet** werden, aber nicht feuern.
+   *
+   * Sam, 16.08.: Die Drohnenklassen sahen aus wie nackte Kreise – und das
+   * stimmte wörtlich. Alle zehn tragen `barrelCount: 0`, zeichneten also gar
+   * kein Rohr, während in Diep.io ausgerechnet sie die auffälligsten Teile
+   * haben: die trapezförmigen Launcher, aus denen die Drohnen kommen.
+   *
+   * Ein eigenes Feld und nicht `barrels`, weil `barrelCount` die Feuerschleife
+   * des Servers steuert: Ein Launcher in `barrels` würde die Drohnenklassen
+   * sofort zu Kanonen machen. Getrennt gezeichnet, getrennt geschossen.
+   */
+  launchers?: BarrelProfile[];
   /**
    * Salve statt Fächer (Klassen 4.2, Stufe 4 – Sam: „Der eine schießt drei
    * nach vorne, der andere zwei.") – dieselben `barrelCount` Schüsse, aber
@@ -300,84 +365,125 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     unlockLevel: 5, branch: 'rapid', maxHealth: 100, regen: 2, acceleration: 1650, moveSpeed: 290,
     reload: 0.19, projectileSpeed: 840, projectileLife: 1.45, damage: 10.5, projectileRadius: 6,
     penetration: 15, bodyDamage: 10, barrelCount: 1, barrelSpread: 0, barrelLength: 34,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { muendungsbreite: 1.3 }
+    ]
   }),
   sniper: classDef({
     id: 'sniper', label: 'Sniper', description: 'Hoher Burst und Reichweite, aber wenig Fehlertoleranz.', parent: 'core',
     unlockLevel: 5, branch: 'precision', maxHealth: 94, regen: 1.8, acceleration: 1400, moveSpeed: 250,
     reload: 0.68, projectileSpeed: 1200, projectileLife: 2, damage: 38, projectileRadius: 8,
     penetration: 46, bodyDamage: 9, barrelCount: 1, barrelSpread: 0, barrelLength: 52,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 0.72 }
+    ]
   }),
   drone: classDef({
     id: 'drone', label: 'Controller', description: 'Vier Drohnen für Farming und Raumkontrolle.', parent: 'core',
     unlockLevel: 5, branch: 'control', maxHealth: 112, regen: 2.4, acceleration: 1400, moveSpeed: 258,
     reload: 0.72, projectileSpeed: 0, projectileLife: 0, damage: 8.5, projectileRadius: 0,
-    penetration: 0, bodyDamage: 11, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
-    droneCount: 4, droneRespawn: 1.45
+    penetration: 0, bodyDamage: 11, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
+    droneCount: 4, droneRespawn: 1.45,
+    launchers: [
+      { angle: -90 * Math.PI / 180, laenge: 0.9, breite: 0.85, muendungsbreite: 1.35 },
+      { angle: 90 * Math.PI / 180, laenge: 0.9, breite: 0.85, muendungsbreite: 1.35 }
+    ]
   }),
   rammer: classDef({
     id: 'rammer', label: 'Impact', description: 'Mobiler Nahkämpfer mit hohem Körperschaden.', parent: 'core',
     unlockLevel: 5, branch: 'impact', maxHealth: 140, regen: 2.8, acceleration: 1750, moveSpeed: 300,
     reload: 0.45, projectileSpeed: 700, projectileLife: 1.25, damage: 9, projectileRadius: 7,
     penetration: 12, bodyDamage: 29, barrelCount: 1, barrelSpread: 0, barrelLength: 27,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.15 }
+    ]
   }),
   twin: classDef({
     id: 'twin', label: 'Twin', description: 'Zwei Läufe erzeugen konstanten, kontrollierbaren Druck.', parent: 'rapid',
     unlockLevel: 15, branch: 'rapid', maxHealth: 104, regen: 2.1, acceleration: 1600, moveSpeed: 282,
     reload: 0.25, projectileSpeed: 850, projectileLife: 1.45, damage: 9.5, projectileRadius: 6,
     penetration: 15, bodyDamage: 10, barrelCount: 2, barrelSpread: 0.15, barrelLength: 35,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { versatz: -0.58, breite: 0.82 },
+      { versatz: 0.58, breite: 0.82 }
+    ]
   }),
   repeater: classDef({
     id: 'repeater', label: 'Repeater', description: 'Drei Läufe feuern im schnellen Stakkato statt auf einmal – ein Nachlade-Hebel spürbar in jedem Schuss.', parent: 'rapid',
     unlockLevel: 15, branch: 'rapid', maxHealth: 102, regen: 2, acceleration: 1640, moveSpeed: 286,
     reload: 0.34, projectileSpeed: 835, projectileLife: 1.45, damage: 8, projectileRadius: 6,
     penetration: 14, bodyDamage: 10, barrelCount: 3, barrelSpread: 0.22, barrelLength: 32, burstDelay: 0.07,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      {},
+      { angle: -34 * Math.PI / 180, laenge: 0.86 },
+      { angle: 34 * Math.PI / 180, laenge: 0.86 }
+    ]
   }),
   railgun: classDef({
     id: 'railgun', label: 'Railgun', description: 'Schwerer Präzisionsschuss mit hoher Durchschlagskraft.', parent: 'sniper',
     unlockLevel: 15, branch: 'precision', maxHealth: 92, regen: 1.6, acceleration: 1250, moveSpeed: 235,
     reload: 1, projectileSpeed: 1420, projectileLife: 2.35, damage: 60, projectileRadius: 9,
     penetration: 78, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 62,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 0.62 }
+    ]
   }),
   hunter: classDef({
     id: 'hunter', label: 'Hunter', description: 'Mobiler Präzisionstank mit schnellerer Schussfolge.', parent: 'sniper',
     unlockLevel: 15, branch: 'precision', maxHealth: 98, regen: 1.8, acceleration: 1450, moveSpeed: 270,
     reload: 0.5, projectileSpeed: 1100, projectileLife: 1.8, damage: 32, projectileRadius: 7,
     penetration: 36, bodyDamage: 9, barrelCount: 1, barrelSpread: 0, barrelLength: 47,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 0.7 }
+    ]
   }),
   warden: classDef({
     id: 'warden', label: 'Warden', description: 'Sechs Drohnen für defensive Kontrolle und Gegenangriffe.', parent: 'drone',
     unlockLevel: 15, branch: 'control', maxHealth: 122, regen: 2.7, acceleration: 1360, moveSpeed: 252,
     reload: 0.62, projectileSpeed: 0, projectileLife: 0, damage: 10.5, projectileRadius: 0,
-    penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
-    droneCount: 6, droneRespawn: 1.12
+    penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
+    droneCount: 6, droneRespawn: 1.12,
+    launchers: [
+      { angle: -90 * Math.PI / 180, laenge: 1.0, breite: 0.95, muendungsbreite: 1.5 },
+      { angle: 90 * Math.PI / 180, laenge: 1.0, breite: 0.95, muendungsbreite: 1.5 }
+    ]
   }),
   factory: classDef({
     id: 'factory', label: 'Factory', description: 'Weniger, stärkere Drohnen mit langsamerer Wiederherstellung.', parent: 'drone',
     unlockLevel: 15, branch: 'control', maxHealth: 130, regen: 2.9, acceleration: 1280, moveSpeed: 242,
     reload: 0.8, projectileSpeed: 0, projectileLife: 0, damage: 13, projectileRadius: 0,
-    penetration: 0, bodyDamage: 13, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
-    droneCount: 5, droneRespawn: 1.4
+    penetration: 0, bodyDamage: 13, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
+    droneCount: 5, droneRespawn: 1.4,
+    launchers: [
+      { laenge: 1.05, breite: 1.15, muendungsbreite: 1.75 }
+    ]
   }),
   crusher: classDef({
     id: 'crusher', label: 'Crusher', description: 'Schwerer Rammer mit hoher Haltbarkeit.', parent: 'rammer',
     unlockLevel: 15, branch: 'impact', maxHealth: 170, regen: 3.3, acceleration: 1550, moveSpeed: 285,
     reload: 0.5, projectileSpeed: 660, projectileLife: 1.15, damage: 8.5, projectileRadius: 8,
     penetration: 13, bodyDamage: 42, barrelCount: 1, barrelSpread: 0, barrelLength: 24,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.3 }
+    ]
   }),
   bulwark: classDef({
     id: 'bulwark', label: 'Bulwark', description: 'Defensiver Hybrid mit hoher Haltbarkeit und schweren Projektilen.', parent: 'rammer',
     unlockLevel: 15, branch: 'impact', maxHealth: 185, regen: 3.6, acceleration: 1320, moveSpeed: 255,
     reload: 0.65, projectileSpeed: 640, projectileLife: 1.4, damage: 13, projectileRadius: 10,
     penetration: 22, bodyDamage: 34, barrelCount: 1, barrelSpread: 0, barrelLength: 22,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.35 }
+    ]
   }),
   storm: classDef({
     id: 'storm', label: 'Storm', description: 'Vier Läufe fächern auf – die Mitte trifft härter, außen schwirrt es schneller und leichter heraus.', parent: 'twin',
@@ -395,10 +501,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
      * diesem Profil, nur anders über die Läufe verteilt.
      */
     barrels: [
-      { angle: -0.15, damageScale: 0.65, speedScale: 1.15 },
-      { angle: -0.05, damageScale: 1.35, speedScale: 0.92 },
-      { angle: 0.05, damageScale: 1.35, speedScale: 0.92 },
-      { angle: 0.15, damageScale: 0.65, speedScale: 1.15 }
+      { angle: -0.15, versatz: -0.5, breite: 0.8, damageScale: 0.65, speedScale: 1.15 },
+      { angle: -0.15, versatz: 0.5, breite: 0.8, damageScale: 1.35, speedScale: 0.92 },
+      { angle: 0.15, versatz: -0.5, breite: 0.8, damageScale: 1.35, speedScale: 0.92 },
+      { angle: 0.15, versatz: 0.5, breite: 0.8, damageScale: 0.65, speedScale: 1.15 }
     ],
     droneCount: 0, droneRespawn: 0
   }),
@@ -407,21 +513,43 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     unlockLevel: 28, branch: 'rapid', maxHealth: 106, regen: 2.1, acceleration: 1520, moveSpeed: 278,
     reload: 0.28, projectileSpeed: 875, projectileLife: 1.3, damage: 4.3, projectileRadius: 5.5,
     penetration: 10, bodyDamage: 10, barrelCount: 6, barrelSpread: 0.42, barrelLength: 31,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    /*
+     * Sechs Läufe im Fächer, nach außen kürzer und schmaler – und der Fächer
+     * ZIEHT SICH ZUSAMMEN, solange gefeuert wird (`class-mechanics.ts`,
+     * Hitze). Genau deshalb ist Gatling kein Teleskop-Stapel geworden: Der
+     * erste Anlauf am 16.08. stellte alle sechs Rohre auf Winkel 0 und machte
+     * damit die Klassenmechanik still zu einer Attrappe. Der Test
+     * „tightens Gatling spread" hat es gefangen.
+     */
+    barrels: [
+      { angle: -0.18, laenge: 0.78, breite: 0.78 },
+      { angle: -0.108, laenge: 0.88, breite: 0.86 },
+      { angle: -0.036, laenge: 1.0, breite: 0.94 },
+      { angle: 0.036, laenge: 1.0, breite: 0.94 },
+      { angle: 0.108, laenge: 0.88, breite: 0.86 },
+      { angle: 0.18, laenge: 0.78, breite: 0.78 }
+    ]
   }),
   lancer: classDef({
     id: 'lancer', label: 'Lancer', description: 'Extremer Einzelschuss mit langer Vorbereitung.', parent: 'railgun',
     unlockLevel: 28, branch: 'precision', maxHealth: 86, regen: 1.45, acceleration: 1150, moveSpeed: 222,
     reload: 1.3, projectileSpeed: 1640, projectileLife: 2.65, damage: 82, projectileRadius: 10,
     penetration: 112, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 70,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 0.68 }
+    ]
   }),
   phantom: classDef({
     id: 'phantom', label: 'Phantom', description: 'Schneller Final-Sniper für Bewegung, Winkel und präzise Picks.', parent: 'hunter',
     unlockLevel: 28, branch: 'precision', maxHealth: 90, regen: 1.55, acceleration: 1380, moveSpeed: 260,
     reload: 0.62, projectileSpeed: 1500, projectileLife: 2.25, damage: 50, projectileRadius: 8,
     penetration: 72, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 58,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 0.66 }
+    ]
   }),
   overseer: classDef({
     id: 'overseer', label: 'Overseer', description: 'Acht leichtere Drohnen für anspruchsvolle Schwarmkontrolle.', parent: 'warden',
@@ -429,86 +557,138 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     // 99,7 % des Familien-Deckels und damit ueber dem eigenen Apex.
     unlockLevel: 28, branch: 'control', maxHealth: 128, regen: 3, acceleration: 1320, moveSpeed: 246,
     reload: 0.58, projectileSpeed: 0, projectileLife: 0, damage: 11.5, projectileRadius: 0,
-    penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
-    droneCount: 8, droneRespawn: 0.88
+    penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
+    droneCount: 8, droneRespawn: 0.88,
+    launchers: [
+      { angle: -90 * Math.PI / 180, laenge: 1.1, breite: 1.05, muendungsbreite: 1.65 },
+      { angle: 90 * Math.PI / 180, laenge: 1.1, breite: 1.05, muendungsbreite: 1.65 }
+    ]
   }),
   carrier: classDef({
     id: 'carrier', label: 'Carrier', description: 'Sechs schwere Drohnen für langsamen, massiven Flächendruck.', parent: 'factory',
     unlockLevel: 28, branch: 'control', maxHealth: 150, regen: 3.4, acceleration: 1180, moveSpeed: 230,
     reload: 0.85, projectileSpeed: 0, projectileLife: 0, damage: 16, projectileRadius: 0,
-    penetration: 0, bodyDamage: 15, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
-    droneCount: 6, droneRespawn: 1.5
+    penetration: 0, bodyDamage: 15, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
+    droneCount: 6, droneRespawn: 1.5,
+    launchers: [
+      { angle: -90 * Math.PI / 180, laenge: 1.0, breite: 0.95, muendungsbreite: 1.45 },
+      { angle: 90 * Math.PI / 180, laenge: 1.0, breite: 0.95, muendungsbreite: 1.45 },
+      { laenge: 0.9, breite: 0.9, muendungsbreite: 1.35 }
+    ]
   }),
   juggernaut: classDef({
     id: 'juggernaut', label: 'Juggernaut', description: 'Extrem widerstandsfähiger Nahkämpfer mit kurzer Reichweite.', parent: 'crusher',
     unlockLevel: 28, branch: 'impact', maxHealth: 215, regen: 4, acceleration: 1350, moveSpeed: 255,
     reload: 0.62, projectileSpeed: 620, projectileLife: 1, damage: 8, projectileRadius: 9,
     penetration: 13, bodyDamage: 60, barrelCount: 1, barrelSpread: 0, barrelLength: 21,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.5 }
+    ]
   }),
   fortress: classDef({
     id: 'fortress', label: 'Fortress', description: 'Langsamer Defensivanker mit maximaler Haltbarkeit und schweren Schüssen.', parent: 'bulwark',
     unlockLevel: 28, branch: 'impact', maxHealth: 250, regen: 4.8, acceleration: 1050, moveSpeed: 225,
     reload: 0.75, projectileSpeed: 600, projectileLife: 1.5, damage: 16, projectileRadius: 11,
     penetration: 28, bodyDamage: 45, barrelCount: 1, barrelSpread: 0, barrelLength: 20,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.55 }
+    ]
   }),
   flanker: classDef({
     id: 'flanker', label: 'Flanker', description: 'Ein Lauf nach vorn, einer nach hinten – Druck und Rückendeckung zugleich.', parent: 'rapid',
     unlockLevel: 15, branch: 'rapid', maxHealth: 103, regen: 2.05, acceleration: 1620, moveSpeed: 288,
     reload: 0.24, projectileSpeed: 845, projectileLife: 1.45, damage: 11, projectileRadius: 6,
-    penetration: 15, bodyDamage: 10, barrelCount: 2, barrelSpread: 0, barrelLength: 34,
-    barrelAngles: [0, Math.PI], droneCount: 0, droneRespawn: 0
+    penetration: 15, bodyDamage: 10, barrelCount: 2, barrelSpread: 0, barrelLength: 34, droneCount: 0, droneRespawn: 0,
+    barrels: [
+      {},
+      { angle: 180 * Math.PI / 180, laenge: 0.82, breite: 0.9 }
+    ]
   }),
   octo: classDef({
     id: 'octo', label: 'Octo', description: 'Acht Läufe decken jede Richtung ab – niemand flankiert dich.', parent: 'flanker',
     unlockLevel: 28, branch: 'rapid', maxHealth: 112, regen: 2.3, acceleration: 1500, moveSpeed: 268,
     reload: 0.3, projectileSpeed: 855, projectileLife: 1.35, damage: 6.5, projectileRadius: 5.5,
     penetration: 12, bodyDamage: 11, barrelCount: 8, barrelSpread: 0, barrelLength: 32,
-    barrelAngles: [0, Math.PI / 4, Math.PI / 2, Math.PI * 3 / 4, Math.PI, -Math.PI * 3 / 4, -Math.PI / 2, -Math.PI / 4],
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      {},
+      { angle: 45 * Math.PI / 180 },
+      { angle: 90 * Math.PI / 180 },
+      { angle: 135 * Math.PI / 180 },
+      { angle: 180 * Math.PI / 180 },
+      { angle: -135 * Math.PI / 180 },
+      { angle: -90 * Math.PI / 180 },
+      { angle: -45 * Math.PI / 180 }
+    ]
   }),
   arbalest: classDef({
     id: 'arbalest', label: 'Arbalest', description: 'Zwei parallele Präzisionsläufe für doppelten Druck auf Distanz.', parent: 'sniper',
     unlockLevel: 15, branch: 'precision', maxHealth: 96, regen: 1.8, acceleration: 1380, moveSpeed: 246,
     reload: 0.75, projectileSpeed: 1150, projectileLife: 1.9, damage: 26, projectileRadius: 7,
     penetration: 40, bodyDamage: 9, barrelCount: 2, barrelSpread: 0.09, barrelLength: 50,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { versatz: -0.6, breite: 0.7 },
+      { versatz: 0.6, breite: 0.7 }
+    ]
   }),
   deadeye: classDef({
     id: 'deadeye', label: 'Deadeye', description: 'Vollstrecker: Doppelläufe mit Bonusschaden auf schwer verwundete Ziele.', parent: 'arbalest',
     unlockLevel: 28, branch: 'precision', maxHealth: 92, regen: 1.6, acceleration: 1320, moveSpeed: 240,
     reload: 0.8, projectileSpeed: 1350, projectileLife: 2.1, damage: 34, projectileRadius: 8,
     penetration: 60, bodyDamage: 8, barrelCount: 2, barrelSpread: 0.07, barrelLength: 56,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { laenge: 0.58, breite: 1.3 },
+      { breite: 0.7 }
+    ]
   }),
   guardian: classDef({
     id: 'guardian', label: 'Guardian', description: 'Fünf zähe Schildwächter-Drohnen in engem Verteidigungsorbit.', parent: 'drone',
     unlockLevel: 15, branch: 'control', maxHealth: 126, regen: 2.8, acceleration: 1300, moveSpeed: 250,
     reload: 0.7, projectileSpeed: 0, projectileLife: 0, damage: 11, projectileRadius: 0,
-    penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
-    droneCount: 5, droneRespawn: 1.3
+    penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
+    droneCount: 5, droneRespawn: 1.3,
+    launchers: [
+      { angle: -90 * Math.PI / 180, laenge: 0.95, breite: 0.9, muendungsbreite: 1.4 },
+      { angle: 90 * Math.PI / 180, laenge: 0.95, breite: 0.9, muendungsbreite: 1.4 },
+      { angle: 180 * Math.PI / 180, laenge: 0.85, breite: 0.85, muendungsbreite: 1.25 }
+    ]
   }),
   hive: classDef({
     id: 'hive', label: 'Hive', description: 'Zehn Mikro-Drohnen mit blitzschnellem Nachschub überfluten das Feld.', parent: 'guardian',
     unlockLevel: 28, branch: 'control', maxHealth: 132, regen: 3.1, acceleration: 1280, moveSpeed: 242,
     reload: 0.55, projectileSpeed: 0, projectileLife: 0, damage: 6.5, projectileRadius: 0,
-    penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
-    droneCount: 10, droneRespawn: 0.55
+    penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
+    droneCount: 10, droneRespawn: 0.55,
+    launchers: [
+      { laenge: 1.05, breite: 1.0, muendungsbreite: 1.55 },
+      { angle: 90 * Math.PI / 180, laenge: 1.05, breite: 1.0, muendungsbreite: 1.55 },
+      { angle: 180 * Math.PI / 180, laenge: 1.05, breite: 1.0, muendungsbreite: 1.55 },
+      { angle: -90 * Math.PI / 180, laenge: 1.05, breite: 1.0, muendungsbreite: 1.55 }
+    ]
   }),
   blitz: classDef({
     id: 'blitz', label: 'Blitz', description: 'Leichter Sturm-Rammer: Körperschaden wächst mit deinem Tempo.', parent: 'rammer',
     unlockLevel: 15, branch: 'impact', maxHealth: 150, regen: 3, acceleration: 1850, moveSpeed: 320,
     reload: 0.5, projectileSpeed: 680, projectileLife: 1.1, damage: 8, projectileRadius: 7,
     penetration: 12, bodyDamage: 30, barrelCount: 1, barrelSpread: 0, barrelLength: 25,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.1 }
+    ]
   }),
   comet: classDef({
     id: 'comet', label: 'Comet', description: 'Der schnellste Tank der Arena – bei Vollgas verheerender Aufprall.', parent: 'blitz',
     unlockLevel: 28, branch: 'impact', maxHealth: 175, regen: 3.6, acceleration: 1950, moveSpeed: 340,
     reload: 0.55, projectileSpeed: 660, projectileLife: 1, damage: 7.5, projectileRadius: 8,
     penetration: 12, bodyDamage: 44, barrelCount: 1, barrelSpread: 0, barrelLength: 22,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.05 }
+    ]
   }),
   /*
    * Klassen 4.2, Stufe 4, Schritt 3 – der rohrlose Smasher: kein Rohr, keine
@@ -539,7 +719,14 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     // Fassung (161,9) zu Recht kassiert.
     reload: 0.27, projectileSpeed: 865, projectileLife: 1.35, damage: 5.2, projectileRadius: 6,
     penetration: 13, bodyDamage: 11, barrelCount: 5, barrelSpread: 0.55, barrelLength: 33,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      {},
+      { angle: -24 * Math.PI / 180, laenge: 0.86 },
+      { angle: 24 * Math.PI / 180, laenge: 0.86 },
+      { angle: -48 * Math.PI / 180, laenge: 0.72 },
+      { angle: 48 * Math.PI / 180, laenge: 0.72 }
+    ]
   }),
   eclipse: classDef({
     id: 'eclipse', label: 'Eclipse', description: 'Ein Schuss wie eine Finsternis – wer ihn sieht, sieht ihn zu spät.', parent: 'sniper',
@@ -559,7 +746,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     unlockLevel: 42, branch: 'precision', apexOf: 'precision', maxHealth: 90, regen: 1.5, acceleration: 1220, moveSpeed: 230,
     reload: 1.15, projectileSpeed: 1560, projectileLife: 2.85, damage: 86, projectileRadius: 10,
     penetration: 100, bodyDamage: 8, barrelCount: 1, barrelSpread: 0, barrelLength: 66,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 0.6 }
+    ]
   }),
   sovereign: classDef({
     id: 'sovereign', label: 'Sovereign', description: 'Sieben Wächter, ein Wille – der Hofstaat regiert das Feld.', parent: 'drone',
@@ -577,8 +767,15 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
      */
     unlockLevel: 42, branch: 'control', apexOf: 'control', maxHealth: 156, regen: 3.4, acceleration: 1240, moveSpeed: 238,
     reload: 0.6, projectileSpeed: 0, projectileLife: 0, damage: 14.5, projectileRadius: 0,
-    penetration: 0, bodyDamage: 13, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
-    droneCount: 7, droneRespawn: 1
+    penetration: 0, bodyDamage: 13, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
+    droneCount: 7, droneRespawn: 1,
+    launchers: [
+      { laenge: 1.15, breite: 1.1, muendungsbreite: 1.7 },
+      { angle: 72 * Math.PI / 180, laenge: 1.05, breite: 1.0, muendungsbreite: 1.55 },
+      { angle: 144 * Math.PI / 180, laenge: 0.95, breite: 0.95, muendungsbreite: 1.45 },
+      { angle: -144 * Math.PI / 180, laenge: 0.95, breite: 0.95, muendungsbreite: 1.45 },
+      { angle: -72 * Math.PI / 180, laenge: 1.05, breite: 1.0, muendungsbreite: 1.55 }
+    ]
   }),
   leviathan: classDef({
     id: 'leviathan', label: 'Leviathan', description: 'Eine Wand aus Stahl, die auf dich zurollt.', parent: 'rammer',
@@ -588,7 +785,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     unlockLevel: 42, branch: 'impact', apexOf: 'impact', maxHealth: 262, regen: 4.8, acceleration: 1250, moveSpeed: 245,
     reload: 0.8, projectileSpeed: 615, projectileLife: 1.4, damage: 18, projectileRadius: 12,
     penetration: 30, bodyDamage: 63, barrelCount: 1, barrelSpread: 0, barrelLength: 20,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.62 }
+    ]
   }),
   // ------------------------------------------------------------------
   // Klassen 4.0, Welle A - Familie SPECTER (Tarnung): Hinterhalt und Geduld.
@@ -600,42 +800,61 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     unlockLevel: 5, branch: 'specter', maxHealth: 96, regen: 1.9, acceleration: 1600, moveSpeed: 288,
     reload: 0.55, projectileSpeed: 900, projectileLife: 1.4, damage: 24, projectileRadius: 7,
     penetration: 26, bodyDamage: 12, barrelCount: 1, barrelSpread: 0, barrelLength: 40,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 0.85 }
+    ]
   }),
   wraith: classDef({
     id: 'wraith', label: 'Wraith', description: 'Der schnelle Schleicher: flinker enttarnt, flinker verschwunden.', parent: 'specter',
     unlockLevel: 15, branch: 'specter', maxHealth: 94, regen: 1.85, acceleration: 1680, moveSpeed: 300,
     reload: 0.42, projectileSpeed: 880, projectileLife: 1.4, damage: 18, projectileRadius: 6,
     penetration: 20, bodyDamage: 12, barrelCount: 1, barrelSpread: 0, barrelLength: 36,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 0.8 }
+    ]
   }),
   shade: classDef({
     id: 'shade', label: 'Shade', description: 'Der schwere Schatten: ein Schuss, der sitzt.', parent: 'specter',
     unlockLevel: 15, branch: 'specter', maxHealth: 100, regen: 2, acceleration: 1480, moveSpeed: 262,
     reload: 0.78, projectileSpeed: 1000, projectileLife: 1.25, damage: 40, projectileRadius: 8,
     penetration: 44, bodyDamage: 11, barrelCount: 1, barrelSpread: 0, barrelLength: 48,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 0.75 }
+    ]
   }),
   mirage: classDef({
     id: 'mirage', label: 'Mirage', description: 'Zwei Stiche aus dem Dunkel – das Trugbild jagt in Paaren.', parent: 'wraith',
     unlockLevel: 28, branch: 'specter', maxHealth: 98, regen: 1.9, acceleration: 1620, moveSpeed: 292,
     reload: 0.5, projectileSpeed: 920, projectileLife: 1.4, damage: 17, projectileRadius: 6,
     penetration: 22, bodyDamage: 12, barrelCount: 2, barrelSpread: 0.12, barrelLength: 38,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { versatz: -0.55, breite: 0.8 },
+      { versatz: 0.55, breite: 0.8 }
+    ]
   }),
   revenant: classDef({
     id: 'revenant', label: 'Revenant', description: 'Rammt aus der Unsichtbarkeit – kehrt zurück, wenn niemand hinsieht.', parent: 'shade',
     unlockLevel: 28, branch: 'specter', maxHealth: 150, regen: 2.9, acceleration: 1780, moveSpeed: 305,
     reload: 0.6, projectileSpeed: 720, projectileLife: 1.2, damage: 9, projectileRadius: 7,
     penetration: 12, bodyDamage: 38, barrelCount: 1, barrelSpread: 0, barrelLength: 26,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 0.9, muendungsbreite: 1.3 }
+    ]
   }),
   eidolon: classDef({
     id: 'eidolon', label: 'Eidolon', description: 'Das Gespenst der Arena: ganz verschwinden, vernichtend erscheinen.', parent: 'specter',
     unlockLevel: 42, branch: 'specter', apexOf: 'specter', maxHealth: 104, regen: 2.1, acceleration: 1650, moveSpeed: 296,
     reload: 0.6, projectileSpeed: 1060, projectileLife: 1.15, damage: 46, projectileRadius: 8,
     penetration: 50, bodyDamage: 14, barrelCount: 1, barrelSpread: 0, barrelLength: 52,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 0.72 }
+    ]
   }),
   // ------------------------------------------------------------------
   // Klassen 4.0, Welle A - Familie TEMPEST (Hitze): Burst-Fenster und Risiko
@@ -645,35 +864,53 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     unlockLevel: 5, branch: 'tempest', maxHealth: 116, regen: 2.3, acceleration: 1470, moveSpeed: 264,
     reload: 0.34, projectileSpeed: 815, projectileLife: 1.5, damage: 13, projectileRadius: 7,
     penetration: 18, bodyDamage: 14, barrelCount: 1, barrelSpread: 0, barrelLength: 34,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { muendungsbreite: 1.4 }
+    ]
   }),
   scorch: classDef({
     id: 'scorch', label: 'Scorch', description: 'Brennt schnell heiß: zwei Läufe im Wimpernschlag-Abstand statt eines Fächers.', parent: 'tempest',
     unlockLevel: 15, branch: 'tempest', maxHealth: 110, regen: 2.2, acceleration: 1520, moveSpeed: 274,
     reload: 0.26, projectileSpeed: 800, projectileLife: 1.4, damage: 9.5, projectileRadius: 6,
     penetration: 14, bodyDamage: 13, barrelCount: 2, barrelSpread: 0.18, barrelLength: 33, burstDelay: 0.05,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { angle: -14 * Math.PI / 180, muendungsbreite: 1.35 },
+      { angle: 14 * Math.PI / 180, muendungsbreite: 1.35 }
+    ]
   }),
   surge: classDef({
     id: 'surge', label: 'Surge', description: 'Ein schwerer Puls je Ladung – Hitze als Hammer.', parent: 'tempest',
     unlockLevel: 15, branch: 'tempest', maxHealth: 124, regen: 2.5, acceleration: 1400, moveSpeed: 252,
     reload: 0.52, projectileSpeed: 760, projectileLife: 1.6, damage: 22, projectileRadius: 9,
     penetration: 26, bodyDamage: 15, barrelCount: 1, barrelSpread: 0, barrelLength: 38,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { muendungsbreite: 1.5 }
+    ]
   }),
   inferno: classDef({
     id: 'inferno', label: 'Inferno', description: 'Drei Kehlen, ein Feuersturm im Stakkato – bis die Sicherung kommt.', parent: 'scorch',
     unlockLevel: 28, branch: 'tempest', maxHealth: 114, regen: 2.3, acceleration: 1490, moveSpeed: 268,
     reload: 0.29, projectileSpeed: 810, projectileLife: 1.4, damage: 7.5, projectileRadius: 6,
     penetration: 12, bodyDamage: 13, barrelCount: 3, barrelSpread: 0.3, barrelLength: 32, burstDelay: 0.06,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { muendungsbreite: 1.4 },
+      { angle: -30 * Math.PI / 180, laenge: 0.85, muendungsbreite: 1.3 },
+      { angle: 30 * Math.PI / 180, laenge: 0.85, muendungsbreite: 1.3 }
+    ]
   }),
   overload: classDef({
     id: 'overload', label: 'Overload', description: 'Überladen bis an die Kante: riesige Projektile, kurze Lunte.', parent: 'surge',
     unlockLevel: 28, branch: 'tempest', maxHealth: 130, regen: 2.6, acceleration: 1360, moveSpeed: 246,
     reload: 0.6, projectileSpeed: 740, projectileLife: 1.7, damage: 30, projectileRadius: 11,
     penetration: 34, bodyDamage: 16, barrelCount: 1, barrelSpread: 0, barrelLength: 40,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.1, muendungsbreite: 1.62 }
+    ]
   }),
   // ------------------------------------------------------------------
   // Klassen 4.1 - Familie SIEGE (Stellung): das Gegenteil von Momentum
@@ -683,7 +920,10 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     unlockLevel: 5, branch: 'siege', maxHealth: 124, regen: 2.5, acceleration: 1180, moveSpeed: 232,
     reload: 0.62, projectileSpeed: 881, projectileLife: 1.3, damage: 28, projectileRadius: 9,
     penetration: 30, bodyDamage: 12, barrelCount: 1, barrelSpread: 0, barrelLength: 44,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { muendungsbreite: 1.45 }
+    ]
   }),
   /*
    * Klassen 4.2, Stufe 4, Schritt 3 – Trapper, das stehende Projektil: Der
@@ -698,42 +938,64 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     unlockLevel: 15, branch: 'siege', maxHealth: 128, regen: 2.6, acceleration: 1150, moveSpeed: 224,
     reload: 1.1, projectileSpeed: 620, projectileLife: 2.3, damage: 20, projectileRadius: 12,
     penetration: 34, bodyDamage: 13, barrelCount: 1, barrelSpread: 0, barrelLength: 40, trapAfter: 0.28,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { laenge: 0.86, muendungsbreite: 1.7 }
+    ]
   }),
   bombard: classDef({
     id: 'bombard', label: 'Bombard', description: 'Zwei schwere Rohre - die Stellung schlägt breit zu.', parent: 'siege',
     unlockLevel: 15, branch: 'siege', maxHealth: 130, regen: 2.6, acceleration: 1150, moveSpeed: 226,
     reload: 0.72, projectileSpeed: 830, projectileLife: 1.5, damage: 21, projectileRadius: 10,
     penetration: 28, bodyDamage: 13, barrelCount: 2, barrelSpread: 0.2, barrelLength: 42,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { versatz: -0.58, muendungsbreite: 1.4 },
+      { versatz: 0.58, muendungsbreite: 1.4 }
+    ]
   }),
   mortar: classDef({
     id: 'mortar', label: 'Mortar', description: 'Langsame Brocken mit gewaltigem Einschlag.', parent: 'siege',
     unlockLevel: 15, branch: 'siege', maxHealth: 136, regen: 2.8, acceleration: 1100, moveSpeed: 222,
     reload: 0.95, projectileSpeed: 690, projectileLife: 1.75, damage: 44, projectileRadius: 13,
     penetration: 42, bodyDamage: 14, barrelCount: 1, barrelSpread: 0, barrelLength: 38,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.2, muendungsbreite: 1.5 }
+    ]
   }),
   howitzer: classDef({
     id: 'howitzer', label: 'Howitzer', description: 'Drei Rohre halten eine ganze Schneise unter Feuer.', parent: 'bombard',
     unlockLevel: 28, branch: 'siege', maxHealth: 134, regen: 2.7, acceleration: 1120, moveSpeed: 222,
     reload: 0.78, projectileSpeed: 844, projectileLife: 1.5, damage: 15, projectileRadius: 9,
     penetration: 24, bodyDamage: 13, barrelCount: 3, barrelSpread: 0.34, barrelLength: 40,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { muendungsbreite: 1.45 },
+      { angle: -28 * Math.PI / 180, laenge: 0.82, muendungsbreite: 1.35 },
+      { angle: 28 * Math.PI / 180, laenge: 0.82, muendungsbreite: 1.35 }
+    ]
   }),
   trebuchet: classDef({
     id: 'trebuchet', label: 'Trebuchet', description: 'Ein Rohr, ein Brocken, eine Entscheidung.', parent: 'mortar',
     unlockLevel: 28, branch: 'siege', maxHealth: 140, regen: 3, acceleration: 1050, moveSpeed: 222,
     reload: 1.25, projectileSpeed: 645, projectileLife: 1.85, damage: 66, projectileRadius: 15,
     penetration: 62, bodyDamage: 15, barrelCount: 1, barrelSpread: 0, barrelLength: 48,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 0.9, muendungsbreite: 1.6 }
+    ]
   }),
   ragnarok: classDef({
     id: 'ragnarok', label: 'Ragnarok', description: 'Apex der Belagerung: eingegraben ist er nicht zu halten.', parent: 'siege',
     unlockLevel: 42, branch: 'siege', apexOf: 'siege', maxHealth: 150, regen: 3.2, acceleration: 1080, moveSpeed: 224,
     reload: 0.85, projectileSpeed: 801, projectileLife: 1.5, damage: 34, projectileRadius: 12,
     penetration: 50, bodyDamage: 15, barrelCount: 2, barrelSpread: 0.14, barrelLength: 46,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { angle: -16 * Math.PI / 180, muendungsbreite: 1.5 },
+      { angle: 16 * Math.PI / 180, muendungsbreite: 1.5 }
+    ]
   }),
   // ------------------------------------------------------------------
   // Klassen 4.1 - Familie AEGIS (Schild): Treffer einstecken und zurückgeben
@@ -743,42 +1005,64 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     unlockLevel: 5, branch: 'aegis', maxHealth: 152, regen: 3, acceleration: 1420, moveSpeed: 256,
     reload: 0.44, projectileSpeed: 744, projectileLife: 1.4, damage: 14, projectileRadius: 8,
     penetration: 20, bodyDamage: 16, barrelCount: 1, barrelSpread: 0, barrelLength: 30,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.2 }
+    ]
   }),
   bulwarker: classDef({
     id: 'bulwarker', label: 'Warder', description: 'Dickeres Schild, längeres Stehvermögen.', parent: 'aegis',
     unlockLevel: 15, branch: 'aegis', maxHealth: 178, regen: 3.4, acceleration: 1340, moveSpeed: 244,
     reload: 0.5, projectileSpeed: 732, projectileLife: 1.4, damage: 15, projectileRadius: 8,
     penetration: 22, bodyDamage: 18, barrelCount: 1, barrelSpread: 0, barrelLength: 28,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.3 }
+    ]
   }),
   reflector: classDef({
     id: 'reflector', label: 'Reflector', description: 'Der Schild wirft zurück, was er schluckt.', parent: 'aegis',
     unlockLevel: 15, branch: 'aegis', maxHealth: 158, regen: 3.1, acceleration: 1400, moveSpeed: 252,
     reload: 0.46, projectileSpeed: 803, projectileLife: 1.45, damage: 13, projectileRadius: 7,
     penetration: 20, bodyDamage: 17, barrelCount: 2, barrelSpread: 0.16, barrelLength: 30,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { versatz: -0.58, breite: 0.9 },
+      { versatz: 0.58, breite: 0.9 }
+    ]
   }),
   paladin: classDef({
     id: 'paladin', label: 'Paladin', description: 'Läuft ins Feuer und kommt stärker heraus.', parent: 'bulwarker',
     unlockLevel: 28, branch: 'aegis', maxHealth: 205, regen: 3.9, acceleration: 1360, moveSpeed: 248,
     reload: 0.55, projectileSpeed: 712, projectileLife: 1.4, damage: 16, projectileRadius: 9,
     penetration: 24, bodyDamage: 22, barrelCount: 1, barrelSpread: 0, barrelLength: 27,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.35 }
+    ]
   }),
   retributor: classDef({
     id: 'retributor', label: 'Retributor', description: 'Jeder Treffer auf ihn ist eine Anzahlung – drei Läufe zahlen sie in schneller Folge zurück, nicht auf einmal.', parent: 'reflector',
     unlockLevel: 28, branch: 'aegis', maxHealth: 168, regen: 3.3, acceleration: 1420, moveSpeed: 256,
     reload: 0.48, projectileSpeed: 811, projectileLife: 1.45, damage: 12, projectileRadius: 7,
     penetration: 22, bodyDamage: 19, barrelCount: 3, barrelSpread: 0.26, barrelLength: 29, burstDelay: 0.09,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.1 },
+      { angle: -40 * Math.PI / 180, laenge: 0.8, breite: 0.9 },
+      { angle: 40 * Math.PI / 180, laenge: 0.8, breite: 0.9 }
+    ]
   }),
   sanctum: classDef({
     id: 'sanctum', label: 'Sanctum', description: 'Apex des Schildes: eine wandelnde Festung, die zurückschlägt.', parent: 'aegis',
     unlockLevel: 42, branch: 'aegis', apexOf: 'aegis', maxHealth: 218, regen: 4.2, acceleration: 1380, moveSpeed: 250,
     reload: 0.52, projectileSpeed: 743, projectileLife: 1.45, damage: 17, projectileRadius: 9,
     penetration: 26, bodyDamage: 24, barrelCount: 2, barrelSpread: 0.12, barrelLength: 31,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { angle: -18 * Math.PI / 180, breite: 1.05 },
+      { angle: 18 * Math.PI / 180, breite: 1.05 }
+    ]
   }),
   // ------------------------------------------------------------------
   // Klassen 4.1 - vier neue Zweige in den bestehenden Familien
@@ -788,63 +1072,110 @@ export const CLASS_DEFINITIONS: Record<PlayerClass, ClassDefinition> = {
     unlockLevel: 15, branch: 'rapid', maxHealth: 108, regen: 2.15, acceleration: 1580, moveSpeed: 280,
     reload: 0.33, projectileSpeed: 831, projectileLife: 1.4, damage: 6.5, projectileRadius: 5.5,
     penetration: 13, bodyDamage: 11, barrelCount: 4, barrelSpread: 0.16, barrelLength: 32,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    /*
+     * „Eine Wand aus Nadeln" (eigene Beschreibung) – also vier PARALLELE
+     * Rohre nebeneinander, nicht vier Strahlen aus einem Punkt. Der erste
+     * Anlauf am 16.08. machte daraus einen Quad-Tank (0/90/180/270); die
+     * Balance-Prüfung hat ihn gefangen, weil dann nur noch ein Lauf nach vorn
+     * zeigte und der Frontschaden auf ein Viertel fiel. Der Klassentext ist
+     * hier die Vorgabe, nicht das Diep.io-Vorbild.
+     */
+    barrels: [
+      { versatz: -1.68, breite: 0.62, laenge: 0.86 },
+      { versatz: -0.56, breite: 0.62 },
+      { versatz: 0.56, breite: 0.62 },
+      { versatz: 1.68, breite: 0.62, laenge: 0.86 }
+    ]
   }),
   hailstorm: classDef({
     id: 'hailstorm', label: 'Hailstorm', description: 'Sieben Läufe, ein Hagelschlag - Deckung gibt es nicht.', parent: 'vanguard',
     unlockLevel: 28, branch: 'rapid', maxHealth: 110, regen: 2.2, acceleration: 1540, moveSpeed: 274,
     reload: 0.36, projectileSpeed: 847, projectileLife: 1.3, damage: 4.2, projectileRadius: 5,
     penetration: 11, bodyDamage: 11, barrelCount: 7, barrelSpread: 0.5, barrelLength: 30,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { laenge: 1.1 },
+      { angle: -18 * Math.PI / 180, laenge: 0.95 },
+      { angle: 18 * Math.PI / 180, laenge: 0.95 },
+      { angle: -36 * Math.PI / 180, laenge: 0.85 },
+      { angle: 36 * Math.PI / 180, laenge: 0.85 },
+      { angle: -54 * Math.PI / 180, laenge: 0.74 },
+      { angle: 54 * Math.PI / 180, laenge: 0.74 }
+    ]
   }),
   ballista: classDef({
     id: 'ballista', label: 'Ballista', description: 'Ein Bolzen, der durch alles geht, was in einer Reihe steht.', parent: 'sniper',
     unlockLevel: 15, branch: 'precision', maxHealth: 92, regen: 1.7, acceleration: 1300, moveSpeed: 242,
     reload: 0.88, projectileSpeed: 1260, projectileLife: 2.1, damage: 46, projectileRadius: 8,
     penetration: 68, bodyDamage: 9, barrelCount: 1, barrelSpread: 0, barrelLength: 58,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 0.7 }
+    ]
   }),
   siegebreaker: classDef({
     id: 'siegebreaker', label: 'Siegebreaker', description: 'Bricht Stellungen: schwerster Bolzen der Arena.', parent: 'ballista',
     unlockLevel: 28, branch: 'precision', maxHealth: 88, regen: 1.5, acceleration: 1200, moveSpeed: 228,
     reload: 1.18, projectileSpeed: 1440, projectileLife: 2.4, damage: 70, projectileRadius: 10,
     penetration: 96, bodyDamage: 9, barrelCount: 1, barrelSpread: 0, barrelLength: 68,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 0.66 }
+    ]
   }),
   sentinel: classDef({
     id: 'sentinel', label: 'Sentinel', description: 'Drei schwere Wächter statt eines Schwarms.', parent: 'drone',
     unlockLevel: 15, branch: 'control', maxHealth: 134, regen: 2.9, acceleration: 1300, moveSpeed: 246,
     reload: 0.9, projectileSpeed: 0, projectileLife: 0, damage: 19, projectileRadius: 0,
-    penetration: 0, bodyDamage: 14, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
-    droneCount: 3, droneRespawn: 1.7
+    penetration: 0, bodyDamage: 14, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
+    droneCount: 3, droneRespawn: 1.7,
+    launchers: [
+      { laenge: 0.95, breite: 0.9, muendungsbreite: 1.4 }
+    ]
   }),
   aviary: classDef({
     id: 'aviary', label: 'Aviary', description: 'Neun flinke Vögel - der Himmel gehört ihm.', parent: 'sentinel',
     unlockLevel: 28, branch: 'control', maxHealth: 126, regen: 2.8, acceleration: 1310, moveSpeed: 248,
     reload: 0.56, projectileSpeed: 0, projectileLife: 0, damage: 8, projectileRadius: 0,
-    penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 0,
-    droneCount: 9, droneRespawn: 0.7
+    penetration: 0, bodyDamage: 12, barrelCount: 0, barrelSpread: 0, barrelLength: 26,
+    droneCount: 9, droneRespawn: 0.7,
+    launchers: [
+      { angle: -55 * Math.PI / 180, laenge: 1.0, breite: 0.9, muendungsbreite: 1.45 },
+      { angle: 55 * Math.PI / 180, laenge: 1.0, breite: 0.9, muendungsbreite: 1.45 },
+      { laenge: 1.05, breite: 0.95, muendungsbreite: 1.5 }
+    ]
   }),
   rampart: classDef({
     id: 'rampart', label: 'Rampart', description: 'Rollt nicht schnell, aber unbeirrt - und trägt schwer.', parent: 'rammer',
     unlockLevel: 15, branch: 'impact', maxHealth: 190, regen: 3.7, acceleration: 1280, moveSpeed: 248,
     reload: 0.7, projectileSpeed: 650, projectileLife: 1.35, damage: 14, projectileRadius: 10,
     penetration: 24, bodyDamage: 32, barrelCount: 1, barrelSpread: 0, barrelLength: 23,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.4 }
+    ]
   }),
   behemoth: classDef({
     id: 'behemoth', label: 'Behemoth', description: 'Was ihm in den Weg kommt, war vorher da.', parent: 'rampart',
     unlockLevel: 28, branch: 'impact', maxHealth: 232, regen: 4.3, acceleration: 1220, moveSpeed: 238,
     reload: 0.82, projectileSpeed: 630, projectileLife: 1.4, damage: 17, projectileRadius: 11,
     penetration: 28, bodyDamage: 52, barrelCount: 1, barrelSpread: 0, barrelLength: 21,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { breite: 1.5 }
+    ]
   }),
   cataclysm: classDef({
     id: 'cataclysm', label: 'Cataclysm', description: 'Wenn der Reaktor singt, brennt die halbe Arena.', parent: 'tempest',
     unlockLevel: 42, branch: 'tempest', apexOf: 'tempest', maxHealth: 128, regen: 2.7, acceleration: 1430, moveSpeed: 258,
     reload: 0.4, projectileSpeed: 806, projectileLife: 1.6, damage: 17, projectileRadius: 9,
     penetration: 24, bodyDamage: 15, barrelCount: 2, barrelSpread: 0.22, barrelLength: 36,
-    droneCount: 0, droneRespawn: 0
+    droneCount: 0, droneRespawn: 0,
+    barrels: [
+      { versatz: -0.55, muendungsbreite: 1.4 },
+      { versatz: 0.55, muendungsbreite: 1.4 }
+    ]
   })
 };
 

@@ -1,3 +1,4 @@
+import type { BarrelProfile } from '@project-maze/shared';
 import {
   CLASS_DEFINITIONS,
   type PlayerClass,
@@ -30,6 +31,8 @@ interface RuntimeStats {
   projectileSpeed: number;
   penetration: number;
   barrelSpread: number;
+  /** Lauf-Profile – die Hitze zieht auch sie zusammen (siehe unten). */
+  barrels?: BarrelProfile[] | undefined;
 }
 interface MechanicsInternals {
   players: Map<string, RuntimePlayer>;
@@ -196,9 +199,18 @@ export function tuneClassMechanics<T extends MazeGame>(game: T): T {
         ? Math.min(1, previous.heat + 0.2)
         : 0.2;
       gatlingStates.set(player.id, { heat, lastShotAt: now });
+      /*
+       * Die Hitze zieht den Fächer zusammen – und muss dafür seit dem 16.08.
+       * BEIDE Quellen anfassen. Gatling trägt jetzt ausgeschriebene
+       * Lauf-Profile, und `laufwinkel` liest dann `barrels` statt
+       * `barrelSpread`: Ohne die zweite Zeile wäre die Mechanik eine Attrappe
+       * geworden, ohne dass irgendwo etwas rot wird – außer im Test.
+       */
+      const enge = 1 - heat * 0.55;
       firingStats = {
         ...stats,
-        barrelSpread: stats.barrelSpread * (1 - heat * 0.55)
+        barrelSpread: stats.barrelSpread * enge,
+        barrels: stats.barrels?.map((profil) => ({ ...profil, angle: (profil.angle ?? 0) * enge }))
       };
     } else {
       gatlingStates.delete(player.id);

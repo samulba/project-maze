@@ -1,4 +1,5 @@
 import {
+  type BarrelProfile,
   CLASS_DEFINITIONS,
   EMPTY_UPGRADES,
   GAME,
@@ -43,7 +44,7 @@ interface TunedStats {
   barrelLength: number;
   barrelAngles?: number[] | undefined;
   /** Pro-Lauf-Profile (Klassen 4.2) – muss mit `game.ts`s `RuntimeStats` mitgezogen werden, sonst feuert die Tuning-Schicht jeden Lauf wieder mit demselben Schaden/Tempo. */
-  barrels?: Array<{ angle: number; damageScale?: number; speedScale?: number }> | undefined;
+  barrels?: BarrelProfile[] | undefined;
   /** Salve statt Fächer (Klassen 4.2) – muss mit `game.ts`s `RuntimeStats` mitgezogen werden, sonst feuert die Tuning-Schicht wieder alle Läufe gleichzeitig. */
   burstDelay?: number | undefined;
   /** Stehendes Projektil (Trapper) – muss mit `game.ts`s `RuntimeStats` mitgezogen werden, sonst fliegen ihre Fallen einfach bis zum Lebensende weiter. */

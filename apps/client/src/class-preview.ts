@@ -1,7 +1,6 @@
 import { CLASS_DEFINITIONS, GAME, type PlayerClass } from '@project-maze/shared';
 import { hullGeometry, type DrawOp } from '@project-maze/shared/appearance';
 import { laeufeVon, type Lauf } from '@project-maze/shared/barrels';
-import { barrelHeightFor } from './barrel-geometry';
 
 /**
  * Bild des Tanks für Wahlkarten, Rad und Death-Screen.
@@ -25,12 +24,14 @@ import { barrelHeightFor } from './barrel-geometry';
  */
 const RAND = 6;
 
-function barrelPolygon(lauf: Lauf, height: number): string {
+function barrelPolygon(lauf: Lauf): string {
+  // Wurzel und Mündung getrennt (Trapez) plus seitlicher Versatz – dieselben
+  // vier Ecken wie im Renderer, aus derselben Quelle (Sam, 16.08.).
   const corners: [number, number][] = [
-    [lauf.start, -height / 2],
-    [lauf.muendung, -height / 2],
-    [lauf.muendung, height / 2],
-    [lauf.start, height / 2]
+    [lauf.start, lauf.versatz - lauf.breite / 2],
+    [lauf.muendung, lauf.versatz - lauf.muendungsbreite / 2],
+    [lauf.muendung, lauf.versatz + lauf.muendungsbreite / 2],
+    [lauf.start, lauf.versatz + lauf.breite / 2]
   ];
   return corners
     .map(([x, y]) => `${(x * Math.cos(lauf.winkel) - y * Math.sin(lauf.winkel)).toFixed(1)},${(x * Math.sin(lauf.winkel) + y * Math.cos(lauf.winkel)).toFixed(1)}`)
@@ -60,9 +61,8 @@ export function classSilhouetteMarkup(playerClass: PlayerClass): string {
    * Winkelfächers, den der Server wirklich feuert. Die Wahlkarte zeigte damit
    * einen anderen Tank, als man danach spielte (Sams Punkt 6).
    */
-  const height = barrelHeightFor(definition, playerClass);
   const barrels = laeufeVon(playerClass).map(
-    (lauf) => `<polygon points="${barrelPolygon(lauf, height)}" class="cp-barrel"/>`
+    (lauf) => `<polygon points="${barrelPolygon(lauf)}" class="cp-barrel"/>`
   );
 
   const drones: string[] = [];
@@ -118,9 +118,14 @@ function rahmen(playerClass: PlayerClass): { x: number; y: number; groesse: numb
     punkt(-weite, -weite);
     punkt(weite, weite);
   }
-  const height = barrelHeightFor(CLASS_DEFINITIONS[playerClass], playerClass);
   for (const lauf of laeufeVon(playerClass)) {
-    for (const [x, y] of [[lauf.start, -height / 2], [lauf.muendung, -height / 2], [lauf.muendung, height / 2], [lauf.start, height / 2]] as const) {
+    const kanten: Array<readonly [number, number]> = [
+      [lauf.start, lauf.versatz - lauf.breite / 2],
+      [lauf.muendung, lauf.versatz - lauf.muendungsbreite / 2],
+      [lauf.muendung, lauf.versatz + lauf.muendungsbreite / 2],
+      [lauf.start, lauf.versatz + lauf.breite / 2]
+    ];
+    for (const [x, y] of kanten) {
       punkt(x * Math.cos(lauf.winkel) - y * Math.sin(lauf.winkel), x * Math.sin(lauf.winkel) + y * Math.cos(lauf.winkel));
     }
   }
