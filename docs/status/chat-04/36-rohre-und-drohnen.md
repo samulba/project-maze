@@ -146,11 +146,51 @@ Beide haben denselben Grund: **Diep.io hat keine tödlichen Wände, wir schon.**
 
 ## Was offen bleibt
 
-* **Die Rümpfe.** Der Kontaktbogen zeigt jetzt sehr deutlich, dass sie das
-  nächste Problem sind: Sechsecke, Rauten, Pfeile, gestrichelte Ringe – während
-  in Sams Bild **jeder** Körper derselbe Kreis ist. Das ist der nächste Schritt
-  und überwiegend Löschen.
+* ~~Die Rümpfe~~ – erledigt, siehe Teil 3.
 * **Launcher als Spawnpunkt.** Sie werden gezeichnet, aber Drohnen entstehen
   weiter am Rumpf. In Diep.io kommen sie aus dem Launcher.
 * **Nachschubzeiten** aus der Recherche (Overseer 1,5–0,8 s je Volley von zwei
   Drohnen) sind noch nicht gegen unsere `droneRespawn`-Werte gehalten.
+
+## Teil 3: Die Rümpfe – alle als Kreis
+
+Sam, im selben Zug: „mach die Rümpfe auch, alle als Kreis wie bei Diep."
+
+`appearance.ts` schrumpft von 274 auf 104 Zeilen. Weg sind 67 einzeln
+gezeichnete Silhouetten und mit ihnen 160 Panzerplatten, 48 Akzente, 19
+Aussparungen und 8 Kronen – dazu die Helfer `plates`, `rearFins`, `pods`,
+`outriggers`, `ramPlate`, `shieldArc`, `diamond`, `stretchedHex`.
+
+Der Aufwand darin war echt; das Ergebnis war es nicht. Sam hat die Designs
+dreimal abgelehnt, und sein Bild sagt warum: **Diep.io zeichnet für jeden Panzer
+denselben Kreis.** Die Unterscheidbarkeit liegt vollständig in den Rohren.
+
+**Die einzige Ausnahme ist die Smasher-Linie** – im Vorbild die eine Familie
+ohne Rohr und deshalb die einzige, die ihre Identität über den Körper trägt
+(stacheliges Sechseck). Bei uns ist das genau eine Klasse: `smasher`, die
+einzige IMPACT-Klasse mit `barrelCount: 0`. Ohne die Ausnahme wäre sie ein
+merkmalsloser Kreis ohne jedes Rohr.
+
+Nebenbei behoben: Der gezeichnete Radius lag je Klasse zwischen 20 und 24 px,
+während die Trefferabfrage seit jeher mit `GAME.playerRadius` (22) rechnet. Ein
+Rammer wurde mit 24 gezeichnet und mit 22 getroffen. Jetzt dieselbe Zahl.
+
+### Der Blindtest ist endlich ein Test
+
+Er stand seit jeher als Grundsatz im MASTERPLAN („kann man zwei Klassen ohne
+Namen auseinanderhalten?") – und es gab **keinen einzigen Test dafür**. Genau
+deshalb konnten 46 von 67 Klassen mit einem einzigen Rohr durchs Raster fallen,
+während der Rumpf immer voller wurde.
+
+`silhouette.test.ts` prüft jetzt beide Hälften der Entscheidung: dass der Rumpf
+für alle derselbe Kreis ist (außer Smasher), dass keine zwei Klassen dieselbe
+Rohr-Silhouette tragen, dass keine Klasse ohne sichtbares Rohr dasteht und dass
+jede Drohnenklasse ihre Launcher hat, ohne feuern zu können.
+
+### Was der neue Kontaktbogen zeigt – und was noch nicht sitzt
+
+Die IMPACT-Klassen liegen visuell eng beieinander: Kreis plus kurzer, etwas
+unterschiedlich breiter Stummel (Blitz, Comet, Rampart, Behemoth, Juggernaut,
+Fortress). Der Blindtest besteht, weil die Breiten sich messbar unterscheiden –
+mit dem Auge auf einer Kachel ist es knapp. Das ist die nächste Stelle, an der
+das Vokabular mehr hergeben müsste als bisher genutzt.
