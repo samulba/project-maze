@@ -1,6 +1,16 @@
 name: Project Maze CI
 
 #
+# EINGEFROREN (17.08.): Das Projekt ruht, das Repository bleibt oeffentlich.
+# Diese Datei hat weiterhin NUR `workflow_dispatch` – kein Push und kein
+# fremder Pull Request loest einen Lauf aus. Der auskommentierte `on:`-Block
+# weiter unten ist die einzige Falle darin: Wer ihn wiederbelebt, startet damit
+# sofort wieder drei Jobs pro Push.
+#
+# Der sichere Riegel liegt nicht hier, sondern in den Repository-Einstellungen
+# (Settings → Actions → General → "Disable actions"). Eine Datei kann jede
+# Session aendern; die Einstellung nicht. Checkliste: docs/FREEZE.md.
+#
 # PAUSIERT (14.08., Sam): Die GitHub-Actions-Minuten des Accounts sind
 # aufgebraucht – jeder Job startet seit Tagen ohne zugewiesenen Runner und
 # scheitert in Sekunden (0 ms abgerechnete Zeit, siehe Actions-Log), meldet

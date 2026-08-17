@@ -2,6 +2,14 @@
 
 MAZERS (Codename Project Maze) ist ein eigenständiges, serverautoritäres Browser-Arena-Game mit Farming, Tank-Progression, Maze-Welt, Projektil-Kollisionen und Desktop-/Mobile-Steuerung.
 
+> **⏸️ Das Projekt ist pausiert (Stand 17.08.).**
+>
+> - Die **ganze Seite liegt hinter einer Passwortabfrage** – Spiel, Admin-Portal, `/metrics`, `/leaderboard` und der WebSocket. Frei bleibt nur `/health`.
+> - Die **CI läuft nur noch auf Knopfdruck** (`workflow_dispatch`), kein Push löst mehr einen Lauf aus.
+> - Was noch von Hand in GitHub und Railway einzustellen ist, steht in **[`docs/FREEZE.md`](./docs/FREEZE.md)**.
+>
+> Lokal ändert sich nichts: `npm run dev` schaltet das Tor aus (`apps/server/src/dev.ts`) – sonst wäre das Spiel unter `localhost:5173` unbenutzbar, weil das Cookie am Server auf Port 2567 hängt. Zum Ausprobieren des Tors: `SITE_GATE_ENABLED=true npm run dev`.
+
 ## Voraussetzungen
 
 - Node.js 22 oder neuer

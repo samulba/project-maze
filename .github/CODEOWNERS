@@ -1,0 +1,13 @@
+# Das Projekt ist eingefroren (siehe docs/FREEZE.md). Solange niemand aktiv
+# hinsieht, soll jede Änderung an einem Menschen vorbei müssen – vor allem an
+# den Dateien, die den Zugang und die CI regeln.
+#
+# Wirksam wird das erst mit einer Branch-Schutzregel für `main`, die Reviews
+# von Code-Ownern verlangt. Ohne die ist diese Datei nur ein Hinweis.
+
+*                               @samulba
+
+/.github/                       @samulba
+/apps/server/src/site-gate.ts   @samulba
+/apps/client/nginx.conf         @samulba
+/docs/FREEZE.md                 @samulba

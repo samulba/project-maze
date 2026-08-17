@@ -94,6 +94,7 @@ import { hardenSimulation } from './simulation-hardening.js';
 import { tuneSpectator } from './spectator.js';
 import { tuneSnapshotEncoding } from './snapshot-encoding.js';
 import { createGracefulShutdown, installSignalHandlers } from './shutdown.js';
+import { createSiteGate, siteGateConfig } from './site-gate.js';
 import { servePrecompressed } from './static-assets.js';
 import { metricsHandler, telemetryTickHealth, tuneTelemetry } from './telemetry.js';
 import { mapInfo, setArenaMode } from './world.js';
@@ -400,6 +401,48 @@ const rateLimiter = createRateLimiter();
 const app = express();
 app.disable('x-powered-by');
 app.use(cors({ origin: allowedOrigins ? [...allowedOrigins] : true }));
+
+/*
+ * Passwort-Tor. Es steht bewusst als ERSTE Schicht nach CORS – vor `/metrics`,
+ * vor `/leaderboard`, vor dem Client-Build, vor allem.
+ *
+ * Die Alternative waere gewesen, es einzeln vor jede Route zu haengen. Genau
+ * so entsteht die eine vergessene Route: `/map` und `/client-metrics` sind
+ * nach `/leaderboard` dazugekommen, und wer sie damals nicht mitgedacht
+ * haette, haette es nie gemerkt. Als aeusserste Schicht gilt die Regel
+ * „geschlossen, ausser ausdruecklich offen" auch fuer jede Route, die es hier
+ * noch gar nicht gibt.
+ *
+ * `/health` bleibt frei (siehe site-gate.ts) – daran haengt der Healthcheck
+ * von Railway und die Deploy-Wache der CI.
+ */
+// Drei Kopfzeilen, die nichts kosten und je einen Weg zumachen: kein
+// MIME-Raten, kein Einbetten der pausierten Seite in einen fremden Rahmen,
+// keine Weitergabe der eigenen Adresse an Ziele, die jemand hier verlinkt.
+// Bewusst ohne CSP – die waere hier nicht mit ein paar Zeilen richtig zu
+// bekommen und eine halb richtige CSP macht nur die Konsole voll.
+app.use((_request: Request, response: Response, next: () => void) => {
+  response.setHeader('X-Content-Type-Options', 'nosniff');
+  response.setHeader('X-Frame-Options', 'DENY');
+  response.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
+
+const siteGate = createSiteGate();
+// Nur die Torseite selbst braucht einen Body-Parser, und der bekommt ein enges
+// Limit: Ein Passwortfeld ist nie ein Kilobyte gross.
+app.post('/gate/login', express.urlencoded({ extended: false, limit: '1kb' }), express.json({ limit: '1kb' }));
+app.use(siteGate.middleware);
+if (siteGate.enabled) {
+  console.log(
+    siteGate.usesDefaultPassword
+      ? '[gate] Seite ist passwortgeschuetzt – ACHTUNG: Standardpasswort aus dem oeffentlichen Repo. Fuer echten Schutz SITE_PASSWORD setzen.'
+      : '[gate] Seite ist passwortgeschuetzt (SITE_PASSWORD gesetzt).'
+  );
+} else {
+  console.warn('[gate] SITE_GATE_ENABLED=false – die Seite ist oeffentlich erreichbar.');
+}
+
 const server = createServer(app);
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
 // Reihenfolge der äußeren Schichten: Encoding zuallerletzt, damit nur das
@@ -644,6 +687,23 @@ wss.on('connection', (socket, request) => {
     socket.close(1008, 'Origin not allowed');
     return;
   }
+  /*
+   * Dasselbe Tor wie fuer HTTP, nur hier.
+   *
+   * Ohne diese vier Zeilen waere die Passwortabfrage Fassade: Die HTML-Seite
+   * ist nur die Verpackung, gespielt wird ueber diesen Socket. Wer die
+   * WS-Adresse kennt, braucht die Seite gar nicht – ein Skript mit `new
+   * WebSocket(...)` und einer `join`-Nachricht saesse in der Arena, waehrend
+   * die Startseite brav nach dem Passwort fragt.
+   *
+   * Der Browser schickt das Tor-Cookie beim Handshake automatisch mit (gleiche
+   * Origin); nginx reicht den Cookie-Header im Compose-Pfad unveraendert
+   * weiter.
+   */
+  if (!siteGate.darfVerbinden(request)) {
+    socket.close(1008, 'Locked');
+    return;
+  }
   // Verbindungslimit je IP, bevor irgendetwas anderes passiert.
   const admission = rateLimiter.accept(request);
   if (!admission.allowed) {
@@ -825,6 +885,7 @@ const gracefulShutdown = createGracefulShutdown({
   // Gepufferte Runs noch wegschreiben, bevor der Prozess geht.
   beforeClose: async () => {
     rateLimiter.stop();
+    siteGate.stop();
     // Beide Puffer: Runs speisen das Leaderboard, Sitzungen das Admin-Portal.
     // Wer beim Deploy gerade spielt, soll trotzdem als Besuch gezählt werden.
     await Promise.all([flushPersistence(game), flushSessions(game)]);
@@ -875,6 +936,10 @@ const liveState = (): Record<string, unknown> => ({
   persistence: { ...persistenceStats(game), schema: schemaZusammenfassung() },
   sessions: sessionsStats(game),
   auth: authStatus(),
+  // Der einzige Weg, das Tor von aussen zu pruefen, ohne hindurchzugehen –
+  // `/health` ist die einzige Route davor. `defaultPassword: true` heisst:
+  // laeuft noch mit dem Passwort aus dem oeffentlichen Repo.
+  gate: siteGate.stats(),
   clientMetrics: (({ buckets: _buckets, rejected: _rejected, ...rest }) => rest)(clientMetricsSummary()),
   abuse: rateLimiter.stats()
 });
